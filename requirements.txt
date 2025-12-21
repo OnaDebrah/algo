@@ -14,3 +14,5 @@ scikit-learn~=1.7.2
 yfinance~=0.2.66
 curl-cffi~=0.7.4
 websockets~=14.0
+alpaca-py~=0.43.2
+ib-insync~=0.9.86
