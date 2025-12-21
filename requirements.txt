@@ -1,0 +1,16 @@
+pip~=25.3
+attrs~=25.3.0
+clarabel~=0.11.1
+wheel~=0.45.1
+protobuf~=4.25.8
+pillow~=12.0.0
+redis~=5.0.1
+factory-boy~=3.3.0
+numpy~=2.0.0
+pandas~=2.3.2
+plotly~=6.3.0
+streamlit~=1.52.2
+scikit-learn~=1.7.2
+yfinance~=0.2.66
+curl-cffi~=0.7.4
+websockets~=14.0
