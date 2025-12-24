@@ -121,3 +121,24 @@ class RiskManager:
         """Reset peak value (useful for new trading periods)"""
         self.peak_value = 0
         logger.info("Peak value reset")
+
+    def validate_options_position(
+        self, strategy_type: str, max_loss: float, portfolio_value: float
+    ) -> tuple[bool, str]:
+        """Validate options position against risk limits"""
+
+        # Check max loss per position
+        max_loss_pct = abs(max_loss) / portfolio_value * 100
+
+        if max_loss_pct > self.max_position_size:
+            return False, f"Max loss ({max_loss_pct:.1f}%) exceeds limit"
+
+        # Strategy-specific checks
+        if strategy_type == "Iron Condor":
+            # Limited risk defined strategies
+            return True, "Approved"
+        elif strategy_type == "Naked Call":
+            # Unlimited risk
+            return False, "Unlimited risk strategies not allowed"
+
+        return True, "Approved"

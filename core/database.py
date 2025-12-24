@@ -86,6 +86,36 @@ class DatabaseManager:
         """
         )
 
+        # Tables for options tracking
+        cursor.execute(
+            """
+            CREATE TABLE IF NOT EXISTS options_positions (
+                id INTEGER PRIMARY KEY,
+                symbol TEXT,
+                strategy TEXT,
+                entry_date TEXT,
+                expiration TEXT,
+                initial_cost REAL,
+                status TEXT,
+                pnl REAL
+            )
+        """
+        )
+
+        cursor.execute(
+            """
+            CREATE TABLE IF NOT EXISTS options_legs (
+                id INTEGER PRIMARY KEY,
+                position_id INTEGER,
+                option_type TEXT,
+                strike REAL,
+                quantity INTEGER,
+                premium REAL,
+                FOREIGN KEY (position_id) REFERENCES options_positions(id)
+            )
+        """
+        )
+
         conn.commit()
         conn.close()
         logger.info("Database initialized successfully")

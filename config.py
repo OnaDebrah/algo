@@ -41,3 +41,26 @@ LAYOUT = "wide"
 DEFAULT_PERIOD = "1mo"
 DEFAULT_INTERVAL = "1d"
 USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
+
+# Options Configuration
+OPTIONS_CONFIG = {
+    "risk_free_rate": 0.05,
+    "default_volatility": 0.30,
+    "commission_per_contract": 0.65,
+    "default_dte": 30,  # Days to expiration
+    "max_positions": 10,
+}
+
+# Supported Asset Classes
+SUPPORTED_ASSET_CLASSES = [
+    "Stock",
+    "Cryptocurrency",
+    "Forex",
+    "Commodity",
+    "ETF",
+    "Index",
+    "Bond",
+    "Futures",
+]
+
+ANTHROPIC_API_KEY = ""

@@ -3,6 +3,7 @@ Alert management system for email and SMS notifications
 """
 
 import logging
+from datetime import datetime
 from typing import Dict
 
 logger = logging.getLogger(__name__)
@@ -155,3 +156,28 @@ class AlertManager:
         self.send_email_alert("System Error", message)
         self.send_sms_alert(message)
         logger.error(message)
+
+    def check_options_alerts(self, position: dict):
+        """Check options-specific alerts"""
+
+        # DTE alerts
+        days_remaining = (position["expiration"] - datetime.now()).days
+        if days_remaining <= 7:
+            self.send_email_alert(
+                "DTE alerts",
+                f"⏰ {position['symbol']} expires in {days_remaining} days",
+            )
+
+        # Greek alerts
+        if abs(position["delta"]) > 0.8:
+            self.send_email_alert(
+                "Greek alerts",
+                f"📊 {position['symbol']} delta: {position['delta']:.2f}",
+            )
+
+        # P&L alerts
+        if position["pnl_pct"] >= 0.5:
+            self.send_email_alert(
+                "PNL alerts",
+                f"🎯 {position['symbol']} profit target: {position['pnl_pct']:.1%}",
+            )

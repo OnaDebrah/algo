@@ -26,7 +26,7 @@ class RSIStrategy(BaseStrategy):
             overbought: Overbought threshold (sell signal)
         """
         params = {"period": period, "oversold": oversold, "overbought": overbought}
-        super().__init__("RSI", params)
+        super().__init__("RSI Strategy", params)
 
     def calculate_rsi(self, data: pd.DataFrame) -> pd.Series:
         """Calculate RSI indicator"""
