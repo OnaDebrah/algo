@@ -57,17 +57,11 @@ class RSIStrategy(BaseStrategy):
         prev_rsi = rsi.iloc[-2]
 
         # Buy signal: RSI crosses above oversold
-        if (
-            prev_rsi < self.params["oversold"]
-            and current_rsi >= self.params["oversold"]
-        ):
+        if prev_rsi < self.params["oversold"] and current_rsi >= self.params["oversold"]:
             return 1
 
         # Sell signal: RSI crosses below overbough
-        if (
-            prev_rsi > self.params["overbought"]
-            and current_rsi <= self.params["overbought"]
-        ):
+        if prev_rsi > self.params["overbought"] and current_rsi <= self.params["overbought"]:
             return -1
 
         return 0

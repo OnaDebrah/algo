@@ -166,9 +166,7 @@ class DatabaseManager:
         conn.close()
         return trades
 
-    def save_performance(
-        self, portfolio_id: int, equity: float, cash: float, total_return: float
-    ):
+    def save_performance(self, portfolio_id: int, equity: float, cash: float, total_return: float):
         """Save performance snapshot"""
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
@@ -228,3 +226,47 @@ class DatabaseManager:
 
         conn.close()
         return portfolio
+
+    def get_header_metrics(self, portfolio_id: int = 1) -> Dict:
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+
+        try:
+            # 1. Get Current Capital - Use a safer fetch
+            cursor.execute("SELECT current_capital FROM portfolios WHERE id = ?", (portfolio_id,))
+            row = cursor.fetchone()
+            nav = row[0] if row else 0.0
+
+            # 2. Get Total Exposure - Use COALESCE to handle NULL from SUM()
+            cursor.execute(
+                "SELECT COALESCE(SUM(entry_price * quantity), 0.0) FROM positions WHERE portfolio_id = ?",
+                (portfolio_id,),
+            )
+            exposure = cursor.fetchone()[0]
+
+            # 3. Get Unrealized PnL - Use COALESCE
+            cursor.execute(
+                "SELECT COALESCE(SUM(unrealized_pnl), 0.0) FROM positions WHERE portfolio_id = ?",
+                (portfolio_id,),
+            )
+            unrealized = cursor.fetchone()[0]
+
+            # 4. Get Previous NAV
+            cursor.execute(
+                """
+                SELECT equity FROM performance_history
+                WHERE portfolio_id = ? ORDER BY timestamp DESC LIMIT 1
+            """,
+                (portfolio_id,),
+            )
+            prev_row = cursor.fetchone()
+            prev_nav = prev_row[0] if prev_row else nav
+
+            return {
+                "nav": nav,
+                "prev_nav": prev_nav,
+                "exposure": exposure,
+                "unrealized_pnl": unrealized,
+            }
+        finally:
+            conn.close()

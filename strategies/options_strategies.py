@@ -103,13 +103,9 @@ class BlackScholesCalculator:
         d2 = d1 - sigma * np.sqrt(T)
 
         if option_type == OptionType.CALL:
-            price = S * np.exp(-q * T) * norm.cdf(d1) - K * np.exp(-r * T) * norm.cdf(
-                d2
-            )
+            price = S * np.exp(-q * T) * norm.cdf(d1) - K * np.exp(-r * T) * norm.cdf(d2)
         else:
-            price = K * np.exp(-r * T) * norm.cdf(-d2) - S * np.exp(-q * T) * norm.cdf(
-                -d1
-            )
+            price = K * np.exp(-r * T) * norm.cdf(-d2) - S * np.exp(-q * T) * norm.cdf(-d1)
 
         return price
 
@@ -210,9 +206,7 @@ class OptionsChain:
 
             # Find closest to ATM
             if not calls.empty:
-                atm_call = calls.iloc[
-                    (calls["strike"] - current_price).abs().argsort()[:1]
-                ]
+                atm_call = calls.iloc[(calls["strike"] - current_price).abs().argsort()[:1]]
                 if not atm_call.empty and "impliedVolatility" in atm_call.columns:
                     return float(atm_call["impliedVolatility"].iloc[0])
 

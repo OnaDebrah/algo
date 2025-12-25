@@ -58,14 +58,10 @@ class MultiAssetEngine:
 
         if self.allocation_method == "equal":
             # Equal allocation
-            self.allocations = {
-                symbol: 1.0 / num_symbols for symbol in self.strategies.keys()
-            }
+            self.allocations = {symbol: 1.0 / num_symbols for symbol in self.strategies.keys()}
         else:
             # Default to equal if other methods not implemented
-            self.allocations = {
-                symbol: 1.0 / num_symbols for symbol in self.strategies.keys()
-            }
+            self.allocations = {symbol: 1.0 / num_symbols for symbol in self.strategies.keys()}
 
         logger.info(f"Capital allocations: {self.allocations}")
 
@@ -78,10 +74,7 @@ class MultiAssetEngine:
             period: Time period
             interval: Data interval
         """
-        logger.info(
-            f"Starting multi-asset backtest: {len(symbols)} symbols, "
-            f"period: {period}, interval: {interval}"
-        )
+        logger.info(f"Starting multi-asset backtest: {len(symbols)} symbols, " f"period: {period}, interval: {interval}")
 
         # Fetch data for all symbols
         data_dict = {}
@@ -117,17 +110,12 @@ class MultiAssetEngine:
                 signal = strategy.generate_signal(symbol_data)
 
                 # Execute trade
-                self._execute_trade(
-                    symbol, signal, current_price, timestamp, strategy.name
-                )
+                self._execute_trade(symbol, signal, current_price, timestamp, strategy.name)
 
             # Calculate portfolio equity
             self._update_equity(timestamp, aligned_data, i)
 
-        logger.info(
-            f"Backtest complete: {len(self.trades)} trades, "
-            f"Final equity: ${self.equity_curve[-1]['equity']:,.2f}"
-        )
+        logger.info(f"Backtest complete: {len(self.trades)} trades, " f"Final equity: ${self.equity_curve[-1]['equity']:,.2f}")
 
     def _align_data(self, data_dict: Dict[str, pd.DataFrame]) -> Dict:
         """Align data across all symbols to common timestamps"""
@@ -168,9 +156,7 @@ class MultiAssetEngine:
 
         # Buy signal
         if signal == 1 and symbol not in self.positions:
-            quantity = self.risk_manager.calculate_position_size(
-                available_capital, current_price
-            )
+            quantity = self.risk_manager.calculate_position_size(available_capital, current_price)
             cost = quantity * current_price
 
             if cost <= self.cash:
@@ -188,11 +174,7 @@ class MultiAssetEngine:
                     "order_type": "BUY",
                     "quantity": quantity,
                     "price": current_price,
-                    "timestamp": (
-                        timestamp.isoformat()
-                        if isinstance(timestamp, datetime)
-                        else str(timestamp)
-                    ),
+                    "timestamp": (timestamp.isoformat() if isinstance(timestamp, datetime) else str(timestamp)),
                     "strategy": strategy_name,
                 }
 
@@ -205,9 +187,7 @@ class MultiAssetEngine:
         elif signal == -1 and symbol in self.positions:
             position = self.positions[symbol]
             profit = (current_price - position["entry_price"]) * position["quantity"]
-            profit_pct = (
-                (current_price - position["entry_price"]) / position["entry_price"]
-            ) * 100
+            profit_pct = ((current_price - position["entry_price"]) / position["entry_price"]) * 100
 
             self.cash += position["quantity"] * current_price
 
@@ -216,11 +196,7 @@ class MultiAssetEngine:
                 "order_type": "SELL",
                 "quantity": position["quantity"],
                 "price": current_price,
-                "timestamp": (
-                    timestamp.isoformat()
-                    if isinstance(timestamp, datetime)
-                    else str(timestamp)
-                ),
+                "timestamp": (timestamp.isoformat() if isinstance(timestamp, datetime) else str(timestamp)),
                 "strategy": strategy_name,
                 "profit": profit,
                 "profit_pct": profit_pct,
@@ -229,10 +205,7 @@ class MultiAssetEngine:
             self.trades.append(trade_data)
             self.db.save_trade(trade_data)
 
-            logger.debug(
-                f"SELL: {position['quantity']} {symbol} @ ${current_price:.2f} "
-                f"(P&L: ${profit:.2f})"
-            )
+            logger.debug(f"SELL: {position['quantity']} {symbol} @ ${current_price:.2f} " f"(P&L: ${profit:.2f})")
 
             del self.positions[symbol]
 
@@ -262,9 +235,7 @@ class MultiAssetEngine:
             return {}
 
         final_equity = self.equity_curve[-1]["equity"]
-        total_return = (
-            (final_equity - self.initial_capital) / self.initial_capital
-        ) * 100
+        total_return = ((final_equity - self.initial_capital) / self.initial_capital) * 100
 
         # Per-symbol statistics
         symbol_stats = self._calculate_symbol_stats()
@@ -274,9 +245,7 @@ class MultiAssetEngine:
         completed_trades = trades_df[trades_df["profit"].notna()]
 
         if not completed_trades.empty:
-            win_rate = (
-                (completed_trades["profit"] > 0).sum() / len(completed_trades) * 100
-            )
+            win_rate = (completed_trades["profit"] > 0).sum() / len(completed_trades) * 100
             avg_profit = completed_trades["profit"].mean()
 
             returns = completed_trades["profit_pct"].values

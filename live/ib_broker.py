@@ -53,9 +53,7 @@ class IBBroker(BaseBroker):
             self.ib = IB()
 
             # Connect to TWS/Gateway
-            self.ib.connect(
-                host=self.host, port=self.port, clientId=self.client_id, timeout=20
-            )
+            self.ib.connect(host=self.host, port=self.port, clientId=self.client_id, timeout=20)
 
             # Verify connection
             if not self.ib.isConnected():
@@ -80,10 +78,7 @@ class IBBroker(BaseBroker):
             logger.error("ib_insync not installed. Install with: pip install ib_insync")
             return False
         except ConnectionRefusedError:
-            logger.error(
-                f"Connection refused on port {self.port}. "
-                "Make sure TWS/IB Gateway is running and API is enabled."
-            )
+            logger.error(f"Connection refused on port {self.port}. " "Make sure TWS/IB Gateway is running and API is enabled.")
             return False
         except Exception as e:
             logger.error(f"Failed to connect to IB: {e}")
@@ -146,11 +141,7 @@ class IBBroker(BaseBroker):
 
                 current_price = ticker.marketPrice()
                 if current_price != current_price:  # NaN check
-                    current_price = (
-                        (ticker.bid + ticker.ask) / 2
-                        if ticker.bid and ticker.ask
-                        else 0
-                    )
+                    current_price = (ticker.bid + ticker.ask) / 2 if ticker.bid and ticker.ask else 0
 
                 position_dict = {
                     "symbol": contract.symbol,
@@ -160,11 +151,7 @@ class IBBroker(BaseBroker):
                     "current_price": current_price,
                     "market_value": pos.position * current_price,
                     "unrealized_pl": (current_price - pos.avgCost) * pos.position,
-                    "unrealized_plpc": (
-                        ((current_price - pos.avgCost) / pos.avgCost)
-                        if pos.avgCost != 0
-                        else 0
-                    ),
+                    "unrealized_plpc": (((current_price - pos.avgCost) / pos.avgCost) if pos.avgCost != 0 else 0),
                     "cost_basis": pos.avgCost * abs(pos.position),
                     "contract": contract,
                     "account": pos.account,
@@ -246,10 +233,7 @@ class IBBroker(BaseBroker):
             # Wait for order to be submitted
             self.ib.sleep(1)
 
-            logger.info(
-                f"Order placed: {side.value} {quantity} {symbol} "
-                f"@ {order_type.value}"
-            )
+            logger.info(f"Order placed: {side.value} {quantity} {symbol} " f"@ {order_type.value}")
 
             return {
                 "order_id": str(trade.order.orderId),
@@ -259,11 +243,7 @@ class IBBroker(BaseBroker):
                 "order_type": order_type.value,
                 "status": trade.orderStatus.status,
                 "filled_qty": int(trade.orderStatus.filled),
-                "filled_avg_price": (
-                    float(trade.orderStatus.avgFillPrice)
-                    if trade.orderStatus.avgFillPrice
-                    else 0
-                ),
+                "filled_avg_price": (float(trade.orderStatus.avgFillPrice) if trade.orderStatus.avgFillPrice else 0),
                 "submitted_at": datetime.now(),
                 "limit_price": limit_price,
                 "stop_price": stop_price,
@@ -314,11 +294,7 @@ class IBBroker(BaseBroker):
                         "order_type": trade.order.orderType.lower(),
                         "status": trade.orderStatus.status,
                         "filled_qty": int(trade.orderStatus.filled),
-                        "filled_avg_price": (
-                            float(trade.orderStatus.avgFillPrice)
-                            if trade.orderStatus.avgFillPrice
-                            else 0
-                        ),
+                        "filled_avg_price": (float(trade.orderStatus.avgFillPrice) if trade.orderStatus.avgFillPrice else 0),
                         "submitted_at": trade.log[0].time if trade.log else None,
                         "filled_at": None,  # Would need to parse from log
                     }
@@ -347,31 +323,17 @@ class IBBroker(BaseBroker):
                     "order_type": trade.order.orderType.lower(),
                     "status": trade.orderStatus.status,
                     "filled_qty": int(trade.orderStatus.filled),
-                    "filled_avg_price": (
-                        float(trade.orderStatus.avgFillPrice)
-                        if trade.orderStatus.avgFillPrice
-                        else 0
-                    ),
+                    "filled_avg_price": (float(trade.orderStatus.avgFillPrice) if trade.orderStatus.avgFillPrice else 0),
                     "submitted_at": trade.log[0].time if trade.log else None,
                 }
 
                 # Filter by status if specified
                 if status:
-                    if (
-                        status == OrderStatus.FILLED
-                        and trade.orderStatus.status != "Filled"
-                    ):
+                    if status == OrderStatus.FILLED and trade.orderStatus.status != "Filled":
                         continue
-                    elif (
-                        status == OrderStatus.PENDING
-                        and trade.orderStatus.status
-                        not in ["Submitted", "PreSubmitted"]
-                    ):
+                    elif status == OrderStatus.PENDING and trade.orderStatus.status not in ["Submitted", "PreSubmitted"]:
                         continue
-                    elif (
-                        status == OrderStatus.CANCELLED
-                        and trade.orderStatus.status != "Cancelled"
-                    ):
+                    elif status == OrderStatus.CANCELLED and trade.orderStatus.status != "Cancelled":
                         continue
 
                 result.append(order_dict)
@@ -520,8 +482,7 @@ class IBBroker(BaseBroker):
             self.ib.sleep(1)
 
             logger.info(
-                f"Bracket order placed: {side.value} {quantity} {symbol} "
-                f"@ ${entry_price} (SL: ${stop_loss_price}, TP: ${take_profit_price})"
+                f"Bracket order placed: {side.value} {quantity} {symbol} " f"@ ${entry_price} (SL: ${stop_loss_price}, TP: ${take_profit_price})"
             )
 
             return {

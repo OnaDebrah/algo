@@ -67,14 +67,10 @@ def render_multi_asset_backtest(
     col1, col2 = st.columns(2)
 
     with col1:
-        period = st.selectbox(
-            "Period", ["1mo", "3mo", "6mo", "1y", "2y"], index=2, key="multi_period"
-        )
+        period = st.selectbox("Period", ["1mo", "3mo", "6mo", "1y", "2y"], index=2, key="multi_period")
 
     with col2:
-        interval = st.selectbox(
-            "Interval", ["1h", "1d", "1wk"], index=1, key="multi_interval"
-        )
+        interval = st.selectbox("Interval", ["1h", "1d", "1wk"], index=1, key="multi_interval")
 
     # Strategy Configuration
     st.markdown("### 📊 Strategy Configuration")
@@ -97,25 +93,17 @@ def render_multi_asset_backtest(
         with col1:
             categories = catalog.get_categories()
             category_names = [cat.value for cat in categories]
-            selected_category = st.selectbox(
-                "Category", category_names, key="multi_cat"
-            )
+            selected_category = st.selectbox("Category", category_names, key="multi_cat")
 
         with col2:
-            category_enum = next(
-                cat for cat in categories if cat.value == selected_category
-            )
+            category_enum = next(cat for cat in categories if cat.value == selected_category)
             strategies_in_category = catalog.get_by_category(category_enum)
             strategy_names = [info.name for info in strategies_in_category.values()]
             strategy_type = st.selectbox("Strategy", strategy_names, key="multi_strat")
 
         # Get strategy key
         strategy_key = next(
-            (
-                key
-                for key, info in strategies_in_category.items()
-                if info.name == strategy_type
-            ),
+            (key for key, info in strategies_in_category.items() if info.name == strategy_type),
             None,
         )
 
@@ -135,35 +123,21 @@ def render_multi_asset_backtest(
                 with col1:
                     categories = catalog.get_categories()
                     category_names = [cat.value for cat in categories]
-                    selected_category = st.selectbox(
-                        "Category", category_names, key=f"multi_cat_{symbol}"
-                    )
+                    selected_category = st.selectbox("Category", category_names, key=f"multi_cat_{symbol}")
 
                 with col2:
-                    category_enum = next(
-                        cat for cat in categories if cat.value == selected_category
-                    )
+                    category_enum = next(cat for cat in categories if cat.value == selected_category)
                     strategies_in_category = catalog.get_by_category(category_enum)
-                    strategy_names = [
-                        info.name for info in strategies_in_category.values()
-                    ]
-                    strategy_type = st.selectbox(
-                        "Strategy", strategy_names, key=f"multi_strat_{symbol}"
-                    )
+                    strategy_names = [info.name for info in strategies_in_category.values()]
+                    strategy_type = st.selectbox("Strategy", strategy_names, key=f"multi_strat_{symbol}")
 
                 strategy_key = next(
-                    (
-                        key
-                        for key, info in strategies_in_category.items()
-                        if info.name == strategy_type
-                    ),
+                    (key for key, info in strategies_in_category.items() if info.name == strategy_type),
                     None,
                 )
 
                 if strategy_key:
-                    strategy = _configure_strategy_parameters(
-                        catalog, strategy_key, f"multi_{symbol}"
-                    )
+                    strategy = _configure_strategy_parameters(catalog, strategy_key, f"multi_{symbol}")
                     strategies_config[symbol] = strategy
 
     # Capital allocation
@@ -234,9 +208,7 @@ def render_multi_asset_backtest(
                     initial_capital=initial_capital,
                     risk_manager=risk_manager,
                     db=db,
-                    allocation_method=(
-                        "custom" if allocation_method == "Custom Weights" else "equal"
-                    ),
+                    allocation_method=("custom" if allocation_method == "Custom Weights" else "equal"),
                 )
 
                 if allocation_method == "Custom Weights":
@@ -356,21 +328,14 @@ def _display_symbol_breakdown(results: dict):
         st.dataframe(df, use_container_width=True, hide_index=True)
 
         # Profit contribution chart
-        profit_data = pd.DataFrame(
-            [
-                {"Symbol": symbol, "Profit": stats["total_profit"]}
-                for symbol, stats in symbol_stats.items()
-            ]
-        )
+        profit_data = pd.DataFrame([{"Symbol": symbol, "Profit": stats["total_profit"]} for symbol, stats in symbol_stats.items()])
 
         fig = go.Figure(
             data=[
                 go.Bar(
                     x=profit_data["Symbol"],
                     y=profit_data["Profit"],
-                    marker_color=[
-                        "green" if p > 0 else "red" for p in profit_data["Profit"]
-                    ],
+                    marker_color=["green" if p > 0 else "red" for p in profit_data["Profit"]],
                 )
             ]
         )
@@ -473,9 +438,7 @@ def _display_multi_asset_trades(trades: list):
                     "Price": f"${t['price']:.2f}",
                     "Strategy": t["strategy"],
                     "Profit": f"${t.get('profit', 0):.2f}" if t.get("profit") else "-",
-                    "Profit %": (
-                        f"{t.get('profit_pct', 0):.2f}%" if t.get("profit_pct") else "-"
-                    ),
+                    "Profit %": (f"{t.get('profit_pct', 0):.2f}%" if t.get("profit_pct") else "-"),
                 }
                 for t in trades[-50:]
             ]

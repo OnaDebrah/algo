@@ -1,3 +1,14 @@
-[project.optional-dependencies]
-dev = ["flake8"]
+[tool.ruff]
+# Match your .flake8 preference
+line-length = 150
 
+[tool.ruff.lint]
+# Enable isort (I) and autoflake-style (F) rules
+select = ["E", "F", "W", "I"]
+# Ignore the "Line too long" error if you want to allow 150+ chars occasionally
+ignore = ["E501"]
+
+[tool.ruff.lint.isort]
+# This makes Ruff's import sorting perfectly compatible with Black
+combine-as-imports = true
+force-single-line = false

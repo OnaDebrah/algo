@@ -257,19 +257,11 @@ class StrategyCatalog:
 
     def get_by_category(self, category: StrategyCategory) -> Dict[str, StrategyInfo]:
         """Get all strategies in a category"""
-        return {
-            key: info
-            for key, info in self.strategies.items()
-            if info.category == category
-        }
+        return {key: info for key, info in self.strategies.items() if info.category == category}
 
     def get_by_complexity(self, complexity: str) -> Dict[str, StrategyInfo]:
         """Get strategies by complexity level"""
-        return {
-            key: info
-            for key, info in self.strategies.items()
-            if info.complexity == complexity
-        }
+        return {key: info for key, info in self.strategies.items() if info.complexity == complexity}
 
     def get_categories(self) -> List[StrategyCategory]:
         """Get list of all categories"""

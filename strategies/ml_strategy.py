@@ -68,9 +68,7 @@ class MLStrategy:
 
         return df
 
-    def create_labels(
-        self, data: pd.DataFrame, threshold: float = DEFAULT_ML_THRESHOLD
-    ) -> pd.Series:
+    def create_labels(self, data: pd.DataFrame, threshold: float = DEFAULT_ML_THRESHOLD) -> pd.Series:
         """
         Create labels for training
 
@@ -89,9 +87,7 @@ class MLStrategy:
 
         return labels
 
-    def train(
-        self, data: pd.DataFrame, test_size: float = DEFAULT_ML_TEST_SIZE
-    ) -> tuple:
+    def train(self, data: pd.DataFrame, test_size: float = DEFAULT_ML_TEST_SIZE) -> tuple:
         """
         Train the ML model
 
@@ -126,21 +122,15 @@ class MLStrategy:
         X = df[feature_cols]
         y = labels
 
-        X_train, X_test, y_train, y_test = train_test_split(
-            X, y, test_size=test_size, shuffle=False
-        )
+        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=test_size, shuffle=False)
 
         X_train_scaled = self.scaler.fit_transform(X_train)
         X_test_scaled = self.scaler.transform(X_test)
 
         if self.model_type == "random_forest":
-            self.model = RandomForestClassifier(
-                n_estimators=100, max_depth=10, random_state=42
-            )
+            self.model = RandomForestClassifier(n_estimators=100, max_depth=10, random_state=42)
         else:
-            self.model = GradientBoostingClassifier(
-                n_estimators=100, max_depth=5, random_state=42
-            )
+            self.model = GradientBoostingClassifier(n_estimators=100, max_depth=5, random_state=42)
 
         self.model.fit(X_train_scaled, y_train)
 

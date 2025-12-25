@@ -114,9 +114,7 @@ class OptionsBacktestEngine:
 
         return results
 
-    def _check_entry_signal(
-        self, data: pd.DataFrame, index: int, entry_rules: Dict
-    ) -> bool:
+    def _check_entry_signal(self, data: pd.DataFrame, index: int, entry_rules: Dict) -> bool:
         """Check if entry conditions are met"""
 
         # Don't enter if we have open positions (for now)
@@ -198,9 +196,7 @@ class OptionsBacktestEngine:
         # Create strategy with custom strikes based on rules
         kwargs = self._get_strategy_strikes(price, entry_rules)
 
-        builder = create_preset_strategy(
-            strategy_type, symbol, price, expiration, **kwargs
-        )
+        builder = create_preset_strategy(strategy_type, symbol, price, expiration, **kwargs)
 
         # Calculate cost
         cost = builder.get_initial_cost()
@@ -230,9 +226,7 @@ class OptionsBacktestEngine:
         self.positions.append(position)
         self.capital -= total_cost
 
-        logger.info(
-            f"Entered {strategy_type.value} at ${price:.2f}, cost: ${total_cost:.2f}"
-        )
+        logger.info(f"Entered {strategy_type.value} at ${price:.2f}, cost: ${total_cost:.2f}")
 
         # Record trade
         self.trades.append(
@@ -289,16 +283,10 @@ class OptionsBacktestEngine:
             builder = position["builder"]
             builder.current_price = current_price
 
-            current_value = self._calculate_position_value(
-                position, current_price, volatility
-            )
+            current_value = self._calculate_position_value(position, current_price, volatility)
 
             pnl = current_value - position["initial_cost"]
-            pnl_pct = (
-                pnl / abs(position["initial_cost"])
-                if position["initial_cost"] != 0
-                else 0
-            )
+            pnl_pct = pnl / abs(position["initial_cost"]) if position["initial_cost"] != 0 else 0
 
             # Check profit target
             profit_target = exit_rules.get("profit_target", 0.5)
@@ -350,9 +338,7 @@ class OptionsBacktestEngine:
 
         # Calculate P&L
         pnl = exit_value - position["initial_cost"]
-        pnl_pct = (
-            pnl / abs(position["initial_cost"]) if position["initial_cost"] != 0 else 0
-        )
+        pnl_pct = pnl / abs(position["initial_cost"]) if position["initial_cost"] != 0 else 0
 
         # Store closed position
         closed = position.copy()
@@ -383,9 +369,7 @@ class OptionsBacktestEngine:
             }
         )
 
-    def _calculate_position_value(
-        self, position: Dict, current_price: float, volatility: float
-    ) -> float:
+    def _calculate_position_value(self, position: Dict, current_price: float, volatility: float) -> float:
         """Calculate current value of a position"""
 
         value = 0
@@ -417,9 +401,7 @@ class OptionsBacktestEngine:
 
         return value
 
-    def _calculate_portfolio_value(
-        self, current_price: float, volatility: float
-    ) -> float:
+    def _calculate_portfolio_value(self, current_price: float, volatility: float) -> float:
         """Calculate total portfolio value"""
 
         total = self.capital
@@ -466,14 +448,8 @@ class OptionsBacktestEngine:
         profit_factor = total_profit / total_loss if total_loss > 0 else float("inf")
 
         # Portfolio metrics
-        final_equity = (
-            self.equity_curve[-1]["equity"]
-            if self.equity_curve
-            else self.initial_capital
-        )
-        total_return = (
-            (final_equity - self.initial_capital) / self.initial_capital * 100
-        )
+        final_equity = self.equity_curve[-1]["equity"] if self.equity_curve else self.initial_capital
+        total_return = (final_equity - self.initial_capital) / self.initial_capital * 100
 
         # Max drawdown
         equity_values = [e["equity"] for e in self.equity_curve]
@@ -484,11 +460,7 @@ class OptionsBacktestEngine:
         # Sharpe ratio (simplified)
         if len(equity_values) > 1:
             returns = np.diff(equity_values) / equity_values[:-1]
-            sharpe_ratio = (
-                np.mean(returns) / np.std(returns) * np.sqrt(252)
-                if np.std(returns) > 0
-                else 0
-            )
+            sharpe_ratio = np.mean(returns) / np.std(returns) * np.sqrt(252) if np.std(returns) > 0 else 0
         else:
             sharpe_ratio = 0
 
@@ -511,9 +483,7 @@ class OptionsBacktestEngine:
         }
 
 
-def backtest_options_strategy(
-    symbol: str, data: pd.DataFrame, strategy_type: OptionStrategy, **kwargs
-) -> Dict:
+def backtest_options_strategy(symbol: str, data: pd.DataFrame, strategy_type: OptionStrategy, **kwargs) -> Dict:
     """
     Convenience function to backtest an options strategy
 
@@ -543,15 +513,11 @@ def backtest_options_strategy(
         },
     )
 
-    exit_rules = kwargs.get(
-        "exit_rules", {"profit_target": 0.5, "loss_limit": -0.5, "dte_exit": 7}
-    )
+    exit_rules = kwargs.get("exit_rules", {"profit_target": 0.5, "loss_limit": -0.5, "dte_exit": 7})
 
     volatility = kwargs.get("volatility", 0.3)
 
-    results = engine.run_strategy_backtest(
-        symbol, data, strategy_type, entry_rules, exit_rules, volatility
-    )
+    results = engine.run_strategy_backtest(symbol, data, strategy_type, entry_rules, exit_rules, volatility)
 
     results["engine"] = engine  # Include engine for equity curve access
 

@@ -132,9 +132,7 @@ class AIStrategyAdvisor:
             },
         }
 
-    async def get_recommendations(
-        self, user_profile: Dict
-    ) -> List[StrategyRecommendation]:
+    async def get_recommendations(self, user_profile: Dict) -> List[StrategyRecommendation]:
         """
         Generate personalized strategy recommendations using Claude API
 
@@ -196,9 +194,7 @@ Rank by fit_score (0-100). Consider risk tolerance, time commitment, experience,
 
         return prompt
 
-    def _parse_recommendations(
-        self, ai_response: str, profile: Dict
-    ) -> List[StrategyRecommendation]:
+    def _parse_recommendations(self, ai_response: str, profile: Dict) -> List[StrategyRecommendation]:
         """Parse AI response into recommendation objects"""
         try:
             data = json.loads(ai_response)

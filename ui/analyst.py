@@ -52,9 +52,7 @@ class FinancialAnalystUI:
 
         with col3:
             st.markdown("####")  # Spacing
-            analyze_btn = st.button(
-                "🔍 Generate Report", type="primary", use_container_width=True
-            )
+            analyze_btn = st.button("🔍 Generate Report", type="primary", use_container_width=True)
 
         # Info boxes
         col1, col2, col3, col4 = st.columns(4)
@@ -94,9 +92,7 @@ class FinancialAnalystUI:
 
             try:
                 # Generate report
-                report = asyncio.run(
-                    self.agent.generate_investment_thesis(ticker, depth)
-                )
+                report = asyncio.run(self.agent.generate_investment_thesis(ticker, depth))
 
                 # Store in session state
                 st.session_state["analyst_report"] = report
@@ -151,9 +147,7 @@ class FinancialAnalystUI:
 
         # Company header
         st.markdown(f"## {report.company_name} ({report.ticker})")
-        st.caption(
-            f"Report Generated: {report.generated_date.strftime('%B %d, %Y at %I:%M %p')}"
-        )
+        st.caption(f"Report Generated: {report.generated_date.strftime('%B %d, %Y at %I:%M %p')}")
 
         # Key metrics row
         col1, col2, col3, col4, col5 = st.columns(5)
@@ -342,11 +336,7 @@ class FinancialAnalystUI:
         if categories:
             fig = go.Figure()
 
-            fig.add_trace(
-                go.Scatterpolar(
-                    r=values, theta=categories, fill="toself", name="Valuation Score"
-                )
-            )
+            fig.add_trace(go.Scatterpolar(r=values, theta=categories, fill="toself", name="Valuation Score"))
 
             fig.update_layout(
                 polar=dict(radialaxis=dict(visible=True, range=[0, 100])),

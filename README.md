@@ -192,7 +192,7 @@ class MyStrategy(BaseStrategy):
     def __init__(self, param1, param2):
         params = {'param1': param1, 'param2': param2}
         super().__init__("My Strategy", params)
-    
+
     def generate_signal(self, data):
         # Your logic here
         return 1  # Buy signal

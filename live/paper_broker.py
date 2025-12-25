@@ -74,9 +74,7 @@ class PaperBroker(BaseBroker):
             raise ValueError(f"Cannot get price for {symbol}")
 
         current_price = float(data["Close"].iloc[-1])
-        execution_price = (
-            limit_price if order_type == OrderType.LIMIT else current_price
-        )
+        execution_price = limit_price if order_type == OrderType.LIMIT else current_price
 
         # Create order
         self.order_counter += 1
@@ -108,10 +106,7 @@ class PaperBroker(BaseBroker):
                 if symbol in self.positions:
                     pos = self.positions[symbol]
                     total_qty = pos["quantity"] + quantity
-                    total_cost = (
-                        pos["entry_price"] * pos["quantity"]
-                        + execution_price * quantity
-                    )
+                    total_cost = pos["entry_price"] * pos["quantity"] + execution_price * quantity
                     pos["entry_price"] = total_cost / total_qty
                     pos["quantity"] = total_qty
                 else:
@@ -128,10 +123,7 @@ class PaperBroker(BaseBroker):
                     }
 
         elif side == OrderSide.SELL:
-            if (
-                symbol not in self.positions
-                or self.positions[symbol]["quantity"] < quantity
-            ):
+            if symbol not in self.positions or self.positions[symbol]["quantity"] < quantity:
                 order["status"] = OrderStatus.REJECTED.value
                 order["reject_reason"] = "Insufficient shares"
             else:
@@ -142,9 +134,7 @@ class PaperBroker(BaseBroker):
                     del self.positions[symbol]
 
         self.orders[order_id] = order
-        logger.info(
-            f"Paper order: {side.value} {quantity} {symbol} @ ${execution_price:.2f}"
-        )
+        logger.info(f"Paper order: {side.value} {quantity} {symbol} @ ${execution_price:.2f}")
 
         return order
 

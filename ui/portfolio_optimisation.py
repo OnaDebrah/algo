@@ -42,9 +42,7 @@ def render_portfolio_optimization():
         return
 
     if len(symbols) > 10:
-        st.warning(
-            "Too many symbols may slow down optimization. Consider using 3-10 symbols."
-        )
+        st.warning("Too many symbols may slow down optimization. Consider using 3-10 symbols.")
 
     # Optimization method
     st.subheader("2️⃣ Select Optimization Method")
@@ -81,9 +79,7 @@ def render_portfolio_optimization():
 
     elif method == "Black-Litterman":
         st.markdown("**Enter Your Views (Optional)**")
-        st.caption(
-            "Specify expected returns for symbols you have strong opinions about"
-        )
+        st.caption("Specify expected returns for symbols you have strong opinions about")
 
         views = {}
         for symbol in symbols:
@@ -125,12 +121,7 @@ def render_portfolio_optimization():
             help="Number of days for historical analysis (252 = 1 year)",
         )
 
-        risk_free_rate = (
-            st.slider(
-                "Risk-Free Rate (%)", min_value=0.0, max_value=10.0, value=2.0, step=0.5
-            )
-            / 100
-        )
+        risk_free_rate = st.slider("Risk-Free Rate (%)", min_value=0.0, max_value=10.0, value=2.0, step=0.5) / 100
 
     # Run optimization
     if st.button("🚀 Optimize Portfolio", type="primary"):
@@ -152,13 +143,9 @@ def render_portfolio_optimization():
                     result = optimizer.risk_parity_portfolio()
                 elif method == "Black-Litterman":
                     if "views" in params and params["views"]:
-                        result = optimizer.black_litterman(
-                            params["views"], params["confidence"]
-                        )
+                        result = optimizer.black_litterman(params["views"], params["confidence"])
                     else:
-                        st.error(
-                            "Please specify at least one view for Black-Litterman optimization"
-                        )
+                        st.error("Please specify at least one view for Black-Litterman optimization")
                         return
                 elif method == "Efficient Frontier":
                     _render_efficient_frontier(optimizer)
@@ -204,18 +191,13 @@ def _display_optimization_results(result: dict, optimizer: PortfolioOptimizer):
         )
 
     with col3:
-        st.metric(
-            "Sharpe Ratio", f"{result['sharpe_ratio']:.2f}", help="Risk-adjusted return"
-        )
+        st.metric("Sharpe Ratio", f"{result['sharpe_ratio']:.2f}", help="Risk-adjusted return")
 
     # Optimal weights
     st.subheader("💎 Optimal Portfolio Allocation")
 
     weights_df = pd.DataFrame(
-        [
-            {"Symbol": symbol, "Weight": weight, "Allocation %": weight * 100}
-            for symbol, weight in result["weights"].items()
-        ]
+        [{"Symbol": symbol, "Weight": weight, "Allocation %": weight * 100} for symbol, weight in result["weights"].items()]
     ).sort_values("Weight", ascending=False)
 
     col1, col2 = st.columns([2, 1])
@@ -236,9 +218,7 @@ def _display_optimization_results(result: dict, optimizer: PortfolioOptimizer):
     with col2:
         # Table
         display_df = weights_df[["Symbol", "Allocation %"]].copy()
-        display_df["Allocation %"] = display_df["Allocation %"].apply(
-            lambda x: f"{x:.2f}%"
-        )
+        display_df["Allocation %"] = display_df["Allocation %"].apply(lambda x: f"{x:.2f}%")
         st.dataframe(display_df, use_container_width=True, hide_index=True)
 
     # Dollar allocation
@@ -258,9 +238,7 @@ def _display_optimization_results(result: dict, optimizer: PortfolioOptimizer):
                 "Symbol": symbol,
                 "Weight": weight,
                 "Amount": capital * weight,
-                "Shares (approx)": int(
-                    capital * weight / _get_current_price(symbol, optimizer)
-                ),
+                "Shares (approx)": int(capital * weight / _get_current_price(symbol, optimizer)),
             }
             for symbol, weight in result["weights"].items()
         ]
@@ -280,25 +258,17 @@ def _display_optimization_results(result: dict, optimizer: PortfolioOptimizer):
     col1, col2 = st.columns(2)
 
     with col1:
-        backtest_period = st.selectbox(
-            "Backtest Period", ["1mo", "3mo", "6mo", "1y", "2y"]
-        )
+        backtest_period = st.selectbox("Backtest Period", ["1mo", "3mo", "6mo", "1y", "2y"])
 
     with col2:
-        start_capital = st.number_input(
-            "Starting Capital", min_value=1000, value=100000
-        )
+        start_capital = st.number_input("Starting Capital", min_value=1000, value=100000)
 
     if st.button("Run Backtest"):
         with st.spinner("Running backtest..."):
             try:
-                backtester = PortfolioBacktest(
-                    list(result["weights"].keys()), result["weights"]
-                )
+                backtester = PortfolioBacktest(list(result["weights"].keys()), result["weights"])
 
-                backtest_results = backtester.run_backtest(
-                    start_capital=start_capital, period=backtest_period
-                )
+                backtest_results = backtester.run_backtest(start_capital=start_capital, period=backtest_period)
 
                 _display_backtest_results(backtest_results)
 
@@ -453,12 +423,7 @@ def _render_efficient_frontier(optimizer: PortfolioOptimizer):
                 st.write(f"**Risk:** {min_vol['volatility']:.2%}")
                 st.write(f"**Sharpe:** {min_vol['sharpe_ratio']:.2f}")
 
-                weights_df = pd.DataFrame(
-                    [
-                        {"Symbol": s, "Weight": f"{w:.2%}"}
-                        for s, w in min_vol["weights"].items()
-                    ]
-                )
+                weights_df = pd.DataFrame([{"Symbol": s, "Weight": f"{w:.2%}"} for s, w in min_vol["weights"].items()])
                 st.dataframe(weights_df, hide_index=True)
 
             with col2:
@@ -467,12 +432,7 @@ def _render_efficient_frontier(optimizer: PortfolioOptimizer):
                 st.write(f"**Risk:** {max_sharpe['volatility']:.2%}")
                 st.write(f"**Sharpe:** {max_sharpe['sharpe_ratio']:.2f}")
 
-                weights_df = pd.DataFrame(
-                    [
-                        {"Symbol": s, "Weight": f"{w:.2%}"}
-                        for s, w in max_sharpe["weights"].items()
-                    ]
-                )
+                weights_df = pd.DataFrame([{"Symbol": s, "Weight": f"{w:.2%}"} for s, w in max_sharpe["weights"].items()])
                 st.dataframe(weights_df, hide_index=True)
 
         except Exception as e:

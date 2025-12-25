@@ -54,9 +54,7 @@ def render_live_trading(
     # Broker Configuration
     st.subheader("🔌 Broker Configuration")
 
-    broker_type = st.selectbox(
-        "Select Broker", ["Interactive Brokers", "Paper Trading (Simulated)", "Alpaca"]
-    )
+    broker_type = st.selectbox("Select Broker", ["Interactive Brokers", "Paper Trading (Simulated)", "Alpaca"])
 
     if broker_type == "Interactive Brokers":
         _configure_ib_broker()
@@ -137,9 +135,7 @@ def _configure_ib_broker():
     col1, col2 = st.columns(2)
 
     with col1:
-        host = st.text_input(
-            "Host", value="127.0.0.1", help="Usually 127.0.0.1 for local connection"
-        )
+        host = st.text_input("Host", value="127.0.0.1", help="Usually 127.0.0.1 for local connection")
 
         connection_type = st.selectbox(
             "Connection Type",
@@ -201,15 +197,11 @@ def _configure_ib_broker():
     if st.button("🔌 Connect to Interactive Brokers", type="primary"):
         with st.spinner("Connecting to IB..."):
             try:
-                broker = IBBroker(
-                    host=host, port=port, client_id=client_id, paper=paper_mode
-                )
+                broker = IBBroker(host=host, port=port, client_id=client_id, paper=paper_mode)
 
                 if broker.connect():
                     st.session_state.broker = broker
-                    st.success(
-                        f"✅ Connected to Interactive Brokers ({'Paper' if paper_mode else 'Live'} mode)!"
-                    )
+                    st.success(f"✅ Connected to Interactive Brokers ({'Paper' if paper_mode else 'Live'} mode)!")
 
                     # Show account info
                     account = broker.get_account()
@@ -285,9 +277,7 @@ def _configure_alpaca_broker():
             broker = AlpacaBroker(api_key, secret_key, paper=paper_mode)
             if broker.connect():
                 st.session_state.broker = broker
-                st.success(
-                    f"✅ Connected to Alpaca ({'Paper' if paper_mode else 'Live'} mode)!"
-                )
+                st.success(f"✅ Connected to Alpaca ({'Paper' if paper_mode else 'Live'} mode)!")
                 st.rerun()
         except Exception as e:
             st.error(f"Failed to connect: {str(e)}")
@@ -315,16 +305,11 @@ def _render_trading_interface(
     with col3:
         st.metric("Buying Power", f"${account['buying_power']:,.2f}")
     with col4:
-        pnl = account["equity"] - (
-            account["equity"]
-            - (account["equity"] - account.get("equity", account["equity"]))
-        )
+        pnl = account["equity"] - (account["equity"] - (account["equity"] - account.get("equity", account["equity"])))
         st.metric("Day P&L", f"${pnl:0:.2f}")  # Would need to track this
 
     # Tabs for different sections
-    tab1, tab2, tab3, tab4 = st.tabs(
-        ["🚀 Start Trading", "📊 Positions", "📋 Orders", "⚙️ Settings"]
-    )
+    tab1, tab2, tab3, tab4 = st.tabs(["🚀 Start Trading", "📊 Positions", "📋 Orders", "⚙️ Settings"])
 
     with tab1:
         _render_start_trading(db, risk_manager, ml_models, alert_manager)
@@ -408,9 +393,7 @@ def _render_start_trading(
 
     else:  # ML Model
         if not ml_models:
-            st.error(
-                "No ML models trained. Train a model in the ML Strategy Builder tab first."
-            )
+            st.error("No ML models trained. Train a model in the ML Strategy Builder tab first.")
             return
 
         model_symbol = st.selectbox("Select trained model", list(ml_models.keys()))

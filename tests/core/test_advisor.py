@@ -42,9 +42,7 @@ def test_advisor_without_api():
             print(f"\n   {idx}. {rec.name}")
             print(f"      Fit Score: {rec.fit_score}%")
             print(f"      Risk Level: {rec.risk_level}")
-            print(
-                f"      Expected Return: {rec.expected_return_range[0]}-{rec.expected_return_range[1]}%"
-            )
+            print(f"      Expected Return: {rec.expected_return_range[0]}-{rec.expected_return_range[1]}%")
             print(f"      Why: {rec.why_recommended[0]}")
 
     except Exception as e:
@@ -76,9 +74,7 @@ def test_advisor_without_api():
             print(f"\n   {idx}. {rec.name}")
             print(f"      Fit Score: {rec.fit_score}%")
             print(f"      Risk Level: {rec.risk_level}")
-            print(
-                f"      Expected Return: {rec.expected_return_range[0]}-{rec.expected_return_range[1]}%"
-            )
+            print(f"      Expected Return: {rec.expected_return_range[0]}-{rec.expected_return_range[1]}%")
 
     except Exception as e:
         print(f"❌ Error: {e}")
@@ -128,9 +124,7 @@ def test_advisor_with_api():
         for idx, rec in enumerate(recommendations, 1):
             print(f"{idx}. {rec.name} (Fit Score: {rec.fit_score}%)")
             print(f"   Risk: {rec.risk_level.title()}")
-            print(
-                f"   Returns: {rec.expected_return_range[0]}-{rec.expected_return_range[1]}%"
-            )
+            print(f"   Returns: {rec.expected_return_range[0]}-{rec.expected_return_range[1]}%")
             print("   Why recommended:")
             for reason in rec.why_recommended[:2]:
                 print(f"      • {reason}")
@@ -280,9 +274,7 @@ def demo_mode():
         print(f"\n{idx}. {rec.name}")
         print(f"   {'─' * 55}")
         print(f"   Fit Score: {rec.fit_score}% | Risk: {rec.risk_level.title()}")
-        print(
-            f"   Expected Returns: {rec.expected_return_range[0]}-{rec.expected_return_range[1]}%"
-        )
+        print(f"   Expected Returns: {rec.expected_return_range[0]}-{rec.expected_return_range[1]}%")
         print("\n   Why This Strategy Fits You:")
         for reason in rec.why_recommended:
             print(f"      • {reason}")

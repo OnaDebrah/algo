@@ -47,9 +47,7 @@ class AlertManager:
 
             msg.attach(MIMEText(message, "plain"))
 
-            server = smtplib.SMTP(
-                self.email_config["smtp_server"], self.email_config["smtp_port"]
-            )
+            server = smtplib.SMTP(self.email_config["smtp_server"], self.email_config["smtp_port"])
             server.starttls()
             server.login(self.email_config["from_email"], self.email_config["password"])
 
@@ -75,9 +73,7 @@ class AlertManager:
         try:
             from twilio.rest import Client
 
-            client = Client(
-                self.sms_config["account_sid"], self.sms_config["auth_token"]
-            )
+            client = Client(self.sms_config["account_sid"], self.sms_config["auth_token"])
 
             message_obj = client.messages.create(
                 body=message,
@@ -88,9 +84,7 @@ class AlertManager:
             logger.info(f"SMS sent: {message_obj.sid}")
 
         except ImportError:
-            logger.error(
-                "Twilio package not installed. Install with: pip install twilio"
-            )
+            logger.error("Twilio package not installed. Install with: pip install twilio")
         except Exception as e:
             logger.error(f"Failed to send SMS: {e}")
 
@@ -101,11 +95,7 @@ class AlertManager:
         Args:
             trade_data: Trade information dictionary
         """
-        message = (
-            f"Trade Executed: {trade_data['order_type']} "
-            f"{trade_data['quantity']} {trade_data['symbol']} "
-            f"@ ${trade_data['price']:.2f}"
-        )
+        message = f"Trade Executed: {trade_data['order_type']} " f"{trade_data['quantity']} {trade_data['symbol']} " f"@ ${trade_data['price']:.2f}"
 
         self.send_email_alert("Trade Executed", message)
         self.send_sms_alert(message)
@@ -121,10 +111,7 @@ class AlertManager:
         profit = trade_data.get("profit", 0)
         profit_pct = trade_data.get("profit_pct", 0)
 
-        message = (
-            f"Position Closed: {trade_data['symbol']} "
-            f"P&L: ${profit:.2f} ({profit_pct:.2f}%)"
-        )
+        message = f"Position Closed: {trade_data['symbol']} " f"P&L: ${profit:.2f} ({profit_pct:.2f}%)"
 
         self.send_email_alert("Position Closed", message)
         self.send_sms_alert(message)

@@ -35,9 +35,7 @@ class RiskManager:
         self.max_drawdown = max_drawdown
         self.peak_value = 0
 
-    def calculate_position_size(
-        self, portfolio_value: float, entry_price: float
-    ) -> int:
+    def calculate_position_size(self, portfolio_value: float, entry_price: float) -> int:
         """
         Calculate position size based on risk parameters
 
@@ -52,10 +50,7 @@ class RiskManager:
         quantity = int(max_investment / entry_price)
         calculated_quantity = max(1, quantity)
 
-        logger.debug(
-            f"Position size: {calculated_quantity} shares "
-            f"(${max_investment:.2f} / ${entry_price:.2f})"
-        )
+        logger.debug(f"Position size: {calculated_quantity} shares " f"(${max_investment:.2f} / ${entry_price:.2f})")
 
         return calculated_quantity
 
@@ -76,10 +71,7 @@ class RiskManager:
             drawdown = (self.peak_value - current_value) / self.peak_value
 
             if drawdown >= self.max_drawdown:
-                logger.warning(
-                    f"Drawdown limit exceeded: {drawdown:.2%} "
-                    f"(limit: {self.max_drawdown:.2%})"
-                )
+                logger.warning(f"Drawdown limit exceeded: {drawdown:.2%} " f"(limit: {self.max_drawdown:.2%})")
                 return True
 
         return False
@@ -97,9 +89,7 @@ class RiskManager:
         stop_loss = entry_price * (1 - self.stop_loss_pct)
         return stop_loss
 
-    def should_exit_position(
-        self, entry_price: float, current_price: float
-    ) -> tuple[bool, str]:
+    def should_exit_position(self, entry_price: float, current_price: float) -> tuple[bool, str]:
         """
         Check if position should be exited based on risk parameters
 
@@ -122,9 +112,7 @@ class RiskManager:
         self.peak_value = 0
         logger.info("Peak value reset")
 
-    def validate_options_position(
-        self, strategy_type: str, max_loss: float, portfolio_value: float
-    ) -> tuple[bool, str]:
+    def validate_options_position(self, strategy_type: str, max_loss: float, portfolio_value: float) -> tuple[bool, str]:
         """Validate options position against risk limits"""
 
         # Check max loss per position
@@ -142,3 +130,19 @@ class RiskManager:
             return False, "Unlimited risk strategies not allowed"
 
         return True, "Approved"
+
+    def get_current_risk_utilization(self, current_exposure: float, portfolio_value: float) -> float:
+        """
+        Calculate risk utilization percentage.
+        Utilization = (Current Exposure / Max Allowed Exposure) * 100
+        """
+        if portfolio_value <= 0:
+            return 0.0
+
+        # The total amount we are allowed to have in the market
+        # This assumes max_position_size is the limit for a SINGLE trade,
+        # but you might want a 'max_total_exposure' constant (e.g., 0.8 for 80%)
+        max_total_allowed = portfolio_value * 0.8  # Using 80% as a standard institutional cap
+
+        utilization = (current_exposure / max_total_allowed) * 100
+        return min(round(utilization, 1), 100.0)

@@ -61,9 +61,7 @@ class PortfolioOptimizer:
 
         return prices
 
-    def calculate_portfolio_performance(
-        self, weights: np.ndarray
-    ) -> Tuple[float, float]:
+    def calculate_portfolio_performance(self, weights: np.ndarray) -> Tuple[float, float]:
         """
         Calculate portfolio expected return and volatility
 
@@ -81,9 +79,7 @@ class PortfolioOptimizer:
 
         return returns, volatility
 
-    def negative_sharpe_ratio(
-        self, weights: np.ndarray, risk_free_rate: float = 0.02
-    ) -> float:
+    def negative_sharpe_ratio(self, weights: np.ndarray, risk_free_rate: float = 0.02) -> float:
         """
         Calculate negative Sharpe ratio (for minimization)
 
@@ -200,8 +196,7 @@ class PortfolioOptimizer:
             {"type": "eq", "fun": lambda x: np.sum(x) - 1},
             {
                 "type": "eq",
-                "fun": lambda x: self.calculate_portfolio_performance(x)[0]
-                - target_return,
+                "fun": lambda x: self.calculate_portfolio_performance(x)[0] - target_return,
             },
         ]
 
@@ -224,10 +219,7 @@ class PortfolioOptimizer:
         returns, volatility = self.calculate_portfolio_performance(optimal_weights)
         sharpe = (returns - 0.02) / volatility
 
-        logger.info(
-            f"Target return optimization complete - "
-            f"Return: {returns:.2%}, Vol: {volatility:.2%}"
-        )
+        logger.info(f"Target return optimization complete - " f"Return: {returns:.2%}, Vol: {volatility:.2%}")
 
         return {
             "weights": dict(zip(self.symbols, optimal_weights)),
@@ -377,18 +369,14 @@ class PortfolioOptimizer:
         omega_inverse = np.linalg.inv(omega)
 
         bl_returns = np.linalg.inv(M_inverse + np.dot(np.dot(P.T, omega_inverse), P))
-        bl_returns = np.dot(
-            bl_returns, np.dot(M_inverse, pi) + np.dot(np.dot(P.T, omega_inverse), Q)
-        )
+        bl_returns = np.dot(bl_returns, np.dot(M_inverse, pi) + np.dot(np.dot(P.T, omega_inverse), Q))
 
         # Optimize with Black-Litterman returns
         num_assets = len(self.symbols)
 
         def neg_utility(weights):
             portfolio_return = np.sum(bl_returns * weights)
-            portfolio_vol = np.sqrt(
-                np.dot(weights.T, np.dot(self.cov_matrix * 252, weights))
-            )
+            portfolio_vol = np.sqrt(np.dot(weights.T, np.dot(self.cov_matrix * 252, weights)))
             return -(portfolio_return - risk_aversion * portfolio_vol**2)
 
         constraints = {"type": "eq", "fun": lambda x: np.sum(x) - 1}

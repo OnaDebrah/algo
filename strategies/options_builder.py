@@ -23,9 +23,7 @@ logger = logging.getLogger(__name__)
 class OptionsStrategyBuilder:
     """Build and analyze complex options strategies"""
 
-    def __init__(
-        self, symbol: str, risk_free_rate: float = 0.05, dividend_yield: float = 0.0
-    ):
+    def __init__(self, symbol: str, risk_free_rate: float = 0.05, dividend_yield: float = 0.0):
         self.symbol = symbol
         self.risk_free_rate = risk_free_rate
         self.dividend_yield = dividend_yield
@@ -144,9 +142,7 @@ class OptionsStrategyBuilder:
         """Calculate breakeven points for the strategy"""
 
         # Sample prices around current price
-        price_range = np.linspace(
-            self.current_price * 0.5, self.current_price * 1.5, 1000
-        )
+        price_range = np.linspace(self.current_price * 0.5, self.current_price * 1.5, 1000)
 
         payoffs = self.calculate_payoff(price_range)
 
@@ -165,9 +161,7 @@ class OptionsStrategyBuilder:
     def get_max_profit(self) -> Tuple[float, str]:
         """Calculate maximum profit and condition"""
 
-        price_range = np.linspace(
-            self.current_price * 0.5, self.current_price * 1.5, 1000
-        )
+        price_range = np.linspace(self.current_price * 0.5, self.current_price * 1.5, 1000)
 
         payoffs = self.calculate_payoff(price_range)
         max_profit = np.max(payoffs)
@@ -185,9 +179,7 @@ class OptionsStrategyBuilder:
     def get_max_loss(self) -> Tuple[float, str]:
         """Calculate maximum loss and condition"""
 
-        price_range = np.linspace(
-            self.current_price * 0.5, self.current_price * 1.5, 1000
-        )
+        price_range = np.linspace(self.current_price * 0.5, self.current_price * 1.5, 1000)
 
         payoffs = self.calculate_payoff(price_range)
         max_loss = np.min(payoffs)
@@ -238,10 +230,7 @@ class OptionsStrategyBuilder:
 
         # Sample many prices
         num_samples = 10000
-        prices = self.current_price * np.exp(
-            (self.risk_free_rate - 0.5 * volatility**2) * T
-            + volatility * np.sqrt(T) * np.random.randn(num_samples)
-        )
+        prices = self.current_price * np.exp((self.risk_free_rate - 0.5 * volatility**2) * T + volatility * np.sqrt(T) * np.random.randn(num_samples))
 
         payoffs = self.calculate_payoff(prices)
         total_prob = np.sum(payoffs > 0) / num_samples

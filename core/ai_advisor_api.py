@@ -4,11 +4,14 @@ Replace the _call_claude_api method in core/ai_advisor.py with this implementati
 """
 
 import json
+import logging
 from typing import Dict, List
 
 import anthropic
 
 from config import ANTHROPIC_API_KEY
+
+logger = logging.getLogger(__name__)
 
 
 class AIAdvisorAPI:
@@ -43,20 +46,18 @@ class AIAdvisorAPI:
 
             # Clean up response (remove markdown if present)
             if response_text.startswith("```json"):
-                response_text = (
-                    response_text.split("```json")[1].split("```")[0].strip()
-                )
+                response_text = response_text.split("```json")[1].split("```")[0].strip()
             elif response_text.startswith("```"):
                 response_text = response_text.split("```")[1].split("```")[0].strip()
 
             return response_text
 
         except anthropic.APIError as e:
-            print(f"❌ Anthropic API error: {e}")
+            logger.error(f"❌ Anthropic API error: {e}")
             return self._get_fallback_response()
 
         except Exception as e:
-            print(f"❌ Unexpected error calling Claude API: {e}")
+            logger.error(f"❌ Unexpected error calling Claude API: {e}")
             return self._get_fallback_response()
 
     def _get_fallback_response(self) -> str:
@@ -139,9 +140,7 @@ class AIAdvisorAPI:
         except Exception:
             return False
 
-    async def get_recommendations_with_retry(
-        self, user_profile: Dict, max_retries: int = 2
-    ) -> str:
+    async def get_recommendations_with_retry(self, user_profile: Dict, max_retries: int = 2) -> str:
         """
         Get recommendations with automatic retry on failure
         """
@@ -149,15 +148,13 @@ class AIAdvisorAPI:
 
         for attempt in range(max_retries):
             try:
-                response = await self._call_claude_api(prompt)
+                response = await self.call_claude_api(prompt)
 
                 # Validate response
                 if self.validate_response(response):
                     return response
                 else:
-                    print(
-                        f"⚠️ Invalid response format (attempt {attempt + 1}/{max_retries})"
-                    )
+                    print(f"⚠️ Invalid response format (attempt {attempt + 1}/{max_retries})")
                     if attempt < max_retries - 1:
                         continue
 
@@ -167,7 +164,7 @@ class AIAdvisorAPI:
                     continue
 
         # All retries failed, use fallback
-        print("⚠️ All API attempts failed, using fallback recommendations")
+        logger.warning("⚠️ All API attempts failed, using fallback recommendations")
         return self._get_fallback_response()
 
 

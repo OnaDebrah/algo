@@ -72,15 +72,10 @@ class LiveTradingEngine:
         self.thread = threading.Thread(target=self._trading_loop, daemon=True)
         self.thread.start()
 
-        logger.info(
-            f"Live trading started - Strategy: {self.strategy.name}, "
-            f"Symbols: {self.symbols}, Interval: {self.check_interval}s"
-        )
+        logger.info(f"Live trading started - Strategy: {self.strategy.name}, " f"Symbols: {self.symbols}, Interval: {self.check_interval}s")
 
         if self.alert_manager:
-            self.alert_manager.alert_system_error(
-                f"Live trading started: {self.strategy.name}"
-            )
+            self.alert_manager.alert_system_error(f"Live trading started: {self.strategy.name}")
 
     def stop(self):
         """Stop live trading"""
@@ -91,9 +86,7 @@ class LiveTradingEngine:
         logger.info("Live trading stopped")
 
         if self.alert_manager:
-            self.alert_manager.alert_system_error(
-                f"Live trading stopped: {self.strategy.name}"
-            )
+            self.alert_manager.alert_system_error(f"Live trading stopped: {self.strategy.name}")
 
     def _trading_loop(self):
         """Main trading loop"""
@@ -104,9 +97,7 @@ class LiveTradingEngine:
             except Exception as e:
                 logger.error(f"Error in trading loop: {e}")
                 if self.alert_manager:
-                    self.alert_manager.alert_system_error(
-                        f"Trading loop error: {str(e)}"
-                    )
+                    self.alert_manager.alert_system_error(f"Trading loop error: {str(e)}")
                 time.sleep(self.check_interval)
 
     def _check_and_trade(self):
@@ -118,9 +109,7 @@ class LiveTradingEngine:
             logger.warning("Maximum drawdown exceeded, halting trading")
             self.stop()
             if self.alert_manager:
-                self.alert_manager.alert_risk_event(
-                    "Max Drawdown", "Trading halted due to drawdown limit"
-                )
+                self.alert_manager.alert_risk_event("Max Drawdown", "Trading halted due to drawdown limit")
             return
 
         for symbol in self.symbols:
@@ -148,17 +137,12 @@ class LiveTradingEngine:
 
         # Buy signal
         if signal == 1 and position is None:
-            quantity = self.risk_manager.calculate_position_size(
-                account["equity"], current_price
-            )
+            quantity = self.risk_manager.calculate_position_size(account["equity"], current_price)
 
             # Check if we have enough buying power
             cost = quantity * current_price
             if cost > account["buying_power"]:
-                logger.warning(
-                    f"Insufficient buying power for {symbol}: "
-                    f"Need ${cost:.2f}, Have ${account['buying_power']:.2f}"
-                )
+                logger.warning(f"Insufficient buying power for {symbol}: " f"Need ${cost:.2f}, Have ${account['buying_power']:.2f}")
                 return
 
             # Place buy order
@@ -170,9 +154,7 @@ class LiveTradingEngine:
                     order_type=OrderType.MARKET,
                 )
 
-                logger.info(
-                    f"BUY order placed: {quantity} {symbol} @ ${current_price:.2f}"
-                )
+                logger.info(f"BUY order placed: {quantity} {symbol} @ ${current_price:.2f}")
 
                 # Save to database
                 trade_data = {
@@ -200,9 +182,7 @@ class LiveTradingEngine:
             except Exception as e:
                 logger.error(f"Failed to place buy order for {symbol}: {e}")
                 if self.alert_manager:
-                    self.alert_manager.alert_system_error(
-                        f"Buy order failed for {symbol}: {str(e)}"
-                    )
+                    self.alert_manager.alert_system_error(f"Buy order failed for {symbol}: {str(e)}")
 
         # Sell signal
         elif signal == -1 and position is not None:
@@ -218,16 +198,11 @@ class LiveTradingEngine:
                 )
 
                 # Calculate P&L
-                entry_price = self.active_positions.get(symbol, {}).get(
-                    "entry_price", position["entry_price"]
-                )
+                entry_price = self.active_positions.get(symbol, {}).get("entry_price", position["entry_price"])
                 profit = (current_price - entry_price) * quantity
                 profit_pct = ((current_price - entry_price) / entry_price) * 100
 
-                logger.info(
-                    f"SELL order placed: {quantity} {symbol} @ ${current_price:.2f} "
-                    f"(P&L: ${profit:.2f}, {profit_pct:.2f}%)"
-                )
+                logger.info(f"SELL order placed: {quantity} {symbol} @ ${current_price:.2f} " f"(P&L: ${profit:.2f}, {profit_pct:.2f}%)")
 
                 # Save to database
                 trade_data = {
@@ -254,9 +229,7 @@ class LiveTradingEngine:
             except Exception as e:
                 logger.error(f"Failed to place sell order for {symbol}: {e}")
                 if self.alert_manager:
-                    self.alert_manager.alert_system_error(
-                        f"Sell order failed for {symbol}: {str(e)}"
-                    )
+                    self.alert_manager.alert_system_error(f"Sell order failed for {symbol}: {str(e)}")
 
     def get_status(self) -> Dict:
         """Get current status"""
@@ -328,14 +301,10 @@ class ScheduledTrading:
             return
 
         self.scheduler_running = True
-        self.scheduler_thread = threading.Thread(
-            target=self._scheduler_loop, daemon=True
-        )
+        self.scheduler_thread = threading.Thread(target=self._scheduler_loop, daemon=True)
         self.scheduler_thread.start()
 
-        logger.info(
-            f"Trading scheduler started - Hours: {self.market_open} to {self.market_close}"
-        )
+        logger.info(f"Trading scheduler started - Hours: {self.market_open} to {self.market_close}")
 
     def stop_scheduler(self):
         """Stop the scheduler"""

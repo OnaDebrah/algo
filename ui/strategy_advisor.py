@@ -20,9 +20,7 @@ class StrategyAdvisorUI:
     def render(self):
         """Render the strategy advisor interface"""
         st.title("🤖 AI Strategy Advisor")
-        st.markdown(
-            "Get personalized strategy recommendations based on your goals and preferences"
-        )
+        st.markdown("Get personalized strategy recommendations based on your goals and preferences")
 
         # Check if user has completed questionnaire
         if "user_profile" not in st.session_state:
@@ -41,9 +39,7 @@ class StrategyAdvisorUI:
     def _render_questionnaire(self):
         """Render the user profile questionnaire"""
         st.markdown("### 📋 Tell Us About Your Trading Goals")
-        st.markdown(
-            "Answer a few questions to get personalized strategy recommendations"
-        )
+        st.markdown("Answer a few questions to get personalized strategy recommendations")
 
         with st.form("profile_form"):
             st.markdown("#### 1. Investment Goals")
@@ -117,9 +113,7 @@ class StrategyAdvisorUI:
                 ],
             )
 
-            submitted = st.form_submit_button(
-                "🚀 Get My Recommendations", use_container_width=True
-            )
+            submitted = st.form_submit_button("🚀 Get My Recommendations", use_container_width=True)
 
             if submitted:
                 if not goals:
@@ -147,9 +141,7 @@ class StrategyAdvisorUI:
 
         # Get recommendations
         if "recommendations" not in st.session_state:
-            with st.spinner(
-                "🤖 AI is analyzing your profile and generating recommendations..."
-            ):
+            with st.spinner("🤖 AI is analyzing your profile and generating recommendations..."):
                 profile = st.session_state["user_profile"]
                 recommendations = asyncio.run(self.advisor.get_recommendations(profile))
                 st.session_state["recommendations"] = recommendations
@@ -211,11 +203,7 @@ class StrategyAdvisorUI:
             st.markdown(f"*{rec.description}*")
         with col2:
             # Fit score gauge
-            score_color = (
-                "green"
-                if rec.fit_score >= 80
-                else "orange" if rec.fit_score >= 60 else "red"
-            )
+            score_color = "green" if rec.fit_score >= 80 else "orange" if rec.fit_score >= 60 else "red"
             st.markdown(
                 f"<div style='text-align: center;'>"
                 f"<h2 style='color: {score_color};'>{rec.fit_score}%</h2>"
@@ -283,14 +271,8 @@ class StrategyAdvisorUI:
         for rec in recommendations:
             # Calculate metrics (normalized to 0-100)
             avg_return = sum(rec.expected_return_range) / 2
-            ease_score = (
-                90
-                if rec.risk_level == "low"
-                else 70 if rec.risk_level == "medium" else 50
-            )
-            risk_adj = 100 - (
-                {"low": 20, "medium": 50, "high": 80}.get(rec.risk_level, 50)
-            )
+            ease_score = 90 if rec.risk_level == "low" else 70 if rec.risk_level == "medium" else 50
+            risk_adj = 100 - ({"low": 20, "medium": 50, "high": 80}.get(rec.risk_level, 50))
             popularity = 65  # Could be calculated from actual usage data
 
             values = [

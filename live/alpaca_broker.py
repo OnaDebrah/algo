@@ -15,27 +15,19 @@ class AlpacaBroker(BaseBroker):
     def __init__(self, api_key: str, secret_key: str, paper: bool = True):
         super().__init__(api_key, secret_key, paper)
         self.api = None
-        self.base_url = (
-            "https://paper-api.alpaca.markets"
-            if paper
-            else "https://api.alpaca.markets"
-        )
+        self.base_url = "https://paper-api.alpaca.markets" if paper else "https://api.alpaca.markets"
 
     def connect(self) -> bool:
         """Connect to Alpaca API"""
         try:
             from alpaca.trading.client import TradingClient
 
-            self.api = TradingClient(
-                api_key=self.api_key, secret_key=self.secret_key, paper=self.paper
-            )
+            self.api = TradingClient(api_key=self.api_key, secret_key=self.secret_key, paper=self.paper)
 
             # Test connection
             account = self.api.get_account()
             self.connected = True
-            logger.info(
-                f"Connected to Alpaca acc: {account} ({'Paper' if self.paper else 'Live'} mode)"
-            )
+            logger.info(f"Connected to Alpaca acc: {account} ({'Paper' if self.paper else 'Live'} mode)")
             return True
 
         except ImportError:
@@ -127,14 +119,11 @@ class AlpacaBroker(BaseBroker):
         if not self.connected:
             raise ConnectionError("Not connected to broker")
 
-        from alpaca.trading.enums import OrderSide as AlpacaOrderSide
-        from alpaca.trading.enums import TimeInForce
+        from alpaca.trading.enums import OrderSide as AlpacaOrderSide, TimeInForce
         from alpaca.trading.requests import LimitOrderRequest, MarketOrderRequest
 
         # Convert side
-        alpaca_side = (
-            AlpacaOrderSide.BUY if side == OrderSide.BUY else AlpacaOrderSide.SELL
-        )
+        alpaca_side = AlpacaOrderSide.BUY if side == OrderSide.BUY else AlpacaOrderSide.SELL
 
         # Create order request
         if order_type == OrderType.MARKET:
@@ -161,9 +150,7 @@ class AlpacaBroker(BaseBroker):
         # Submit order
         order = self.api.submit_order(order_data)
 
-        logger.info(
-            f"Order placed: {side.value} {quantity} {symbol} " f"@ {order_type.value}"
-        )
+        logger.info(f"Order placed: {side.value} {quantity} {symbol} " f"@ {order_type.value}")
 
         return {
             "order_id": order.id,

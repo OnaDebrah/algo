@@ -61,9 +61,7 @@ def render_single_asset_backtest(
             if asset_class_filter == "Stock":
                 selected_class = AssetClass.STOCK
             else:
-                selected_class = next(
-                    ac for ac in AssetClass if ac.value == asset_class_filter
-                )
+                selected_class = next(ac for ac in AssetClass if ac.value == asset_class_filter)
 
             # Symbol input with suggestions
             popular = asset_mgr.get_popular_symbols(selected_class)
@@ -137,9 +135,7 @@ def render_single_asset_backtest(
         )
 
         # Get strategies in selected category
-        category_enum = next(
-            cat for cat in categories if cat.value == selected_category
-        )
+        category_enum = next(cat for cat in categories if cat.value == selected_category)
         strategies_in_category = catalog.get_by_category(category_enum)
         strategy_names = [info.name for info in strategies_in_category.values()]
 
@@ -153,11 +149,7 @@ def render_single_asset_backtest(
         # Show strategy info
         if strategy_type != "ML Model":
             strategy_key = next(
-                (
-                    key
-                    for key, info in strategies_in_category.items()
-                    if info.name == strategy_type
-                ),
+                (key for key, info in strategies_in_category.items() if info.name == strategy_type),
                 None,
             )
             if strategy_key:
@@ -183,13 +175,13 @@ def render_single_asset_backtest(
             "Period",
             ["1mo", "3mo", "6mo", "1y", "2y"],
             help="Historical data period",
-            key="backtest_period",
+            key="single_asset_backtest_period",
         )
         interval = st.selectbox(
             "Interval",
             ["1h", "1d", "1wk"],
             help="Data interval/timeframe",
-            key="backtest_interval",
+            key="single_asset_backtest_interval",
         )
 
     # Strategy-specific parameters
@@ -258,9 +250,7 @@ def render_single_asset_backtest(
                             asset_mgr = get_asset_manager()
                             detected_class = asset_mgr.detect_asset_class(symbol)
                             popular = asset_mgr.get_popular_symbols(detected_class)
-                            st.info(
-                                f"💡 Try these {detected_class.value} symbols: {', '.join(popular[:5])}"
-                            )
+                            st.info(f"💡 Try these {detected_class.value} symbols: {', '.join(popular[:5])}")
                         except Exception as e:
                             logger.error(e)
                             pass
@@ -280,9 +270,7 @@ def render_single_asset_backtest(
                     if symbol in ml_models:
                         strategy = ml_models[symbol]
                     else:
-                        st.error(
-                            "❌ ML model not trained for this symbol. Please train in ML tab first."
-                        )
+                        st.error("❌ ML model not trained for this symbol. Please train in ML tab first.")
                         return
 
                 # Run backtest
@@ -290,9 +278,7 @@ def render_single_asset_backtest(
                 engine.run_backtest(symbol, data)
 
                 # Calculate metrics
-                metrics = calculate_performance_metrics(
-                    engine.trades, engine.equity_curve, initial_capital
-                )
+                metrics = calculate_performance_metrics(engine.trades, engine.equity_curve, initial_capital)
 
                 st.success("✅ Backtest completed!")
 
@@ -403,9 +389,7 @@ def _display_price_chart(
     """Display price chart with trading signals"""
     st.subheader("📊 Price Chart & Trading Signals")
 
-    fig = make_subplots(
-        rows=2, cols=1, shared_xaxes=True, vertical_spacing=0.03, row_heights=[0.7, 0.3]
-    )
+    fig = make_subplots(rows=2, cols=1, shared_xaxes=True, vertical_spacing=0.03, row_heights=[0.7, 0.3])
 
     # Candlestick chart
     fig.add_trace(
@@ -485,9 +469,7 @@ def _display_price_chart(
         )
 
     # Volume chart
-    colors = [
-        "red" if row["Close"] < row["Open"] else "green" for _, row in data.iterrows()
-    ]
+    colors = ["red" if row["Close"] < row["Open"] else "green" for _, row in data.iterrows()]
     fig.add_trace(
         go.Bar(x=data.index, y=data["Volume"], name="Volume", marker_color=colors),
         row=2,
@@ -518,9 +500,7 @@ def _display_trade_log(trades: list):
                     "Quantity": t["quantity"],
                     "Price": f"${t['price']:.2f}",
                     "Profit": f"${t.get('profit', 0):.2f}" if t.get("profit") else "-",
-                    "Profit %": (
-                        f"{t.get('profit_pct', 0):.2f}%" if t.get("profit_pct") else "-"
-                    ),
+                    "Profit %": (f"{t.get('profit_pct', 0):.2f}%" if t.get("profit_pct") else "-"),
                 }
                 for t in trades
             ]

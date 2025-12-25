@@ -28,9 +28,7 @@ def render_dashboard(db: DatabaseManager):
         if not completed_trades.empty:
             # Calculate metrics
             total_profit = completed_trades["profit"].sum()
-            win_rate = (
-                (completed_trades["profit"] > 0).sum() / len(completed_trades) * 100
-            )
+            win_rate = (completed_trades["profit"] > 0).sum() / len(completed_trades) * 100
             avg_profit = completed_trades["profit"].mean()
             total_trades = len(completed_trades)
 
@@ -67,15 +65,11 @@ def render_dashboard(db: DatabaseManager):
                 st.metric("Losing Trades", len(losing_trades))
 
             with col3:
-                avg_win = (
-                    winning_trades["profit"].mean() if len(winning_trades) > 0 else 0
-                )
+                avg_win = winning_trades["profit"].mean() if len(winning_trades) > 0 else 0
                 st.metric("Avg Win", f"${avg_win:.2f}")
 
             with col4:
-                avg_loss = (
-                    losing_trades["profit"].mean() if len(losing_trades) > 0 else 0
-                )
+                avg_loss = losing_trades["profit"].mean() if len(losing_trades) > 0 else 0
                 st.metric("Avg Loss", f"${avg_loss:.2f}")
 
             # Recent Trades Table
@@ -100,9 +94,7 @@ def render_dashboard(db: DatabaseManager):
             # Format columns for better display
             display_df["price"] = display_df["price"].apply(lambda x: f"${x:.2f}")
             display_df["profit"] = display_df["profit"].apply(lambda x: f"${x:.2f}")
-            display_df["profit_pct"] = display_df["profit_pct"].apply(
-                lambda x: f"{x:.2f}%"
-            )
+            display_df["profit_pct"] = display_df["profit_pct"].apply(lambda x: f"{x:.2f}%")
 
             # Rename columns for display
             display_df.columns = [
@@ -154,9 +146,7 @@ def render_dashboard(db: DatabaseManager):
             st.dataframe(symbol_stats, use_container_width=True)
 
         else:
-            st.info(
-                "📊 No completed trades yet. Run a backtest to see performance metrics!"
-            )
+            st.info("📊 No completed trades yet. Run a backtest to see performance metrics!")
             st.markdown(
                 """
             **Get Started:**
