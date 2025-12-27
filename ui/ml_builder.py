@@ -125,7 +125,7 @@ def render_ml_builder(ml_models: dict):
                 # Create and train model
                 ml_strategy = MLStrategy(
                     f"ML_{model_type}_{ml_symbol}",
-                    model_type=("random_forest" if model_type == "Random Forest" else "gradient_boosting"),
+                    model_type=("Random_Forest" if model_type == "Random Forest" else "Gradient_Boosting"),
                 )
 
                 train_score, test_score = ml_strategy.train(data, test_size)

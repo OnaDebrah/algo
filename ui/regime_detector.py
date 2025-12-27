@@ -11,7 +11,6 @@ import plotly.graph_objects as go
 import streamlit as st
 from plotly.subplots import make_subplots
 
-# Import the regime detector
 from analytics.market_regime_detector import MarketRegimeDetector
 from core import fetch_stock_data
 
@@ -209,31 +208,6 @@ def render_regime_detector(db):
                 - Historical regime patterns
                 """
                 )
-
-
-def fetch_yahoo_data(symbol: str, days: int) -> pd.Series:
-    """Fetch data from Yahoo Finance"""
-    try:
-        import yfinance as yf
-
-        ticker = yf.Ticker(symbol)
-        end_date = datetime.now()
-        start_date = end_date - timedelta(days=days + 100)  # Extra buffer
-
-        hist = ticker.history(start=start_date, end=end_date)
-
-        if hist.empty:
-            st.error(f"No data found for {symbol}")
-            return None
-
-        return hist["Close"]
-
-    except ImportError:
-        st.error("yfinance not installed. Run: pip install yfinance")
-        return None
-    except Exception as e:
-        st.error(f"Error fetching data: {str(e)}")
-        return None
 
 
 def fetch_database_data(db, symbol: str, days: int) -> pd.Series:

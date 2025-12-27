@@ -4,6 +4,7 @@ import streamlit as st
 
 from alerts.alert_manager import AlertManager
 from config import DEFAULT_INITIAL_CAPITAL
+from core import fetch_stock_data
 from core.database import DatabaseManager
 from core.multi_asset_engine import MultiAssetEngine
 from core.risk_manager import RiskManager
@@ -199,7 +200,19 @@ def render_multi_asset_backtest(
         if not strategies_config:
             st.error("❌ Please configure strategies for all symbols")
             return
-
+        with st.spinner("Training ML models..."):
+            for symbol, strategy in strategies_config.items():
+                if hasattr(strategy, "is_trained") and not strategy.is_trained:
+                    try:
+                        # Fetch more data for training
+                        train_data = fetch_stock_data(symbol, period="2y", interval=interval)
+                        if len(train_data) > 100:  # Need sufficient data
+                            train_score, test_score = strategy.train(train_data)
+                            st.info(f"✓ {symbol}: Train={train_score:.1%}, Test={test_score:.1%}")
+                        else:
+                            st.warning(f"⚠️ {symbol}: Insufficient training data ({len(train_data)} rows)")
+                    except Exception as e:
+                        st.error(f"❌ {symbol}: Training failed - {str(e)}")
         with st.spinner(f"Running backtest on {len(symbols)} assets..."):
             try:
                 # Create multi-asset engine

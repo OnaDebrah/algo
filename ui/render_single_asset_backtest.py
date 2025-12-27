@@ -17,7 +17,6 @@ from strategies.rsi_strategy import RSIStrategy
 from strategies.sma_crossover import SMACrossoverStrategy
 from strategies.strategy_catalog import get_catalog
 
-# Import asset selector components
 try:
     from core.asset_classes import AssetClass, get_asset_manager
 
@@ -141,7 +140,7 @@ def render_single_asset_backtest(
 
         strategy_type = st.selectbox(
             "Strategy",
-            strategy_names + (["ML Model"] if ml_models else []),
+            strategy_names + (["Machine Learning"] if ml_models else []),
             help="Select trading strategy to backtest",
             key="backtest_strategy_type",
         )
@@ -193,7 +192,7 @@ def render_single_asset_backtest(
         with col2:
             long_window = st.slider("Long Window", 20, 200, 50)
 
-    elif strategy_type == "RSI":
+    elif strategy_type == "RSI Strategy":
         st.subheader("RSI Parameters")
         col1, col2, col3 = st.columns(3)
         with col1:
@@ -203,7 +202,7 @@ def render_single_asset_backtest(
         with col3:
             overbought = st.slider("Overbought", 60, 90, 70)
 
-    elif strategy_type == "MACD":
+    elif strategy_type == "MACD Strategy":
         st.subheader("MACD Parameters")
         st.info("Using default MACD parameters (12, 26, 9)")
 
@@ -258,19 +257,30 @@ def render_single_asset_backtest(
 
                 st.success(f"✅ Fetched {len(data)} data points for {symbol}")
 
-                # Initialize strategy
+                STRATEGY_FACTORY = {
+                    "SMA Crossover": lambda: SMACrossoverStrategy(short_window, long_window),
+                    "RSI Strategy": lambda: RSIStrategy(rsi_period, oversold, overbought),
+                    "MACD Strategy": lambda: MACDStrategy(),
+                }
 
-                if strategy_type == "SMA Crossover":
-                    strategy = SMACrossoverStrategy(short_window, long_window)
-                elif strategy_type == "RSI Strategy":
-                    strategy = RSIStrategy(rsi_period, oversold, overbought)
-                elif strategy_type == "MACD Strategy":
-                    strategy = MACDStrategy()
-                elif strategy_type == "Machine Learning":
-                    if symbol in ml_models:
-                        strategy = ml_models[symbol]
-                    else:
+                ML_STRATEGIES = {
+                    "ML Random Forest",
+                    "ML Gradient Boosting",
+                }
+
+                strategy = None
+
+                if strategy_type in ML_STRATEGIES:
+                    if symbol not in ml_models:
                         st.error("❌ ML model not trained for this symbol. Please train in ML tab first.")
+                        return
+                    strategy = ml_models[symbol]
+
+                else:
+                    try:
+                        strategy = STRATEGY_FACTORY[strategy_type]()
+                    except KeyError:
+                        st.error(f"❌ Unknown strategy type: {strategy_type}")
                         return
 
                 # Run backtest

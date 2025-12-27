@@ -228,6 +228,93 @@ class MultiAssetEngine:
             }
         )
 
+    # def get_results(self) -> Dict:
+    #     """Get backtest results"""
+    #
+    #     if not self.equity_curve:
+    #         return {}
+    #
+    #     final_equity = self.equity_curve[-1]["equity"]
+    #     total_return = ((final_equity - self.initial_capital) / self.initial_capital) * 100
+    #
+    #     # Per-symbol statistics
+    #     symbol_stats = self._calculate_symbol_stats()
+    #
+    #     # Overall statistics
+    #     trades_df = pd.DataFrame(self.trades)
+    #     completed_trades = trades_df[trades_df["profit"].notna()]
+    #
+    #     if not completed_trades.empty:
+    #         win_rate = (completed_trades["profit"] > 0).sum() / len(completed_trades) * 100
+    #         avg_profit = completed_trades["profit"].mean()
+    #
+    #         returns = completed_trades["profit_pct"].values
+    #         if len(returns) > 1:
+    #             sharpe = (np.mean(returns) / np.std(returns)) * np.sqrt(252)
+    #         else:
+    #             sharpe = 0
+    #     else:
+    #         win_rate = 0
+    #         avg_profit = 0
+    #         sharpe = 0
+    #
+    #     # Max drawdown
+    #     equity_values = [e["equity"] for e in self.equity_curve]
+    #     peak = equity_values[0]
+    #     max_dd = 0
+    #
+    #     for value in equity_values:
+    #         if value > peak:
+    #             peak = value
+    #         dd = ((peak - value) / peak) * 100
+    #         if dd > max_dd:
+    #             max_dd = dd
+    #
+    #     return {
+    #         "total_return": total_return,
+    #         "win_rate": win_rate,
+    #         "sharpe_ratio": sharpe,
+    #         "max_drawdown": max_dd,
+    #         "total_trades": len(completed_trades),
+    #         "avg_profit": avg_profit,
+    #         "final_equity": final_equity,
+    #         "symbol_stats": symbol_stats,
+    #         "num_symbols": len(self.strategies),
+    #     }
+
+    # def _calculate_symbol_stats(self) -> Dict:
+    #     """Calculate per-symbol statistics"""
+    #
+    #     stats = {}
+    #     trades_df = pd.DataFrame(self.trades)
+    #
+    #     for symbol in self.strategies.keys():
+    #         symbol_trades = trades_df[trades_df["symbol"] == symbol]
+    #         completed = symbol_trades[symbol_trades["profit"].notna()]
+    #
+    #         if not completed.empty:
+    #             total_profit = completed["profit"].sum()
+    #             num_trades = len(completed)
+    #             win_rate = (completed["profit"] > 0).sum() / num_trades * 100
+    #
+    #             stats[symbol] = {
+    #                 "total_profit": total_profit,
+    #                 "num_trades": num_trades,
+    #                 "win_rate": win_rate,
+    #                 "avg_profit": completed["profit"].mean(),
+    #                 "strategy": self.strategies[symbol].name,
+    #             }
+    #         else:
+    #             stats[symbol] = {
+    #                 "total_profit": 0,
+    #                 "num_trades": 0,
+    #                 "win_rate": 0,
+    #                 "avg_profit": 0,
+    #                 "strategy": self.strategies[symbol].name,
+    #             }
+    #
+    #     return stats
+
     def get_results(self) -> Dict:
         """Get backtest results"""
 
@@ -241,8 +328,27 @@ class MultiAssetEngine:
         symbol_stats = self._calculate_symbol_stats()
 
         # Overall statistics
+        if not self.trades:
+            # No trades executed
+            return {
+                "total_return": total_return,
+                "win_rate": 0,
+                "sharpe_ratio": 0,
+                "max_drawdown": 0,
+                "total_trades": 0,
+                "avg_profit": 0,
+                "final_equity": final_equity,
+                "symbol_stats": symbol_stats,
+                "num_symbols": len(self.strategies),
+            }
+
         trades_df = pd.DataFrame(self.trades)
-        completed_trades = trades_df[trades_df["profit"].notna()]
+
+        # Check if profit column exists
+        if "profit" in trades_df.columns:
+            completed_trades = trades_df[trades_df["profit"].notna()]
+        else:
+            completed_trades = pd.DataFrame()
 
         if not completed_trades.empty:
             win_rate = (completed_trades["profit"] > 0).sum() / len(completed_trades) * 100
@@ -286,11 +392,44 @@ class MultiAssetEngine:
         """Calculate per-symbol statistics"""
 
         stats = {}
+
+        # Check if we have any trades
+        if not self.trades:
+            # Return empty stats for all symbols
+            for symbol in self.strategies.keys():
+                stats[symbol] = {
+                    "total_profit": 0,
+                    "num_trades": 0,
+                    "win_rate": 0,
+                    "avg_profit": 0,
+                    "strategy": self.strategies[symbol].name,
+                }
+            return stats
+
         trades_df = pd.DataFrame(self.trades)
+
+        # Safety check: ensure required columns exist
+        if "symbol" not in trades_df.columns:
+            logger.warning("No 'symbol' column in trades DataFrame")
+            # Return empty stats for all symbols
+            for symbol in self.strategies.keys():
+                stats[symbol] = {
+                    "total_profit": 0,
+                    "num_trades": 0,
+                    "win_rate": 0,
+                    "avg_profit": 0,
+                    "strategy": self.strategies[symbol].name,
+                }
+            return stats
 
         for symbol in self.strategies.keys():
             symbol_trades = trades_df[trades_df["symbol"] == symbol]
-            completed = symbol_trades[symbol_trades["profit"].notna()]
+
+            # Check if profit column exists before filtering
+            if "profit" in symbol_trades.columns:
+                completed = symbol_trades[symbol_trades["profit"].notna()]
+            else:
+                completed = pd.DataFrame()
 
             if not completed.empty:
                 total_profit = completed["profit"].sum()
