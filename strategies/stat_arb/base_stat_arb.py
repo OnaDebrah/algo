@@ -13,10 +13,12 @@ import pandas as pd
 from sklearn.decomposition import PCA
 from statsmodels.tsa.vector_ar.vecm import coint_johansen
 
+from strategies import BaseStrategy
+
 warnings.filterwarnings("ignore")
 
 
-class StatisticalArbitrageStrategy:
+class StatisticalArbitrageStrategy(BaseStrategy):
     """
     Advanced Statistical Arbitrage Strategy
 
@@ -94,6 +96,20 @@ class StatisticalArbitrageStrategy:
             "total_pnl": 0,
             "sharpe_ratio": 0,
         }
+
+        params = {
+            "universe": universe,
+            "basket_size": basket_size,
+            "lookback_period": lookback_period,
+            "entry_threshold": entry_threshold,
+            "exit_threshold": exit_threshold,
+            "stop_loss_threshold": stop_loss_threshold,
+            "max_basket_weight": max_basket_weight,
+            "method": method,
+            "rebalancing_freq": rebalancing_freq,
+            "min_half_life": min_half_life,
+        }
+        super().__init__("Statistical Arbitrage Strategy", params)
 
     # ============================================================================
     # CORE BASKET CONSTRUCTION METHODS

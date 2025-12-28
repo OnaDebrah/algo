@@ -31,8 +31,92 @@ def render_multi_asset_backtest(
     """
     )
 
-    # Portfolio Builder
-    portfolio = render_portfolio_builder(key_prefix="backtest_portfolio")
+    # Portfolio Builder with Quick Input Option
+    st.markdown("### 📝 Portfolio Input")
+
+    input_mode = st.radio(
+        "Input Mode",
+        ["Portfolio Builder", "Quick Input (Comma-Separated)"],
+        horizontal=True,
+        key="portfolio_input_mode",
+        help="Use Portfolio Builder for guided selection or Quick Input for fast entry",
+    )
+
+    portfolio = []
+
+    if input_mode == "Quick Input (Comma-Separated)":
+        col1, col2 = st.columns([4, 1])
+
+        with col1:
+            symbols_input = st.text_input(
+                "Enter Symbols (comma-separated)",
+                placeholder="e.g., AAPL, MSFT, GOOGL, SPY, BTC-USD",
+                help="Enter multiple symbols separated by commas",
+                key="quick_symbols_input",
+            )
+
+        with col2:
+            st.markdown("<br>", unsafe_allow_html=True)
+            validate_btn = st.button("✓ Validate", key="validate_symbols", type="secondary")
+
+        if symbols_input:
+            # Parse and clean symbols
+            raw_symbols = [s.strip().upper() for s in symbols_input.split(",") if s.strip()]
+
+            if validate_btn or "validated_symbols" in st.session_state:
+                # Validate symbols
+                try:
+                    from core.asset_classes import get_asset_manager
+
+                    asset_mgr = get_asset_manager()
+
+                    validated = []
+                    invalid = []
+
+                    for symbol in raw_symbols:
+                        is_valid, message = asset_mgr.validate_symbol(symbol)
+                        if is_valid:
+                            validated.append(symbol)
+                        else:
+                            invalid.append((symbol, message))
+
+                    if validated:
+                        st.session_state.validated_symbols = validated
+                        portfolio = validated
+
+                        st.success(f"✅ Validated {len(validated)} symbols: {', '.join(validated)}")
+
+                        # Show asset info
+                        with st.expander("📊 Symbol Details"):
+                            asset_data = []
+                            for symbol in validated:
+                                asset_info = asset_mgr.get_asset_info(symbol)
+                                asset_data.append(
+                                    {
+                                        "Symbol": symbol,
+                                        "Name": asset_info.name[:30],
+                                        "Type": asset_info.asset_class.value,
+                                        "Currency": asset_info.currency,
+                                    }
+                                )
+
+                            df = pd.DataFrame(asset_data)
+                            st.dataframe(df, use_container_width=True, hide_index=True)
+
+                    if invalid:
+                        st.warning(f"⚠️ {len(invalid)} invalid symbols:")
+                        for sym, msg in invalid:
+                            st.write(f"- {sym}: {msg}")
+
+                except ImportError:
+                    # Fallback if asset manager not available
+                    portfolio = raw_symbols
+                    st.session_state.validated_symbols = raw_symbols
+                    st.info(f"Added {len(raw_symbols)} symbols: {', '.join(raw_symbols)}")
+
+    else:
+        # Original Portfolio Builder
+        portfolio = render_portfolio_builder(key_prefix="backtest_portfolio")
 
     if not portfolio or len(portfolio) < 2:
         st.info("👆 Add at least 2 assets to your portfolio to begin backtesting")
@@ -68,7 +152,7 @@ def render_multi_asset_backtest(
     col1, col2 = st.columns(2)
 
     with col1:
-        period = st.selectbox("Period", ["1mo", "3mo", "6mo", "1y", "2y"], index=2, key="multi_period")
+        period = st.selectbox("Period", ["1mo", "3mo", "6mo", "1y", "2y", "5y", "max"], index=2, key="multi_period")
 
     with col2:
         interval = st.selectbox("Interval", ["1h", "1d", "1wk"], index=1, key="multi_interval")
@@ -88,7 +172,7 @@ def render_multi_asset_backtest(
     strategies_config = {}
 
     if strategy_mode == "Same strategy for all symbols":
-        # Single strategy for all
+        # Single strategy TYPE for all (but create separate instances)
         col1, col2 = st.columns(2)
 
         with col1:
@@ -108,10 +192,14 @@ def render_multi_asset_backtest(
             None,
         )
 
-        # Configure parameters
+        # Configure parameters (just once for display)
         if strategy_key:
-            strategy = _configure_strategy_parameters(catalog, strategy_key, "multi")
-            strategies_config = {symbol: strategy for symbol in symbols}
+            params = _get_strategy_parameters(catalog, strategy_key, "multi")
+
+            # IMPORTANT: Create SEPARATE strategy instances for each symbol
+            # Each symbol needs its own instance to avoid state confusion
+            for symbol in symbols:
+                strategies_config[symbol] = catalog.create_strategy(strategy_key, **params)
 
     else:
         # Different strategy per symbol
@@ -138,8 +226,8 @@ def render_multi_asset_backtest(
                 )
 
                 if strategy_key:
-                    strategy = _configure_strategy_parameters(catalog, strategy_key, f"multi_{symbol}")
-                    strategies_config[symbol] = strategy
+                    params = _get_strategy_parameters(catalog, strategy_key, f"multi_{symbol}")
+                    strategies_config[symbol] = catalog.create_strategy(strategy_key, **params)
 
     # Capital allocation
     st.markdown("### 💰 Capital Allocation")
@@ -186,7 +274,7 @@ def render_multi_asset_backtest(
         )
 
     with col2:
-        _ = st.slider(
+        max_position_pct = st.slider(
             "Max Position per Symbol (%)",
             min_value=5,
             max_value=50,
@@ -197,9 +285,11 @@ def render_multi_asset_backtest(
 
     # Run backtest
     if st.button("🚀 Run Multi-Asset Backtest", type="primary", key="multi_run"):
-        if not strategies_config:
+        if not strategies_config or len(strategies_config) != len(symbols):
             st.error("❌ Please configure strategies for all symbols")
             return
+
+        # ML Training Phase
         with st.spinner("Training ML models..."):
             for symbol, strategy in strategies_config.items():
                 if hasattr(strategy, "is_trained") and not strategy.is_trained:
@@ -213,8 +303,13 @@ def render_multi_asset_backtest(
                             st.warning(f"⚠️ {symbol}: Insufficient training data ({len(train_data)} rows)")
                     except Exception as e:
                         st.error(f"❌ {symbol}: Training failed - {str(e)}")
+
+        # Backtest Execution Phase
         with st.spinner(f"Running backtest on {len(symbols)} assets..."):
             try:
+                # Update risk manager with max position
+                risk_manager.max_position_size = max_position_pct / 100
+
                 # Create multi-asset engine
                 engine = MultiAssetEngine(
                     strategies=strategies_config,
@@ -255,9 +350,18 @@ def render_multi_asset_backtest(
                     st.code(traceback.format_exc())
 
 
-def _configure_strategy_parameters(catalog, strategy_key: str, prefix: str):
-    """Configure strategy parameters with UI"""
+def _get_strategy_parameters(catalog, strategy_key: str, prefix: str) -> dict:
+    """
+    Get strategy parameters from UI without creating strategy instance
 
+    Args:
+        catalog: Strategy catalog
+        strategy_key: Strategy key
+        prefix: Widget key prefix
+
+    Returns:
+        Dictionary of parameters
+    """
     info = catalog.get_info(strategy_key)
     params = {}
 
@@ -275,17 +379,17 @@ def _configure_strategy_parameters(catalog, strategy_key: str, prefix: str):
                         max_value=max_val,
                         value=param_info["default"],
                         help=param_info.get("description", ""),
-                        key=f"{prefix}_{param_name}",
+                        key=f"{prefix}_{param_name}_param",
                     )
                 else:
                     params[param_name] = st.number_input(
                         param_name.replace("_", " ").title(),
                         value=param_info["default"],
                         help=param_info.get("description", ""),
-                        key=f"{prefix}_{param_name}",
+                        key=f"{prefix}_{param_name}_param",
                     )
 
-    return catalog.create_strategy(strategy_key, **params)
+    return params
 
 
 def _display_multi_asset_metrics(results: dict):
@@ -368,6 +472,10 @@ def _display_multi_asset_equity_curve(equity_curve: list, initial_capital: float
 
     st.subheader("📈 Portfolio Equity Curve")
 
+    if not equity_curve:
+        st.warning("No equity curve data available")
+        return
+
     equity_df = pd.DataFrame(equity_curve)
 
     fig = go.Figure()
@@ -431,39 +539,42 @@ def _display_multi_asset_trades(trades: list):
 
     st.subheader("📋 Trade Log")
 
-    if trades:
-        trades_df = pd.DataFrame(trades)
+    if not trades:
+        st.info("No trades executed during backtest")
+        return
 
-        # Summary by symbol
-        st.markdown("**Trades by Symbol:**")
-        summary = trades_df.groupby("symbol").size().reset_index(name="Count")
-        st.dataframe(summary, use_container_width=True, hide_index=True)
+    trades_df = pd.DataFrame(trades)
 
-        # Recent trades
-        st.markdown("**Recent Trades:**")
-        display_df = pd.DataFrame(
-            [
-                {
-                    "Timestamp": t["timestamp"],
-                    "Symbol": t["symbol"],
-                    "Type": t["order_type"],
-                    "Quantity": t["quantity"],
-                    "Price": f"${t['price']:.2f}",
-                    "Strategy": t["strategy"],
-                    "Profit": f"${t.get('profit', 0):.2f}" if t.get("profit") else "-",
-                    "Profit %": (f"{t.get('profit_pct', 0):.2f}%" if t.get("profit_pct") else "-"),
-                }
-                for t in trades[-50:]
-            ]
-        )  # Last 50 trades
+    # Summary by symbol
+    st.markdown("**Trades by Symbol:**")
+    summary = trades_df.groupby("symbol").size().reset_index(name="Count")
+    st.dataframe(summary, use_container_width=True, hide_index=True)
 
-        st.dataframe(display_df, use_container_width=True, hide_index=True)
+    # Recent trades
+    st.markdown("**Recent Trades:**")
+    display_df = pd.DataFrame(
+        [
+            {
+                "Timestamp": t["timestamp"],
+                "Symbol": t["symbol"],
+                "Type": t["order_type"],
+                "Quantity": t["quantity"],
+                "Price": f"${t['price']:.2f}",
+                "Strategy": t["strategy"],
+                "Profit": f"${t.get('profit', 0):.2f}" if t.get("profit") else "-",
+                "Profit %": (f"{t.get('profit_pct', 0):.2f}%" if t.get("profit_pct") else "-"),
+            }
+            for t in trades[-50:]
+        ]
+    )  # Last 50 trades
 
-        # Download option
-        csv = pd.DataFrame(trades).to_csv(index=False)
-        st.download_button(
-            label="📥 Download All Trades",
-            data=csv,
-            file_name=f"multi_asset_trades_{pd.Timestamp.now().strftime('%Y%m%d_%H%M%S')}.csv",
-            mime="text/csv",
-        )
+    st.dataframe(display_df, use_container_width=True, hide_index=True)
+
+    # Download option
+    csv = pd.DataFrame(trades).to_csv(index=False)
+    st.download_button(
+        label="📥 Download All Trades",
+        data=csv,
+        file_name=f"multi_asset_trades_{pd.Timestamp.now().strftime('%Y%m%d_%H%M%S')}.csv",
+        mime="text/csv",
+    )

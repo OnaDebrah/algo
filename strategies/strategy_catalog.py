@@ -1,17 +1,32 @@
 """
 Strategy Catalog and Categories
-Organize all trading strategies by type
+Organize all trading strategies by type - Expanded Version
 """
 
 from dataclasses import dataclass
 from enum import Enum
 from typing import Dict, List, Type
 
+from strategies.adpative_trend_ff_strategy import AdaptiveTrendFollowingStrategy
 from strategies.base_strategy import BaseStrategy
+from strategies.cs_momentum_strategy import CrossSectionalMomentumStrategy
+from strategies.kalman_filter_strategy import KalmanFilterStrategy
 from strategies.macd_strategy import MACDStrategy
 from strategies.ml_strategy import MLStrategy
+from strategies.options_strategies import OptionsStrategy
+from strategies.pairs_trading_strategy import PairsTradingStrategy
 from strategies.rsi_strategy import RSIStrategy
 from strategies.sma_crossover import SMACrossoverStrategy
+
+# Statistical Arbitrage
+from strategies.stat_arb.sector_neutral import SectorNeutralStrategy
+from strategies.ts_momentum_strategy import TimeSeriesMomentumStrategy
+from strategies.volatility.dynamic_scaling import DynamicVolatilityScalingStrategy
+from strategies.volatility.variance_risk_premium import VarianceRiskPremiumStrategy
+
+# Volatility strategies
+from strategies.volatility.volatility_breakout import VolatilityBreakoutStrategy
+from strategies.volatility.volatility_targeting import VolatilityTargetingStrategy
 
 
 class StrategyCategory(Enum):
@@ -23,7 +38,11 @@ class StrategyCategory(Enum):
     MEAN_REVERSION = "Mean Reversion"
     MACHINE_LEARNING = "Machine Learning"
     VOLATILITY = "Volatility"
+    STATISTICAL_ARBITRAGE = "Statistical Arbitrage"
+    PAIRS_TRADING = "Pairs Trading"
+    OPTIONS = "Options Strategies"
     PRICE_ACTION = "Price Action"
+    ADAPTIVE = "Adaptive Strategies"
     HYBRID = "Hybrid"
 
 
@@ -53,7 +72,9 @@ class StrategyCatalog:
         """Build the strategy catalog"""
 
         catalog = {
-            # Technical Indicators - Trend Following
+            # ============================================================
+            # TECHNICAL INDICATORS - TREND FOLLOWING
+            # ============================================================
             "sma_crossover": StrategyInfo(
                 name="SMA Crossover",
                 class_type=SMACrossoverStrategy,
@@ -86,45 +107,6 @@ class StrategyCatalog:
                     "Late entries and exits",
                 ],
             ),
-            # Technical Indicators - Momentum
-            "rsi": StrategyInfo(
-                name="RSI Strategy",
-                class_type=RSIStrategy,
-                category=StrategyCategory.MOMENTUM,
-                description="Uses Relative Strength Index to identify overbought and oversold conditions. Buy at oversold, sell at overbought.",
-                complexity="Beginner",
-                time_horizon="Short-term",
-                best_for=["Range-bound markets", "Momentum trading", "Quick trades"],
-                parameters={
-                    "period": {
-                        "default": 14,
-                        "range": (5, 30),
-                        "description": "RSI calculation period",
-                    },
-                    "oversold": {
-                        "default": 30,
-                        "range": (10, 40),
-                        "description": "Oversold threshold (buy signal)",
-                    },
-                    "overbought": {
-                        "default": 70,
-                        "range": (60, 90),
-                        "description": "Overbought threshold (sell signal)",
-                    },
-                },
-                pros=[
-                    "Good for range-bound markets",
-                    "Identifies momentum shifts",
-                    "Clear overbought/oversold levels",
-                    "Works on any timeframe",
-                ],
-                cons=[
-                    "Can stay overbought/oversold for extended periods",
-                    "Less effective in strong trends",
-                    "False signals common",
-                ],
-            ),
-            # Technical Indicators - Trend/Momentum
             "macd": StrategyInfo(
                 name="MACD Strategy",
                 class_type=MACDStrategy,
@@ -166,7 +148,401 @@ class StrategyCatalog:
                     "Can whipsaw in choppy markets",
                 ],
             ),
-            # Machine Learning
+            "adaptive_trend": StrategyInfo(
+                name="Adaptive Trend Following",
+                class_type=AdaptiveTrendFollowingStrategy,
+                category=StrategyCategory.ADAPTIVE,
+                description="Dynamically adjusts trend-following parameters based on market conditions and volatility.",
+                complexity="Advanced",
+                time_horizon="Medium to Long-term",
+                best_for=[
+                    "Changing market conditions",
+                    "Volatile markets",
+                    "Institutional trading",
+                ],
+                parameters={
+                    "lookback_period": {
+                        "default": 50,
+                        "range": (20, 100),
+                        "description": "Lookback period for adaptation",
+                    },
+                    "volatility_threshold": {
+                        "default": 0.02,
+                        "range": (0.01, 0.05),
+                        "description": "Volatility threshold for adjustment",
+                    },
+                },
+                pros=[
+                    "Adapts to market conditions",
+                    "Reduces false signals in choppy markets",
+                    "Better risk-adjusted returns",
+                    "Handles regime changes well",
+                ],
+                cons=[
+                    "Complex to implement",
+                    "Requires significant data history",
+                    "Parameter optimization needed",
+                    "Computationally intensive",
+                ],
+            ),
+            # ============================================================
+            # MOMENTUM STRATEGIES
+            # ============================================================
+            "rsi": StrategyInfo(
+                name="RSI Strategy",
+                class_type=RSIStrategy,
+                category=StrategyCategory.MOMENTUM,
+                description="Uses Relative Strength Index to identify overbought and oversold conditions. Buy at oversold, sell at overbought.",
+                complexity="Beginner",
+                time_horizon="Short-term",
+                best_for=["Range-bound markets", "Momentum trading", "Quick trades"],
+                parameters={
+                    "period": {
+                        "default": 14,
+                        "range": (5, 30),
+                        "description": "RSI calculation period",
+                    },
+                    "oversold": {
+                        "default": 30,
+                        "range": (10, 40),
+                        "description": "Oversold threshold (buy signal)",
+                    },
+                    "overbought": {
+                        "default": 70,
+                        "range": (60, 90),
+                        "description": "Overbought threshold (sell signal)",
+                    },
+                },
+                pros=[
+                    "Good for range-bound markets",
+                    "Identifies momentum shifts",
+                    "Clear overbought/oversold levels",
+                    "Works on any timeframe",
+                ],
+                cons=[
+                    "Can stay overbought/oversold for extended periods",
+                    "Less effective in strong trends",
+                    "False signals common",
+                ],
+            ),
+            "ts_momentum": StrategyInfo(
+                name="Time Series Momentum",
+                class_type=TimeSeriesMomentumStrategy,
+                category=StrategyCategory.MOMENTUM,
+                description="Exploits persistence in asset returns over time. Goes long when recent returns are positive, short when negative.",
+                complexity="Intermediate",
+                time_horizon="Short to Medium-term",
+                best_for=[
+                    "Trending assets",
+                    "Futures trading",
+                    "Systematic strategies",
+                ],
+                parameters={
+                    "lookback": {
+                        "default": 12,
+                        "range": (1, 36),
+                        "description": "Momentum lookback period (months)",
+                    },
+                    "holding_period": {
+                        "default": 1,
+                        "range": (1, 12),
+                        "description": "Position holding period (months)",
+                    },
+                },
+                pros=[
+                    "Well-documented academic research",
+                    "Works across asset classes",
+                    "Simple to implement",
+                    "Low turnover",
+                ],
+                cons=[
+                    "Can reverse quickly",
+                    "Drawdowns during trend reversals",
+                    "Requires patience",
+                    "Transaction costs matter",
+                ],
+            ),
+            "cs_momentum": StrategyInfo(
+                name="Cross-Sectional Momentum",
+                class_type=CrossSectionalMomentumStrategy,
+                category=StrategyCategory.MOMENTUM,
+                description="Ranks assets by performance and goes long winners, short losers. Also known as relative strength.",
+                complexity="Intermediate",
+                time_horizon="Medium-term",
+                best_for=[
+                    "Stock portfolios",
+                    "ETF rotation",
+                    "Long-short strategies",
+                ],
+                parameters={
+                    "lookback": {
+                        "default": 6,
+                        "range": (1, 12),
+                        "description": "Performance lookback period (months)",
+                    },
+                    "top_pct": {
+                        "default": 0.2,
+                        "range": (0.1, 0.5),
+                        "description": "Top percentile to buy",
+                    },
+                    "bottom_pct": {
+                        "default": 0.2,
+                        "range": (0.1, 0.5),
+                        "description": "Bottom percentile to short",
+                    },
+                },
+                pros=[
+                    "Strong academic backing",
+                    "Market-neutral variant available",
+                    "Captures relative performance",
+                    "Works in various markets",
+                ],
+                cons=[
+                    "Requires multiple assets",
+                    "Higher turnover than TS momentum",
+                    "Crowded trade risk",
+                    "Sector concentration risk",
+                ],
+            ),
+            # ============================================================
+            # MEAN REVERSION
+            # ============================================================
+            "pairs_trading": StrategyInfo(
+                name="Pairs Trading",
+                class_type=PairsTradingStrategy,
+                category=StrategyCategory.PAIRS_TRADING,
+                description="Identifies cointegrated asset pairs and trades their spread reversion to mean.",
+                complexity="Advanced",
+                time_horizon="Short to Medium-term",
+                best_for=[
+                    "Market-neutral strategies",
+                    "Statistical arbitrage",
+                    "Hedge funds",
+                ],
+                parameters={
+                    "lookback": {
+                        "default": 60,
+                        "range": (30, 252),
+                        "description": "Cointegration lookback period",
+                    },
+                    "entry_threshold": {
+                        "default": 2.0,
+                        "range": (1.0, 3.0),
+                        "description": "Z-score entry threshold",
+                    },
+                    "exit_threshold": {
+                        "default": 0.5,
+                        "range": (0.0, 1.0),
+                        "description": "Z-score exit threshold",
+                    },
+                },
+                pros=[
+                    "Market-neutral",
+                    "Lower volatility",
+                    "Exploits statistical relationships",
+                    "Consistent returns in stable markets",
+                ],
+                cons=[
+                    "Pairs can decouple",
+                    "Requires careful pair selection",
+                    "Higher transaction costs",
+                    "Relationship breakdown risk",
+                ],
+            ),
+            # ============================================================
+            # VOLATILITY STRATEGIES
+            # ============================================================
+            "volatility_breakout": StrategyInfo(
+                name="Volatility Breakout",
+                class_type=VolatilityBreakoutStrategy,
+                category=StrategyCategory.VOLATILITY,
+                description="Trades breakouts from volatility bands (Bollinger Bands). Enters when price breaks out of bands.",
+                complexity="Intermediate",
+                time_horizon="Short-term",
+                best_for=[
+                    "Volatile markets",
+                    "Breakout trading",
+                    "Crypto and commodities",
+                ],
+                parameters={
+                    "period": {
+                        "default": 20,
+                        "range": (10, 50),
+                        "description": "Bollinger Band period",
+                    },
+                    "std_dev": {
+                        "default": 2.0,
+                        "range": (1.0, 3.0),
+                        "description": "Standard deviations for bands",
+                    },
+                },
+                pros=[
+                    "Captures volatile moves",
+                    "Visual and intuitive",
+                    "Works in trending markets",
+                    "Clear risk definition",
+                ],
+                cons=[
+                    "Many false breakouts",
+                    "Whipsaws in ranging markets",
+                    "Requires quick execution",
+                    "Stop losses essential",
+                ],
+            ),
+            "volatility_targeting": StrategyInfo(
+                name="Volatility Targeting",
+                class_type=VolatilityTargetingStrategy,
+                category=StrategyCategory.VOLATILITY,
+                description="Adjusts position size to maintain constant portfolio volatility. Scales down in high vol, up in low vol.",
+                complexity="Advanced",
+                time_horizon="All timeframes",
+                best_for=[
+                    "Risk management",
+                    "Portfolio optimization",
+                    "Professional trading",
+                ],
+                parameters={
+                    "target_vol": {
+                        "default": 0.15,
+                        "range": (0.05, 0.30),
+                        "description": "Target annualized volatility",
+                    },
+                    "lookback": {
+                        "default": 21,
+                        "range": (10, 63),
+                        "description": "Volatility estimation period",
+                    },
+                },
+                pros=[
+                    "Consistent risk exposure",
+                    "Improves Sharpe ratio",
+                    "Reduces tail risk",
+                    "Professional standard",
+                ],
+                cons=[
+                    "Can miss big moves",
+                    "Realized vs implied vol mismatch",
+                    "Frequent rebalancing",
+                    "Implementation complexity",
+                ],
+            ),
+            "dynamic_scaling": StrategyInfo(
+                name="Dynamic Position Scaling",
+                class_type=DynamicVolatilityScalingStrategy,
+                category=StrategyCategory.VOLATILITY,
+                description="Dynamically scales position sizes based on market conditions, volatility, and momentum.",
+                complexity="Advanced",
+                time_horizon="All timeframes",
+                best_for=[
+                    "Risk-adjusted returns",
+                    "Drawdown management",
+                    "Adaptive trading",
+                ],
+                parameters={
+                    "base_size": {
+                        "default": 0.1,
+                        "range": (0.05, 0.25),
+                        "description": "Base position size (% of capital)",
+                    },
+                    "scaling_factor": {
+                        "default": 1.5,
+                        "range": (1.0, 3.0),
+                        "description": "Scaling multiplier",
+                    },
+                },
+                pros=[
+                    "Adapts to market conditions",
+                    "Better risk management",
+                    "Maximizes favorable conditions",
+                    "Reduces losses in bad conditions",
+                ],
+                cons=[
+                    "Complex to implement",
+                    "Requires careful calibration",
+                    "Can underperform in stable markets",
+                    "Higher turnover",
+                ],
+            ),
+            "variance_risk_premium": StrategyInfo(
+                name="Variance Risk Premium",
+                class_type=VarianceRiskPremiumStrategy,
+                category=StrategyCategory.VOLATILITY,
+                description="Captures the premium between implied and realized volatility. Typically short volatility.",
+                complexity="Advanced",
+                time_horizon="Medium-term",
+                best_for=[
+                    "Options trading",
+                    "Volatility arbitrage",
+                    "Institutional strategies",
+                ],
+                parameters={
+                    "lookback": {
+                        "default": 30,
+                        "range": (20, 90),
+                        "description": "Historical vol lookback",
+                    },
+                    "threshold": {
+                        "default": 0.05,
+                        "range": (0.01, 0.10),
+                        "description": "Premium threshold for entry",
+                    },
+                },
+                pros=[
+                    "Consistent premium capture",
+                    "Well-researched strategy",
+                    "Diversification benefits",
+                    "Works in calm markets",
+                ],
+                cons=[
+                    "Tail risk (vol spikes)",
+                    "Requires options access",
+                    "Negative skewness",
+                    "Can blow up in crises",
+                ],
+            ),
+            # ============================================================
+            # STATISTICAL ARBITRAGE
+            # ============================================================
+            "sector_neutral": StrategyInfo(
+                name="Sector Neutral Arbitrage",
+                class_type=SectorNeutralStrategy,
+                category=StrategyCategory.STATISTICAL_ARBITRAGE,
+                description="Market-neutral strategy that is neutral within each sector. Exploits intra-sector relationships.",
+                complexity="Advanced",
+                time_horizon="Short to Medium-term",
+                best_for=[
+                    "Hedge funds",
+                    "Market-neutral portfolios",
+                    "Statistical arbitrage",
+                ],
+                parameters={
+                    "lookback": {
+                        "default": 60,
+                        "range": (30, 252),
+                        "description": "Ranking lookback period",
+                    },
+                    "rebalance_freq": {
+                        "default": 20,
+                        "range": (5, 60),
+                        "description": "Rebalancing frequency (days)",
+                    },
+                },
+                pros=[
+                    "Market risk neutralized",
+                    "Lower volatility",
+                    "Sector-specific alpha",
+                    "Reduced systematic risk",
+                ],
+                cons=[
+                    "Requires many stocks",
+                    "Higher complexity",
+                    "Execution challenges",
+                    "Lower absolute returns",
+                ],
+            ),
+            # ============================================================
+            # MACHINE LEARNING
+            # ============================================================
             "ml_random_forest": StrategyInfo(
                 name="ML Random Forest",
                 class_type=MLStrategy,
@@ -249,6 +625,219 @@ class StrategyCatalog:
                     "Slower to train",
                     "Requires careful tuning",
                     "Computationally intensive",
+                ],
+            ),
+            # ============================================================
+            # ADAPTIVE STRATEGIES
+            # ============================================================
+            "kalman_filter": StrategyInfo(
+                name="Kalman Filter Pairs Strategy",
+                class_type=KalmanFilterStrategy,
+                category=StrategyCategory.ADAPTIVE,
+                description="Statistical arbitrage using Kalman Filtering to dynamically estimate the hedge ratio between two assets.",
+                complexity="Institutional",
+                time_horizon="Intraday to Medium-term",
+                best_for=[
+                    "Pairs Trading",
+                    "Statistical Arbitrage",
+                    "Mean Reversion in Cointegrated Assets",
+                ],
+                parameters={
+                    "entry_z": {
+                        "default": 2.0,
+                        "range": (1.0, 4.0),
+                        "description": "Z-score threshold for trade entry",
+                    },
+                    "exit_z": {
+                        "default": 0.5,
+                        "range": (0.0, 1.0),
+                        "description": "Z-score threshold for mean reversion exit",
+                    },
+                    "transitory_std": {
+                        "default": 0.01,
+                        "range": (0.0001, 0.1),
+                        "description": "System noise: how fast the hedge ratio (Beta) can change",
+                    },
+                    "observation_std": {
+                        "default": 0.1,
+                        "range": (0.01, 1.0),
+                        "description": "Measurement noise: how much price noise to ignore",
+                    },
+                    "decay_factor": {
+                        "default": 0.99,
+                        "range": (0.90, 1.0),
+                        "description": "Forgetting factor for old price observations",
+                    },
+                    "min_obs": {
+                        "default": 20,
+                        "range": (10, 60),
+                        "description": "Minimum observations before Kalman starts trading",
+                    },
+                },
+                pros=[
+                    "Dynamic hedge ratio (Beta) updates instantly",
+                    "Superior to rolling OLS for non-stationary spreads",
+                    "Mathematically optimal signal-to-noise separation",
+                ],
+                cons=[
+                    "Highly sensitive to transitory_std parameter",
+                    "Risk of 'over-adapting' to market noise",
+                    "Requires cointegrated asset pairs to be effective",
+                ],
+            ),
+            # ============================================================
+            # OPTIONS STRATEGIES
+            # ============================================================
+            "covered_call": StrategyInfo(
+                name="Covered Call",
+                class_type=OptionsStrategy,
+                category=StrategyCategory.OPTIONS,
+                description="Hold stock and sell call options to generate income. Limited upside, downside protected by premium.",
+                complexity="Intermediate",
+                time_horizon="Short to Medium-term",
+                best_for=[
+                    "Income generation",
+                    "Range-bound markets",
+                    "Conservative traders",
+                ],
+                parameters={
+                    "strategy_type": {"default": "covered_call", "range": None, "description": "Options strategy type"},
+                    "strike_pct": {
+                        "default": 0.05,
+                        "range": (0.01, 0.15),
+                        "description": "Strike price % above current",
+                    },
+                    "dte": {
+                        "default": 30,
+                        "range": (7, 90),
+                        "description": "Days to expiration",
+                    },
+                },
+                pros=[
+                    "Generates income",
+                    "Reduces cost basis",
+                    "Lower risk than naked long",
+                    "Consistent returns in flat markets",
+                ],
+                cons=[
+                    "Limited upside",
+                    "Still exposed to downside",
+                    "Opportunity cost if stock rallies",
+                    "Early assignment risk",
+                ],
+            ),
+            "iron_condor": StrategyInfo(
+                name="Iron Condor",
+                class_type=OptionsStrategy,
+                category=StrategyCategory.OPTIONS,
+                description="Market-neutral options strategy. Profits when underlying stays within a range. Limited risk and reward.",
+                complexity="Advanced",
+                time_horizon="Short-term",
+                best_for=[
+                    "Low volatility markets",
+                    "Income generation",
+                    "Range-bound stocks",
+                ],
+                parameters={
+                    "strategy_type": {"default": "iron_condor", "range": None, "description": "Options strategy type"},
+                    "wing_width": {
+                        "default": 0.05,
+                        "range": (0.03, 0.10),
+                        "description": "Width of wings (% of price)",
+                    },
+                    "dte": {
+                        "default": 30,
+                        "range": (14, 60),
+                        "description": "Days to expiration",
+                    },
+                },
+                pros=[
+                    "Defined risk",
+                    "High probability strategy",
+                    "Profits from time decay",
+                    "Market neutral",
+                ],
+                cons=[
+                    "Limited profit potential",
+                    "Requires careful management",
+                    "Pin risk near expiration",
+                    "Complex adjustments needed",
+                ],
+            ),
+            "butterfly_spread": StrategyInfo(
+                name="Butterfly Spread",
+                class_type=OptionsStrategy,
+                category=StrategyCategory.OPTIONS,
+                description="Limited risk strategy with concentrated profit zone. Profits when price stays near middle strike.",
+                complexity="Advanced",
+                time_horizon="Short-term",
+                best_for=[
+                    "Neutral outlook",
+                    "Low volatility expected",
+                    "Precise targets",
+                ],
+                parameters={
+                    "strategy_type": {"default": "butterfly_spread", "range": None, "description": "Options strategy type"},
+                    "wing_width": {
+                        "default": 0.03,
+                        "range": (0.02, 0.08),
+                        "description": "Distance between strikes",
+                    },
+                    "dte": {
+                        "default": 30,
+                        "range": (14, 60),
+                        "description": "Days to expiration",
+                    },
+                },
+                pros=[
+                    "Low cost to enter",
+                    "Defined max loss",
+                    "High reward/risk ratio at target",
+                    "Works in neutral markets",
+                ],
+                cons=[
+                    "Narrow profit zone",
+                    "Lower probability of max profit",
+                    "Time decay works against you early",
+                    "Complex to manage",
+                ],
+            ),
+            "straddle": StrategyInfo(
+                name="Long Straddle",
+                class_type=OptionsStrategy,
+                category=StrategyCategory.OPTIONS,
+                description="Profits from large moves in either direction. Buy ATM call and put. Volatility play.",
+                complexity="Intermediate",
+                time_horizon="Short-term",
+                best_for=[
+                    "Earnings events",
+                    "High expected volatility",
+                    "Direction unknown",
+                ],
+                parameters={
+                    "strategy_type": {"default": "straddle", "range": None, "description": "Options strategy type"},
+                    "dte": {
+                        "default": 30,
+                        "range": (7, 90),
+                        "description": "Days to expiration",
+                    },
+                    "iv_threshold": {
+                        "default": 0.30,
+                        "range": (0.20, 0.60),
+                        "description": "Implied volatility entry threshold",
+                    },
+                },
+                pros=[
+                    "Profits from big moves",
+                    "Direction doesn't matter",
+                    "Defined max loss",
+                    "Great for events",
+                ],
+                cons=[
+                    "Expensive to enter",
+                    "Needs significant move",
+                    "Time decay hurts",
+                    "IV crush risk after event",
                 ],
             ),
         }
@@ -339,6 +928,28 @@ class StrategyCatalog:
 
         return matrix
 
+    def get_strategy_count_by_category(self) -> Dict[str, int]:
+        """Get count of strategies in each category"""
+        counts = {}
+        for category in self.get_categories():
+            counts[category.value] = len(self.get_by_category(category))
+        return counts
+
+    def search_strategies(self, query: str) -> List[Dict]:
+        """Search strategies by name, description, or tags"""
+        results = []
+        query_lower = query.lower()
+
+        for key, info in self.strategies.items():
+            if (
+                query_lower in info.name.lower()
+                or query_lower in info.description.lower()
+                or any(query_lower in tag.lower() for tag in info.best_for)
+            ):
+                results.append({"key": key, "name": info.name, "category": info.category.value, "description": info.description})
+
+        return results
+
 
 # Global catalog instance
 strategy_catalog = StrategyCatalog()
@@ -378,3 +989,19 @@ def get_recommended_strategies(level: str = "Beginner") -> List[str]:
     strategies = catalog.get_by_complexity(level)
 
     return [info.name for info in strategies.values()]
+
+
+def get_strategy_summary() -> Dict:
+    """Get summary statistics of the strategy catalog"""
+    catalog = get_catalog()
+
+    return {
+        "total_strategies": len(catalog.strategies),
+        "by_category": catalog.get_strategy_count_by_category(),
+        "by_complexity": {
+            "Beginner": len(catalog.get_by_complexity("Beginner")),
+            "Intermediate": len(catalog.get_by_complexity("Intermediate")),
+            "Advanced": len(catalog.get_by_complexity("Advanced")),
+        },
+        "categories": [cat.value for cat in catalog.get_categories()],
+    }

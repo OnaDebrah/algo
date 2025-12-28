@@ -6,7 +6,7 @@ from typing import Dict
 import numpy as np
 import pandas as pd
 
-from strategies.volatility.dynamic_scaling import DynamicVolatilityScaling
+from strategies.volatility.dynamic_scaling import DynamicVolatilityScalingStrategy
 from strategies.volatility.volatility_targeting import VolatilityTargetingStrategy
 
 
@@ -26,7 +26,7 @@ class VolatilityRiskManager:
             vol_lookback=config.get("vol_lookback", 63),
         )
 
-        self.dynamic_scaling = DynamicVolatilityScaling(
+        self.dynamic_scaling = DynamicVolatilityScalingStrategy(
             target_volatility=config.get("target_volatility", 0.15),
             scaling_method=config.get("scaling_method", "multiplicative"),
         )

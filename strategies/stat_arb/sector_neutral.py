@@ -11,7 +11,7 @@ from strategies.stat_arb.base_stat_arb import StatisticalArbitrageStrategy
 # ============================================================================
 
 
-class SectorNeutralStatArb(StatisticalArbitrageStrategy):
+class SectorNeutralStrategy(StatisticalArbitrageStrategy):
     """
     Sector-Neutral Statistical Arbitrage
     Ensures baskets are sector-neutral

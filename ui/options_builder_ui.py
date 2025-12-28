@@ -13,7 +13,7 @@ import streamlit as st
 from strategies.options_builder import OptionsStrategyBuilder, create_preset_strategy
 from strategies.options_strategies import (
     OptionsChain,
-    OptionStrategy,
+    OptionsStrategy,
     OptionType,
     get_strategy_description,
 )
@@ -31,17 +31,18 @@ def render_options_strategy_builder():
     """
     )
 
-    # Strategy mode selection
-    mode = st.radio(
-        "Strategy Mode",
-        ["Preset Strategies", "Custom Strategy Builder"],
-        horizontal=True,
-    )
+    tab_design, tab_chain = st.tabs(["🎨 Strategy Designer", "⛓️ Options Chain"])
 
-    if mode == "Preset Strategies":
-        render_preset_strategies()
-    else:
-        render_custom_builder()
+    with tab_design:
+        st.markdown("### Strategy Blueprint")
+        mode = st.radio("Design Mode", ["Preset Templates", "Custom Leg Builder"], horizontal=True, key="design_mode")
+        if mode == "Preset Templates":
+            render_preset_strategies()
+        else:
+            render_custom_builder()
+
+    with tab_chain:
+        render_options_chain_viewer()
 
 
 def render_preset_strategies():
@@ -57,6 +58,7 @@ def render_preset_strategies():
 
     with col2:
         # Fetch current price
+        st.markdown("<div style='padding-top: 28px;'></div>", unsafe_allow_html=True)
         if st.button("🔄 Fetch Price"):
             chain = OptionsChain(symbol)
             price = chain.get_current_price()
@@ -75,21 +77,21 @@ def render_preset_strategies():
     col1, col2, col3 = st.columns(3)
 
     strategies_group_1 = [
-        OptionStrategy.COVERED_CALL,
-        OptionStrategy.CASH_SECURED_PUT,
-        OptionStrategy.PROTECTIVE_PUT,
+        OptionsStrategy.COVERED_CALL,
+        OptionsStrategy.CASH_SECURED_PUT,
+        OptionsStrategy.PROTECTIVE_PUT,
     ]
 
     strategies_group_2 = [
-        OptionStrategy.VERTICAL_CALL_SPREAD,
-        OptionStrategy.VERTICAL_PUT_SPREAD,
-        OptionStrategy.IRON_CONDOR,
+        OptionsStrategy.VERTICAL_CALL_SPREAD,
+        OptionsStrategy.VERTICAL_PUT_SPREAD,
+        OptionsStrategy.IRON_CONDOR,
     ]
 
     strategies_group_3 = [
-        OptionStrategy.STRADDLE,
-        OptionStrategy.STRANGLE,
-        OptionStrategy.BUTTERFLY_SPREAD,
+        OptionsStrategy.STRADDLE,
+        OptionsStrategy.STRANGLE,
+        OptionsStrategy.BUTTERFLY_SPREAD,
     ]
 
     selected_strategy = None
@@ -118,7 +120,7 @@ def render_preset_strategies():
         _render_strategy_details(strategy, symbol, current_price)
 
 
-def _render_strategy_details(strategy: OptionStrategy, symbol: str, current_price: float):
+def _render_strategy_details(strategy: OptionsStrategy, symbol: str, current_price: float):
     """Render details and configuration for selected strategy"""
 
     st.markdown("---")
@@ -177,12 +179,12 @@ def _render_strategy_details(strategy: OptionStrategy, symbol: str, current_pric
         _display_strategy_analysis(builder, volatility, current_price)
 
 
-def _get_strategy_parameters(strategy: OptionStrategy, current_price: float) -> dict:
+def _get_strategy_parameters(strategy: OptionsStrategy, current_price: float) -> dict:
     """Get strategy-specific parameters"""
 
     kwargs = {}
 
-    if strategy == OptionStrategy.COVERED_CALL:
+    if strategy == OptionsStrategy.COVERED_CALL:
         strike = st.slider(
             "Call Strike Price",
             min_value=current_price * 0.9,
@@ -192,7 +194,7 @@ def _get_strategy_parameters(strategy: OptionStrategy, current_price: float) -> 
         )
         kwargs["strike"] = strike
 
-    elif strategy == OptionStrategy.CASH_SECURED_PUT:
+    elif strategy == OptionsStrategy.CASH_SECURED_PUT:
         strike = st.slider(
             "Put Strike Price",
             min_value=current_price * 0.8,
@@ -202,7 +204,7 @@ def _get_strategy_parameters(strategy: OptionStrategy, current_price: float) -> 
         )
         kwargs["strike"] = strike
 
-    elif strategy == OptionStrategy.VERTICAL_CALL_SPREAD:
+    elif strategy == OptionsStrategy.VERTICAL_CALL_SPREAD:
         col1, col2 = st.columns(2)
         with col1:
             long_strike = st.number_input("Long Call Strike", value=current_price, step=0.5)
@@ -211,7 +213,7 @@ def _get_strategy_parameters(strategy: OptionStrategy, current_price: float) -> 
         kwargs["long_strike"] = long_strike
         kwargs["short_strike"] = short_strike
 
-    elif strategy == OptionStrategy.VERTICAL_PUT_SPREAD:
+    elif strategy == OptionsStrategy.VERTICAL_PUT_SPREAD:
         col1, col2 = st.columns(2)
         with col1:
             long_strike = st.number_input("Long Put Strike", value=current_price, step=0.5)
@@ -220,7 +222,7 @@ def _get_strategy_parameters(strategy: OptionStrategy, current_price: float) -> 
         kwargs["long_strike"] = long_strike
         kwargs["short_strike"] = short_strike
 
-    elif strategy == OptionStrategy.IRON_CONDOR:
+    elif strategy == OptionsStrategy.IRON_CONDOR:
         st.markdown("**Configure Strikes:**")
         col1, col2, col3, col4 = st.columns(4)
 
@@ -238,7 +240,7 @@ def _get_strategy_parameters(strategy: OptionStrategy, current_price: float) -> 
         kwargs["call_short_strike"] = call_short
         kwargs["call_long_strike"] = call_long
 
-    elif strategy == OptionStrategy.STRADDLE:
+    elif strategy == OptionsStrategy.STRADDLE:
         strike = st.slider(
             "Strike Price (ATM recommended)",
             min_value=current_price * 0.95,
@@ -248,7 +250,7 @@ def _get_strategy_parameters(strategy: OptionStrategy, current_price: float) -> 
         )
         kwargs["strike"] = strike
 
-    elif strategy == OptionStrategy.STRANGLE:
+    elif strategy == OptionsStrategy.STRANGLE:
         col1, col2 = st.columns(2)
         with col1:
             put_strike = st.number_input("Put Strike", value=current_price * 0.95, step=0.5)
@@ -353,7 +355,7 @@ def render_custom_builder():
 
         with col2:
             st.markdown("<br>", unsafe_allow_html=True)
-            if st.button("🚀 Analyze Strategy", type="primary"):
+            if st.button("🧪 Analyze Strategy", type="primary"):
                 _display_strategy_analysis(builder, volatility, builder.current_price)
 
 
@@ -419,7 +421,7 @@ def _display_strategy_analysis(builder: OptionsStrategyBuilder, volatility: floa
 
     # Breakeven points
     if breakevens:
-        st.markdown("### 🎯 Breakeven Points")
+        st.markdown("### ⌖ Breakeven Points")
         for i, be in enumerate(breakevens, 1):
             st.write(f"**Breakeven {i}:** ${be:.2f}")
 
@@ -427,14 +429,14 @@ def _display_strategy_analysis(builder: OptionsStrategyBuilder, volatility: floa
     _plot_payoff_diagram(builder, current_price, breakevens)
 
     # Greeks surface (optional advanced view)
-    with st.expander("📊 Advanced: Greeks Heatmap"):
+    with st.expander("Δ Advanced: Greeks Heatmap"):
         _plot_greeks_surface(builder, current_price, volatility)
 
 
 def _plot_payoff_diagram(builder: OptionsStrategyBuilder, current_price: float, breakevens: List[float]):
     """Plot payoff diagram"""
 
-    st.markdown("### 📊 Payoff Diagram")
+    st.markdown("### Σ Payoff Diagram")
 
     # Generate price range
     price_range = np.linspace(current_price * 0.7, current_price * 1.3, 200)
@@ -560,6 +562,7 @@ def render_options_chain_viewer():
         symbol = st.text_input("Symbol", value="AAPL", key="chain_symbol").upper()
 
     with col2:
+        st.markdown("<div style='padding-top: 28px;'></div>", unsafe_allow_html=True)
         if st.button("📥 Load Chain"):
             chain = OptionsChain(symbol)
             expirations = chain.get_expirations()
@@ -580,7 +583,7 @@ def render_options_chain_viewer():
         # Expiration selector
         selected_exp = st.selectbox("Expiration Date", expirations)
 
-        if st.button("📊 Show Chain"):
+        if st.button("⊞ Show Chain"):
             calls, puts = chain.get_chain(selected_exp)
 
             col1, col2 = st.columns(2)

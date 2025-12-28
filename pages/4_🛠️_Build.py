@@ -9,10 +9,13 @@ from core.context import configure_page, get_app_context
 from ui.custom_strategy_builder import render_custom_strategy_builder
 from ui.ml_builder import render_ml_builder
 from ui.sidebar import render_page_sidebar
+from ui.theme import OracleTheme
 
 
 @require_tier(UserTier.PRO)
 def render_build():
+    OracleTheme.apply_theme()
+
     configure_page("Build", "🛠️")
     render_page_sidebar()
     # Get context

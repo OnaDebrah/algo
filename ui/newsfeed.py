@@ -3,8 +3,6 @@ Advanced Rolling News Ticker with Real-Time Updates
 ===================================================
 Professional market data ribbon with auto-refresh, news feed,
 and economic calendar integration.
-
-Place this in: ui/news_ticker.py
 """
 
 import logging
@@ -14,12 +12,9 @@ from typing import Dict, List
 import streamlit as st
 import yfinance as yf
 
+from ui.theme import OracleTheme
+
 logger = logging.getLogger(__name__)
-
-
-# ============================================================================
-# DATA FETCHERS
-# ============================================================================
 
 
 @st.cache_data(ttl=120)  # Cache for 2 minutes
@@ -127,12 +122,15 @@ def fetch_economic_calendar() -> List[Dict]:
 
 def render_scrolling_ticker(data: List[Dict]):
     """
-    Render horizontal scrolling ticker (marquee style).
-
-    Args:
-        data: List of market data dictionaries
+    Render horizontal scrolling ticker (marquee style) aligned with Oraculum Theme.
     """
-    # Build ticker items HTML
+
+    C = OracleTheme.COLORS
+
+    bg_card = C["bg_card"]
+    border_color = C["border_subtle"]
+    text_muted = C["text_muted"]
+
     ticker_items = []
     for item in data:
         color = "#00C853" if item["change"] >= 0 else "#FF5252"
@@ -150,7 +148,6 @@ def render_scrolling_ticker(data: List[Dict]):
         """
         ticker_items.append(ticker_html)
 
-    # Duplicate items for seamless loop
     ticker_html_all = "".join(ticker_items * 3)
 
     st.markdown(
@@ -163,72 +160,49 @@ def render_scrolling_ticker(data: List[Dict]):
 
         <style>
         .ticker-wrapper {{
-            background: linear-gradient(135deg, #1a1d29 0%, #252937 100%);
-            border-bottom: 1px solid #2D3748;
+            /* Regulation: Matches page background or secondary background */
+            background: {bg_card};
+            border-top: 1px solid {border_color};
+            border-bottom: 1px solid {border_color};
+
             overflow: hidden;
-            padding: 12px 0;
-            margin: -1rem -1rem 1rem -1rem;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+            padding: 8px 0;
+
+            /* Regulation: Standardizes width to page margins */
+            width: 100%;
+            margin: 0 auto 2rem auto;
+            border-radius: 12px;
+            box-shadow: inset 0 0 20px rgba(0,0,0,0.2);
         }}
 
         .ticker-container {{
             display: flex;
-            animation: scroll 60s linear infinite;
+            /* Regulation: Adjust speed based on item count */
+            animation: scroll 40s linear infinite;
             width: fit-content;
         }}
 
         .ticker-item {{
             display: inline-flex;
             align-items: center;
-            gap: 8px;
-            padding: 8px 20px;
-            margin: 0 10px;
-            background: rgba(255, 255, 255, 0.03);
-            border-radius: 8px;
-            border-left: 3px solid #4C78FF;
+            gap: 12px;
+            padding: 6px 24px;
+            border-right: 1px solid {border_color};
             white-space: nowrap;
-            transition: all 0.3s ease;
-        }}
-
-        .ticker-item:hover {{
-            background: rgba(255, 255, 255, 0.08);
-            transform: translateY(-2px);
-            box-shadow: 0 4px 8px rgba(76, 120, 255, 0.3);
-        }}
-
-        .ticker-icon {{
-            font-size: 1.2rem;
         }}
 
         .ticker-name {{
-            font-size: 0.75rem;
-            color: #9AA4B2;
+            font-size: 0.7rem;
+            color: {text_muted};
             text-transform: uppercase;
-            letter-spacing: 0.05em;
-            font-weight: 600;
-        }}
-
-        .ticker-price {{
-            font-size: 0.95rem;
             font-weight: 700;
-            color: #E6EAF2;
-        }}
-
-        .ticker-change {{
-            font-size: 0.85rem;
-            font-weight: 600;
         }}
 
         @keyframes scroll {{
-            0% {{
-                transform: translateX(0);
-            }}
-            100% {{
-                transform: translateX(-33.33%);
-            }}
+            0% {{ transform: translateX(0); }}
+            100% {{ transform: translateX(-33.33%); }}
         }}
 
-        /* Pause animation on hover */
         .ticker-wrapper:hover .ticker-container {{
             animation-play-state: paused;
         }}
@@ -542,12 +516,12 @@ def render_market_ticker(style: str = "scrolling", include_news: bool = False, i
         include_news: Whether to show news feed
         include_calendar: Whether to show economic calendar
     """
-    # Add auto-refresh button
-    col1, col2 = st.columns([6, 2])
+    t_col1, t_col2 = st.columns([8, 1])
 
-    with col2:
-        # Auto-refresh toggle
-        auto_refresh = st.checkbox("Auto", value=False, help="Auto-refresh every 2 minutes", key="ticker_auto")
+    with t_col2:
+        inner_col1, inner_col2 = st.columns([1, 4])
+        with inner_col2:
+            auto_refresh = st.toggle("Auto", value=False, key="ticker_auto", help="Refresh every 2m")
 
     # Fetch data
     with st.spinner("Loading market data..."):

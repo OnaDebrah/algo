@@ -7,7 +7,7 @@ from pykalman import KalmanFilter
 from strategies import BaseStrategy
 
 
-class KalmanPairsTradingStrategy(BaseStrategy):
+class KalmanFilterStrategy(BaseStrategy):
     """
     Pairs trading with Kalman Filter for dynamic hedge ratio
     """

@@ -9,10 +9,13 @@ from core.context import configure_page, get_app_context
 from ui.dashboard import render_dashboard
 from ui.live import render_live_trading
 from ui.sidebar import render_page_sidebar
+from ui.theme import OracleTheme
 
 
 @require_auth
 def render_monitor():
+    OracleTheme.apply_theme()
+
     configure_page("Monitor", "📊")
 
     render_page_sidebar()

@@ -11,16 +11,12 @@ import warnings
 import numpy as np
 import pandas as pd
 
-from strategies.volatility.dynamic_scaling import DynamicVolatilityScaling
-from strategies.volatility.variance_risk_premium import VarianceRiskPremiumStrategy
-from strategies.volatility.volatility_breakout import VolatilityBreakoutStrategy
-from strategies.volatility.volatility_risk_manager import VolatilityRiskManager
-from strategies.volatility.volatility_targeting import VolatilityTargetingStrategy
+from strategies import BaseStrategy
 
 warnings.filterwarnings("ignore")
 
 
-class VolatilityStrategy:
+class BaseVolatilityStrategy(BaseStrategy):
     """
     Base Volatility Strategy Class
 
@@ -70,6 +66,16 @@ class VolatilityStrategy:
             "max_leverage": 0.0,
             "min_leverage": 0.0,
         }
+
+        params = {
+            "target_volatility": target_volatility,
+            "vol_lookback": vol_lookback,
+            "min_vol": min_vol,
+            "max_vol": max_vol,
+            "rebalance_freq": rebalance_freq,
+            "vol_estimator": vol_estimator,
+        }
+        super().__init__("Base Volatility Strategy", params)
 
     def calculate_returns(self, prices: pd.Series) -> pd.Series:
         """Calculate logarithmic returns"""
@@ -209,87 +215,3 @@ class VolatilityStrategy:
             )
             self.metrics["max_leverage"] = max(self.leverage_history)
             self.metrics["min_leverage"] = min(self.leverage_history)
-
-
-# ============================================================================
-# EXAMPLE USAGE
-# ============================================================================
-
-if __name__ == "__main__":
-    print("=== Volatility-Based Strategies Demo ===")
-
-    # Create sample data
-    np.random.seed(42)
-    dates = pd.date_range("2020-01-01", periods=500, freq="D")
-
-    # Simulate volatile asset
-    base_returns = np.random.randn(500) * 0.01
-    # Add volatility clusters
-    for i in range(100, 200):
-        base_returns[i] *= 3.0  # High volatility period
-    for i in range(300, 400):
-        base_returns[i] *= 0.3  # Low volatility period
-
-    prices = 100 * np.exp(np.cumsum(base_returns))
-    price_series = pd.Series(prices, index=dates)
-
-    # Example 1: Volatility Breakout
-    print("\n1. Volatility Breakout Strategy")
-    breakout_strat = VolatilityBreakoutStrategy(target_volatility=0.20, vol_multiplier=2.0, vol_estimator="ewma")
-
-    breakout_signal = breakout_strat.generate_signal(price_series)
-    print(f"Breakout Signal: {breakout_signal}")
-
-    # Example 2: Volatility Targeting
-    print("\n2. Volatility Targeting Strategy")
-
-    # Simulate a base strategy
-    base_returns_sim = pd.Series(np.random.randn(500) * 0.01, index=dates)
-
-    vol_target_strat = VolatilityTargetingStrategy(target_volatility=0.15, volatility_buffer=0.1)
-
-    # Calculate required leverage
-    required_leverage = vol_target_strat.calculate_required_leverage(base_returns_sim)
-    print(f"Required Leverage: {required_leverage:.2f}")
-
-    # Example 3: Variance Risk Premium
-    print("\n3. Variance Risk Premium Strategy")
-
-    # Simulate implied and realized vol
-    implied_vol = 0.25  # 25% implied
-    realized_vol = 0.18  # 18% realized
-
-    vrp_strat = VarianceRiskPremiumStrategy(entry_threshold=0.02, position_method="delta_hedged")
-
-    vrp_signal = vrp_strat.generate_vrp_signal(implied_vol, realized_vol)
-    print(f"VRP Signal: {vrp_signal}")
-
-    # Example 4: Dynamic Volatility Scaling
-    print("\n4. Dynamic Volatility Scaling")
-
-    scaling = DynamicVolatilityScaling(target_volatility=0.15, scaling_method="multiplicative")
-
-    returns = breakout_strat.calculate_returns(price_series)
-    scaled_pos = scaling.scale_position("TEST_ASSET", 1.0, returns)
-    print(f"Scaled Position: {scaled_pos:.2f}")
-
-    # Example 5: Integration with Risk Manager
-    print("\n5. Volatility Risk Manager Integration")
-
-    risk_config = {
-        "target_volatility": 0.15,
-        "position_limits": {"TEST_ASSET": {"max": 2.0}},
-        "var_limits": {"TEST_ASSET": 10000},
-    }
-
-    risk_manager = VolatilityRiskManager(risk_config)
-
-    # Check position risk
-    risk_check = risk_manager.check_position_risk(
-        "TEST_ASSET",
-        position=2.5,
-        returns=returns,
-        metadata={"portfolio_returns": returns},
-    )
-
-    print(f"Risk Check: {risk_check}")

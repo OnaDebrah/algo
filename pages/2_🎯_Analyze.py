@@ -10,10 +10,13 @@ from ui.analyst import render_analyst
 from ui.regime_detector import render_regime_detector
 from ui.sidebar import render_page_sidebar
 from ui.strategy_advisor import render_strategy_advisor
+from ui.theme import OracleTheme
 
 
 @require_tier(UserTier.FREE)
 def render_analyze():
+    OracleTheme.apply_theme()
+
     configure_page("Analyze", "🎯")
     render_page_sidebar()
     # Get context
@@ -25,7 +28,7 @@ def render_analyze():
         <div class="page-header">
             <h1>🎯 Analyze</h1>
             <p style="color: var(--text-secondary);">
-                AI-powered analysis, market regime detection, and intelligent recommendations
+                AI-Powered Analysis, Market Regime Detection, and Intelligent Recommendations
             </p>
         </div>
     """,

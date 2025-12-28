@@ -7,12 +7,16 @@ import streamlit as st
 from auth import require_auth
 from core.context import configure_page, get_app_context
 from ui.configuration import render_configuration
+from ui.sidebar import render_page_sidebar
+from ui.theme import OracleTheme
 
 
 @require_auth
 def render_settings():
+    OracleTheme.apply_theme()
+
     configure_page("Settings", "⚙️")
-    # render_page_sidebar()
+    render_page_sidebar()
     # Get context
     context = get_app_context()
 

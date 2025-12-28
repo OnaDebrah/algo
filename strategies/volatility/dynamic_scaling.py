@@ -4,10 +4,10 @@ import numpy as np
 import pandas as pd
 from scipy import stats
 
-from strategies.volatility.base_volatility import VolatilityStrategy
+from strategies.volatility.base_volatility import BaseVolatilityStrategy
 
 
-class DynamicVolatilityScaling(VolatilityStrategy):
+class DynamicVolatilityScalingStrategy(BaseVolatilityStrategy):
     """
     Dynamic Volatility Scaling
 

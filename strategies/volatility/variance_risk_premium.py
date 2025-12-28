@@ -3,10 +3,10 @@ from typing import Dict, List, Union
 import numpy as np
 import pandas as pd
 
-from strategies.volatility.base_volatility import VolatilityStrategy
+from strategies.volatility.base_volatility import BaseVolatilityStrategy
 
 
-class VarianceRiskPremiumStrategy(VolatilityStrategy):
+class VarianceRiskPremiumStrategy(BaseVolatilityStrategy):
     """
     Variance Risk Premium Strategy
 

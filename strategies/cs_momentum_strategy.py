@@ -12,12 +12,14 @@ from typing import Dict, List, Optional
 import numpy as np
 import pandas as pd
 
+from strategies import BaseStrategy
+
 warnings.filterwarnings("ignore")
 
 logger = logging.getLogger(__name__)
 
 
-class CrossSectionalMomentumStrategy:
+class CrossSectionalMomentumStrategy(BaseStrategy):
     """
     Cross-Sectional Momentum Strategy
 
@@ -93,6 +95,21 @@ class CrossSectionalMomentumStrategy:
             "max_drawdown": 0.0,
             "information_ratio": 0.0,
         }
+
+        params = {
+            "universe": universe,
+            "formation_period": formation_period,
+            "skip_period": skip_period,
+            "holding_period": holding_period,
+            "top_quantile": top_quantile,
+            "bottom_quantile": bottom_quantile,
+            "sector_mapping": sector_mapping,
+            "volatility_adjustment": volatility_adjustment,
+            "momentum_crash_protection": momentum_crash_protection,
+            "max_position_size": max_position_size,
+            "transaction_cost_bps": transaction_cost_bps,
+        }
+        super().__init__("Cross Sectional Momentum Strategy", params)
 
     # ============================================================================
     # CORE MOMENTUM CALCULATION METHODS

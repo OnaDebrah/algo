@@ -1,5 +1,5 @@
 """
-Production-grade authentication and authorization system
+Authentication and authorization system
 """
 
 import hashlib

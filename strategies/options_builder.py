@@ -13,7 +13,7 @@ from strategies.options_strategies import (
     BlackScholesCalculator,
     OptionLeg,
     OptionsChain,
-    OptionStrategy,
+    OptionsStrategy,
     OptionType,
 )
 
@@ -239,7 +239,7 @@ class OptionsStrategyBuilder:
 
 
 def create_preset_strategy(
-    strategy_type: OptionStrategy,
+    strategy_type: OptionsStrategy,
     symbol: str,
     current_price: float,
     expiration: datetime,
@@ -262,36 +262,36 @@ def create_preset_strategy(
     builder = OptionsStrategyBuilder(symbol)
     builder.current_price = current_price
 
-    if strategy_type == OptionStrategy.COVERED_CALL:
+    if strategy_type == OptionsStrategy.COVERED_CALL:
         # Long 100 shares + Short 1 OTM call
         strike = kwargs.get("strike", current_price * 1.05)
         builder.add_leg(OptionType.CALL, strike, expiration, -1)
 
-    elif strategy_type == OptionStrategy.CASH_SECURED_PUT:
+    elif strategy_type == OptionsStrategy.CASH_SECURED_PUT:
         # Short 1 OTM put
         strike = kwargs.get("strike", current_price * 0.95)
         builder.add_leg(OptionType.PUT, strike, expiration, -1)
 
-    elif strategy_type == OptionStrategy.PROTECTIVE_PUT:
+    elif strategy_type == OptionsStrategy.PROTECTIVE_PUT:
         # Long stock + Long 1 OTM put
         strike = kwargs.get("strike", current_price * 0.95)
         builder.add_leg(OptionType.PUT, strike, expiration, 1)
 
-    elif strategy_type == OptionStrategy.VERTICAL_CALL_SPREAD:
+    elif strategy_type == OptionsStrategy.VERTICAL_CALL_SPREAD:
         # Long lower strike call + Short higher strike call
         long_strike = kwargs.get("long_strike", current_price)
         short_strike = kwargs.get("short_strike", current_price * 1.05)
         builder.add_leg(OptionType.CALL, long_strike, expiration, 1)
         builder.add_leg(OptionType.CALL, short_strike, expiration, -1)
 
-    elif strategy_type == OptionStrategy.VERTICAL_PUT_SPREAD:
+    elif strategy_type == OptionsStrategy.VERTICAL_PUT_SPREAD:
         # Long higher strike put + Short lower strike put
         long_strike = kwargs.get("long_strike", current_price)
         short_strike = kwargs.get("short_strike", current_price * 0.95)
         builder.add_leg(OptionType.PUT, long_strike, expiration, 1)
         builder.add_leg(OptionType.PUT, short_strike, expiration, -1)
 
-    elif strategy_type == OptionStrategy.IRON_CONDOR:
+    elif strategy_type == OptionsStrategy.IRON_CONDOR:
         # OTM put spread + OTM call spread
         put_short = kwargs.get("put_short_strike", current_price * 0.95)
         put_long = kwargs.get("put_long_strike", current_price * 0.90)
@@ -303,7 +303,7 @@ def create_preset_strategy(
         builder.add_leg(OptionType.CALL, call_short, expiration, -1)
         builder.add_leg(OptionType.CALL, call_long, expiration, 1)
 
-    elif strategy_type == OptionStrategy.BUTTERFLY_SPREAD:
+    elif strategy_type == OptionsStrategy.BUTTERFLY_SPREAD:
         # 1 lower strike + 2 middle strike + 1 higher strike (all same type)
         opt_type = kwargs.get("option_type", OptionType.CALL)
         lower = kwargs.get("lower_strike", current_price * 0.95)
@@ -314,20 +314,20 @@ def create_preset_strategy(
         builder.add_leg(opt_type, middle, expiration, -2)
         builder.add_leg(opt_type, upper, expiration, 1)
 
-    elif strategy_type == OptionStrategy.STRADDLE:
+    elif strategy_type == OptionsStrategy.STRADDLE:
         # Long 1 call + Long 1 put (same strike, ATM)
         strike = kwargs.get("strike", current_price)
         builder.add_leg(OptionType.CALL, strike, expiration, 1)
         builder.add_leg(OptionType.PUT, strike, expiration, 1)
 
-    elif strategy_type == OptionStrategy.STRANGLE:
+    elif strategy_type == OptionsStrategy.STRANGLE:
         # Long 1 OTM call + Long 1 OTM put
         call_strike = kwargs.get("call_strike", current_price * 1.05)
         put_strike = kwargs.get("put_strike", current_price * 0.95)
         builder.add_leg(OptionType.CALL, call_strike, expiration, 1)
         builder.add_leg(OptionType.PUT, put_strike, expiration, 1)
 
-    elif strategy_type == OptionStrategy.COLLAR:
+    elif strategy_type == OptionsStrategy.COLLAR:
         # Long stock + Long OTM put + Short OTM call
         put_strike = kwargs.get("put_strike", current_price * 0.95)
         call_strike = kwargs.get("call_strike", current_price * 1.05)

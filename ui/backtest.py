@@ -8,6 +8,7 @@ from alerts.alert_manager import AlertManager
 from core.database import DatabaseManager
 from core.risk_manager import RiskManager
 from ui.render_multi_asset_backtest import render_multi_asset_backtest
+from ui.render_options_backtest import render_options_backtest
 from ui.render_single_asset_backtest import render_single_asset_backtest
 
 try:
@@ -38,8 +39,6 @@ def render_backtest(
 
     # Add Options mode if available
     try:
-        from ui.options_backtest import render_options_backtest
-
         mode_options.append("Options Strategies")
         OPTIONS_ENABLED = True
     except ImportError:

@@ -184,19 +184,19 @@ def render_pricing_table():
 
     with col1:
         st.markdown("### 🆓 FREE")
-        st.markdown("**$0/month**")
+        st.markdown("**€0/month**")
         st.markdown("- Basic dashboard\n- Simple backtests\n- 10 backtests/month")
 
     with col2:
         st.markdown("### 🥉 BASIC")
-        st.markdown("**$29/month**")
+        st.markdown("**€0/month**")
         st.markdown("- Multi-asset backtests\n- Advanced analytics\n- 100 backtests/month")
         if st.button("Upgrade", key="basic_btn", type="primary"):
             st.info("Contact sales to upgrade")
 
     with col3:
         st.markdown("### ⭐ PRO")
-        st.markdown("**$99/month**")
+        st.markdown("**€0/month**")
         st.markdown("- ML strategies\n- Unlimited backtests\n- Custom strategies")
         if st.button("Upgrade", key="pro_btn", type="primary"):
             st.info("Contact sales to upgrade")

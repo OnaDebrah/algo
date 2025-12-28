@@ -172,7 +172,7 @@ def render_single_asset_backtest(
     with col2:
         period = st.selectbox(
             "Period",
-            ["1mo", "3mo", "6mo", "1y", "2y"],
+            ["1mo", "3mo", "6mo", "1y", "2y", "5", "max"],
             help="Historical data period",
             key="single_asset_backtest_period",
         )
@@ -228,7 +228,7 @@ def render_single_asset_backtest(
         )
 
     # Run Backtest Button
-    if st.button("🚀 Run Backtest", type="primary"):
+    if st.button("▶ Run Backtest", type="primary"):
         with st.spinner(f"Running backtest on {symbol}..."):
             try:
                 # Validate and fetch data

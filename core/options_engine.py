@@ -12,8 +12,8 @@ import pandas as pd
 
 from strategies.options_builder import (
     BlackScholesCalculator,
+    OptionsStrategy,
     OptionsStrategyBuilder,
-    OptionStrategy,
     OptionType,
 )
 
@@ -45,7 +45,7 @@ class OptionsBacktestEngine:
         self,
         symbol: str,
         data: pd.DataFrame,
-        strategy_type: OptionStrategy,
+        strategy_type: OptionsStrategy,
         entry_rules: Dict,
         exit_rules: Dict,
         volatility: float = 0.3,
@@ -178,7 +178,7 @@ class OptionsBacktestEngine:
         symbol: str,
         date: datetime,
         price: float,
-        strategy_type: OptionStrategy,
+        strategy_type: OptionsStrategy,
         entry_rules: Dict,
         volatility: float,
     ):
@@ -373,10 +373,13 @@ class OptionsBacktestEngine:
         """Calculate current value of a position"""
 
         value = 0
-        current_date = datetime.now()
+        current_date = pd.Timestamp.now(tz="UTC")
 
         for leg in position["legs"]:
-            T = max((leg.expiry - current_date).days / 365.0, 0)
+            expiry = pd.to_datetime(leg.expiry).tz_localize("UTC") if leg.expiry.tzinfo is None else leg.expiry
+
+            delta = expiry - current_date
+            T = max(delta.total_seconds() / (365.0 * 24 * 3600), 0)
 
             if T <= 0:
                 # At expiration - intrinsic value only
@@ -483,7 +486,7 @@ class OptionsBacktestEngine:
         }
 
 
-def backtest_options_strategy(symbol: str, data: pd.DataFrame, strategy_type: OptionStrategy, **kwargs) -> Dict:
+def backtest_options_strategy(symbol: str, data: pd.DataFrame, strategy_type: OptionsStrategy, **kwargs) -> Dict:
     """
     Convenience function to backtest an options strategy
 

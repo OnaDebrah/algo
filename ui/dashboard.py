@@ -1,5 +1,5 @@
 """
-Portfolio Dashboard UI Componen
+Portfolio Dashboard UI Component
 """
 
 import pandas as pd

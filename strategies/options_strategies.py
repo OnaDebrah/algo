@@ -14,6 +14,8 @@ import pandas as pd
 import yfinance as yf
 from scipy.stats import norm
 
+from strategies import BaseStrategy
+
 logger = logging.getLogger(__name__)
 
 
@@ -24,7 +26,7 @@ class OptionType(Enum):
     PUT = "Put"
 
 
-class OptionStrategy(Enum):
+class OptionsStrategy(Enum, BaseStrategy):
     """Pre-defined option strategies"""
 
     COVERED_CALL = "Covered Call"
@@ -220,11 +222,11 @@ class OptionsChain:
             return 0.3  # Default 30%
 
 
-def get_strategy_description(strategy: OptionStrategy) -> Dict[str, str]:
+def get_strategy_description(strategy: OptionsStrategy) -> Dict[str, str]:
     """Get description and characteristics of a strategy"""
 
     descriptions = {
-        OptionStrategy.COVERED_CALL: {
+        OptionsStrategy.COVERED_CALL: {
             "description": "Sell a call against stock you own to generate income",
             "outlook": "Neutral to slightly bullish",
             "max_profit": "Limited to strike - stock cost + premium",
@@ -232,7 +234,7 @@ def get_strategy_description(strategy: OptionStrategy) -> Dict[str, str]:
             "best_for": "Income generation on stocks you own",
             "breakeven": "Stock cost - premium received",
         },
-        OptionStrategy.CASH_SECURED_PUT: {
+        OptionsStrategy.CASH_SECURED_PUT: {
             "description": "Sell a put with cash reserved to buy stock if assigned",
             "outlook": "Neutral to bullish",
             "max_profit": "Premium received",
@@ -240,7 +242,7 @@ def get_strategy_description(strategy: OptionStrategy) -> Dict[str, str]:
             "best_for": "Acquiring stock at a discount or income generation",
             "breakeven": "Strike - premium received",
         },
-        OptionStrategy.VERTICAL_CALL_SPREAD: {
+        OptionsStrategy.VERTICAL_CALL_SPREAD: {
             "description": "Buy a call and sell a higher strike call",
             "outlook": "Moderately bullish",
             "max_profit": "Spread width - net debit",
@@ -248,7 +250,7 @@ def get_strategy_description(strategy: OptionStrategy) -> Dict[str, str]:
             "best_for": "Directional bullish trades with defined risk",
             "breakeven": "Long strike + net debit",
         },
-        OptionStrategy.IRON_CONDOR: {
+        OptionsStrategy.IRON_CONDOR: {
             "description": "Sell OTM put spread and call spread simultaneously",
             "outlook": "Neutral (expect low volatility)",
             "max_profit": "Net premium received",
@@ -256,7 +258,7 @@ def get_strategy_description(strategy: OptionStrategy) -> Dict[str, str]:
             "best_for": "Range-bound markets, high IV",
             "breakeven": "Two breakevens at short strikes +/- net premium",
         },
-        OptionStrategy.STRADDLE: {
+        OptionsStrategy.STRADDLE: {
             "description": "Buy a call and put at same strike (usually ATM)",
             "outlook": "Expecting large move in either direction",
             "max_profit": "Unlimited",

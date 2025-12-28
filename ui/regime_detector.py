@@ -72,106 +72,80 @@ def render_regime_detector(db):
 
     detector = st.session_state.regime_detector
 
-    # Settings in sidebar
-    with st.sidebar:
-        st.markdown("## ⚙️ Regime Detector Settings")
+    # --- 1. CONFIGURATION GROUPING ---
+    st.markdown("### ⚙️ Engine Configuration")
 
-        use_ml = st.checkbox(
-            "Use Machine Learning",
-            value=True,
-            help="Enable ML-based ensemble detection",
-        )
+    # SECTION A: Market & Data (The "What")
+    with st.container(border=True):
+        st.caption("Asset & Data Source")
+        col1, col2, col3, col4 = st.columns([2, 2, 2, 2])
+        with col1:
+            symbol = st.text_input("Ticker", value="SPY").upper()
+        with col2:
+            data_source = st.selectbox("Source", ["Yahoo Finance", "Database", "Generate Example"])
+        with col3:
+            period = st.selectbox("Historical Window", ["1mo", "3mo", "6mo", "1y", "2y"], index=3)
+        with col4:
+            interval = st.selectbox("Data Interval", ["1h", "1d", "1wk"], index=1)
 
-        period = st.selectbox(
-            "Period",
-            ["1mo", "3mo", "6mo", "1y", "2y"],
-            help="Historical data period",
-            key="regime_detector_backtest_period",
-        )
+    # SECTION B: Model Parameters (The "How")
+    with st.container(border=True):
+        st.caption("Detection Model Hyperparameters")
+        col_a, col_b, col_c = st.columns([2, 3, 3])
+        with col_a:
+            st.markdown("<br>", unsafe_allow_html=True)
+            use_ml = st.toggle("Enable ML Ensemble", value=True, help="Use XGBoost/RandomForest ensemble classification")
+        with col_b:
+            lookback = st.slider("Lookback Window (Days)", 63, 504, 252, 21)
+        with col_c:
+            confidence_threshold = st.slider("Min Confidence Threshold", 0.50, 0.95, 0.70, 0.05)
 
-        interval = st.selectbox(
-            "Interval",
-            ["1h", "1d", "1wk"],
-            help="Data interval/timeframe",
-            key="regime_detector_backtest_interval",
-        )
+    # --- 2. ISOLATED ACTION BAR ---
+    st.markdown("<br>", unsafe_allow_html=True)
+    btn_col1, btn_col2, btn_col3 = st.columns([1, 2, 1])
+    with btn_col2:
+        detect_clicked = st.button("🔍 EXECUTE REGIME ANALYSIS", type="primary", use_container_width=True)
+    st.markdown("<br>", unsafe_allow_html=True)
 
-        lookback = st.slider(
-            "Lookback Period (days)",
-            min_value=63,
-            max_value=504,
-            value=252,
-            step=21,
-            help="Historical period for analysis",
-        )
-
-        confidence_threshold = st.slider(
-            "Confidence Threshold",
-            min_value=0.5,
-            max_value=0.95,
-            value=0.7,
-            step=0.05,
-            help="Minimum confidence for regime classification",
-        )
-
-        if st.button("Update Detector Settings", type="secondary"):
-            # Reinitialize detector with new settings
-            st.session_state.regime_detector = MarketRegimeDetector(
-                lookback_period=lookback,
-                use_ml=use_ml,
-                confidence_threshold=confidence_threshold,
-            )
-            st.success("Settings updated!")
+    # Dynamic Update Logic
+    if detector.lookback_period != lookback or detector.use_ml != use_ml or detector.confidence_threshold != confidence_threshold:
+        st.session_state.regime_detector = MarketRegimeDetector(lookback_period=lookback, use_ml=use_ml, confidence_threshold=confidence_threshold)
+        detector = st.session_state.regime_detector
 
     st.markdown("---")
 
-    # Data input section
-    col1, col2, col3 = st.columns([3, 2, 2])
+    # Detection logic
+    if detect_clicked:
+        with st.spinner(f"Analyzing {symbol}..."):
+            try:
+                # Fetch data based on source
+                if data_source == "Yahoo Finance":
+                    price_data = fetch_stock_data(symbol, period, interval)
+                elif data_source == "Database":
+                    price_data = fetch_database_data(db, symbol, lookback)
+                else:  # Generate Example
+                    price_data = generate_synthetic_data(lookback)
 
-    with col1:
-        symbol = st.text_input("Symbol", value="SPY", help="Ticker symbol for analysis").upper()
+                if price_data is None or len(price_data) < 63:
+                    st.error("Insufficient data. Need at least 63 days of price history.")
+                    return
 
-    with col2:
-        data_source = st.selectbox(
-            "Data Source",
-            ["Yahoo Finance", "Database", "Generate Example"],
-            help="Where to fetch price data from",
-        )
+                # Detect regime
+                regime_info = detector.detect_current_regime(price_data)
 
-    with col3:
-        if st.button("🔍 Detect Regime", type="primary", use_container_width=True):
-            with st.spinner(f"Analyzing {symbol}..."):
-                try:
-                    # Fetch data based on source
-                    if data_source == "Yahoo Finance":
-                        price_data = fetch_stock_data(symbol, period, interval)
-                    elif data_source == "Database":
-                        price_data = fetch_database_data(db, symbol, lookback)
-                    else:  # Generate Example
-                        price_data = generate_synthetic_data(lookback)
+                # Store in session state
+                st.session_state.current_regime = regime_info
+                st.session_state.regime_symbol = symbol
+                st.session_state.regime_price_data = price_data
 
-                    if price_data is None or len(price_data) < 63:
-                        st.error("Insufficient data. Need at least 63 days of price history.")
-                        return
+                st.success(f"✅ Regime detected for {symbol}!")
+                st.rerun()
 
-                    # Detect regime
-                    regime_info = detector.detect_current_regime(price_data)
+            except Exception as e:
+                st.error(f"Error detecting regime: {str(e)}")
+                import traceback
 
-                    # Store in session state
-                    st.session_state.current_regime = regime_info
-                    st.session_state.regime_symbol = symbol
-                    st.session_state.regime_price_data = price_data
-
-                    st.success(f"✅ Regime detected for {symbol}!")
-                    st.rerun()
-
-                except Exception as e:
-                    st.error(f"Error detecting regime: {str(e)}")
-                    import traceback
-
-                    st.error(traceback.format_exc())
-
-    st.markdown("---")
+                st.error(traceback.format_exc())
 
     # Display results if available
     if "current_regime" in st.session_state and st.session_state.current_regime:
@@ -181,7 +155,7 @@ def render_regime_detector(db):
             st.session_state.get("regime_price_data"),
         )
     else:
-        st.info("👆 Enter a symbol and click 'Detect Regime' to analyze market conditions")
+        st.info("👆 Configure settings and click 'Detect Regime' to analyze market conditions")
 
         # Show example of what to expect
         with st.expander("ℹ️ What will this show?"):
@@ -213,14 +187,8 @@ def render_regime_detector(db):
 def fetch_database_data(db, symbol: str, days: int) -> pd.Series:
     """Fetch data from database"""
     try:
-        # Use your existing database methods
-        # This is a placeholder - adjust to your actual DB structure
-
         end_date = datetime.now()
         start_date = end_date - timedelta(days=days + 100)
-
-        # Example: db.get_historical_prices(symbol, start_date, end_date)
-        # Adjust this to match your actual database API
 
         query = f"""
             SELECT date, close
@@ -252,11 +220,9 @@ def generate_synthetic_data(days: int) -> pd.Series:
     """Generate synthetic price data for testing"""
     dates = pd.date_range(end=datetime.now(), periods=days, freq="D")
 
-    # Simulate realistic market data with regime changes
     prices = [100.0]
     current_price = 100.0
 
-    # Define regime periods
     regime_periods = [
         ("trending_bull", days // 3),
         ("high_volatility", days // 6),
@@ -302,7 +268,7 @@ def render_regime_dashboard(regime_info: dict, detector, price_data: pd.Series =
         st.metric(
             "Confidence",
             f"{confidence:.1%}",
-            delta="High" if confidence > 0.7 else "Low",
+            "High" if confidence > 0.7 else "Low",
             delta_color="normal" if confidence > 0.7 else "inverse",
         )
 
@@ -310,7 +276,7 @@ def render_regime_dashboard(regime_info: dict, detector, price_data: pd.Series =
         st.metric(
             "Strength",
             f"{strength:.2f}σ",
-            delta="Strong" if strength > 1.5 else "Weak",
+            "Strong" if strength > 1.5 else "Weak",
             delta_color="normal" if strength > 1.5 else "inverse",
         )
 
@@ -319,7 +285,7 @@ def render_regime_dashboard(regime_info: dict, detector, price_data: pd.Series =
         st.metric(
             "Status",
             warning_status,
-            delta="Change Detected" if warning.get("warning") else "Stable",
+            "Change Detected" if warning.get("warning") else "Stable",
             delta_color="inverse" if warning.get("warning") else "normal",
         )
 

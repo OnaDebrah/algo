@@ -9,10 +9,13 @@ from core.context import configure_page, get_app_context
 from ui.backtest import render_backtest
 from ui.portfolio_optimisation import render_portfolio_optimization
 from ui.sidebar import render_page_sidebar
+from ui.theme import OracleTheme
 
 
-@require_tier(UserTier.BASIC)
+@require_tier(UserTier.FREE)
 def render_research():
+    OracleTheme.apply_theme()
+
     configure_page("Research", "🔬")
     render_page_sidebar()
     # Get context
@@ -38,8 +41,6 @@ def render_research():
         render_backtest(context.db, context.risk_manager, context.ml_models, context.alert_manager)
 
     with tab2:
-        st.markdown("### 📈 Options Strategy Builder")
-
         try:
             from ui.options_builder_ui import render_options_strategy_builder
 
