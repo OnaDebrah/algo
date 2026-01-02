@@ -14,8 +14,6 @@ import pandas as pd
 import yfinance as yf
 from scipy.stats import norm
 
-from strategies import BaseStrategy
-
 logger = logging.getLogger(__name__)
 
 
@@ -26,7 +24,7 @@ class OptionType(Enum):
     PUT = "Put"
 
 
-class OptionsStrategy(Enum, BaseStrategy):
+class OptionsStrategy(Enum):
     """Pre-defined option strategies"""
 
     COVERED_CALL = "Covered Call"

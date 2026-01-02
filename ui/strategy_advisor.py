@@ -19,8 +19,8 @@ class StrategyAdvisorUI:
 
     def render(self):
         """Render the strategy advisor interface"""
-        st.title("🤖 AI Strategy Advisor")
-        st.markdown("Get personalized strategy recommendations based on your goals and preferences")
+        # st.title("🤖 AI Strategy Advisor")
+        # st.markdown("Get personalized strategy recommendations based on your goals and preferences")
 
         # Check if user has completed questionnaire
         if "user_profile" not in st.session_state:

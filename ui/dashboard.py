@@ -152,15 +152,15 @@ def render_dashboard(db: DatabaseManager):
             **Get Started:**
             1. Go to the **Backtest** tab
             2. Select a symbol and strategy
-            3. Run your first backtes
+            3. Run your first backtest
             4. Come back here to see your results!
             """
             )
     else:
-        st.info("📈 No trades recorded. Start your first backtest to see metrics here!")
+        st.info("📈 No backtest recorded. Start your first backtest to see metrics here!")
         st.markdown(
             """
-        **Welcome to your Trading Dashboard!**
+        **Welcome to your Backtesting Dashboard!**
 
         This dashboard will display:
         - Portfolio performance metrics
@@ -169,8 +169,8 @@ def render_dashboard(db: DatabaseManager):
         - Symbol performance analysis
 
         **To get started:**
-        1. Navigate to the **Backtest** tab
-        2. Configure and run a backtes
+        1. Navigate to the **Research** tab
+        2. Configure and run a backtest
         3. Return here to analyze your results
         """
         )

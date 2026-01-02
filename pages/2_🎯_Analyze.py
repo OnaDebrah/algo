@@ -26,9 +26,10 @@ def render_analyze():
     st.markdown(
         """
         <div class="page-header">
-            <h1>🎯 Analyze</h1>
+            <h1>🤖 AI Strategy Advisor</h1>
             <p style="color: var(--text-secondary);">
-                AI-Powered Analysis, Market Regime Detection, and Intelligent Recommendations
+                AI-Powered Analysis, Market Regime Detection, and Intelligent Recommendations.
+                Get personalized strategy recommendations based on your goals and preferences.
             </p>
         </div>
     """,

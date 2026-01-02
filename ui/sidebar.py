@@ -128,7 +128,7 @@ def render_user_profile(user: dict):
 
     with col1:
         if st.button("⚙️", help="Settings", use_container_width=True, key="sidebar_settings"):
-            st.switch_page("pages/5_⚙️_Settings.py")
+            st.switch_page("pages/6_⚙️_Settings.py")
 
     with col2:
         if st.button("🚪", help="Logout", use_container_width=True, key="sidebar_logout"):
@@ -242,7 +242,11 @@ def render_quick_actions():
     if st.button("🔬 Research", use_container_width=True, key="quick_research"):
         st.switch_page("pages/3_🔬_Research.py")
 
-    st.markdown('<div style="margin: 1.5rem 0; border-top: 1px solid var(--border-subtle);"></div>', unsafe_allow_html=True)
+    if st.button("🏪 Marketplace", use_container_width=True, key="quick_marketplace"):
+        st.switch_page("pages/5_🏪_Market.py")
+
+
+st.markdown('<div style="margin: 1.5rem 0; border-top: 1px solid var(--border-subtle);"></div>', unsafe_allow_html=True)
 
 
 def render_sidebar_footer():

@@ -628,7 +628,3 @@ def render_analyst():
     """Main function to render the analyst interface"""
     ui = FinancialAnalystUI()
     ui.render()
-
-
-if __name__ == "__main__":
-    render_analyst()
