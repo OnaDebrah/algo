@@ -6,8 +6,10 @@ import logging
 
 import pandas as pd
 from sklearn.ensemble import GradientBoostingClassifier, RandomForestClassifier
+from sklearn.linear_model import LogisticRegression
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
+from sklearn.svm import SVC
 
 from config import DEFAULT_ML_TEST_SIZE, DEFAULT_ML_THRESHOLD
 from strategies import BaseStrategy
@@ -159,6 +161,10 @@ class MLStrategy(BaseStrategy):
 
         if self.model_type == "random_forest":
             self.model = RandomForestClassifier(n_estimators=self.n_estimators, max_depth=self.max_depth, random_state=42)
+        elif self.model_type == "svm":
+            self.model = SVC(probability=True, kernel="rbf", random_state=42)
+        elif self.model_type == "logistic_regression":
+            self.model = LogisticRegression(random_state=42, max_iter=1000)
         else:
             self.model = GradientBoostingClassifier(
                 n_estimators=self.n_estimators, max_depth=self.max_depth, learning_rate=self.learning_rate, random_state=42
@@ -204,13 +210,20 @@ class MLStrategy(BaseStrategy):
 
     def get_feature_importance(self) -> pd.DataFrame:
         """Get feature importance from trained model"""
-        if not self.is_trained or not hasattr(self.model, "feature_importances_"):
+        if not self.is_trained:
+            return pd.DataFrame()
+
+        if hasattr(self.model, "feature_importances_"):
+            importance = self.model.feature_importances_
+        elif hasattr(self.model, "coef_"):
+            importance = abs(self.model.coef_[0])
+        else:
             return pd.DataFrame()
 
         importance_df = pd.DataFrame(
             {
                 "feature": self.feature_cols,
-                "importance": self.model.feature_importances_,
+                "importance": importance,
             }
         ).sort_values("importance", ascending=False)
 

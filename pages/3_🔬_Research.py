@@ -7,9 +7,9 @@ import streamlit as st
 from auth import UserTier, require_tier
 from core.context import configure_page, get_app_context
 from ui.backtest import render_backtest
+from ui.components.sidebar import render_page_sidebar
+from ui.components.theme import OracleTheme
 from ui.portfolio_optimisation import render_portfolio_optimization
-from ui.sidebar import render_page_sidebar
-from ui.theme import OracleTheme
 
 
 @require_tier(UserTier.FREE)
@@ -44,7 +44,7 @@ def render_research():
         try:
             from ui.options_builder_ui import render_options_strategy_builder
 
-            render_options_strategy_builder()
+            render_options_strategy_builder(context.ml_models)
         except ImportError:
             st.info("📦 Options module available after installation")
             st.code("pip install scipy")

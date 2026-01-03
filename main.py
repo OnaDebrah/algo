@@ -16,7 +16,7 @@ from ui.components.components import (
     render_social_proof,
     render_stats_section,
 )
-from ui.theme import OracleTheme
+from ui.components.theme import OracleTheme
 
 st.set_page_config(page_title="ORACULUM - Institutional Trading Platform", page_icon="🏛️", layout="wide", initial_sidebar_state="collapsed")
 

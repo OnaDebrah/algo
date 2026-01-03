@@ -57,7 +57,7 @@ def render_options_backtest(db: DatabaseManager, risk_manager: RiskManager):
             st.session_state["selected_strategy"] = OptionsStrategy.PROTECTIVE_PUT
 
     # Display selected strategy configuration
-    if "selected_strategy" in st.session_state:
+    if "selected_strategy" in st.session_state and st.session_state["selected_strategy"] is not None:
         st.markdown("---")
         _render_backtest_configuration(st.session_state["selected_strategy"], db, risk_manager)
     else:
@@ -67,7 +67,8 @@ def render_options_backtest(db: DatabaseManager, risk_manager: RiskManager):
 def _render_backtest_configuration(strategy: OptionsStrategy, db: DatabaseManager, risk_manager: RiskManager):
     """Render backtest configuration and execution"""
 
-    st.subheader(f"📊 {strategy.value} Backtest Configuration")
+    strategy_name = getattr(strategy, "value", str(strategy))
+    st.subheader(f"📊 {strategy_name} Backtest Configuration")
 
     # Basic Settings
     st.markdown("### 🎯 Basic Settings")

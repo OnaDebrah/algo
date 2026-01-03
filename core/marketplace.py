@@ -1,62 +1,17 @@
 """
-Strategy Marketplace - Complete Implementation
-Allows users to share, discover, rate, and clone trading strategies
-
-Files structure:
-- core/marketplace.py: Core marketplace logic
-- pages/6_🏪_Marketplace.py: Streamlit UI
-- Database schema additions
+Strategy Marketplace with Complete Backtest Storage
+Stores not just strategy parameters, but complete backtest results,
+equity curves, trade history, and performance analytics.
 """
 
 import json
+import pickle
 import sqlite3
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Dict, List, Optional
 
-
-@dataclass
-class StrategyListing:
-    """Strategy listing in marketplace"""
-
-    id: Optional[int] = None
-    name: str = ""
-    description: str = ""
-    creator_id: int = 0
-    creator_name: str = ""
-    strategy_type: str = ""  # From catalog
-    category: str = ""
-    complexity: str = ""
-    parameters: Dict = None
-    performance_metrics: Dict = None
-
-    # Marketplace specific
-    price: float = 0.0  # 0 = free
-    is_public: bool = True
-    version: str = "1.0.0"
-    tags: List[str] = None
-
-    # Social features
-    downloads: int = 0
-    rating: float = 0.0
-    num_ratings: int = 0
-    num_reviews: int = 0
-
-    # Timestamps
-    created_at: datetime = None
-    updated_at: datetime = None
-
-    def __post_init__(self):
-        if self.parameters is None:
-            self.parameters = {}
-        if self.tags is None:
-            self.tags = []
-        if self.performance_metrics is None:
-            self.performance_metrics = {}
-        if self.created_at is None:
-            self.created_at = datetime.now()
-        if self.updated_at is None:
-            self.updated_at = datetime.now()
+import pandas as pd
 
 
 @dataclass
@@ -79,10 +34,122 @@ class StrategyReview:
             self.created_at = datetime.now()
 
 
+@dataclass
+class BacktestResults:
+    """Complete backtest results for a strategy"""
+
+    # Core metrics
+    total_return: float = 0.0
+    annualized_return: float = 0.0
+    sharpe_ratio: float = 0.0
+    sortino_ratio: float = 0.0
+    max_drawdown: float = 0.0
+    max_drawdown_duration: int = 0
+    calmar_ratio: float = 0.0
+
+    # Trading metrics
+    num_trades: int = 0
+    win_rate: float = 0.0
+    profit_factor: float = 0.0
+    avg_win: float = 0.0
+    avg_loss: float = 0.0
+    avg_trade_duration: float = 0.0
+
+    # Risk metrics
+    volatility: float = 0.0
+    var_95: float = 0.0
+    cvar_95: float = 0.0
+
+    # Time series data (serialized as JSON/pickle)
+    equity_curve: List[Dict] = None  # [{date, equity, drawdown}]
+    trades: List[Dict] = None  # [{entry_date, exit_date, pnl, return, ...}]
+    daily_returns: List[Dict] = None  # [{date, return}]
+
+    # Backtest configuration
+    start_date: datetime = None
+    end_date: datetime = None
+    initial_capital: float = 100000.0
+    symbols: List[str] = None
+
+    def __post_init__(self):
+        if self.equity_curve is None:
+            self.equity_curve = []
+        if self.trades is None:
+            self.trades = []
+        if self.daily_returns is None:
+            self.daily_returns = []
+        if self.symbols is None:
+            self.symbols = []
+
+    def to_dict(self) -> Dict:
+        """Convert to dictionary for storage"""
+        return asdict(self)
+
+    @classmethod
+    def from_dict(cls, data: Dict) -> "BacktestResults":
+        """Create from dictionary"""
+        return cls(**data)
+
+
+@dataclass
+class StrategyListing:
+    """Strategy listing with backtest data"""
+
+    id: Optional[int] = None
+    name: str = ""
+    description: str = ""
+    creator_id: int = 0
+    creator_name: str = ""
+    strategy_type: str = ""
+    category: str = ""
+    complexity: str = ""
+
+    # Strategy configuration
+    parameters: Dict = None
+
+    # Backtest results (complete)
+    backtest_results: BacktestResults = None
+
+    # Quick access metrics (denormalized for filtering)
+    sharpe_ratio: float = 0.0
+    total_return: float = 0.0
+    max_drawdown: float = 0.0
+    win_rate: float = 0.0
+    num_trades: int = 0
+
+    # Marketplace specific
+    price: float = 0.0
+    is_public: bool = True
+    is_verified: bool = False  # Admin verified performance
+    version: str = "1.0.0"
+    tags: List[str] = None
+
+    # Social features
+    downloads: int = 0
+    rating: float = 0.0
+    num_ratings: int = 0
+    num_reviews: int = 0
+
+    # Timestamps
+    created_at: datetime = None
+    updated_at: datetime = None
+
+    def __post_init__(self):
+        if self.parameters is None:
+            self.parameters = {}
+        if self.tags is None:
+            self.tags = []
+        if self.backtest_results is None:
+            self.backtest_results = BacktestResults()
+        if self.created_at is None:
+            self.created_at = datetime.now()
+        if self.updated_at is None:
+            self.updated_at = datetime.now()
+
+
 class StrategyMarketplace:
     """
-    Strategy Marketplace Manager
-    Handles strategy sharing, discovery, ratings, and cloning
+    Marketplace with complete backtest storage
     """
 
     def __init__(self, db_path: str = "trading_platform.db"):
@@ -90,38 +157,80 @@ class StrategyMarketplace:
         self._init_database()
 
     def _init_database(self):
-        """Initialize marketplace database tables"""
+        """Initialize enhanced database tables"""
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
 
-        # Strategy listings table
+        # Main strategy listings table (with quick access metrics)
         cursor.execute("""
-           CREATE TABLE IF NOT EXISTS marketplace_strategies (
-               id INTEGER PRIMARY KEY AUTOINCREMENT,
-               name TEXT NOT NULL,
-               description TEXT,
-               creator_id INTEGER NOT NULL,
-               creator_name TEXT NOT NULL,
-               strategy_type TEXT NOT NULL,
-               category TEXT NOT NULL,
-               complexity TEXT NOT NULL,
-               parameters TEXT NOT NULL,
-               performance_metrics TEXT,
-               price REAL DEFAULT 0.0,
-               is_public BOOLEAN DEFAULT 1,
-               version TEXT DEFAULT '1.0.0',
-               tags TEXT,
-               downloads INTEGER DEFAULT 0,
-               rating REAL DEFAULT 0.0,
-               num_ratings INTEGER DEFAULT 0,
-               num_reviews INTEGER DEFAULT 0,
-               created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-               updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-               FOREIGN KEY (creator_id) REFERENCES users(id)
-               )
-           """)
+            CREATE TABLE IF NOT EXISTS marketplace_strategies (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL,
+                description TEXT,
+                creator_id INTEGER NOT NULL,
+                creator_name TEXT NOT NULL,
+                strategy_type TEXT NOT NULL,
+                category TEXT NOT NULL,
+                complexity TEXT NOT NULL,
 
-        # Strategy reviews table
+                -- Strategy configuration
+                parameters TEXT NOT NULL,
+
+                -- Quick access performance metrics (for filtering)
+                sharpe_ratio REAL DEFAULT 0.0,
+                total_return REAL DEFAULT 0.0,
+                max_drawdown REAL DEFAULT 0.0,
+                win_rate REAL DEFAULT 0.0,
+                num_trades INTEGER DEFAULT 0,
+
+                -- Marketplace
+                price REAL DEFAULT 0.0,
+                is_public BOOLEAN DEFAULT 1,
+                is_verified BOOLEAN DEFAULT 0,
+                version TEXT DEFAULT '1.0.0',
+                tags TEXT,
+
+                -- Social
+                downloads INTEGER DEFAULT 0,
+                rating REAL DEFAULT 0.0,
+                num_ratings INTEGER DEFAULT 0,
+                num_reviews INTEGER DEFAULT 0,
+
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+                FOREIGN KEY (creator_id) REFERENCES users(id)
+            )
+        """)
+
+        # Backtest results table (stores complete backtest data)
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS strategy_backtests (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                strategy_id INTEGER NOT NULL,
+                version TEXT NOT NULL,
+
+                -- Complete backtest results (JSON)
+                backtest_data TEXT NOT NULL,  -- Serialized BacktestResults
+
+                -- Time series data (can be large, stored separately)
+                equity_curve BLOB,  -- Pickled pandas DataFrame
+                trades_history BLOB,  -- Pickled pandas DataFrame
+                daily_returns BLOB,  -- Pickled pandas DataFrame
+
+                -- Backtest metadata
+                start_date TEXT,
+                end_date TEXT,
+                initial_capital REAL,
+                symbols TEXT,  -- JSON array
+
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+                FOREIGN KEY (strategy_id) REFERENCES marketplace_strategies(id)
+            )
+        """)
+
+        # Keep existing tables for reviews, downloads, favorites
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS strategy_reviews (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -138,7 +247,6 @@ class StrategyMarketplace:
             )
         """)
 
-        # User strategy downloads table
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS strategy_downloads (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -150,7 +258,6 @@ class StrategyMarketplace:
             )
         """)
 
-        # User favorites table
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS strategy_favorites (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -167,12 +274,20 @@ class StrategyMarketplace:
         conn.close()
 
     # ============================================================
-    # LISTING STRATEGIES
+    # PUBLISHING WITH BACKTEST RESULTS
     # ============================================================
 
-    def publish_strategy(self, listing: StrategyListing) -> int:
+    def publish_strategy_with_backtest(
+        self, listing: StrategyListing, equity_curve_df: pd.DataFrame = None, trades_df: pd.DataFrame = None, daily_returns_df: pd.DataFrame = None
+    ) -> int:
         """
-        Publish a strategy to the marketplace
+        Publish strategy WITH complete backtest results
+
+        Args:
+            listing: StrategyListing with backtest_results populated
+            equity_curve_df: DataFrame with columns [date, equity, drawdown]
+            trades_df: DataFrame with trade history
+            daily_returns_df: DataFrame with daily returns
 
         Returns:
             Strategy ID
@@ -180,108 +295,141 @@ class StrategyMarketplace:
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
 
+        try:
+            # 1. Insert strategy listing with quick-access metrics
+            cursor.execute(
+                """
+                           INSERT INTO marketplace_strategies (name, description, creator_id, creator_name,
+                                                                  strategy_type,
+                                                                  category, complexity, parameters,
+                                                                  sharpe_ratio, total_return, max_drawdown, win_rate,
+                                                                  num_trades,
+                                                                  price, is_public, version, tags)
+                           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                           """,
+                (
+                    listing.name,
+                    listing.description,
+                    listing.creator_id,
+                    listing.creator_name,
+                    listing.strategy_type,
+                    listing.category,
+                    listing.complexity,
+                    json.dumps(listing.parameters),
+                    listing.backtest_results.sharpe_ratio,
+                    listing.backtest_results.total_return,
+                    listing.backtest_results.max_drawdown,
+                    listing.backtest_results.win_rate,
+                    listing.backtest_results.num_trades,
+                    listing.price,
+                    listing.is_public,
+                    listing.version,
+                    json.dumps(listing.tags),
+                ),
+            )
+
+            strategy_id = cursor.lastrowid
+
+            # 2. Store complete backtest results
+            backtest_data = json.dumps(listing.backtest_results.to_dict())
+
+            # Serialize dataframes efficiently
+            equity_blob = pickle.dumps(equity_curve_df) if equity_curve_df is not None else None
+            trades_blob = pickle.dumps(trades_df) if trades_df is not None else None
+            returns_blob = pickle.dumps(daily_returns_df) if daily_returns_df is not None else None
+
+            cursor.execute(
+                """
+                           INSERT INTO strategy_backtests (strategy_id, version, backtest_data,
+                                                           equity_curve, trades_history, daily_returns,
+                                                           start_date, end_date, initial_capital, symbols)
+                           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                           """,
+                (
+                    strategy_id,
+                    listing.version,
+                    backtest_data,
+                    equity_blob,
+                    trades_blob,
+                    returns_blob,
+                    listing.backtest_results.start_date.isoformat() if listing.backtest_results.start_date else None,
+                    listing.backtest_results.end_date.isoformat() if listing.backtest_results.end_date else None,
+                    listing.backtest_results.initial_capital,
+                    json.dumps(listing.backtest_results.symbols),
+                ),
+            )
+
+            conn.commit()
+            return strategy_id
+
+        except Exception as e:
+            conn.rollback()
+            print(f"Failed to publish strategy: {e}")
+            raise
+        finally:
+            conn.close()
+
+    def get_strategy_backtest(self, strategy_id: int) -> Optional[Dict]:
+        """
+        Get complete backtest results for a strategy
+
+        Returns:
+            Dictionary with:
+                - backtest_results: BacktestResults object
+                - equity_curve: pandas DataFrame
+                - trades: pandas DataFrame
+                - daily_returns: pandas DataFrame
+        """
+        conn = sqlite3.connect(self.db_path)
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+
         cursor.execute(
             """
-                       INSERT INTO marketplace_strategies (name, description, creator_id, creator_name, strategy_type,
-                                                           category, complexity, parameters, performance_metrics,
-                                                           price, is_public, version, tags)
-                       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                       SELECT *
+                       FROM strategy_backtests
+                       WHERE strategy_id = ?
+                       ORDER BY created_at DESC LIMIT 1
                        """,
-            (
-                listing.name,
-                listing.description,
-                listing.creator_id,
-                listing.creator_name,
-                listing.strategy_type,
-                listing.category,
-                listing.complexity,
-                json.dumps(listing.parameters),
-                json.dumps(listing.performance_metrics),
-                listing.price,
-                listing.is_public,
-                listing.version,
-                json.dumps(listing.tags),
-            ),
+            (strategy_id,),
         )
 
-        strategy_id = cursor.lastrowid
-        conn.commit()
+        row = cursor.fetchone()
         conn.close()
 
-        return strategy_id
+        if not row:
+            return None
 
-    def update_strategy(self, strategy_id: int, updates: Dict) -> bool:
-        """Update a strategy listing"""
-        conn = sqlite3.connect(self.db_path)
-        cursor = conn.cursor()
+        # Deserialize backtest data
+        backtest_data = json.loads(row["backtest_data"])
+        backtest_results = BacktestResults.from_dict(backtest_data)
 
-        # Build update query dynamically
-        update_fields = []
-        values = []
+        # Deserialize dataframes
+        equity_curve = pickle.loads(row["equity_curve"]) if row["equity_curve"] else None
+        trades = pickle.loads(row["trades_history"]) if row["trades_history"] else None
+        daily_returns = pickle.loads(row["daily_returns"]) if row["daily_returns"] else None
 
-        allowed_fields = ["name", "description", "parameters", "performance_metrics", "price", "is_public", "version", "tags"]
-
-        for field, value in updates.items():
-            if field in allowed_fields:
-                update_fields.append(f"{field} = ?")
-                if field in ["parameters", "performance_metrics", "tags"]:
-                    values.append(json.dumps(value))
-                else:
-                    values.append(value)
-
-        if not update_fields:
-            return False
-
-        update_fields.append("updated_at = CURRENT_TIMESTAMP")
-        values.append(strategy_id)
-
-        query = f"UPDATE marketplace_strategies SET {', '.join(update_fields)} WHERE id = ?"
-        cursor.execute(query, values)
-
-        success = cursor.rowcount > 0
-        conn.commit()
-        conn.close()
-
-        return success
-
-    def delete_strategy(self, strategy_id: int, user_id: int) -> bool:
-        """Delete a strategy (only by creator)"""
-        conn = sqlite3.connect(self.db_path)
-        cursor = conn.cursor()
-
-        cursor.execute("DELETE FROM marketplace_strategies WHERE id = ? AND creator_id = ?", (strategy_id, user_id))
-
-        success = cursor.rowcount > 0
-        conn.commit()
-        conn.close()
-
-        return success
+        return {"backtest_results": backtest_results, "equity_curve": equity_curve, "trades": trades, "daily_returns": daily_returns}
 
     # ============================================================
-    # BROWSING AND DISCOVERY
+    # ENHANCED BROWSING WITH PERFORMANCE FILTERS
     # ============================================================
 
     def browse_strategies(
         self,
         category: Optional[str] = None,
         complexity: Optional[str] = None,
-        tags: Optional[List[str]] = None,
+        min_sharpe: Optional[float] = None,
+        min_return: Optional[float] = None,
+        max_drawdown: Optional[float] = None,
+        min_win_rate: Optional[float] = None,
         search_query: Optional[str] = None,
-        sort_by: str = "rating",
+        sort_by: str = "sharpe_ratio",
         limit: int = 50,
         offset: int = 0,
     ) -> List[StrategyListing]:
         """
-        Browse marketplace strategies with filters
-
-        Args:
-            category: Filter by category
-            complexity: Filter by complexity level
-            tags: Filter by tags (AND logic)
-            search_query: Search in name and description
-            sort_by: rating, downloads, created_at, updated_at
-            limit: Max results
-            offset: Pagination offset
+        Browse strategies with performance-based filters
         """
         conn = sqlite3.connect(self.db_path)
         conn.row_factory = sqlite3.Row
@@ -298,426 +446,197 @@ class StrategyMarketplace:
             query += " AND complexity = ?"
             params.append(complexity)
 
+        if min_sharpe is not None:
+            query += " AND sharpe_ratio >= ?"
+            params.append(min_sharpe)
+
+        if min_return is not None:
+            query += " AND total_return >= ?"
+            params.append(min_return)
+
+        if max_drawdown is not None:
+            query += " AND max_drawdown >= ?"  # Note: drawdown is negative
+            params.append(max_drawdown)
+
+        if min_win_rate is not None:
+            query += " AND win_rate >= ?"
+            params.append(min_win_rate)
+
         if search_query:
             query += " AND (name LIKE ? OR description LIKE ?)"
             params.extend([f"%{search_query}%", f"%{search_query}%"])
 
-        # Tag filtering (basic - checks if tag exists in JSON array)
-        if tags:
-            for tag in tags:
-                query += " AND tags LIKE ?"
-                params.append(f'%"{tag}"%')
-
-        # Sorting
+        # Sorting options
         sort_columns = {
+            "sharpe_ratio": "sharpe_ratio DESC",
+            "total_return": "total_return DESC",
             "rating": "rating DESC",
             "downloads": "downloads DESC",
             "created_at": "created_at DESC",
-            "updated_at": "updated_at DESC",
-            "name": "name ASC",
         }
-        query += f" ORDER BY {sort_columns.get(sort_by, 'rating DESC')}"
+        query += f" ORDER BY {sort_columns.get(sort_by, 'sharpe_ratio DESC')}"
         query += " LIMIT ? OFFSET ?"
         params.extend([limit, offset])
 
         cursor.execute(query, params)
         rows = cursor.fetchall()
+        conn.close()
 
         strategies = []
         for row in rows:
-            listing = self._row_to_listing(row)
+            # Get backtest results for this strategy
+            backtest_data = self.get_strategy_backtest(row["id"])
+
+            listing = StrategyListing(
+                id=row["id"],
+                name=row["name"],
+                description=row["description"],
+                creator_id=row["creator_id"],
+                creator_name=row["creator_name"],
+                strategy_type=row["strategy_type"],
+                category=row["category"],
+                complexity=row["complexity"],
+                parameters=json.loads(row["parameters"]),
+                backtest_results=backtest_data["backtest_results"] if backtest_data else BacktestResults(),
+                sharpe_ratio=row["sharpe_ratio"],
+                total_return=row["total_return"],
+                max_drawdown=row["max_drawdown"],
+                win_rate=row["win_rate"],
+                num_trades=row["num_trades"],
+                price=row["price"],
+                is_public=bool(row["is_public"]),
+                is_verified=bool(row["is_verified"]),
+                version=row["version"],
+                tags=json.loads(row["tags"]) if row["tags"] else [],
+                downloads=row["downloads"],
+                rating=row["rating"],
+                num_ratings=row["num_ratings"],
+                num_reviews=row["num_reviews"],
+                created_at=datetime.fromisoformat(row["created_at"]),
+                updated_at=datetime.fromisoformat(row["updated_at"]),
+            )
             strategies.append(listing)
 
-        conn.close()
         return strategies
 
-    def get_strategy(self, strategy_id: int) -> Optional[StrategyListing]:
-        """Get a specific strategy by ID"""
-        conn = sqlite3.connect(self.db_path)
-        conn.row_factory = sqlite3.Row
-        cursor = conn.cursor()
-
-        cursor.execute("SELECT * FROM marketplace_strategies WHERE id = ?", (strategy_id,))
-        row = cursor.fetchone()
-        conn.close()
-
-        if row:
-            return self._row_to_listing(row)
-        return None
-
-    def get_user_strategies(self, user_id: int) -> List[StrategyListing]:
-        """Get all strategies created by a user"""
-        conn = sqlite3.connect(self.db_path)
-        conn.row_factory = sqlite3.Row
-        cursor = conn.cursor()
-
-        cursor.execute("SELECT * FROM marketplace_strategies WHERE creator_id = ? ORDER BY created_at DESC", (user_id,))
-        rows = cursor.fetchall()
-        conn.close()
-
-        return [self._row_to_listing(row) for row in rows]
-
-    def get_trending_strategies(self, days: int = 7, limit: int = 10) -> List[StrategyListing]:
-        """Get trending strategies based on recent downloads and ratings"""
-        conn = sqlite3.connect(self.db_path)
-        conn.row_factory = sqlite3.Row
-        cursor = conn.cursor()
-
-        # Calculate trending score: recent downloads * rating
-        cursor.execute(
-            """
-                       SELECT s.*,
-                              COUNT(d.id)              as recent_downloads,
-                              (COUNT(d.id) * s.rating) as trending_score
-                       FROM marketplace_strategies s
-                                LEFT JOIN strategy_downloads d
-                                          ON s.id = d.strategy_id
-                                              AND d.downloaded_at >= datetime('now', '-' || ? || ' days')
-                       WHERE s.is_public = 1
-                       GROUP BY s.id
-                       ORDER BY trending_score DESC LIMIT ?
-                       """,
-            (days, limit),
-        )
-
-        rows = cursor.fetchall()
-        conn.close()
-
-        return [self._row_to_listing(row) for row in rows]
-
     # ============================================================
-    # DOWNLOADING AND CLONING
+    # STRATEGY COMPARISON
     # ============================================================
 
-    def download_strategy(self, strategy_id: int, user_id: int) -> Optional[Dict]:
+    def compare_strategies(self, strategy_ids: List[int]) -> pd.DataFrame:
         """
-        Download/clone a strategy
+        Compare multiple strategies side-by-side
 
         Returns:
-            Strategy configuration dict to be used with create_strategy()
+            DataFrame with comparison metrics
         """
-        strategy = self.get_strategy(strategy_id)
-        if not strategy:
-            return None
+        comparison_data = []
 
-        # Record download
-        conn = sqlite3.connect(self.db_path)
-        cursor = conn.cursor()
+        for strategy_id in strategy_ids:
+            conn = sqlite3.connect(self.db_path)
+            conn.row_factory = sqlite3.Row
+            cursor = conn.cursor()
 
-        cursor.execute(
-            """
-                       INSERT INTO strategy_downloads (strategy_id, user_id)
-                       VALUES (?, ?)
-                       """,
-            (strategy_id, user_id),
-        )
-
-        # Increment download counter
-        cursor.execute(
-            """
-                       UPDATE marketplace_strategies
-                       SET downloads = downloads + 1
-                       WHERE id = ?
-                       """,
-            (strategy_id,),
-        )
-
-        conn.commit()
-        conn.close()
-
-        # Return strategy configuration
-        return {
-            "strategy_type": strategy.strategy_type,
-            "name": f"{strategy.name} (Clone)",
-            "parameters": strategy.parameters,
-            "description": strategy.description,
-            "original_id": strategy_id,
-            "original_creator": strategy.creator_name,
-        }
-
-    def get_user_downloads(self, user_id: int) -> List[StrategyListing]:
-        """Get strategies downloaded by user"""
-        conn = sqlite3.connect(self.db_path)
-        conn.row_factory = sqlite3.Row
-        cursor = conn.cursor()
-
-        cursor.execute(
-            """
-                       SELECT DISTINCT s.*
-                       FROM marketplace_strategies s
-                                JOIN strategy_downloads d ON s.id = d.strategy_id
-                       WHERE d.user_id = ?
-                       ORDER BY d.downloaded_at DESC
-                       """,
-            (user_id,),
-        )
-
-        rows = cursor.fetchall()
-        conn.close()
-
-        return [self._row_to_listing(row) for row in rows]
-
-    # ============================================================
-    # RATINGS AND REVIEWS
-    # ============================================================
-
-    def add_review(self, review: StrategyReview) -> bool:
-        """Add or update a strategy review"""
-        conn = sqlite3.connect(self.db_path)
-        cursor = conn.cursor()
-
-        # Insert or replace review
-        cursor.execute(
-            """
-            INSERT OR REPLACE INTO strategy_reviews (
-                strategy_id, user_id, username, rating,
-                review_text, performance_achieved
-            ) VALUES (?, ?, ?, ?, ?, ?)
-        """,
-            (review.strategy_id, review.user_id, review.username, review.rating, review.review_text, json.dumps(review.performance_achieved)),
-        )
-
-        # Recalculate strategy rating
-        cursor.execute(
-            """
-                       SELECT AVG(rating) as avg_rating, COUNT(*) as num_ratings
-                       FROM strategy_reviews
-                       WHERE strategy_id = ?
-                       """,
-            (review.strategy_id,),
-        )
-
-        result = cursor.fetchone()
-        avg_rating, num_ratings = result
-
-        cursor.execute(
-            """
-                       UPDATE marketplace_strategies
-                       SET rating      = ?,
-                           num_ratings = ?,
-                           num_reviews = ?
-                       WHERE id = ?
-                       """,
-            (avg_rating, num_ratings, num_ratings, review.strategy_id),
-        )
-
-        conn.commit()
-        conn.close()
-
-        return True
-
-    def get_reviews(self, strategy_id: int, limit: int = 50) -> List[StrategyReview]:
-        """Get reviews for a strategy"""
-        conn = sqlite3.connect(self.db_path)
-        conn.row_factory = sqlite3.Row
-        cursor = conn.cursor()
-
-        cursor.execute(
-            """
-                       SELECT *
-                       FROM strategy_reviews
-                       WHERE strategy_id = ?
-                       ORDER BY created_at DESC LIMIT ?
-                       """,
-            (strategy_id, limit),
-        )
-
-        rows = cursor.fetchall()
-        conn.close()
-
-        reviews = []
-        for row in rows:
-            review = StrategyReview(
-                id=row["id"],
-                strategy_id=row["strategy_id"],
-                user_id=row["user_id"],
-                username=row["username"],
-                rating=row["rating"],
-                review_text=row["review_text"],
-                performance_achieved=json.loads(row["performance_achieved"]) if row["performance_achieved"] else {},
-                created_at=datetime.fromisoformat(row["created_at"]),
-            )
-            reviews.append(review)
-
-        return reviews
-
-    # ============================================================
-    # FAVORITES
-    # ============================================================
-
-    def add_favorite(self, strategy_id: int, user_id: int) -> bool:
-        """Add strategy to favorites"""
-        conn = sqlite3.connect(self.db_path)
-        cursor = conn.cursor()
-
-        try:
             cursor.execute(
                 """
-                           INSERT INTO strategy_favorites (strategy_id, user_id)
-                           VALUES (?, ?)
+                           SELECT *
+                           FROM marketplace_strategies
+                           WHERE id = ?
                            """,
-                (strategy_id, user_id),
+                (strategy_id,),
             )
-            conn.commit()
-            success = True
-        except sqlite3.IntegrityError:
-            success = False
 
-        conn.close()
-        return success
+            row = cursor.fetchone()
+            conn.close()
 
-    def remove_favorite(self, strategy_id: int, user_id: int) -> bool:
-        """Remove strategy from favorites"""
-        conn = sqlite3.connect(self.db_path)
-        cursor = conn.cursor()
+            if row:
+                comparison_data.append(
+                    {
+                        "Strategy": row["name"],
+                        "Sharpe Ratio": row["sharpe_ratio"],
+                        "Total Return": f"{row['total_return']:.2f}%",
+                        "Max Drawdown": f"{row['max_drawdown']:.2f}%",
+                        "Win Rate": f"{row['win_rate']:.2f}%",
+                        "Num Trades": row["num_trades"],
+                        "Rating": f"{row['rating']:.1f}⭐",
+                        "Downloads": row["downloads"],
+                    }
+                )
 
-        cursor.execute(
-            """
-                       DELETE
-                       FROM strategy_favorites
-                       WHERE strategy_id = ?
-                         AND user_id = ?
-                       """,
-            (strategy_id, user_id),
-        )
-
-        success = cursor.rowcount > 0
-        conn.commit()
-        conn.close()
-
-        return success
-
-    def get_favorites(self, user_id: int) -> List[StrategyListing]:
-        """Get user's favorite strategies"""
-        conn = sqlite3.connect(self.db_path)
-        conn.row_factory = sqlite3.Row
-        cursor = conn.cursor()
-
-        cursor.execute(
-            """
-                       SELECT s.*
-                       FROM marketplace_strategies s
-                                JOIN strategy_favorites f ON s.id = f.strategy_id
-                       WHERE f.user_id = ?
-                       ORDER BY f.created_at DESC
-                       """,
-            (user_id,),
-        )
-
-        rows = cursor.fetchall()
-        conn.close()
-
-        return [self._row_to_listing(row) for row in rows]
-
-    def is_favorited(self, strategy_id: int, user_id: int) -> bool:
-        """Check if strategy is favorited by user"""
-        conn = sqlite3.connect(self.db_path)
-        cursor = conn.cursor()
-
-        cursor.execute(
-            """
-                       SELECT COUNT(*)
-                       FROM strategy_favorites
-                       WHERE strategy_id = ?
-                         AND user_id = ?
-                       """,
-            (strategy_id, user_id),
-        )
-
-        count = cursor.fetchone()[0]
-        conn.close()
-
-        return count > 0
+        return pd.DataFrame(comparison_data)
 
     # ============================================================
-    # STATISTICS AND ANALYTICS
+    # EXPORT BACKTEST DATA
     # ============================================================
 
-    def get_marketplace_stats(self) -> Dict[str, Any]:
-        """Get overall marketplace statistics"""
-        conn = sqlite3.connect(self.db_path)
-        cursor = conn.cursor()
+    def export_backtest_data(self, strategy_id: int, format: str = "json") -> Optional[str]:
+        """
+        Export backtest data for external analysis
 
-        cursor.execute("""
-                       SELECT COUNT(*)                   as total_strategies,
-                              COUNT(DISTINCT creator_id) as total_creators,
-                              SUM(downloads)             as total_downloads,
-                              AVG(rating)                as avg_rating
-                       FROM marketplace_strategies
-                       WHERE is_public = 1
-                       """)
+        Args:
+            strategy_id: Strategy ID
+            format: 'json', 'csv', or 'pickle'
 
-        row = cursor.fetchone()
+        Returns:
+            Serialized data or file path
+        """
+        backtest = self.get_strategy_backtest(strategy_id)
 
-        stats = {"total_strategies": row[0], "total_creators": row[1], "total_downloads": row[2], "average_rating": round(row[3], 2) if row[3] else 0}
+        if not backtest:
+            return None
 
-        # Category breakdown
-        cursor.execute("""
-                       SELECT category, COUNT(*) as count
-                       FROM marketplace_strategies
-                       WHERE is_public = 1
-                       GROUP BY category
-                       """)
+        if format == "json":
+            return json.dumps(
+                {
+                    "backtest_results": backtest["backtest_results"].to_dict(),
+                    "equity_curve": backtest["equity_curve"].to_dict("records") if backtest["equity_curve"] is not None else None,
+                    "trades": backtest["trades"].to_dict("records") if backtest["trades"] is not None else None,
+                    "daily_returns": backtest["daily_returns"].to_dict("records") if backtest["daily_returns"] is not None else None,
+                }
+            )
 
-        stats["by_category"] = {row[0]: row[1] for row in cursor.fetchall()}
+        elif format == "csv":
+            # Would write to file or return CSV strings
+            pass
 
-        conn.close()
-        return stats
+        elif format == "pickle":
+            return pickle.dumps(backtest)
 
-    def get_creator_stats(self, user_id: int) -> Dict[str, Any]:
-        """Get statistics for a creator"""
-        conn = sqlite3.connect(self.db_path)
-        cursor = conn.cursor()
+        return None
 
-        cursor.execute(
-            """
-                       SELECT COUNT(*)         as total_published,
-                              SUM(downloads)   as total_downloads,
-                              AVG(rating)      as avg_rating,
-                              SUM(num_ratings) as total_ratings
-                       FROM marketplace_strategies
-                       WHERE creator_id = ?
-                       """,
-            (user_id,),
-        )
 
-        row = cursor.fetchone()
+# Helper function to convert backtest engine results to BacktestResults
+def convert_engine_results_to_backtest(engine_results: Dict) -> BacktestResults:
+    """
+    Convert your trading engine backtest results to BacktestResults format
 
-        stats = {
-            "strategies_published": row[0],
-            "total_downloads": row[1] or 0,
-            "average_rating": round(row[2], 2) if row[2] else 0,
-            "total_ratings": row[3] or 0,
-        }
+    Args:
+        engine_results: Output from your TradingEngine.backtest()
 
-        conn.close()
-        return stats
-
-    # ============================================================
-    # HELPER METHODS
-    # ============================================================
-
-    def _row_to_listing(self, row: sqlite3.Row) -> StrategyListing:
-        """Convert database row to StrategyListing"""
-        return StrategyListing(
-            id=row["id"],
-            name=row["name"],
-            description=row["description"],
-            creator_id=row["creator_id"],
-            creator_name=row["creator_name"],
-            strategy_type=row["strategy_type"],
-            category=row["category"],
-            complexity=row["complexity"],
-            parameters=json.loads(row["parameters"]),
-            performance_metrics=json.loads(row["performance_metrics"]) if row["performance_metrics"] else {},
-            price=row["price"],
-            is_public=bool(row["is_public"]),
-            version=row["version"],
-            tags=json.loads(row["tags"]) if row["tags"] else [],
-            downloads=row["downloads"],
-            rating=row["rating"],
-            num_ratings=row["num_ratings"],
-            num_reviews=row["num_reviews"],
-            created_at=datetime.fromisoformat(row["created_at"]),
-            updated_at=datetime.fromisoformat(row["updated_at"]),
-        )
+    Returns:
+        BacktestResults object
+    """
+    return BacktestResults(
+        total_return=engine_results.get("total_return", 0),
+        annualized_return=engine_results.get("annualized_return", 0),
+        sharpe_ratio=engine_results.get("sharpe_ratio", 0),
+        sortino_ratio=engine_results.get("sortino_ratio", 0),
+        max_drawdown=engine_results.get("max_drawdown", 0),
+        max_drawdown_duration=engine_results.get("max_drawdown_duration", 0),
+        calmar_ratio=engine_results.get("calmar_ratio", 0),
+        num_trades=engine_results.get("num_trades", 0),
+        win_rate=engine_results.get("win_rate", 0),
+        profit_factor=engine_results.get("profit_factor", 0),
+        avg_win=engine_results.get("avg_win", 0),
+        avg_loss=engine_results.get("avg_loss", 0),
+        volatility=engine_results.get("volatility", 0),
+        var_95=engine_results.get("var_95", 0),
+        cvar_95=engine_results.get("cvar_95", 0),
+        equity_curve=engine_results.get("equity_curve", []),
+        trades=engine_results.get("trades", []),
+        daily_returns=engine_results.get("daily_returns", []),
+        start_date=engine_results.get("start_date"),
+        end_date=engine_results.get("end_date"),
+        initial_capital=engine_results.get("initial_capital", 100000),
+        symbols=engine_results.get("symbols", []),
+    )

@@ -12,7 +12,9 @@ from core.data_fetcher import fetch_stock_data, validate_interval_period
 from core.database import DatabaseManager
 from core.risk_manager import RiskManager
 from core.trading_engine import TradingEngine
+from strategies.bb_mean_reversion import BollingerMeanReversionStrategy
 from strategies.macd_strategy import MACDStrategy
+from strategies.parabolic_sar import ParabolicSARStrategy
 from strategies.rsi_strategy import RSIStrategy
 from strategies.sma_crossover import SMACrossoverStrategy
 from strategies.strategy_catalog import get_catalog
@@ -206,6 +208,24 @@ def render_single_asset_backtest(
         st.subheader("MACD Parameters")
         st.info("Using default MACD parameters (12, 26, 9)")
 
+    elif strategy_type == "Bollinger Band Mean Reversion":
+        st.subheader("Bollinger Band Parameters")
+        col1, col2 = st.columns(2)
+        with col1:
+            bb_period = st.slider("Period", 10, 50, 20)
+        with col2:
+            bb_std = st.slider("Std Dev", 1.5, 3.0, 2.0)
+
+    elif strategy_type == "Parabolic SAR":
+        st.subheader("Parabolic SAR Parameters")
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            sar_start = st.slider("Start", 0.01, 0.05, 0.02, step=0.01)
+        with col2:
+            sar_increment = st.slider("Increment", 0.01, 0.05, 0.02, step=0.01)
+        with col3:
+            sar_max = st.slider("Maximum", 0.1, 0.5, 0.2, step=0.1)
+
     # Risk Management Section
     st.subheader("Risk Management")
     col1, col2 = st.columns(2)
@@ -261,11 +281,16 @@ def render_single_asset_backtest(
                     "SMA Crossover": lambda: SMACrossoverStrategy(short_window, long_window),
                     "RSI Strategy": lambda: RSIStrategy(rsi_period, oversold, overbought),
                     "MACD Strategy": lambda: MACDStrategy(),
+                    "Bollinger Band Mean Reversion": lambda: BollingerMeanReversionStrategy(bb_period, bb_std),
+                    "Parabolic SAR": lambda: ParabolicSARStrategy(sar_start, sar_increment, sar_max),
                 }
 
                 ML_STRATEGIES = {
                     "ML Random Forest",
                     "ML Gradient Boosting",
+                    "ML SVM Classifier",
+                    "ML Logistic Regression",
+                    "ML LSTM (Deep Learning)",
                 }
 
                 strategy = None

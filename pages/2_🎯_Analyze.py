@@ -7,10 +7,10 @@ import streamlit as st
 from auth import UserTier, require_tier
 from core.context import configure_page, get_app_context
 from ui.analyst import render_analyst
+from ui.components.sidebar import render_page_sidebar
+from ui.components.theme import OracleTheme
 from ui.regime_detector import render_regime_detector
-from ui.sidebar import render_page_sidebar
 from ui.strategy_advisor import render_strategy_advisor
-from ui.theme import OracleTheme
 
 
 @require_tier(UserTier.FREE)

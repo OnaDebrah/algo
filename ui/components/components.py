@@ -7,7 +7,7 @@ from typing import Dict, List
 
 import streamlit as st
 
-from ui.theme import OracleTheme
+from ui.components.theme import OracleTheme
 
 PRICING_CONFIG = [
     {
@@ -318,7 +318,7 @@ def render_cta_section():
 def render_authenticated_home():
     """Home dashboard for logged-in users"""
     from core.context import get_app_context
-    from ui.newsfeed import render_market_ticker
+    from ui.components.newsfeed import render_market_ticker
 
     ctx = get_app_context()
     user = st.session_state.user

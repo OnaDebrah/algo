@@ -12,7 +12,7 @@ from typing import Dict, List
 import streamlit as st
 import yfinance as yf
 
-from ui.theme import OracleTheme
+from ui.components.theme import OracleTheme
 
 logger = logging.getLogger(__name__)
 

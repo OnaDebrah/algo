@@ -3,6 +3,7 @@ Data fetching utilities for stock market data
 """
 
 import logging
+from typing import Any
 
 import pandas as pd
 import requests
@@ -20,7 +21,7 @@ def create_yfinance_session():
     return session
 
 
-def fetch_stock_data(symbol: str, period: str, interval: str) -> pd.DataFrame:
+def fetch_stock_data(symbol: str, period: str, interval: str, start: Any = None, end: Any = None) -> pd.DataFrame:
     """
     Fetch stock data with better error handling
 
@@ -41,7 +42,14 @@ def fetch_stock_data(symbol: str, period: str, interval: str) -> pd.DataFrame:
         if data.empty:
             # Method 2: Try download as fallback
             logger.warning(f"Ticker method failed for {symbol}, trying download method")
-            data = yf.download(symbol, period=period, interval=interval, progress=False)
+            data = yf.download(
+                symbol,
+                start,
+                end,
+                period=period,
+                interval=interval,
+                progress=False,
+            )
 
         if not data.empty:
             logger.info(f"Successfully fetched {len(data)} data points for {symbol}")

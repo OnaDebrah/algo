@@ -7,7 +7,7 @@ import streamlit as st
 
 from auth.auth_manager import UserTier
 from auth.streamlit_auth import init_auth_state
-from ui.theme import OracleTheme
+from ui.components.theme import OracleTheme
 
 # Page config
 st.set_page_config(page_title="ORACULUM - Sign In", page_icon="🔐", layout="centered", initial_sidebar_state="collapsed")

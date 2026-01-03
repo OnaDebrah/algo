@@ -6,10 +6,10 @@ import streamlit as st
 
 from auth import require_auth
 from core.context import configure_page, get_app_context
-from ui.dashboard import render_dashboard
+from ui.components.dashboard import render_dashboard
+from ui.components.sidebar import render_page_sidebar
+from ui.components.theme import OracleTheme
 from ui.live import render_live_trading
-from ui.sidebar import render_page_sidebar
-from ui.theme import OracleTheme
 
 
 @require_auth

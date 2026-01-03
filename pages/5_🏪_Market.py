@@ -1,8 +1,8 @@
 from auth import UserTier, require_tier
 from core.context import configure_page
+from ui.components.sidebar import render_page_sidebar
+from ui.components.theme import OracleTheme
 from ui.marketplace import marketplace
-from ui.sidebar import render_page_sidebar
-from ui.theme import OracleTheme
 
 
 @require_tier(UserTier.FREE)

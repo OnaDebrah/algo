@@ -1,8 +1,9 @@
 """User interface components"""
 
+from ui.components.dashboard import render_dashboard
+
 from .backtest import render_backtest
 from .configuration import render_configuration
-from .dashboard import render_dashboard
 from .ml_builder import render_ml_builder
 
 __all__ = [

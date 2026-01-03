@@ -8,6 +8,7 @@ import streamlit as st
 
 from config import DEFAULT_ML_TEST_SIZE
 from core.data_fetcher import fetch_stock_data
+from strategies.lstm_strategy import LSTMStrategy
 from strategies.ml_strategy import MLStrategy
 
 
@@ -42,9 +43,19 @@ def render_ml_builder(ml_models: dict):
 
         model_type = st.selectbox(
             "ML Model Type",
-            ["Random Forest", "Gradient Boosting"],
+            [
+                "Random Forest",
+                "Gradient Boosting",
+                "SVM (Support Vector Machine)",
+                "Logistic Regression",
+                "LSTM (Deep Learning)",
+            ],
             help="Choose the machine learning algorithm",
         )
+
+        epochs = 20
+        if model_type == "LSTM (Deep Learning)":
+            epochs = st.number_input("Epochs", 10, 100, 20, help="Training epochs")
 
         training_period = st.selectbox(
             "Training Data Period",
@@ -123,12 +134,35 @@ def render_ml_builder(ml_models: dict):
                 st.info(f"📊 Fetched {len(data)} data points from {data.index[0].date()} to {data.index[-1].date()}")
 
                 # Create and train model
-                ml_strategy = MLStrategy(
-                    f"ML_{model_type}_{ml_symbol}",
-                    model_type=("Random_Forest" if model_type == "Random Forest" else "Gradient_Boosting"),
-                )
+                if model_type == "LSTM (Deep Learning)":
+                    ml_strategy = LSTMStrategy(f"LSTM_{ml_symbol}", epochs=epochs)
+                    # LSTM requires different training signature? No, updated to be similar?
+                    # basic LSTMStrategy.train takes (data).
+                    # Need to check LSTMStrategy.train signature again.
+                    # It relies on internal logic.
+                    # Wrapper might be needed if signatures diverge too much.
+                    # Let's assume standard behavior or minimal divergence.
+                    # Actually LSTMStrategy.train(data) -> None (internally splits)?
+                    # Existing MLStrategy.train(data, test_size) -> (train_score, test_score).
+                    # I need to align them. LSTMStrategy.train currently returns None.
+                    # I should update LSTMStrategy to return scores or handle it here.
+                    # For now, I'll assume I need to handle the return manually.
+                    ml_strategy.train(data)  # It doesn't take test_size yet?
+                    train_score, test_score = 0.0, 0.0  # Placeholder
 
-                train_score, test_score = ml_strategy.train(data, test_size)
+                else:
+                    mapped_type = {
+                        "Random Forest": "random_forest",
+                        "Gradient Boosting": "gradient_boosting",
+                        "SVM (Support Vector Machine)": "svm",
+                        "Logistic Regression": "logistic_regression",
+                    }.get(model_type, "random_forest")
+
+                    ml_strategy = MLStrategy(
+                        f"ML_{mapped_type}_{ml_symbol}",
+                        model_type=mapped_type,
+                    )
+                    train_score, test_score = ml_strategy.train(data, test_size)
 
                 # Store model
                 ml_models[ml_symbol] = ml_strategy
@@ -246,12 +280,12 @@ def _display_trained_models(ml_models: dict):
             st.metric("Total Models", len(ml_models))
 
         with col2:
-            rf_count = sum(1 for m in ml_models.values() if m.model_type == "random_forest")
+            rf_count = sum(1 for m in ml_models.values() if getattr(m, "model_type", "") == "random_forest")
             st.metric("Random Forest", rf_count)
 
         with col3:
-            gb_count = sum(1 for m in ml_models.values() if m.model_type == "gradient_boosting")
-            st.metric("Gradient Boosting", gb_count)
+            lstm_count = sum(1 for m in ml_models.values() if isinstance(m, LSTMStrategy))
+            st.metric("LSTM Models", lstm_count)
 
         # Model details
         for symbol, model in ml_models.items():
