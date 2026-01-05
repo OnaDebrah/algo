@@ -11,6 +11,7 @@ from ...api.deps import get_current_active_user
 from ...database import get_db
 from ...models.user import User
 from ...services.market_service import get_market_service
+from ...utils.errors import safe_detail
 
 router = APIRouter(prefix="/market", tags=["Market Data"])
 
@@ -33,12 +34,12 @@ async def get_quote(symbol: str, use_cache: bool = True, current_user: User = De
         quote = await market_service.get_quote(db, symbol, use_cache=use_cache)
         return quote
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to fetch quote: {str(e)} for user: {current_user}")
+        raise HTTPException(status_code=500, detail=safe_detail("Failed to fetch quote", e))
 
 
 @router.post("/quotes")
 async def get_quotes(
-    symbols: List[str], use_cache: bool = True, current_user: User = Depends(get_current_active_user), db: AsyncSession = Depends(get_db)
+        symbols: List[str], use_cache: bool = True, current_user: User = Depends(get_current_active_user), db: AsyncSession = Depends(get_db)
 ):
     """
     Get quotes for multiple symbols
@@ -53,19 +54,19 @@ async def get_quotes(
         quotes = await market_service.get_quotes(db, symbols, use_cache=use_cache)
         return quotes
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to fetch quotes: {str(e)} for user: {current_user}")
+        raise HTTPException(status_code=500, detail=safe_detail("Failed to fetch quotes", e))
 
 
 @router.get("/historical/{symbol}")
 async def get_historical_data(
-    symbol: str,
-    period: str = Query("1mo", description="Data period (1d, 5d, 1mo, 3mo, 6mo, 1y, 2y, 5y, 10y, ytd, max)"),
-    interval: str = Query("1d", description="Data interval (1m, 2m, 5m, 15m, 30m, 60m, 90m, 1h, 1d, 5d, 1wk, 1mo, 3mo)"),
-    start: Optional[str] = Query(None, description="Start date (YYYY-MM-DD)"),
-    end: Optional[str] = Query(None, description="End date (YYYY-MM-DD)"),
-    use_cache: bool = False,
-    current_user: User = Depends(get_current_active_user),
-    db: AsyncSession = Depends(get_db),
+        symbol: str,
+        period: str = Query("1mo", description="Data period (1d, 5d, 1mo, 3mo, 6mo, 1y, 2y, 5y, 10y, ytd, max)"),
+        interval: str = Query("1d", description="Data interval (1m, 2m, 5m, 15m, 30m, 60m, 90m, 1h, 1d, 5d, 1wk, 1mo, 3mo)"),
+        start: Optional[str] = Query(None, description="Start date (YYYY-MM-DD)"),
+        end: Optional[str] = Query(None, description="End date (YYYY-MM-DD)"),
+        use_cache: bool = False,
+        current_user: User = Depends(get_current_active_user),
+        db: AsyncSession = Depends(get_db),
 ):
     """
     Get historical OHLCV data
@@ -109,15 +110,15 @@ async def get_historical_data(
         return data
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to fetch historical data: {str(e)}")
+        raise HTTPException(status_code=500, detail=safe_detail("Failed to fetch historical data", e))
 
 
 @router.get("/options/{symbol}")
 async def get_option_chain(
-    symbol: str,
-    expiration: Optional[str] = Query(None, description="Expiration date (YYYY-MM-DD)"),
-    current_user: User = Depends(get_current_active_user),
-    db: AsyncSession = Depends(get_db),
+        symbol: str,
+        expiration: Optional[str] = Query(None, description="Expiration date (YYYY-MM-DD)"),
+        current_user: User = Depends(get_current_active_user),
+        db: AsyncSession = Depends(get_db),
 ):
     """
     Get option chain data
@@ -132,7 +133,7 @@ async def get_option_chain(
         data = await market_service.get_option_chain(symbol, expiration=expiration)
         return data
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to fetch option chain: {str(e)} for user: {current_user}")
+        raise HTTPException(status_code=500, detail=safe_detail("Failed to fetch option chain", e))
 
 
 @router.get("/fundamentals/{symbol}")
@@ -149,15 +150,15 @@ async def get_fundamentals(symbol: str, current_user: User = Depends(get_current
         data = await market_service.get_fundamentals(db, symbol)
         return data
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to fetch fundamentals: {str(e)} for user: {current_user}")
+        raise HTTPException(status_code=500, detail=safe_detail("Failed to fetch fundamentals", e))
 
 
 @router.get("/news/{symbol}")
 async def get_news(
-    symbol: str,
-    limit: int = Query(10, ge=1, le=50, description="Maximum number of news items"),
-    current_user: User = Depends(get_current_active_user),
-    db: AsyncSession = Depends(get_db),
+        symbol: str,
+        limit: int = Query(10, ge=1, le=50, description="Maximum number of news items"),
+        current_user: User = Depends(get_current_active_user),
+        db: AsyncSession = Depends(get_db),
 ):
     """
     Get news for a symbol
@@ -172,14 +173,14 @@ async def get_news(
         news = await market_service.get_news(symbol, limit=limit)
         return news
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to fetch news: {str(e)} for user: {current_user}")
+        raise HTTPException(status_code=500, detail=safe_detail("Failed to fetch news", e))
 
 
 @router.get("/search")
 async def search_symbols(
-    q: str = Query(..., min_length=1, description="Search query"),
-    limit: int = Query(10, ge=1, le=50),
-    current_user: User = Depends(get_current_active_user),
+        q: str = Query(..., min_length=1, description="Search query"),
+        limit: int = Query(10, ge=1, le=50),
+        current_user: User = Depends(get_current_active_user),
 ):
     """
     Search for symbols
@@ -193,7 +194,7 @@ async def search_symbols(
         results = await market_service.search_symbols(q, limit=limit)
         return results
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Search failed: {str(e)} for user: {current_user}")
+        raise HTTPException(status_code=500, detail=safe_detail("Search failed", e))
 
 
 @router.get("/validate/{symbol}")
@@ -209,7 +210,7 @@ async def validate_symbol(symbol: str, current_user: User = Depends(get_current_
         is_valid = await market_service.validate_symbol(symbol)
         return {"symbol": symbol, "valid": is_valid}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Validation failed: {str(e)} for user: {current_user}")
+        raise HTTPException(status_code=500, detail=safe_detail("Validation failed", e))
 
 
 @router.get("/status")
@@ -221,13 +222,13 @@ async def get_market_status(current_user: User = Depends(get_current_active_user
         status = await market_service.get_market_status(db)
         return status
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to get market status: {str(e)} for user: {current_user}")
+        raise HTTPException(status_code=500, detail=safe_detail("Failed to get market status", e))
 
 
 @router.get("/cache/stats")
 async def get_cache_stats(
-    db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_active_user),
+        db: AsyncSession = Depends(get_db),
+        current_user: User = Depends(get_current_active_user),
 ):
     """
     Get cache statistics
@@ -236,14 +237,14 @@ async def get_cache_stats(
         stats = await market_service.cache.get_stats(db)
         return stats
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to get cache stats: {str(e)} for user: {current_user}")
+        raise HTTPException(status_code=500, detail=safe_detail("Failed to get cache stats", e))
 
 
 @router.post("/cache/clear")
 async def clear_cache(
-    data_type: Optional[str] = Query(None, description="Data type to clear (quote, historical, fundamentals, etc.)"),
-    db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_active_user),
+        data_type: Optional[str] = Query(None, description="Data type to clear (quote, historical, fundamentals, etc.)"),
+        db: AsyncSession = Depends(get_db),
+        current_user: User = Depends(get_current_active_user),
 ):
     """
     Clear market data cache
@@ -256,13 +257,13 @@ async def clear_cache(
         await market_service.cache.clear(db, data_type)
         return {"status": "success", "message": f"Cache cleared: {data_type or 'all'}"}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to clear cache: {str(e)} for user: {current_user}")
+        raise HTTPException(status_code=500, detail=safe_detail("Failed to clear cache", e))
 
 
 @router.post("/cache/cleanup")
 async def cleanup_cache(
-    db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_active_user),
+        db: AsyncSession = Depends(get_db),
+        current_user: User = Depends(get_current_active_user),
 ):
     """
     Clean up expired cache entries
@@ -271,4 +272,4 @@ async def cleanup_cache(
         deleted = await market_service.cache.cleanup_expired(db)
         return {"status": "success", "message": f"Cleaned up {deleted} expired cache entries"}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to cleanup cache: {str(e)} for user: {current_user}")
+        raise HTTPException(status_code=500, detail=safe_detail("Failed to cleanup cache", e))

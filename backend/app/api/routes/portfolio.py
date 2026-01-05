@@ -28,7 +28,7 @@ async def get_portfolios(current_user: User = Depends(get_current_active_user), 
 
 @router.post("/", response_model=Portfolio)
 async def create_portfolio(
-    portfolio_data: PortfolioCreate, current_user: User = Depends(get_current_active_user), db: AsyncSession = Depends(get_db)
+        portfolio_data: PortfolioCreate, current_user: User = Depends(get_current_active_user), db: AsyncSession = Depends(get_db)
 ):
     """Create new portfolio"""
     await AuthService.track_usage(db, current_user.id, "create_portfolios", {"portfolio_name": portfolio_data.name})
@@ -52,7 +52,7 @@ async def get_portfolio(portfolio_id: int, current_user: User = Depends(get_curr
 
 @router.put("/{portfolio_id}", response_model=Portfolio)
 async def update_portfolio(
-    portfolio_id: int, update_data: PortfolioUpdate, current_user: User = Depends(get_current_active_user), db: AsyncSession = Depends(get_db)
+        portfolio_id: int, update_data: PortfolioUpdate, current_user: User = Depends(get_current_active_user), db: AsyncSession = Depends(get_db)
 ):
     """Update portfolio"""
     await AuthService.track_usage(db, current_user.id, "get_portfolios", {"portfolio_key": portfolio_id})
@@ -103,7 +103,7 @@ async def get_positions(portfolio_id: int, current_user: User = Depends(get_curr
 
 @router.get("/{portfolio_id}/trades", response_model=List[Trade])
 async def get_trades(
-    portfolio_id: int, limit: int = 100, offset: int = 0, current_user: User = Depends(get_current_active_user), db: AsyncSession = Depends(get_db)
+        portfolio_id: int, limit: int = 100, offset: int = 0, current_user: User = Depends(get_current_active_user), db: AsyncSession = Depends(get_db)
 ):
     """Get portfolio trade history"""
     await AuthService.track_usage(db, current_user.id, "get_portfolios", {"portfolio_key": portfolio_id})

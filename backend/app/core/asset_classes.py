@@ -424,11 +424,11 @@ class AssetClassManager:
         return info.get(asset_class, {})
 
     async def fetch_data(
-        self,
-        symbol: str,
-        period: str,
-        interval: str,
-        asset_class: Optional[AssetClass] = None,
+            self,
+            symbol: str,
+            period: str,
+            interval: str,
+            asset_class: Optional[AssetClass] = None,
     ) -> pd.DataFrame:
         """
         Fetch data for any asset class
@@ -448,7 +448,7 @@ class AssetClassManager:
         logger.info(f"Fetching {asset_class.value} data for {symbol}")
 
         try:
-            from backend.app.core import fetch_stock_data
+            from . import fetch_stock_data
 
             data = await fetch_stock_data(symbol, period, interval)
 

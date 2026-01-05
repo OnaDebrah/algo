@@ -30,18 +30,18 @@ class StatisticalArbitrageStrategy(BaseStrategy):
     """
 
     def __init__(
-        self,
-        universe: List[str],
-        basket_size: int = 3,
-        lookback_period: int = 252,
-        entry_threshold: float = 2.0,
-        exit_threshold: float = 0.5,
-        stop_loss_threshold: float = 3.0,
-        max_basket_weight: float = 0.5,
-        method: str = "cointegration",  # "cointegration", "pca", "kalman"
-        rebalancing_freq: str = "monthly",
-        min_half_life: int = 5,
-        **kwargs,
+            self,
+            universe: List[str],
+            basket_size: int = 3,
+            lookback_period: int = 252,
+            entry_threshold: float = 2.0,
+            exit_threshold: float = 0.5,
+            stop_loss_threshold: float = 3.0,
+            max_basket_weight: float = 0.5,
+            method: str = "cointegration",  # "cointegration", "pca", "kalman"
+            rebalancing_freq: str = "monthly",
+            min_half_life: int = 5,
+            **kwargs,
     ):
         """
         Initialize Statistical Arbitrage Strategy

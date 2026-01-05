@@ -17,11 +17,11 @@ class KAMAStrategy(BaseStrategy):
     """Kaufman's Adaptive Moving Average Strategy"""
 
     def __init__(
-        self,
-        period: int = 10,
-        fast_ema: int = 2,
-        slow_ema: int = 30,
-        signal_threshold: float = 0.0,
+            self,
+            period: int = 10,
+            fast_ema: int = 2,
+            slow_ema: int = 30,
+            signal_threshold: float = 0.0,
     ):
         """
         Initialize KAMA strategy

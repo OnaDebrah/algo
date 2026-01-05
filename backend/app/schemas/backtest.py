@@ -172,6 +172,9 @@ class BacktestHistoryItem(BaseModel):
     equity_curve: Optional[List[EquityCurvePoint]] = None
     trades: Optional[List[Trade]] = None
 
+    # Extended results (advanced metrics, benchmark, price data, factor attribution)
+    extended_results: Optional[Dict[str, Any]] = None
+
     # Metadata
     status: str
     error_message: Optional[str] = None

@@ -33,19 +33,19 @@ class CrossSectionalMomentumStrategy(BaseStrategy):
     """
 
     def __init__(
-        self,
-        universe: List[str],
-        formation_period: int = 252,  # 12-month formation
-        skip_period: int = 21,  # Skip last month (avoid reversal)
-        holding_period: int = 21,  # Monthly rebalancing
-        top_quantile: float = 0.3,  # Long top 30%
-        bottom_quantile: float = 0.3,  # Short bottom 30%
-        sector_mapping: Optional[Dict] = None,
-        volatility_adjustment: bool = True,
-        momentum_crash_protection: bool = True,
-        max_position_size: float = 0.05,  # 5% max per position
-        transaction_cost_bps: float = 5.0,  # 5 bps per trade
-        **kwargs,
+            self,
+            universe: List[str],
+            formation_period: int = 252,  # 12-month formation
+            skip_period: int = 21,  # Skip last month (avoid reversal)
+            holding_period: int = 21,  # Monthly rebalancing
+            top_quantile: float = 0.3,  # Long top 30%
+            bottom_quantile: float = 0.3,  # Short bottom 30%
+            sector_mapping: Optional[Dict] = None,
+            volatility_adjustment: bool = True,
+            momentum_crash_protection: bool = True,
+            max_position_size: float = 0.05,  # 5% max per position
+            transaction_cost_bps: float = 5.0,  # 5 bps per trade
+            **kwargs,
     ):
         """
         Initialize Cross-Sectional Momentum
@@ -304,10 +304,10 @@ class CrossSectionalMomentumStrategy(BaseStrategy):
         return scaled_positions
 
     def apply_momentum_crash_protection(
-        self,
-        positions: Dict[str, float],
-        market_data: pd.DataFrame,
-        crash_threshold: float = -0.05,
+            self,
+            positions: Dict[str, float],
+            market_data: pd.DataFrame,
+            crash_threshold: float = -0.05,
     ) -> Dict[str, float]:
         """
         Implement momentum crash protection (Daniel & Moskowitz, 2016)
@@ -333,8 +333,8 @@ class CrossSectionalMomentumStrategy(BaseStrategy):
         # 3. Momentum had been strong
 
         crash_conditions = (
-            market_returns.iloc[0] < crash_threshold  # Market down >5%
-            and market_vol.iloc[0] > 0.20  # High volatility (>20%)
+                market_returns.iloc[0] < crash_threshold  # Market down >5%
+                and market_vol.iloc[0] > 0.20  # High volatility (>20%)
         )
 
         if crash_conditions:
@@ -350,11 +350,11 @@ class CrossSectionalMomentumStrategy(BaseStrategy):
         return positions
 
     def generate_signal(
-        self,
-        price_data: pd.DataFrame,
-        market_index: Optional[pd.Series] = None,
-        current_positions: Optional[Dict] = None,
-        rebalance: bool = True,
+            self,
+            price_data: pd.DataFrame,
+            market_index: Optional[pd.Series] = None,
+            current_positions: Optional[Dict] = None,
+            rebalance: bool = True,
     ) -> Dict:
         """
         Generate enhanced cross-sectional momentum signals
@@ -530,10 +530,10 @@ class CrossSectionalMomentumStrategy(BaseStrategy):
         return days_since_rebalance >= self.holding_period
 
     def backtest(
-        self,
-        price_data: pd.DataFrame,
-        market_index: Optional[pd.Series] = None,
-        initial_capital: float = 1000000,
+            self,
+            price_data: pd.DataFrame,
+            market_index: Optional[pd.Series] = None,
+            initial_capital: float = 1000000,
     ) -> pd.DataFrame:
         """
         Run backtest on historical data
@@ -743,81 +743,3 @@ class CrossSectionalMomentumStrategy(BaseStrategy):
         }
 
         return report
-
-
-# ============================================================================
-# EXAMPLE USAGE
-# ============================================================================
-
-if __name__ == "__main__":
-    print("=== Cross-Sectional Momentum Strategy ===")
-
-    # Create sample universe
-    np.random.seed(42)
-    n_assets = 50
-    dates = pd.date_range("2010-01-01", periods=1000, freq="D")
-
-    # Simulate asset prices with momentum factor
-    asset_prices = {}
-    for i in range(n_assets):
-        # Base returns with momentum persistence
-        base_returns = np.random.randn(1000) * 0.01
-
-        # Add momentum factor
-        momentum_factor = np.random.randn(1000) * 0.005
-        momentum_factor = np.convolve(momentum_factor, np.ones(30) / 30, mode="same")
-
-        # Combine
-        total_returns = base_returns + momentum_factor
-        prices = 100 * np.exp(np.cumsum(total_returns))
-        asset_prices[f"ASSET_{i:02d}"] = prices
-
-    price_data = pd.DataFrame(asset_prices, index=dates)
-
-    # Create sector mapping
-    sectors = ["TECH", "FINANCIAL", "HEALTHCARE", "INDUSTRIAL", "CONSUMER"]
-    sector_mapping = {f"ASSET_{i:02d}": sectors[i % len(sectors)] for i in range(n_assets)}
-
-    print(f"Created universe of {n_assets} assets across {len(sectors)} sectors")
-
-    # Initialize strategy
-    momentum_strategy = CrossSectionalMomentumStrategy(
-        universe=list(asset_prices.keys()),
-        formation_period=252,
-        skip_period=21,
-        holding_period=21,
-        top_quantile=0.3,
-        bottom_quantile=0.3,
-        sector_mapping=sector_mapping,
-        volatility_adjustment=True,
-        momentum_crash_protection=True,
-        max_position_size=0.05,
-        transaction_cost_bps=5.0,
-    )
-
-    # Run backtest
-    print("\nRunning backtest...")
-    results = momentum_strategy.backtest(price_data)
-
-    print("\nPerformance Metrics:")
-    for metric, value in momentum_strategy.performance_metrics.items():
-        print(f"  {metric}: {value:.4f}")
-
-    # Generate report
-    report = momentum_strategy.generate_report()
-    print("\nStrategy Characteristics:")
-    print(f"  Average gross exposure: {report['portfolio_characteristics']['avg_gross_exposure']:.2f}")
-    print(f"  Number of rebalances: {report['portfolio_characteristics']['num_rebalances']}")
-
-    # Test parameter optimization
-    print("\nOptimizing parameters...")
-    optimal_params = momentum_strategy.optimize_parameters(
-        price_data.iloc[:700],  # Use first 70% for optimization
-        parameter_grid={
-            "formation_period": [126, 252],
-            "skip_period": [5, 21],
-            "top_quantile": [0.2, 0.3],
-        },
-    )
-
-    print(f"Optimal parameters: {optimal_params}")
