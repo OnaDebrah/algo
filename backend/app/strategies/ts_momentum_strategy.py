@@ -32,18 +32,18 @@ class TimeSeriesMomentumStrategy(BaseStrategy):
     """
 
     def __init__(
-        self,
-        asset_symbol: str,
-        asset_class: str = "equity",
-        signal_method: str = "dual_ma",
-        fast_period: int = 20,
-        slow_period: int = 50,
-        momentum_period: int = 252,
-        volatility_lookback: int = 63,
-        target_volatility: float = 0.15,
-        max_position: float = 1.0,
-        enable_drawdown_protection: bool = True,
-        **kwargs,
+            self,
+            asset_symbol: str,
+            asset_class: str = "equity",
+            signal_method: str = "dual_ma",
+            fast_period: int = 20,
+            slow_period: int = 50,
+            momentum_period: int = 252,
+            volatility_lookback: int = 63,
+            target_volatility: float = 0.15,
+            max_position: float = 1.0,
+            enable_drawdown_protection: bool = True,
+            **kwargs,
     ):
         """
         Initialize Time-Series Momentum Strategy
@@ -270,7 +270,7 @@ class TimeSeriesMomentumStrategy(BaseStrategy):
                 self.trailing_stop_level = max(
                     self.trailing_stop_level,
                     current_price * (1 - self.trailing_stop_pct),
-                )
+                    )
         else:  # Short position
             pnl_pct = (self.entry_price - current_price) / self.entry_price
             # Update trailing stop
@@ -278,7 +278,7 @@ class TimeSeriesMomentumStrategy(BaseStrategy):
                 self.trailing_stop_level = min(
                     self.trailing_stop_level,
                     current_price * (1 + self.trailing_stop_pct),
-                )
+                    )
 
         # Check stop loss conditions
         stop_triggered = False
@@ -296,9 +296,9 @@ class TimeSeriesMomentumStrategy(BaseStrategy):
         return stop_triggered
 
     def generate_signal(
-        self,
-        data: Union[pd.DataFrame, pd.Series],
-        current_equity: Optional[float] = None,
+            self,
+            data: Union[pd.DataFrame, pd.Series],
+            current_equity: Optional[float] = None,
     ) -> Dict:
         """
         Generate trading signal for Time-Series Momentum

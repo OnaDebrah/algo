@@ -83,9 +83,9 @@ class FinancialAnalystAgent:
         self.sentiment_service = SentimentService(api_key=api_key)
 
     async def generate_investment_thesis(
-        self,
-        ticker: str,
-        depth: str = "comprehensive",  # quick, standard, comprehensive, deep_dive
+            self,
+            ticker: str,
+            depth: str = "comprehensive",  # quick, standard, comprehensive, deep_dive
     ) -> AnalystReport:
         """
         Generate complete investment thesis report
@@ -318,14 +318,14 @@ class FinancialAnalystAgent:
             return {"recent_news": [], "news_count": 0, "sentiment": "N/A", "score": 0.0}
 
     async def _generate_ai_analysis(
-        self,
-        ticker: str,
-        data: Dict,
-        technical: Dict,
-        fundamentals: Dict,
-        peers: Dict,
-        news: Dict,
-        depth: str,
+            self,
+            ticker: str,
+            data: Dict,
+            technical: Dict,
+            fundamentals: Dict,
+            peers: Dict,
+            news: Dict,
+            depth: str,
     ) -> Dict:
         """Generate AI-powered analysis using Claude"""
         logger.info("  🤖 Generating AI analysis...")
@@ -358,14 +358,14 @@ class FinancialAnalystAgent:
             return self._generate_fallback_analysis(ticker, data, technical, fundamentals)
 
     def _build_analysis_prompt(
-        self,
-        ticker: str,
-        data: Dict,
-        technical: Dict,
-        fundamentals: Dict,
-        peers: Dict,
-        news: Dict,
-        depth: str,
+            self,
+            ticker: str,
+            data: Dict,
+            technical: Dict,
+            fundamentals: Dict,
+            peers: Dict,
+            news: Dict,
+            depth: str,
     ) -> str:
         """Build comprehensive analysis prompt for Claude"""
 
@@ -491,23 +491,23 @@ Be specific, data-driven, and professional. This report will be used by investor
 
         return {
             "investment_thesis": "Based on current valuation metrics and technical indicators, "
-            f"{ticker} presents a moderate investment opportunity. "
-            f"The company trades at a P/E ratio of {pe:.2f} "
-            "with current momentum indicators suggesting "
-            f"{'oversold' if rsi < 40 else 'overbought' if rsi > 70 else 'neutral'} conditions.",
+                                 f"{ticker} presents a moderate investment opportunity. "
+                                 f"The company trades at a P/E ratio of {pe:.2f} "
+                                 "with current momentum indicators suggesting "
+                                 f"{'oversold' if rsi < 40 else 'overbought' if rsi > 70 else 'neutral'} conditions.",
             "recommendation": recommendation,
             "target_price": target,
             "confidence": "Medium",
             "risk_rating": "Medium",
             "business_overview": f"{info.get('longName', ticker)} operates in the {info.get('sector', 'N/A')} "
-            f"sector with a market capitalization of ${info.get('marketCap', 0):,.0f}.",
+                                 f"sector with a market capitalization of ${info.get('marketCap', 0):,.0f}.",
             "competitive_position": "Competitive analysis requires additional data.",
             "valuation_assessment": f"Current valuation metrics suggest "
-            f"{'undervalued' if pe < 15 else 'overvalued' if pe > 30 else 'fairly valued'} "
-            f"conditions based on P/E ratio of {pe:.2f}.",
+                                    f"{'undervalued' if pe < 15 else 'overvalued' if pe > 30 else 'fairly valued'} "
+                                    f"conditions based on P/E ratio of {pe:.2f}.",
             "technical_outlook": "Technical indicators show RSI at "
-            f"{rsi:.2f}, suggesting "
-            f"{'oversold' if rsi < 40 else 'overbought' if rsi > 70 else 'neutral'} momentum.",
+                                 f"{rsi:.2f}, suggesting "
+                                 f"{'oversold' if rsi < 40 else 'overbought' if rsi > 70 else 'neutral'} momentum.",
             "key_risks": [
                 "Market volatility risk",
                 "Sector-specific headwinds",
@@ -539,14 +539,14 @@ Be specific, data-driven, and professional. This report will be used by investor
         }
 
     def _compile_report(
-        self,
-        ticker: str,
-        data: Dict,
-        technical: Dict,
-        fundamentals: Dict,
-        peers: Dict,
-        news: Dict,
-        ai_analysis: Dict,
+            self,
+            ticker: str,
+            data: Dict,
+            technical: Dict,
+            fundamentals: Dict,
+            peers: Dict,
+            news: Dict,
+            ai_analysis: Dict,
     ) -> AnalystReport:
         """Compile final analyst report"""
 

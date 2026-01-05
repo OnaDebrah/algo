@@ -227,7 +227,7 @@ class ProductionConfig:
     TRACK_RECOMMENDATION_QUALITY = True
 
 # Usage in main app:
-from core.ai_advisor import RateLimitedAdvisor
+from app.core.ai_advisor import RateLimitedAdvisor
 
 advisor = RateLimitedAdvisor()
 recommendations = await advisor.get_recommendations(user_profile)

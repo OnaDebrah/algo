@@ -22,8 +22,14 @@ class User(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     last_login = Column(DateTime(timezone=True), nullable=True)
 
-    backtest_runs = relationship("BacktestRun", back_populates="user")
-    portfolios = relationship("Portfolio", back_populates="user")
+    # Profile fields for alerts & recommendations
+    country = Column(String(100), nullable=True)
+    investor_type = Column(String(50), nullable=True)
+    risk_profile = Column(String(50), nullable=True)
+
+    backtest_runs = relationship("BacktestRun", back_populates="user", cascade="all, delete-orphan")
+    custom_strategies = relationship("CustomStrategy", back_populates="user", cascade="all, delete-orphan")
+    portfolios = relationship("Portfolio", back_populates="user", cascade="all, delete-orphan")
     settings = relationship("UserSettings", back_populates="user", uselist=False, cascade="all, delete-orphan")
 
     def to_dict(self):
@@ -36,4 +42,7 @@ class User(Base):
             "is_superuser": self.is_superuser,
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "last_login": self.last_login.isoformat() if self.last_login else None,
+            "country": self.country,
+            "investor_type": self.investor_type,
+            "risk_profile": self.risk_profile,
         }

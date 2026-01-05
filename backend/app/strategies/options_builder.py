@@ -9,8 +9,8 @@ from typing import Dict, List, Optional, Tuple
 
 import numpy as np
 
+from ..core.options.pricers.engine import OptionsPricingEngine
 from ..strategies.options_strategies import (
-    BlackScholesCalculator,
     OptionLeg,
     OptionsStrategy,
     OptionType,
@@ -30,13 +30,13 @@ class OptionsStrategyBuilder:
         self.current_price: Optional[float] = None  # Must be set before use
 
     def add_leg(
-        self,
-        option_type: OptionType,
-        strike: float,
-        expiry: datetime,
-        quantity: int,
-        premium: Optional[float] = None,
-        volatility: Optional[float] = None,
+            self,
+            option_type: OptionType,
+            strike: float,
+            expiry: datetime,
+            quantity: int,
+            premium: Optional[float] = None,
+            volatility: Optional[float] = None,
     ):
         """Add an option leg to the strategy"""
         if self.current_price is None:
@@ -59,8 +59,8 @@ class OptionsStrategyBuilder:
 
             if volatility is None:
                 volatility = 0.3  # Default IV when not provided
-
-            premium = BlackScholesCalculator.calculate_option_price(
+            engine = OptionsPricingEngine()
+            premium = engine.price(
                 S=current_price,
                 K=strike,
                 T=T,
@@ -147,7 +147,8 @@ class OptionsStrategyBuilder:
             if T <= 0:
                 continue
 
-            greeks = BlackScholesCalculator.calculate_greeks(
+            engine = OptionsPricingEngine()
+            results = engine.price(
                 S=self.current_price,
                 K=leg.strike,
                 T=T,
@@ -158,11 +159,11 @@ class OptionsStrategyBuilder:
             )
 
             # Aggregate Greeks (multiply by quantity)
-            total_greeks["delta"] += greeks.delta * leg.quantity
-            total_greeks["gamma"] += greeks.gamma * leg.quantity
-            total_greeks["theta"] += greeks.theta * leg.quantity
-            total_greeks["vega"] += greeks.vega * leg.quantity
-            total_greeks["rho"] += greeks.rho * leg.quantity
+            total_greeks["delta"] += results.greeks.delta * leg.quantity
+            total_greeks["gamma"] += results.greeks.gamma * leg.quantity
+            total_greeks["theta"] += results.greeks.theta * leg.quantity
+            total_greeks["vega"] += results.greeks.vega * leg.quantity
+            total_greeks["rho"] += results.greeks.rho * leg.quantity
 
         return total_greeks
 
@@ -226,9 +227,9 @@ class OptionsStrategyBuilder:
         return float(max_loss), condition
 
     def calculate_probability_of_profit(
-        self,
-        volatility: Optional[float] = None,
-        days_to_expiration: Optional[int] = None,
+            self,
+            volatility: Optional[float] = None,
+            days_to_expiration: Optional[int] = None,
     ) -> float:
         """
         Calculate probability of profit at expiration
@@ -272,13 +273,13 @@ class OptionsStrategyBuilder:
 
 
 def create_preset_strategy(
-    strategy_type: OptionsStrategy,
-    symbol: str,
-    current_price: float,
-    expiration: datetime,
-    volatility: float = 0.3,
-    risk_free_rate: float = 0.05,
-    **kwargs,
+        strategy_type: OptionsStrategy,
+        symbol: str,
+        current_price: float,
+        expiration: datetime,
+        volatility: float = 0.3,
+        risk_free_rate: float = 0.05,
+        **kwargs,
 ) -> OptionsStrategyBuilder:
     """
     Create a preset options strategy matching the frontend templates.

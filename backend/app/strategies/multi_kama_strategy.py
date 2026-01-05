@@ -11,11 +11,11 @@ class MultiTimeframeKAMAStrategy(BaseStrategy):
     """
 
     def __init__(
-        self,
-        short_period: int = 5,
-        long_period: int = 20,
-        fast_ema: int = 2,
-        slow_ema: int = 30,
+            self,
+            short_period: int = 5,
+            long_period: int = 20,
+            fast_ema: int = 2,
+            slow_ema: int = 30,
     ):
         """
         Initialize Multi-Timeframe KAMA strategy
@@ -85,19 +85,19 @@ class MultiTimeframeKAMAStrategy(BaseStrategy):
 
         # Buy: Price crosses above both KAMAs and short > long (uptrend)
         if (
-            prev_price <= prev_short_kama
-            and current_price > current_short_kama
-            and current_price > current_long_kama
-            and current_short_kama > current_long_kama
+                prev_price <= prev_short_kama
+                and current_price > current_short_kama
+                and current_price > current_long_kama
+                and current_short_kama > current_long_kama
         ):
             return 1
 
         # Sell: Price crosses below both KAMAs and short < long (downtrend)
         if (
-            prev_price >= prev_short_kama
-            and current_price < current_short_kama
-            and current_price < current_long_kama
-            and current_short_kama < current_long_kama
+                prev_price >= prev_short_kama
+                and current_price < current_short_kama
+                and current_price < current_long_kama
+                and current_short_kama < current_long_kama
         ):
             return -1
 

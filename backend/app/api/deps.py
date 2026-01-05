@@ -4,7 +4,7 @@ API dependencies
 
 import logging
 
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jose import JWTError, jwt
 from sqlalchemy import select
@@ -14,11 +14,12 @@ from ..config import settings
 from ..core.permissions import Permission
 from ..database import get_db
 from ..models.user import User
+from ..security.rate_limiter import check_login_rate
 from ..services.auth_service import AuthService
 
 logger = logging.getLogger(__name__)
 
-security = HTTPBearer()
+security = HTTPBearer(auto_error=False)  # auto_error=False so cookie-only requests don't 403
 
 
 def check_permission(permission: Permission):
@@ -43,9 +44,41 @@ def check_permission(permission: Permission):
     return permission_checker
 
 
-async def get_current_user(auth: HTTPAuthorizationCredentials = Depends(security), db: AsyncSession = Depends(get_db)) -> User:
-    """Get current authenticated user using HTTPBearer"""
-    token = auth.credentials
+async def login_rate_limit(request: Request):
+    """Dependency that enforces stricter rate limits on the login endpoint.
+
+    Allows max 5 login attempts per 60 seconds per client IP.
+    """
+    client_ip = request.client.host if request.client else "unknown"
+    if not check_login_rate(client_ip):
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="Too many login attempts. Try again in 1 minute.",
+        )
+
+
+async def get_current_user(
+        request: Request,
+        auth: HTTPAuthorizationCredentials = Depends(security),
+        db: AsyncSession = Depends(get_db),
+) -> User:
+    """Get current authenticated user.
+
+    Token resolution order:
+    1. httpOnly cookie ``access_token`` (set by login/register endpoints)
+    2. Bearer header (fallback for API clients / Swagger UI)
+    """
+    # 1. Try cookie first
+    token = request.cookies.get("access_token")
+    # 2. Fall back to Bearer header
+    if not token and auth:
+        token = auth.credentials
+    if not token:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Not authenticated",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
     logger.info(f"🔐 Auth attempt with token: {token[:20]}...")
 
     credentials_exception = HTTPException(

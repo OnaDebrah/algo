@@ -26,6 +26,7 @@ from ...schemas.regime import (
     TransitionResponse,
 )
 from ...services.auth_service import AuthService
+from ...utils.errors import safe_detail
 
 router = APIRouter(prefix="/regime", tags=["Market Regime"])
 
@@ -42,7 +43,7 @@ def get_detector(symbol: str) -> MarketRegimeDetector:
 
 @router.get("/detect/{symbol}", response_model=CurrentRegimeResponse)
 async def detect_market_regime(
-    symbol: str, period: str = "2y", current_user: User = Depends(get_current_active_user), db: AsyncSession = Depends(get_db)
+        symbol: str, period: str = "2y", current_user: User = Depends(get_current_active_user), db: AsyncSession = Depends(get_db)
 ):
     """Detect current market regime for a symbol"""
     await AuthService.track_usage(db, current_user.id, "detect_market_regime", {"symbol": symbol})
@@ -109,12 +110,12 @@ async def detect_market_regime(
         )
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error detecting regime: {str(e)}")
+        raise HTTPException(status_code=500, detail=safe_detail("Error detecting regime", e))
 
 
 @router.get("/history/{symbol}")
 async def get_regime_history_data(
-    symbol: str, period: str = "2y", current_user: User = Depends(get_current_active_user), db: AsyncSession = Depends(get_db)
+        symbol: str, period: str = "2y", current_user: User = Depends(get_current_active_user), db: AsyncSession = Depends(get_db)
 ):
     """Get historical regime changes"""
     await AuthService.track_usage(db, current_user.id, "get_regime_history_data", {"symbol": symbol})
@@ -147,12 +148,12 @@ async def get_regime_history_data(
         return {"symbol": symbol, "history": history, "total_entries": len(detector.regime_history)}
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error fetching regime history: {str(e)}")
+        raise HTTPException(status_code=500, detail=safe_detail("Error fetching regime history", e))
 
 
 @router.get("/report/{symbol}")
 async def get_regime_report(
-    symbol: str, period: str = "2y", current_user: User = Depends(get_current_active_user), db: AsyncSession = Depends(get_db)
+        symbol: str, period: str = "2y", current_user: User = Depends(get_current_active_user), db: AsyncSession = Depends(get_db)
 ):
     """Get comprehensive regime analysis report"""
     await AuthService.track_usage(db, current_user.id, "get_regime_report", {"symbol": symbol})
@@ -176,12 +177,12 @@ async def get_regime_report(
         return {"symbol": symbol, "report": report, "timestamp": data.index[-1].isoformat()}
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error generating report: {str(e)}")
+        raise HTTPException(status_code=500, detail=safe_detail("Error generating report", e))
 
 
 @router.post("/batch")
 async def detect_batch_regimes(
-    symbols: List[str], period: str = "2y", current_user: User = Depends(get_current_active_user), db: AsyncSession = Depends(get_db)
+        symbols: List[str], period: str = "2y", current_user: User = Depends(get_current_active_user), db: AsyncSession = Depends(get_db)
 ):
     await AuthService.track_usage(db, current_user.id, "detect_batch_regimes", {"symbols": symbols})
 
@@ -249,12 +250,12 @@ async def train_ml_model(symbol: str, period: str = "5y", current_user: User = D
         }
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error training model: {str(e)}")
+        raise HTTPException(status_code=500, detail=safe_detail("Error training model", e))
 
 
 @router.get("/warning/{symbol}")
 async def get_regime_change_warning(
-    symbol: str, period: str = "2y", current_user: User = Depends(get_current_active_user), db: AsyncSession = Depends(get_db)
+        symbol: str, period: str = "2y", current_user: User = Depends(get_current_active_user), db: AsyncSession = Depends(get_db)
 ):
     """Get early warning signals for potential regime changes"""
     await AuthService.track_usage(db, current_user.id, "get_regime_change_warning", {"symbol": symbol})
@@ -283,7 +284,7 @@ async def get_regime_change_warning(
         return {"symbol": symbol, "current_regime": current_regime["regime"], "warning": warning, "timestamp": data.index[-1].isoformat()}
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error checking warnings: {str(e)}")
+        raise HTTPException(status_code=500, detail=safe_detail("Error checking warnings", e))
 
 
 @router.delete("/cache/{symbol}")
@@ -312,7 +313,7 @@ async def clear_all_cache(current_user: User = Depends(get_current_active_user),
 # ============================================================
 @router.get("/allocation/{symbol}", response_model=AllocationResponse)
 async def get_strategy_allocation(
-    symbol: str, period: str = "2y", current_user: User = Depends(get_current_active_user), db: AsyncSession = Depends(get_db)
+        symbol: str, period: str = "2y", current_user: User = Depends(get_current_active_user), db: AsyncSession = Depends(get_db)
 ):
     """
     Get recommended strategy allocation based on current market regime
@@ -346,12 +347,12 @@ async def get_strategy_allocation(
         )
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error getting allocation: {str(e)}")
+        raise HTTPException(status_code=500, detail=safe_detail("Error getting allocation", e))
 
 
 @router.get("/strength/{symbol}", response_model=RegimeStrengthResponse)
 async def get_regime_strength(
-    symbol: str, period: str = "2y", current_user: User = Depends(get_current_active_user), db: AsyncSession = Depends(get_db)
+        symbol: str, period: str = "2y", current_user: User = Depends(get_current_active_user), db: AsyncSession = Depends(get_db)
 ):
     """
     Calculate how strongly the current regime is presenting itself
@@ -406,7 +407,7 @@ async def get_regime_strength(
         )
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error calculating strength: {str(e)}")
+        raise HTTPException(status_code=500, detail=safe_detail("Error calculating strength", e))
 
 
 @router.get("/transitions/{symbol}", response_model=TransitionResponse)
@@ -454,7 +455,7 @@ async def get_transition_probabilities(symbol: str, period: str = "2y", current_
         )
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error calculating transitions: {str(e)}")
+        raise HTTPException(status_code=500, detail=safe_detail("Error calculating transitions", e))
 
 
 @router.get("/features/{symbol}", response_model=FeaturesResponse)
@@ -526,4 +527,4 @@ async def get_feature_analysis(symbol: str, period: str = "2y", current_user: Us
         )
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error analyzing features: {str(e)}")
+        raise HTTPException(status_code=500, detail=safe_detail("Error analyzing features", e))

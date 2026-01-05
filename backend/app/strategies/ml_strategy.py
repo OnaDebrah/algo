@@ -22,13 +22,13 @@ class MLStrategy(BaseStrategy):
     """Machine Learning based trading strategy"""
 
     def __init__(
-        self,
-        name: str = "ML Strategy",
-        strategy_type: str = "random_forest",
-        n_estimators: int = 100,
-        max_depth: int = 10,
-        test_size: float = DEFAULT_ML_TEST_SIZE,
-        learning_rate: float = 0.1,
+            self,
+            name: str = "ML Strategy",
+            strategy_type: str = "random_forest",
+            n_estimators: int = 100,
+            max_depth: int = 10,
+            test_size: float = DEFAULT_ML_TEST_SIZE,
+            learning_rate: float = 0.1,
     ):
         """
         Initialize ML strategy
@@ -138,15 +138,15 @@ class MLStrategy(BaseStrategy):
             col
             for col in df.columns
             if col
-            not in [
-                "Open",
-                "High",
-                "Low",
-                "Close",
-                "Volume",
-                "Dividends",
-                "Stock Splits",
-            ]
+               not in [
+                   "Open",
+                   "High",
+                   "Low",
+                   "Close",
+                   "Volume",
+                   "Dividends",
+                   "Stock Splits",
+               ]
         ]
 
         df = df.dropna()

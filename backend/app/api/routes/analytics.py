@@ -22,10 +22,10 @@ trading_service = TradingService
 
 @router.get("/performance/{portfolio_id}")
 async def get_performance_analytics(
-    portfolio_id: int,
-    period: str = Query("1M", pattern="^(1D|1W|1M|3M|6M|1Y|ALL)$"),
-    current_user: User = Depends(get_current_active_user),
-    db: AsyncSession = Depends(get_db),
+        portfolio_id: int,
+        period: str = Query("1M", pattern="^(1D|1W|1M|3M|6M|1Y|ALL)$"),
+        current_user: User = Depends(get_current_active_user),
+        db: AsyncSession = Depends(get_db),
 ):
     """Get performance analytics for a portfolio"""
     # Calculate date range
@@ -120,11 +120,11 @@ async def get_drawdown_analysis(portfolio_id: int, current_user: User = Depends(
 
 @router.get("/lppls/analyze/{symbol}")
 async def analyze_bubble(
-    symbol: str,
-    lookback_days: int = Query(365, ge=30, le=730),
-    confidence_threshold: float = Query(0.6, ge=0.1, le=1.0),
-    current_user: User = Depends(deps.get_current_user),
-    db: AsyncSession = Depends(deps.get_db),
+        symbol: str,
+        lookback_days: int = Query(365, ge=30, le=730),
+        confidence_threshold: float = Query(0.6, ge=0.1, le=1.0),
+        current_user: User = Depends(deps.get_current_user),
+        db: AsyncSession = Depends(deps.get_db),
 ):
     """
     Analyze a symbol for bubble detection using LPPLS model
@@ -145,9 +145,9 @@ async def analyze_bubble(
 
 @router.get("/lppls/screen")
 async def screen_bubbles(
-    symbols: List[str] = Query(..., description="List of symbols to screen"),
-    current_user: User = Depends(deps.get_current_user),
-    db: AsyncSession = Depends(deps.get_db),
+        symbols: List[str] = Query(..., description="List of symbols to screen"),
+        current_user: User = Depends(deps.get_current_user),
+        db: AsyncSession = Depends(deps.get_db),
 ):
     """
     Screen multiple symbols for bubble detection

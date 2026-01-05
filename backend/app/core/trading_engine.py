@@ -22,14 +22,14 @@ class TradingEngine:
     """Main trading engine for backtesting"""
 
     def __init__(
-        self,
-        strategy: BaseStrategy,
-        initial_capital: float = DEFAULT_INITIAL_CAPITAL,
-        risk_manager: RiskManager = None,
-        trading_service: TradingService = None,
-        commission_rate: float = 0.0,
-        slippage_rate: float = 0.0,
-        db: AsyncSession = None,
+            self,
+            strategy: BaseStrategy,
+            initial_capital: float = DEFAULT_INITIAL_CAPITAL,
+            risk_manager: RiskManager = None,
+            trading_service: TradingService = None,
+            commission_rate: float = 0.0,
+            slippage_rate: float = 0.0,
+            db: AsyncSession = None,
     ):
         """
         Initialize trading engine
@@ -166,6 +166,10 @@ class TradingEngine:
         import numpy as np
 
         logger.info(f"Starting VECTORIZED backtest - Symbol: {symbol}, start: {start_timestamp}")
+
+        # Ensure strategy has access to the symbol for sentiment lookups
+        if hasattr(self.strategy, "symbol") and self.strategy.symbol is None:
+            self.strategy.symbol = symbol
 
         # 1. Get raw signals
         signals = self.strategy.generate_signals_vectorized(data)

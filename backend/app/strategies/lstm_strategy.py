@@ -39,14 +39,14 @@ class LSTMStrategy(BaseStrategy):
     """LSTM Strategy for Time Series Forecasting"""
 
     def __init__(
-        self,
-        name: str = "LSTM Strategy",
-        lookback: int = 10,
-        hidden_dim: int = 32,
-        num_layers: int = 1,
-        epochs: int = 20,
-        learning_rate: float = 0.01,
-        classes: int = 2,
+            self,
+            name: str = "LSTM Strategy",
+            lookback: int = 10,
+            hidden_dim: int = 32,
+            num_layers: int = 1,
+            epochs: int = 20,
+            learning_rate: float = 0.01,
+            classes: int = 2,
     ):
         """
         Initialize LSTM strategy

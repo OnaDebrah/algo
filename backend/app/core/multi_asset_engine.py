@@ -29,15 +29,15 @@ class MultiAssetEngine:
     """
 
     def __init__(
-        self,
-        strategies: Union[Dict[str, BaseStrategy], BaseStrategy],  # {symbol: strategy} OR single pairs strategy
-        initial_capital: float = 100000,
-        risk_manager: RiskManager = None,
-        allocation_method: str = "equal",  # equal, optimized, custom
-        commission_rate: float = 0.05,
-        slippage_rate: float = 0.03,
-        pairs_mode: bool = False,  # NEW: Enable pairs trading mode
-        pair_symbols: Optional[List[str]] = None,  # NEW: Symbols for pairs trading
+            self,
+            strategies: Union[Dict[str, BaseStrategy], BaseStrategy],  # {symbol: strategy} OR single pairs strategy
+            initial_capital: float = 100000,
+            risk_manager: RiskManager = None,
+            allocation_method: str = "equal",  # equal, optimized, custom
+            commission_rate: float = 0.05,
+            slippage_rate: float = 0.03,
+            pairs_mode: bool = False,  # NEW: Enable pairs trading mode
+            pair_symbols: Optional[List[str]] = None,  # NEW: Symbols for pairs trading
     ):
         """
         Initialize multi-asset backtesting engine
@@ -202,7 +202,7 @@ class MultiAssetEngine:
                 self._execute_pairs_trade(asset_2, 1, price_2, timestamp, self.pairs_strategy.name, position_size * hedge_ratio, metadata)
 
     def _execute_pairs_trade(
-        self, symbol: str, signal: int, current_price: float, timestamp, strategy_name: str, position_size: float = 1.0, metadata: dict = None
+            self, symbol: str, signal: int, current_price: float, timestamp, strategy_name: str, position_size: float = 1.0, metadata: dict = None
     ):
         """Execute trade for pairs trading (supports both long and short)"""
 
@@ -433,12 +433,12 @@ class MultiAssetEngine:
         return aligned
 
     def _execute_trade(
-        self,
-        symbol: str,
-        signal: int,
-        current_price: float,
-        timestamp,
-        strategy_name: str,
+            self,
+            symbol: str,
+            signal: int,
+            current_price: float,
+            timestamp,
+            strategy_name: str,
     ):
         """Execute trade with commission and slippage (original implementation)"""
 
@@ -631,11 +631,11 @@ class PortfolioBacktester:
     """Backtest a portfolio with single strategy across multiple assets"""
 
     def __init__(
-        self,
-        strategy: BaseStrategy,
-        symbols: List[str],
-        weights: Dict[str, float] = None,
-        initial_capital: float = 100000,
+            self,
+            strategy: BaseStrategy,
+            symbols: List[str],
+            weights: Dict[str, float] = None,
+            initial_capital: float = 100000,
     ):
         """
         Initialize portfolio backtester

@@ -19,7 +19,7 @@ _factory = ProviderFactory()
 
 
 async def fetch_stock_data(
-    symbol: str, period: str, interval: str, start: Any = None, end: Any = None, user: Optional[User] = None, db: Optional[AsyncSession] = None
+        symbol: str, period: str, interval: str, start: Any = None, end: Any = None, user: Optional[User] = None, db: Optional[AsyncSession] = None
 ) -> pd.DataFrame:
     """
     Fetch market data with caching using configured multi-provider layer.
