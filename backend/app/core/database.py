@@ -116,6 +116,25 @@ class DatabaseManager:
         """
         )
 
+        # User settings table
+        cursor.execute(
+            """
+            CREATE TABLE IF NOT EXISTS user_settings (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER UNIQUE NOT NULL,
+                data_source TEXT DEFAULT 'yahoo',
+                slippage REAL DEFAULT 0.001,
+                commission REAL DEFAULT 0.002,
+                initial_capital REAL DEFAULT 100000.0,
+                theme TEXT DEFAULT 'dark',
+                notifications INTEGER DEFAULT 1,
+                auto_refresh INTEGER DEFAULT 1,
+                refresh_interval INTEGER DEFAULT 30,
+                FOREIGN KEY (user_id) REFERENCES users(id)
+            )
+        """
+        )
+
         conn.commit()
         conn.close()
         logger.info("Database initialized successfully")

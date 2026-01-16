@@ -1,177 +1,50 @@
 'use client'
+import React from 'react';
+import {Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis} from 'recharts';
+import {Activity, Download, Target, TrendingDown, TrendingUp} from 'lucide-react';
+import MetricCard from "@/components/backtest/MetricCard";
+import {formatCurrency, formatPercent} from "@/utils/formatters";
 
-import {useBacktestStore} from '@/lib/store/backtestStore'
-import {Card, CardContent, CardHeader, CardTitle} from '@/components/ui/card'
-import {Tabs, TabsContent, TabsList, TabsTrigger} from '@/components/ui/tabs'
-import {formatCurrency, formatPercent, formatNumber} from '@/lib/utils/formatters'
-import {TrendingUp, TrendingDown, Target, Activity} from 'lucide-react'
-import {EquityCurveChart} from '@/components/charts/EquityCurveChart'
-import {TradeLogTable} from '@/components/backtest/TradeLogTable'
-
-export function BacktestResults() {
-    const {result, equityCurve, trades} = useBacktestStore()
-
-    if (!result) {
-        return (
-            <Card>
-                <CardContent className="flex h-[600px] items-center justify-center">
-                    <div className="text-center text-muted-foreground">
-                        <Activity className="mx-auto mb-4 h-12 w-12 opacity-50"/>
-                        <p className="text-lg font-medium">No backtest results</p>
-                        <p className="text-sm">Configure and run a backtest to see results</p>
-                    </div>
-                </CardContent>
-            </Card>
-        )
-    }
-
+const BacktestResults = ({ results }: any) => {
     return (
-        <div className="space-y-4">
-            {/* Key Metrics */}
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-                <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Total Return</CardTitle>
-                        <TrendingUp className="h-4 w-4 text-muted-foreground"/>
-                    </CardHeader>
-                    <CardContent>
-                        <div className={`text-2xl font-bold ${result.totalReturn >= 0 ? 'text-profit' : 'text-loss'}`}>
-                            {formatPercent(result.totalReturn)}
-                        </div>
-                        <p className="text-xs text-muted-foreground">
-                            {formatCurrency(result.finalEquity - result.initialCapital)}
-                        </p>
-                    </CardContent>
-                </Card>
-
-                <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Win Rate</CardTitle>
-                        <Target className="h-4 w-4 text-muted-foreground"/>
-                    </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold">{formatPercent(result.winRate)}</div>
-                        <p className="text-xs text-muted-foreground">
-                            {result.winningTrades}/{result.totalTrades} trades
-                        </p>
-                    </CardContent>
-                </Card>
-
-                <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Sharpe Ratio</CardTitle>
-                        <Activity className="h-4 w-4 text-muted-foreground"/>
-                    </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold">{formatNumber(result.sharpeRatio)}</div>
-                        <p className="text-xs text-muted-foreground">Risk-adjusted return</p>
-                    </CardContent>
-                </Card>
-
-                <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Max Drawdown</CardTitle>
-                        <TrendingDown className="h-4 w-4 text-muted-foreground"/>
-                    </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold text-loss">
-                            {formatPercent(result.maxDrawdown)}
-                        </div>
-                        <p className="text-xs text-muted-foreground">Peak to trough</p>
-                    </CardContent>
-                </Card>
+        <div className="space-y-6">
+            <div className="grid grid-cols-4 gap-6">
+                <MetricCard title="Total Return" value={formatPercent(results.total_return)} icon={TrendingUp} trend="up" color="emerald" />
+                <MetricCard title="Win Rate" value={`${results.win_rate.toFixed(1)}%`} icon={Target} trend="up" color="blue" />
+                <MetricCard title="Sharpe Ratio" value={results.sharpe_ratio.toFixed(2)} icon={Activity} trend="up" color="violet" />
+                <MetricCard title="Max Drawdown" value={formatPercent(results.max_drawdown)} icon={TrendingDown} trend="down" color="red" />
             </div>
 
-            {/* Tabs */}
-            <Tabs defaultValue="equity" className="space-y-4">
-                <TabsList>
-                    <TabsTrigger value="equity">Equity Curve</TabsTrigger>
-                    <TabsTrigger value="trades">Trade Log</TabsTrigger>
-                    <TabsTrigger value="metrics">Detailed Metrics</TabsTrigger>
-                </TabsList>
-
-                <TabsContent value="equity">
-                    <Card>
-                        <CardHeader>
-                            <CardTitle>Equity Curve</CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                            <div className="h-[400px]">
-                                <EquityCurveChart data={equityCurve}/>
-                            </div>
-                        </CardContent>
-                    </Card>
-                </TabsContent>
-
-                <TabsContent value="trades">
-                    <Card>
-                        <CardHeader>
-                            <CardTitle>Trade Log ({trades.length} trades)</CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                            <TradeLogTable trades={trades}/>
-                        </CardContent>
-                    </Card>
-                </TabsContent>
-
-                <TabsContent value="metrics">
-                    <Card>
-                        <CardHeader>
-                            <CardTitle>Detailed Performance Metrics</CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                            <div className="grid gap-4 md:grid-cols-2">
-                                <div className="space-y-3">
-                                    <h4 className="font-semibold">Returns</h4>
-                                    <div className="space-y-2 text-sm">
-                                        <div className="flex justify-between">
-                                            <span className="text-muted-foreground">Total Return:</span>
-                                            <span className="font-medium">{formatPercent(result.totalReturn)}</span>
-                                        </div>
-                                        <div className="flex justify-between">
-                                            <span className="text-muted-foreground">Avg Profit:</span>
-                                            <span className="font-medium">{formatCurrency(result.avgProfit)}</span>
-                                        </div>
-                                        <div className="flex justify-between">
-                                            <span className="text-muted-foreground">Avg Win:</span>
-                                            <span
-                                                className="font-medium text-profit">{formatCurrency(result.avgWin)}</span>
-                                        </div>
-                                        <div className="flex justify-between">
-                                            <span className="text-muted-foreground">Avg Loss:</span>
-                                            <span
-                                                className="font-medium text-loss">{formatCurrency(result.avgLoss)}</span>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <div className="space-y-3">
-                                    <h4 className="font-semibold">Risk Metrics</h4>
-                                    <div className="space-y-2 text-sm">
-                                        <div className="flex justify-between">
-                                            <span className="text-muted-foreground">Sharpe Ratio:</span>
-                                            <span className="font-medium">{formatNumber(result.sharpeRatio)}</span>
-                                        </div>
-                                        <div className="flex justify-between">
-                                            <span className="text-muted-foreground">Max Drawdown:</span>
-                                            <span
-                                                className="font-medium text-loss">{formatPercent(result.maxDrawdown)}</span>
-                                        </div>
-                                        <div className="flex justify-between">
-                                            <span className="text-muted-foreground">Profit Factor:</span>
-                                            <span className="font-medium">{formatNumber(result.profitFactor)}</span>
-                                        </div>
-                                        <div className="flex justify-between">
-                                            <span className="text-muted-foreground">Win Rate:</span>
-                                            <span className="font-medium">{formatPercent(result.winRate)}</span>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </CardContent>
-                    </Card>
-                </TabsContent>
-            </Tabs>
+            <div className="bg-gradient-to-br from-slate-900/90 to-slate-800/90 backdrop-blur-xl border border-slate-700/50 rounded-2xl p-6 shadow-xl">
+                <div className="flex justify-between items-center mb-6">
+                    <h3 className="text-xl font-semibold text-slate-100">Equity Curve</h3>
+                    <button className="flex items-center space-x-2 px-4 py-2 bg-slate-800/60 hover:bg-slate-700/60 border border-slate-700/50 rounded-lg transition-all text-sm font-medium text-slate-300">
+                        <Download size={18} strokeWidth={2} />
+                        <span>Export</span>
+                    </button>
+                </div>
+                <ResponsiveContainer width="100%" height={320}>
+                    <AreaChart data={results.equity_curve}>
+                        <defs>
+                            <linearGradient id="colorEquity" x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="5%" stopColor="#10b981" stopOpacity={0.4} />
+                                <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
+                            </linearGradient>
+                        </defs>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#334155" opacity={0.3} />
+                        <XAxis dataKey="timestamp" stroke="#64748b" style={{ fontSize: '12px', fontWeight: 500 }} />
+                        <YAxis stroke="#64748b" tickFormatter={(value) => formatCurrency(value)} style={{ fontSize: '12px', fontWeight: 500 }} />
+                        <Tooltip
+                            contentStyle={{ backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '12px', padding: '12px' }}
+                            formatter={(value) => [formatCurrency(Number(value || 0)), 'Equity']}
+                            labelStyle={{ color: '#94a3b8', fontWeight: 600, marginBottom: '4px' }}
+                        />
+                        <Area type="monotone" dataKey="equity" stroke="#10b981" strokeWidth={2} fillOpacity={1} fill="url(#colorEquity)" />
+                    </AreaChart>
+                </ResponsiveContainer>
+            </div>
         </div>
-    )
-}
+    );
+};
+
+export default BacktestResults;
