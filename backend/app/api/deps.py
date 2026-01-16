@@ -3,32 +3,58 @@ API dependencies
 """
 
 from fastapi import Depends, HTTPException, status
-from fastapi.security import OAuth2PasswordBearer
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from jose import JWTError, jwt
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+import logging
 from backend.app.config import settings
+from backend.app.core.permissions import Permission
 from backend.app.database import get_db
 from backend.app.models.user import User
+from backend.app.services.auth_service import AuthService
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")
+logger = logging.getLogger(__name__)
 
+security = HTTPBearer()
 
-async def get_current_user(token: str = Depends(oauth2_scheme), db: AsyncSession = Depends(get_db)) -> User:
-    """Get current authenticated user"""
+def check_permission(permission: Permission):
+    """Dependency to check if current user has a specific permission"""
+    async def permission_checker(current_user: User = Depends(get_current_active_user)) -> User:
+        if not AuthService.has_permission(current_user.tier, permission):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"Feature '{permission.value}' requires a higher subscription tier."
+            )
+        return current_user
+    return permission_checker
+
+async def get_current_user(
+    auth: HTTPAuthorizationCredentials = Depends(security),
+    db: AsyncSession = Depends(get_db)
+) -> User:
+    """Get current authenticated user using HTTPBearer"""
+    token = auth.credentials
+    logger.info(f"DEBUG AUTH: Received Token: {token[:10]}...")
+    
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",
         headers={"WWW-Authenticate": "Bearer"},
     )
-
+ 
     try:
-        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+        payload = jwt.decode(token, settings.JWT_SECRET_KEY, algorithms=[settings.JWT_ALGORITHM])
         user_id: str = payload.get("sub")
         if user_id is None:
+            logger.info(f"DEBUG AUTH: Token missing 'sub' claim: {payload}")
             raise credentials_exception
-    except JWTError:
+    except JWTError as e:
+        logger.info(f"DEBUG AUTH: JWT Decode Error: {str(e)}")
+        raise credentials_exception
+    except Exception as e:
+        logger.info(f"DEBUG AUTH: Unknown Auth Error: {str(e)}")
         raise credentials_exception
 
     # Async query

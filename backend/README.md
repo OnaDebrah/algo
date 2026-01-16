@@ -88,7 +88,7 @@ backend/
 
 ### Authentication
 - POST `/api/auth/register` - Register new user
-- POST `/api/auth/login` - Login
+- POST `/api/auth/login` - Page
 - POST `/api/auth/refresh` - Refresh token
 - GET `/api/auth/me` - Get current user
 

@@ -1,10 +1,12 @@
 """Initialize default data"""
+import logging
 
 from sqlalchemy import select
 
 from backend.app.database import AsyncSessionLocal
 from backend.app.models.user import User
 from backend.app.utils.security import get_password_hash
+logger = logging.getLogger(__name__)
 
 
 async def init_default_data():
@@ -21,7 +23,7 @@ async def init_default_data():
                 )
                 db.add(user)
                 await db.commit()
-                print("✓ Created admin user: admin@example.com / admin123")
+                logger.info("✓ Created admin user: admin@example.com / admin123")
         except Exception as e:
-            print(f"Error creating admin user: {e}")
+            logger.error(f"Error creating admin user: {e}")
             await db.rollback()

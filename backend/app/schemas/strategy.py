@@ -22,6 +22,9 @@ class StrategyInfo(BaseModel):
     name: str
     description: str
     category: str
+    complexity: Optional[str] = "Intermediate"
+    time_horizon: Optional[str] = "Medium-term"
+    best_for: List[str] = []
     parameters: List[StrategyParameter]
 
 

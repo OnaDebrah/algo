@@ -1,70 +1,85 @@
-"""
-Market regime schemas
-"""
-
-from typing import Dict, List, Optional
-
+from typing import List, Dict, Any, Optional
 from pydantic import BaseModel
+from datetime import datetime
 
+class RegimeMetrics(BaseModel):
+    volatility: float
+    trend_strength: float
+    liquidity_score: float
+    correlation_index: float
 
-class RegimeDetectionRequest(BaseModel):
-    symbol: str = "SPY"
-    period: str = "2y"
-    interval: str = "1d"
-
-
-class RegimeDetection(BaseModel):
-    symbol: str
-    regime: str  # bull, bear, sideways
+class RegimeData(BaseModel):
+    id: str
+    name: str  # e.g., "Bullish Trend", "High Volatility"
+    description: str
+    start_date: datetime
+    end_date: Optional[datetime]
     confidence: float
+    metrics: RegimeMetrics
+    # Could add related assets or strategy recommendations here
+
+class CurrentRegimeResponse(BaseModel):
+    symbol: str
+    current_regime: RegimeData
+    historical_regimes: List[RegimeData]
+    market_health_score: float
+
+# Enhanced schemas for new endpoints
+
+class StrategyAllocation(BaseModel):
+    trend_following: float
+    momentum: float
+    volatility_strategies: float
+    mean_reversion: float
+    statistical_arbitrage: float
+    cash: float
+
+class AllocationResponse(BaseModel):
+    symbol: str
+    current_regime: str
+    confidence: float
+    allocation: StrategyAllocation
     timestamp: str
 
-
-class DurationPrediction(BaseModel):
+class RegimeStrengthResponse(BaseModel):
+    symbol: str
     current_regime: str
-    expected_duration: float
-    median_duration: float
-    std_duration: float
-    probability_end_next_week: float
-    sample_size: int
+    strength: float  # 0-1 scale
+    confirming_signals: int
+    total_signals: int
+    description: str
+    timestamp: str
 
-
-class ChangeWarning(BaseModel):
+class WarningResponse(BaseModel):
+    symbol: str
+    current_regime: str
     warning: bool
     confidence_trend: float
     disagreement_rate: float
-    recommendation: str
+    recommendation: str  # maintain, increase_cash, increase_cash_significantly
+    timestamp: str
 
+class TransitionProbability(BaseModel):
+    from_regime: str
+    to_regime: str
+    probability: float
 
-class RegimeDetectionResult(BaseModel):
-    regime: str
-    confidence: float
-    scores: Dict[str, float]
-    method: str
-    strategy_allocation: Dict[str, float]
-    regime_strength: float
-    duration_prediction: Optional[DurationPrediction]
-    change_warning: Optional[ChangeWarning]
-    statistical_regime: Optional[str]
-    ml_regime: Optional[str]
-
-
-class RegimeHistoryItem(BaseModel):
-    start_date: str
-    end_date: Optional[str] = None
-    regime: str
-    duration_days: int
-
-
-class RegimeHistory(BaseModel):
+class TransitionResponse(BaseModel):
     symbol: str
-    history: List[RegimeHistoryItem]
+    current_regime: str
+    expected_duration: float
+    median_duration: float
+    probability_end_next_week: float
+    likely_transitions: List[TransitionProbability]
+    timestamp: str
 
+class FeatureImportance(BaseModel):
+    feature: str
+    importance: float
+    current_value: float
 
-class BatchRegimeRequest(BaseModel):
-    symbols: List[str]
-    period: str = "2y"
-
-
-class BatchRegimeResponse(BaseModel):
-    results: List[RegimeDetection]
+class FeaturesResponse(BaseModel):
+    symbol: str
+    current_regime: str
+    top_features: List[FeatureImportance]
+    timestamp: str

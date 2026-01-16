@@ -9,7 +9,7 @@ from typing import Dict, List
 
 import anthropic
 
-from config import ANTHROPIC_API_KEY
+from backend.app.config import settings
 
 logger = logging.getLogger(__name__)
 
@@ -18,7 +18,7 @@ class AIAdvisorAPI:
     """Enhanced version with real API calls"""
 
     def __init__(self):
-        self.api_key = ANTHROPIC_API_KEY
+        self.api_key = settings.ANTHROPIC_API_KEY
         self.client = None
         if self.api_key:
             self.client = anthropic.Anthropic(api_key=self.api_key)

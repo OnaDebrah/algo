@@ -1,97 +1,85 @@
-import {Trade} from "@/types/portfolio";
-import {StrategyConfig} from "@/types/strategy";
 
-export interface BacktestRequest {
-  symbol: string
-  strategyKey: string
-  parameters: Record<string, any>
-  period: string
-  interval: string
-  initialCapital: number
-  commissionRate: number
-  slippageRate: number
+export interface BacktestConfig {
+    symbols: string[];
+    symbolInput: string;
+    period: '1mo' | '1y' | '5y';
+    interval: '1h' | '1d';
+    strategyMode: 'same' | 'different';
+    strategy: string;
+    initialCapital: number;
+    allocationMethod: 'equal' | 'custom' | 'risk-parity';
+}
+
+export interface MultiConfig {
+    symbols: string[];
+    symbolInput: string;
+    period: string;
+    interval: string;
+    strategyMode: 'same' | 'different';
+    strategy?: string;
+    strategies: Record<string, string>;
+    allocationMethod: string;
+    allocations: Record<string, number>;
+    initialCapital: number;
+    maxPositionPct: number;
+}
+
+export interface Strategy {
+    id: string;
+    name: string;
+    category: string;
+    params: Record<string, string | number | boolean>;
+    description: string;
+    complexity: 'Beginner' | 'Intermediate' | 'Advanced' | 'Expert' | 'Institutional';
+    time_horizon?: string;
+    best_for?: string[];
+    rating?: number;
+    monthly_return?: number;
+    drawdown?: number;
+    sharpe_ratio?: number;
+}
+
+export interface Trade {
+    id: number | string;
+    date?: string;
+    entry_time?: string;
+    exit_time?: string;
+    symbol: string;
+    type?: string;
+    side?: 'LONG' | 'SHORT';
+    strategy?: string;
+    quantity: number;
+    price?: number;
+    entry_price?: number;
+    exit_price?: number;
+    total?: number;
+    pnl: number;
+    status: 'open' | 'closed';
 }
 
 export interface BacktestResult {
-  totalReturn: number
-  totalReturnPct: number
-  winRate: number
-  sharpeRatio: number
-  maxDrawdown: number
-  totalTrades: number
-  winningTrades: number
-  losingTrades: number
-  avgProfit: number
-  avgWin: number
-  avgLoss: number
-  profitFactor: number
-  finalEquity: number
-  initialCapital: number
-}
-
-export interface EquityCurvePoint {
-  timestamp: string
-  equity: number
-  cash: number
-  drawdown?: number
-}
-
-export interface BacktestResponse {
-  result: BacktestResult
-  equityCurve: EquityCurvePoint[]
-  trades: Trade[]
-  priceData: PriceData[]
-}
-
-export interface PriceData {
-  timestamp: string
-  open: number
-  high: number
-  low: number
-  close: number
-  volume: number
-}
-
-// Multi-asset backtest
-export interface MultiAssetBacktestRequest {
-  symbols: string[]
-  strategyConfigs: Record<string, StrategyConfig>
-  allocationMethod: 'equal' | 'custom' | 'risk_parity'
-  customAllocations?: Record<string, number>
-  period: string
-  interval: string
-  initialCapital: number
-  commissionRate: number
-  slippageRate: number
-}
-
-export interface MultiAssetBacktestResult extends BacktestResult {
-  symbolStats: Record<string, SymbolStats>
-  numSymbols: number
-}
-
-export interface SymbolStats {
-  totalProfit: number
-  numTrades: number
-  winRate: number
-  avgProfit: number
-  strategy: string
-}
-
-// Options backtest
-export interface OptionsBacktestRequest {
-  symbol: string
-  strategyType: string
-  entryRules: Record<string, any>
-  exitRules: Record<string, any>
-  period: string
-  interval: string
-  initialCapital: number
-  volatility: number
-  commission: number
-}
-
-export interface OptionsBacktestResult extends BacktestResult {
-  avgDaysHeld: number
-  avgPnlPct: number
+    type: 'single' | 'multi';
+    total_return: number;
+    win_rate: number;
+    sharpe_ratio: number;
+    max_drawdown: number;
+    total_trades: number;
+    final_equity: number;
+    equity_curve: Array<{
+        timestamp: string;
+        equity: number;
+        num_positions?: number;
+    }>;
+    trades?: Trade[];
+    avg_win?: number;
+    avg_loss?: number;
+    num_symbols?: number;
+    avg_profit?: number;
+    symbol_stats?: Record<string, {
+        strategy: string;
+        total_profit: number;
+        num_trades: number;
+        win_rate: number;
+        avg_profit: number;
+    }>;
 }

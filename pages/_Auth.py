@@ -1,5 +1,5 @@
 """
-Authentication Page - Login/Register
+Authentication Page - Page/Register
 Professional design with ORACULUM theme
 """
 
@@ -138,7 +138,7 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-# Tabs for Login/Register
+# Tabs for Page/Register
 tab1, tab2 = st.tabs(["🔐 Sign In", "📝 Create Account"])
 
 with tab1:
@@ -178,7 +178,7 @@ with tab1:
                         st.session_state.user = result["user"]
                         st.session_state.token = result["token"]
 
-                        st.success("✅ Login successful!")
+                        st.success("✅ Page successful!")
                         st.balloons()
 
                         # Small delay to show success message

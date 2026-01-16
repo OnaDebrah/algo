@@ -51,6 +51,22 @@ class Settings(BaseSettings):
     # Rate Limiting
     RATE_LIMIT_PER_MINUTE: int = 60
 
+    # Alerts (SMTP)
+    SMTP_SERVER: str = os.getenv("SMTP_SERVER", "smtp.gmail.com")
+    SMTP_PORT: int = int(os.getenv("SMTP_PORT", "587"))
+    SMTP_USERNAME: str = os.getenv("SMTP_USERNAME", "")
+    SMTP_PASSWORD: str = os.getenv("SMTP_PASSWORD", "")
+    FROM_EMAIL: str = os.getenv("FROM_EMAIL", "alerts@yourplatform.com")
+    TO_EMAIL: str = os.getenv("TO_EMAIL", "")
+    EMAIL_ENABLED: bool = os.getenv("EMAIL_ENABLED", "false").lower() == "true"
+
+    # Alerts (Twilio)
+    TWILIO_ACCOUNT_SID: str = os.getenv("TWILIO_ACCOUNT_SID", "")
+    TWILIO_AUTH_TOKEN: str = os.getenv("TWILIO_AUTH_TOKEN", "")
+    TWILIO_FROM_NUMBER: str = os.getenv("TWILIO_FROM_NUMBER", "")
+    TWILIO_TO_NUMBER: str = os.getenv("TWILIO_TO_NUMBER", "")
+    SMS_ENABLED: bool = os.getenv("SMS_ENABLED", "false").lower() == "true"
+
     # Redis (for WebSocket/caching)
     REDIS_URL: str = os.getenv("REDIS_URL", "redis://localhost:6379")
 

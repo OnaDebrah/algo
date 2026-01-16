@@ -197,12 +197,12 @@ class AuthManager:
 
             return {
                 "success": True,
-                "message": "Login successful",
+                "message": "Page successful",
                 "token": token,
                 "user": {"id": user_id, "username": uname, "email": email, "tier": tier},
             }
         except Exception as e:
-            return {"success": False, "message": f"Login failed: {str(e)}"}
+            return {"success": False, "message": f"Page failed: {str(e)}"}
 
     def _create_session(self, user_id: int, cursor) -> str:
         payload = {"user_id": user_id, "exp": datetime.utcnow() + timedelta(days=7), "iat": datetime.utcnow()}

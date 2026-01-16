@@ -7,7 +7,26 @@ from fastapi.middleware.gzip import GZipMiddleware
 from backend.app.config import settings
 from backend.app.database import create_tables
 from backend.app.init_data import init_default_data
-
+from backend.app.api.routes import (
+    advisor,
+    analyst,
+    analytics,
+    auth,
+    backtest,
+    alerts,
+    health,
+    live,
+    market,
+    marketplace,
+    mlstudio,
+    options,
+    portfolio,
+    regime,
+    root,
+    settings as settings_router,
+    strategy,
+    websocket
+)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -22,9 +41,9 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title=settings.APP_NAME,
     version=settings.VERSION,
-    description="Advanced Trading Platform API",
-    docs_url="/api/docs",
-    redoc_url="/api/redoc",
+    description="Oraculum Backtesting Platform API",
+    docs_url="/docs",
+    redoc_url="/redoc",
     lifespan=lifespan
 )
 
@@ -39,31 +58,21 @@ app.add_middleware(
 
 app.add_middleware(GZipMiddleware, minimum_size=1000)
 
-# Import and include routers
-from backend.app.api.routes import (
-    auth, backtest, portfolio, market,
-    strategy, analytics, regime, websocket
-)
-
-app.include_router(auth.router, prefix="/api")
-app.include_router(backtest.router, prefix="/api")
-app.include_router(portfolio.router, prefix="/api")
-app.include_router(market.router, prefix="/api")
-app.include_router(strategy.router, prefix="/api")
-app.include_router(analytics.router, prefix="/api")
-app.include_router(regime.router, prefix="/api")
-app.include_router(websocket.router, prefix="/api")
-
-
-@app.get("/api/health")
-async def health_check():
-    return {"status": "healthy", "version": settings.VERSION}
-
-
-@app.get("/")
-async def root():
-    return {
-        "message": "Trading Platform API",
-        "version": settings.VERSION,
-        "docs": "/api/docs"
-    }
+app.include_router(auth.router)
+app.include_router(backtest.router)
+app.include_router(portfolio.router)
+app.include_router(market.router)
+app.include_router(strategy.router)
+app.include_router(analytics.router)
+app.include_router(regime.router)
+app.include_router(websocket.router)
+app.include_router(analyst.router)
+app.include_router(advisor.router)
+app.include_router(alerts.router)
+app.include_router(live.router)
+app.include_router(marketplace.router)
+app.include_router(mlstudio.router)
+app.include_router(options.router)
+app.include_router(settings_router.router)
+app.include_router(health.router)
+app.include_router(root.router)

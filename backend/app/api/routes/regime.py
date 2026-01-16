@@ -4,6 +4,7 @@ Market regime routes - FIXED VERSION
 
 from typing import List
 
+import pandas as pd
 from fastapi import APIRouter, Depends, HTTPException
 
 from backend.app.analytics.market_regime_detector import MarketRegimeDetector
@@ -24,7 +25,9 @@ def get_detector(symbol: str) -> MarketRegimeDetector:
     return _detector_cache[symbol]
 
 
-@router.get("/detect/{symbol}")
+from backend.app.schemas.regime import CurrentRegimeResponse, RegimeData, RegimeMetrics
+
+@router.get("/detect/{symbol}", response_model=CurrentRegimeResponse)
 async def detect_market_regime(symbol: str, period: str = "2y", current_user: User = Depends(get_current_active_user)):
     """Detect current market regime for a symbol"""
     try:
@@ -42,18 +45,29 @@ async def detect_market_regime(symbol: str, period: str = "2y", current_user: Us
             price_data=data, volume_data=data.get("Volume") if "Volume" in data.columns else None, update_history=True
         )
 
-        return {
-            "symbol": symbol,
-            "regime": regime_info["regime"],
-            "confidence": regime_info["confidence"],
-            "strategy_allocation": regime_info.get("strategy_allocation", {}),
-            "regime_strength": regime_info.get("regime_strength", 0),
-            "change_warning": regime_info.get("change_warning", {}),
-            "duration_prediction": regime_info.get("duration_prediction"),
-            "scores": regime_info.get("scores", {}),
-            "method": regime_info.get("method", "unknown"),
-            "timestamp": data.index[-1].isoformat(),
-        }
+        metrics = RegimeMetrics(
+             volatility=regime_info.get("scores", {}).get("volatility", 0),
+             trend_strength=regime_info.get("scores", {}).get("trend", 0),
+             liquidity_score=0.8, # Mocked if not available
+             correlation_index=0.5 # Mocked if not available
+        )
+        
+        current_regime = RegimeData(
+            id=regime_info["regime"].lower().replace(" ", "_"),
+            name=regime_info["regime"],
+            description=regime_info.get("description", f"Market is in {regime_info['regime']} state"),
+            start_date=data.index[-1], # Simplified
+            end_date=None,
+            confidence=regime_info["confidence"],
+            metrics=metrics
+        )
+
+        return CurrentRegimeResponse(
+            symbol=symbol,
+            current_regime=current_regime,
+            historical_regimes=[], # Populate if needed
+            market_health_score=regime_info.get("regime_strength", 0) * 100
+        )
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error detecting regime: {str(e)}")
@@ -230,3 +244,281 @@ async def clear_all_cache(current_user: User = Depends(get_current_active_user))
     count = len(_detector_cache)
     _detector_cache.clear()
     return {"status": "cleared", "count": count}
+
+
+# ============================================================
+# ENHANCED ENDPOINTS
+# ============================================================
+
+from backend.app.schemas.regime import (
+    AllocationResponse, StrategyAllocation,
+    RegimeStrengthResponse, WarningResponse,
+    TransitionResponse, TransitionProbability,
+    FeaturesResponse, FeatureImportance
+)
+
+
+@router.get("/allocation/{symbol}", response_model=AllocationResponse)
+async def get_strategy_allocation(
+    symbol: str,
+    period: str = "2y",
+    current_user: User = Depends(get_current_active_user)
+):
+    """
+    Get recommended strategy allocation based on current market regime
+    """
+    try:
+        # Fetch data
+        data = fetch_stock_data(symbol, period=period, interval="1d")
+        
+        if data.empty:
+            raise HTTPException(status_code=404, detail="No data available")
+        
+        # Get detector instance
+        detector = get_detector(symbol)
+        
+        # Detect current regime
+        regime_info = detector.detect_current_regime(
+            price_data=data,
+            volume_data=data.get("Volume") if "Volume" in data.columns else None,
+            update_history=True
+        )
+        
+        # Get recommended allocation
+        allocation = detector.get_recommended_allocation(regime_info["regime"])
+        
+        return AllocationResponse(
+            symbol=symbol,
+            current_regime=regime_info["regime"],
+            confidence=regime_info["confidence"],
+            allocation=StrategyAllocation(**allocation),
+            timestamp=data.index[-1].isoformat()
+        )
+        
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error getting allocation: {str(e)}"
+        )
+
+
+@router.get("/strength/{symbol}", response_model=RegimeStrengthResponse)
+async def get_regime_strength(
+    symbol: str,
+    period: str = "2y",
+    current_user: User = Depends(get_current_active_user)
+):
+    """
+    Calculate how strongly the current regime is presenting itself
+    """
+    try:
+        # Fetch data
+        data = fetch_stock_data(symbol, period=period, interval="1d")
+        
+        if data.empty:
+            raise HTTPException(status_code=404, detail="No data available")
+        
+        # Get detector instance
+        detector = get_detector(symbol)
+        
+        # Calculate features
+        features = detector.calculate_features(
+            price_data=data,
+            volume_data=data.get("Volume") if "Volume" in data.columns else None
+        )
+        
+        # Get current regime
+        regime_info = detector.detect_current_regime(
+            price_data=data,
+            volume_data=data.get("Volume") if "Volume" in data.columns else None,
+            update_history=True
+        )
+        
+        # Calculate regime strength
+        strength = detector.calculate_regime_strength(features)
+        
+        # Count confirming signals
+        scores = regime_info.get("scores", {})
+        current_regime = regime_info["regime"]
+        confirming = sum(1 for r, score in scores.items() if r == current_regime and score > 0.1)
+        total = len(scores)
+        
+        # Description based on strength
+        if strength > 0.8:
+            description = "Very strong regime - high conviction positioning recommended"
+        elif strength > 0.6:
+            description = "Strong regime - normal positioning appropriate"
+        elif strength > 0.4:
+            description = "Moderate regime - consider reduced position sizes"
+        else:
+            description = "Weak regime - caution advised, possible transition"
+        
+        return RegimeStrengthResponse(
+            symbol=symbol,
+            current_regime=current_regime,
+            strength=strength,
+            confirming_signals=confirming,
+            total_signals=total,
+            description=description,
+            timestamp=data.index[-1].isoformat()
+        )
+        
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error calculating strength: {str(e)}"
+        )
+
+
+@router.get("/transitions/{symbol}", response_model=TransitionResponse)
+async def get_transition_probabilities(
+    symbol: str,
+    period: str = "2y",
+    current_user: User = Depends(get_current_active_user)
+):
+    """
+    Get regime transition probabilities and expected duration
+    """
+    try:
+        # Fetch data
+        data = fetch_stock_data(symbol, period=period, interval="1d")
+        
+        if data.empty:
+            raise HTTPException(status_code=404, detail="No data available")
+        
+        # Get detector instance
+        detector = get_detector(symbol)
+        
+        # Ensure history is populated
+        detector.detect_current_regime(
+            price_data=data,
+            volume_data=data.get("Volume") if "Volume" in data.columns else None,
+            update_history=True
+        )
+        
+        # Get transition probabilities
+        transition_matrix = detector.get_transition_probabilities()
+        
+        # Get expected duration
+        duration_info = detector.estimate_regime_duration()
+        
+        # Extract likely transitions for current regime
+        likely_transitions = []
+        if transition_matrix and len(detector.regime_history) > 0:
+            current_regime = detector.regime_history[-1]["regime"]
+            if current_regime in transition_matrix:
+                for to_regime, prob in transition_matrix[current_regime].items():
+                    if prob > 0.1:  # Only include significant probabilities
+                        likely_transitions.append(
+                            TransitionProbability(
+                                from_regime=current_regime,
+                                to_regime=to_regime,
+                                probability=prob
+                            )
+                        )
+        
+        # Sort by probability
+        likely_transitions.sort(key=lambda x: x.probability, reverse=True)
+        
+        return TransitionResponse(
+            symbol=symbol,
+            current_regime=detector.regime_history[-1]["regime"] if detector.regime_history else "unknown",
+            expected_duration=duration_info["expected_duration"] if duration_info else 0,
+            median_duration=duration_info["median_duration"] if duration_info else 0,
+            probability_end_next_week=duration_info["probability_end_next_week"] if duration_info else 0,
+            likely_transitions=likely_transitions[:5],  # Top 5
+            timestamp=data.index[-1].isoformat()
+        )
+        
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error calculating transitions: {str(e)}"
+        )
+
+
+@router.get("/features/{symbol}", response_model=FeaturesResponse)
+async def get_feature_analysis(
+    symbol: str,
+    period: str = "2y",
+    current_user: User = Depends(get_current_active_user)
+):
+    """
+    Get feature importance analysis - what's driving the current regime
+    """
+    try:
+        # Fetch data
+        data = fetch_stock_data(symbol, period=period, interval="1d")
+        
+        if data.empty:
+            raise HTTPException(status_code=404, detail="No data available")
+        
+        # Get detector instance
+        detector = get_detector(symbol)
+        
+        # Calculate features
+        features = detector.calculate_features(
+            price_data=data,
+            volume_data=data.get("Volume") if "Volume" in data.columns else None
+        )
+        
+        # Get current regime
+        regime_info = detector.detect_current_regime(
+            price_data=data,
+            volume_data=data.get("Volume") if "Volume" in data.columns else None,
+            update_history=True
+        )
+        
+        # Get latest feature values
+        if len(features) > 0:
+            latest_features = features.iloc[-1]
+            
+            # Key features to highlight
+            key_features = [
+                "volatility_21d", "trend_strength", "hurst_exponent",
+                "rsi", "macd", "half_life", "z_score",
+                "advance_decline_ratio", "volume_ma_ratio"
+            ]
+            
+            top_features = []
+            for feat in key_features:
+                if feat in latest_features.index:
+                    value = latest_features[feat]
+                    if pd.notna(value):
+                        # Simple importance based on deviation from neutral
+                        if feat == "volatility_21d":
+                            importance = min(abs(value - 0.2) / 0.3, 1.0)
+                        elif feat == "trend_strength":
+                            importance = abs(value)
+                        elif feat == "hurst_exponent":
+                            importance = abs(value - 0.5) * 2
+                        elif feat == "rsi":
+                            importance = abs(value - 50) / 50
+                        else:
+                            importance = min(abs(value), 1.0)
+                        
+                        top_features.append(
+                            FeatureImportance(
+                                feature=feat,
+                                importance=float(importance),
+                                current_value=float(value)
+                            )
+                        )
+            
+            # Sort by importance
+            top_features.sort(key=lambda x: x.importance, reverse=True)
+        else:
+            top_features = []
+        
+        return FeaturesResponse(
+            symbol=symbol,
+            current_regime=regime_info["regime"],
+            top_features=top_features[:10],  # Top 10
+            timestamp=data.index[-1].isoformat()
+        )
+        
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error analyzing features: {str(e)}"
+        )
