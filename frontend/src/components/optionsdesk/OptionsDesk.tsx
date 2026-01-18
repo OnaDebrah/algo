@@ -37,7 +37,7 @@ import {
     YAxis
 } from 'recharts';
 import { options } from '@/utils/api';
-import { OptionContract, ChainResponse, OptionsBacktestResult } from '@/types/api.types';
+import { OptionContract, ChainResponse, OptionsBacktestResult } from '@/types/api';
 
 // Strategy Templates (Frontend helper)
 const STRATEGY_TEMPLATES = [

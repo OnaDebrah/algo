@@ -319,6 +319,7 @@ class MarketService:
         self.data_source = data_source
         self.cache = MarketDataCache(ttl_seconds=cache_ttl)
         self.max_retries = max_retries
+        
         logger.info(f"MarketService initialized with {data_source.value} data source")
     
     async def _retry_with_backoff(self, func, *args, **kwargs):
@@ -327,11 +328,16 @@ class MarketService:
             try:
                 return await asyncio.to_thread(func, *args, **kwargs)
             except Exception as e:
+                # Special handling for 429 Too Many Requests
+                if "429" in str(e) or "Too Many Requests" in str(e):
+                    wait_time = (2 ** attempt) + 1  # Standard backoff + 1s jitter
+                else:
+                    wait_time = 2 ** attempt
+                
                 if attempt == self.max_retries - 1:
                     logger.error(f"Failed after {self.max_retries} attempts: {str(e)}")
                     raise
                 
-                wait_time = 2 ** attempt  # Exponential backoff
                 logger.warning(f"Attempt {attempt + 1} failed, retrying in {wait_time}s: {str(e)}")
                 await asyncio.sleep(wait_time)
     

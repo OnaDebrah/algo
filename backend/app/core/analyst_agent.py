@@ -115,7 +115,7 @@ class FinancialAnalystAgent:
         # Step 7: Compile report
         report = self._compile_report(ticker, data, technical, fundamentals, peers, news, ai_analysis)
 
-        print(f"✅ Analysis complete for {ticker}")
+        logger.info(f"✅ Analysis complete for {ticker}")
         return report
 
     async def _gather_market_data(self, ticker: str) -> Dict:

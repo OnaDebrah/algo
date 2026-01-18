@@ -31,7 +31,7 @@ import {
     YAxis
 } from 'recharts';
 import { regime } from '@/utils/api';
-import { CurrentRegimeResponse, RegimeData } from '@/types/api.types';
+import { CurrentRegimeResponse, RegimeData } from '@/types/api';
 
 const RegimeDetector = () => {
     const [selectedSymbol, setSelectedSymbol] = useState('SPY');

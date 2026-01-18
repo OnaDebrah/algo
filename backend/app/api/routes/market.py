@@ -31,7 +31,7 @@ async def get_quote(
         quote = await market_service.get_quote(symbol, use_cache=use_cache)
         return quote
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to fetch quote: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to fetch quote: {str(e)} for user: {current_user}")
 
 
 @router.post("/quotes")
@@ -51,29 +51,24 @@ async def get_quotes(
         quotes = await market_service.get_quotes(symbols, use_cache=use_cache)
         return quotes
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to fetch quotes: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to fetch quotes: {str(e)} for user: {current_user}")
 
+
+# In backend/app/api/routes/market.py
 
 @router.get("/historical/{symbol}")
 async def get_historical_data(
-    symbol: str,
-    period: str = Query("1mo", description="Data period (1d, 5d, 1mo, 3mo, 6mo, 1y, 2y, 5y, 10y, ytd, max)"),
-    interval: str = Query("1d", description="Data interval (1m, 2m, 5m, 15m, 30m, 60m, 90m, 1h, 1d, 5d, 1wk, 1mo, 3mo)"),
-    start: Optional[str] = Query(None, description="Start date (YYYY-MM-DD)"),
-    end: Optional[str] = Query(None, description="End date (YYYY-MM-DD)"),
-    use_cache: bool = False,
-    current_user: User = Depends(get_current_active_user)
+        symbol: str,
+        period: str = Query("1mo", description="Data period (1d, 5d, 1mo, 3mo, 6mo, 1y, 2y, 5y, 10y, ytd, max)"),
+        interval: str = Query("1d",
+                              description="Data interval (1m, 2m, 5m, 15m, 30m, 60m, 90m, 1h, 1d, 5d, 1wk, 1mo, 3mo)"),
+        start: Optional[str] = Query(None, description="Start date (YYYY-MM-DD)"),
+        end: Optional[str] = Query(None, description="End date (YYYY-MM-DD)"),
+        use_cache: bool = False,
+        current_user: User = Depends(get_current_active_user)
 ):
     """
     Get historical OHLCV data
-    
-    Args:
-        symbol: Stock symbol
-        period: Data period
-        interval: Data interval
-        start: Optional start date
-        end: Optional end date
-        use_cache: Whether to use cached data
     """
     try:
         data = await market_service.get_historical_data(
@@ -84,13 +79,48 @@ async def get_historical_data(
             end=end,
             use_cache=use_cache
         )
+
+        # ✅ FIX: Properly format the response
+        if "data" in data and isinstance(data["data"], list):
+            formatted_data = []
+            for item in data["data"]:
+                # Handle both dict and dataframe row formats
+                if isinstance(item, dict):
+                    date_val = item.get('Date') or item.get('date') or item.get('timestamp')
+
+                    # Convert Timestamp to ISO string
+                    if hasattr(date_val, 'isoformat'):
+                        date_str = date_val.isoformat()
+                    elif hasattr(date_val, 'strftime'):
+                        date_str = date_val.strftime('%Y-%m-%d')
+                    else:
+                        date_str = str(date_val)
+
+                    formatted_data.append({
+                        'date': date_str,
+                        'timestamp': date_str,
+                        'open': float(item.get('Open', 0)),
+                        'high': float(item.get('High', 0)),
+                        'low': float(item.get('Low', 0)),
+                        'close': float(item.get('Close', 0)),
+                        'volume': int(item.get('Volume', 0)),
+                    })
+
+            return {
+                'symbol': symbol,
+                'period': period,
+                'interval': interval,
+                'data': formatted_data
+            }
+
         # Remove dataframe from response (not JSON serializable)
         if "dataframe" in data:
             del data["dataframe"]
+
         return data
+
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to fetch historical data: {str(e)}")
-
 
 @router.get("/options/{symbol}")
 async def get_option_chain(
@@ -109,7 +139,7 @@ async def get_option_chain(
         data = await market_service.get_option_chain(symbol, expiration=expiration)
         return data
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to fetch option chain: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to fetch option chain: {str(e)} for user: {current_user}")
 
 
 @router.get("/fundamentals/{symbol}")
@@ -127,7 +157,7 @@ async def get_fundamentals(
         data = await market_service.get_fundamentals(symbol)
         return data
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to fetch fundamentals: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to fetch fundamentals: {str(e)} for user: {current_user}")
 
 
 @router.get("/news/{symbol}")
@@ -147,7 +177,7 @@ async def get_news(
         news = await market_service.get_news(symbol, limit=limit)
         return news
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to fetch news: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to fetch news: {str(e)} for user: {current_user}")
 
 
 @router.get("/search")
@@ -167,7 +197,7 @@ async def search_symbols(
         results = await market_service.search_symbols(q, limit=limit)
         return results
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Search failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Search failed: {str(e)} for user: {current_user}")
 
 
 @router.get("/validate/{symbol}")
@@ -185,7 +215,7 @@ async def validate_symbol(
         is_valid = await market_service.validate_symbol(symbol)
         return {"symbol": symbol, "valid": is_valid}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Validation failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Validation failed: {str(e)} for user: {current_user}")
 
 
 @router.get("/status")
@@ -199,7 +229,7 @@ async def get_market_status(
         status = await market_service.get_market_status()
         return status
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to get market status: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to get market status: {str(e)} for user: {current_user}")
 
 
 @router.get("/cache/stats")
@@ -213,7 +243,7 @@ async def get_cache_stats(
         stats = market_service.cache.get_stats()
         return stats
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to get cache stats: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to get cache stats: {str(e)} for user: {current_user}")
 
 
 @router.post("/cache/clear")
@@ -231,7 +261,7 @@ async def clear_cache(
         market_service.cache.clear(data_type)
         return {"status": "success", "message": f"Cache cleared: {data_type or 'all'}"}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to clear cache: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to clear cache: {str(e)} for user: {current_user}")
 
 
 @router.post("/cache/cleanup")
@@ -245,4 +275,4 @@ async def cleanup_cache(
         market_service.cache.cleanup_expired()
         return {"status": "success", "message": "Expired cache entries cleaned up"}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to cleanup cache: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to cleanup cache: {str(e)} for user: {current_user}")

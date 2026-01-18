@@ -19,7 +19,12 @@ async def init_default_data():
 
             if not user:
                 user = User(
-                    email="admin@example.com", hashed_password=get_password_hash("admin123"), username="Admin User", is_active=True, is_superuser=True
+                    email="admin@example.com",
+                    hashed_password=get_password_hash("admin123"),
+                    username="Admin User",
+                    is_active=True,
+                    is_superuser=True,
+                    tier="ENTERPRISE"
                 )
                 db.add(user)
                 await db.commit()

@@ -10,7 +10,7 @@ import {
     Loader2
 } from "lucide-react";
 import { marketplace } from '@/utils/api';
-import { StrategyListing } from '@/types/api.types';
+import { StrategyListing } from '@/types/api';
 import StrategyDetailsModal from './StrategyDetailsModal';
 
 const CATEGORIES = [

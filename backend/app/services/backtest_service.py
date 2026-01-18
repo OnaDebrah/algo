@@ -117,7 +117,12 @@ class BacktestService:
 
             # Run backtest
             engine = TradingEngine(
-                strategy, request.initial_capital, self.risk_manager, self.db_manager, request.commission_rate, request.slippage_rate
+                strategy=strategy,
+                initial_capital=request.initial_capital,
+                risk_manager=self.risk_manager,
+                db_manager=self.db_manager,
+                commission_rate=request.commission_rate,
+                slippage_rate=request.slippage_rate,
             )
 
             await asyncio.to_thread(engine.run_backtest, request.symbol, data)

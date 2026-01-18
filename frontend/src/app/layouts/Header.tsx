@@ -1,35 +1,58 @@
-import React from "react";
-import { ChevronRight, Clock, Globe, Shield, TrendingUp, Wifi } from "lucide-react";
-import { formatCurrency } from "@/utils/formatters";
+'use client'
 
-import { market } from "@/utils/api";
-import { Quote } from "@/types/api.types";
-import { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
+import { ChevronRight, Clock, Globe, Shield, TrendingUp } from "lucide-react";
+import { formatCurrency } from "@/utils/formatters";
+import { api } from "@/utils/api";
+import { QuoteData, User } from "@/types/all_types";
 
 interface HeaderProps {
-    user: any;
-    currentPage: string;
+    user: User;
+    currentPage: PageKey;
     serverStatus?: boolean;
+    onLogout?: () => void;
 }
 
-const Header = ({ user, currentPage, serverStatus = false }: HeaderProps) => {
-    const [marketData, setMarketData] = useState<Quote[]>([]);
+interface MarketDisplayData {
+    symbol: string;
+    price: string;
+    change: string;
+    up: boolean;
+}
+
+type PageKey =
+  | 'dashboard'
+  | 'backtest'
+  | 'ml-studio'
+  | 'live'
+  | 'advisor'
+  | 'regime'
+  | 'analyst'
+  | 'options'
+  | 'portfolio'
+  | 'strategy-builder'
+  | 'marketplace'
+  | 'settings';
+
+const Header = ({ user, currentPage, serverStatus = false, onLogout }: HeaderProps) => {
+    const [marketData, setMarketData] = useState<QuoteData[]>([]);
+    const [loading, setLoading] = useState<boolean>(false);
 
     useEffect(() => {
         const fetchMarketData = async () => {
-            // Example symbols to fetch
-            const symbols = ['SPY', 'QQQ', 'BTC-USD'];
+            if (!serverStatus) return;
+
+            setLoading(true);
             try {
-                // We'll mock this for now if the endpoint doesn't support batch well, 
-                // or use individual calls if getQuotes isn't fully implemented in backend yet.
-                // Assuming market.getQuotes exists and works as defined in api.ts
-                const response = await market.getQuotes(symbols);
-                if (response.data) {
-                    setMarketData(response.data);
-                }
+                // Example symbols to fetch
+                const symbols = ['SPY', 'QQQ', 'BTC-USD'];
+                const quotes = await api.market.getQuotes(symbols);
+                setMarketData(quotes.data);
             } catch (error) {
                 console.error("Failed to fetch market data", error);
-                // Fallback or leave empty
+                // Keep existing data on error
+            } finally {
+                setLoading(false);
             }
         };
 
@@ -40,23 +63,25 @@ const Header = ({ user, currentPage, serverStatus = false }: HeaderProps) => {
         }
     }, [serverStatus]);
 
-    // Helper to format market data for display if needed, 
-    // or just map directly if Quote matches the UI expectation.
-    // The UI expects: { symbol, price, change, up }
-    // Our Quote type has: { symbol, price, change, changePct }
-
-    const displayData = marketData.length > 0 ? marketData.map(q => ({
-        symbol: q.symbol,
-        price: formatCurrency(q.price),
-        change: `${q.changePct >= 0 ? '+' : ''}${q.changePct.toFixed(2)}%`,
-        up: q.changePct >= 0
-    })) : [
-        // Keep initial state empty or loading? Let's show placeholders if empty but connected?
-        // Or just show nothing.
-        { symbol: 'SPY', price: '---', change: '---', up: true },
-        { symbol: 'QQQ', price: '---', change: '---', up: true },
-        { symbol: 'BTC', price: '---', change: '---', up: false }
-    ];
+    // Prepare display data
+    const displayData: MarketDisplayData[] = marketData.length > 0
+        ? marketData.map(q => ({
+            symbol: q.symbol,
+            price: formatCurrency(q.price),
+            change: `${q.changePercent >= 0 ? '+' : ''}${q.changePercent.toFixed(2)}%`,
+            up: q.changePercent >= 0
+        }))
+        : loading
+            ? [
+                { symbol: 'SPY', price: 'Loading...', change: '---', up: true },
+                { symbol: 'QQQ', price: 'Loading...', change: '---', up: true },
+                { symbol: 'BTC', price: 'Loading...', change: '---', up: false }
+            ]
+            : [
+                { symbol: 'SPY', price: '---', change: '---', up: true },
+                { symbol: 'QQQ', price: '---', change: '---', up: true },
+                { symbol: 'BTC', price: '---', change: '---', up: false }
+            ];
 
     const showMainHeader = currentPage === 'live' || currentPage === 'dashboard';
 
@@ -72,6 +97,21 @@ const Header = ({ user, currentPage, serverStatus = false }: HeaderProps) => {
                     <div className="flex items-center space-x-2 border-l border-slate-800 pl-6">
                         <Globe size={14} className={serverStatus ? "text-blue-500" : "text-slate-600"} />
                         <span className="font-medium">Backend <span className="text-slate-400">{serverStatus ? 'Connected' : 'Disconnected'}</span></span>
+                    </div>
+
+                    {/* User info */}
+                    <div className="flex items-center space-x-2 border-l border-slate-800 pl-6">
+                        <span className="font-medium text-slate-400">
+                            {user.username} • {user.tier} Tier
+                        </span>
+                        {onLogout && (
+                            <button
+                                onClick={onLogout}
+                                className="text-xs text-slate-500 hover:text-slate-300 transition-colors ml-2"
+                            >
+                                (Logout)
+                            </button>
+                        )}
                     </div>
                 </div>
 
@@ -117,7 +157,13 @@ const Header = ({ user, currentPage, serverStatus = false }: HeaderProps) => {
                         </div>
 
                         {/* Quick Action */}
-                        <button className="bg-gradient-to-r from-violet-600 to-fuchsia-600 hover:from-violet-500 hover:to-fuchsia-500 text-white px-5 py-4 rounded-xl transition-all shadow-xl shadow-violet-500/20 flex items-center group">
+                        <button
+                            onClick={() => {
+                                // Navigate to live trading or open order modal
+                                console.log('New order clicked');
+                            }}
+                            className="bg-gradient-to-r from-violet-600 to-fuchsia-600 hover:from-violet-500 hover:to-fuchsia-500 text-white px-5 py-4 rounded-xl transition-all shadow-xl shadow-violet-500/20 flex items-center group"
+                        >
                             <div className="bg-white/20 p-2 rounded-lg mr-3">
                                 <Clock size={20} strokeWidth={2} />
                             </div>

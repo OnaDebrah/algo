@@ -8,56 +8,12 @@ from backend.app.core.ai_advisor_api import AIAdvisorAPI
 from backend.app.api.deps import get_current_active_user, get_db
 from backend.app.models import User
 from backend.app.services.auth_service import AuthService
+from backend.app.schemas.advisor import GuideRequest, Recommendation, Theme, GuideResponse
 
 router = APIRouter(prefix="/advisor", tags=["Advisor"])
 
-
-# Initialize AI advisor (singleton pattern)
 ai_advisor_api = AIAdvisorAPI()
 ai_advisor = AIStrategyAdvisor(ai_advisor_api)
-
-class GuideRequest(BaseModel):
-    goal: str
-    risk: str
-    experience: str
-    capital: float
-    timeHorizon: str
-    markets: List[str]
-
-class Theme(BaseModel):
-    primary: str
-    secondary: str
-    bg: str
-    border: str
-    text: str
-    icon: str  # String identifier for the icon
-
-class Recommendation(BaseModel):
-    id: int
-    name: str
-    tagline: str
-    description: str
-    fit_score: int
-    risk_level: str
-    theme: Theme
-    expected_return: str
-    similar_traders: str
-    time_commitment: str
-    success_rate: str
-    min_capital: float
-    why: List[str]
-    pros: List[str]
-    cons: List[str]
-    best_for: List[str]
-    performance_data: List[Dict[str, Any]]
-    allocation_data: List[Dict[str, Any]]
-    tags: List[str]
-    icon: str # String identifier
-
-class GuideResponse(BaseModel):
-    recommendations: List[Recommendation]
-    radar_data: List[Dict[str, Any]]
-
 
 # Theme mapping for different risk levels
 THEME_MAP = {

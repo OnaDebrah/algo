@@ -1,20 +1,43 @@
-import { useState } from "react";
+import { useState, KeyboardEvent, ChangeEvent } from "react";
 import { Activity, AlertCircle, ArrowRight, BarChart3, Cpu, RefreshCw, ShieldCheck, Target, Zap } from "lucide-react";
-import { User } from "@/types/user";
-import { auth } from "@/utils/api";
+import { User } from "@/types/all_types";
+import { api } from "@/utils/api";
+
+// Define investor types and risk profiles
+type InvestorType = 'Retail' | 'Professional' | 'Institutional' | 'Academic';
+type RiskProfile = 'Conservative' | 'Moderate' | 'Aggressive';
 
 interface LoginPageProps {
-    onLogin: (userData: User) => void;
+    onLogin: (userData: User, token: string) => void;
     setCurrentPage: (page: string) => void;
+}
+
+interface LoginFormData {
+    username: string;
+    email: string;
+    password: string;
+    investorType?: InvestorType;
+    riskProfile?: RiskProfile;
+}
+
+interface LoginResponse {
+    user: User;
+    access_token: string;
+    refresh_token: string;
+    token_type?: string;
 }
 
 const LoginPage = ({ onLogin, setCurrentPage }: LoginPageProps) => {
     const [isLogin, setIsLogin] = useState(true);
-    const [formData, setFormData] = useState({ username: '', email: '', password: '' });
-    const [error, setError] = useState('');
-    const [loading, setLoading] = useState(false);
+    const [formData, setFormData] = useState<LoginFormData>({
+        username: '',
+        email: '',
+        password: '',
+        investorType: 'Retail',
+        riskProfile: 'Moderate'
+    });
 
-    const features = [
+        const features = [
         {
             title: 'Performance Monitoring',
             icon: Activity,
@@ -41,13 +64,11 @@ const LoginPage = ({ onLogin, setCurrentPage }: LoginPageProps) => {
         }
     ];
 
-    const handleSubmit = async () => {
-        if (!formData.username || !formData.password) {
-            setError('Please complete all required fields');
-            return;
-        }
-        if (!isLogin && !formData.email) {
-            setError('Email address is required');
+    const [error, setError] = useState('');
+    const [loading, setLoading] = useState(false);
+
+    const handleSubmit = async (): Promise<void> => {
+        if (!validateForm()) {
             return;
         }
 
@@ -56,50 +77,180 @@ const LoginPage = ({ onLogin, setCurrentPage }: LoginPageProps) => {
 
         try {
             if (isLogin) {
-                // Real Login
-                const response = await auth.login({
-                    email: formData.username,
+                // Handle login
+                // The backend expects email field, not username
+                const loginData = {
+                    email: formData.email || formData.username,
                     password: formData.password
-                });
+                };
 
-                if (response.data && response.data.access_token) {
-                    const { access_token, user: backendUser } = response.data;
+                console.log('Attempting login with:', loginData);
 
-                    // Save token to localStorage for the API client to pick up
-                    localStorage.setItem('token', access_token);
+                // Direct call without .data since interceptor returns data
+                const response = await api.auth.login(loginData) as unknown as LoginResponse;
+                console.log('Login response:', response);
 
-                    const userForApp: User = {
-                        name: backendUser.username,
-                        email: backendUser.email,
-                        tier: backendUser.tier || 'FREE',
-                        token: access_token
-                    };
+                // Extract user data and token - NO .data here!
+                const userData = response.user;
+                const token = response.access_token;
 
-                    onLogin(userForApp);
-                    setCurrentPage('dashboard');
-                }
+                // Update user for app
+                const userForApp: User = {
+                    id: userData.id,
+                    username: userData.username,
+                    email: userData.email,
+                    tier: userData.tier || 'FREE',
+                    is_active: userData.is_active,
+                    created_at: userData.created_at,
+                    last_login: userData.last_login,
+                };
+
+                console.log('Login successful, user:', userForApp);
+
+                // Call the login handler with both user and token
+                onLogin(userForApp, token);
+                setCurrentPage('dashboard');
             } else {
-                // Real Registration
-                await auth.register({
+                // Handle registration
+                const registerData = {
                     username: formData.username,
                     email: formData.email,
                     password: formData.password
-                });
+                };
+
+                console.log('Attempting registration with:', registerData);
+
+                // Direct call without .data
+                const response = await api.auth.register(registerData) as unknown as LoginResponse;
+                console.log('Registration response:', response);
 
                 setError('✓ Registration successful! Please sign in to continue.');
                 setIsLogin(true);
+
+                // Clear form data
+                setFormData({
+                    username: '',
+                    email: '',
+                    password: '',
+                    investorType: 'Retail',
+                    riskProfile: 'Moderate'
+                });
             }
-        } catch (err: any) {
-            console.error("Auth error:", err);
-            const msg = err.response?.data?.detail || "Authentication failed. Please check your credentials.";
-            setError(msg);
+        } catch (err: unknown) {
+            console.error("Auth error details:", err);
+
+            // Log full error for debugging
+            if (err && typeof err === 'object') {
+                console.log('Error object:', JSON.stringify(err, null, 2));
+            }
+
+            // Handle API errors
+            if (typeof err === 'object' && err !== null && 'status' in err) {
+                const apiError = err as { status: number; data?: any; message?: string };
+
+                console.log('API Error status:', apiError.status);
+                console.log('API Error data:', apiError.data);
+
+                if (apiError.status === 401) {
+                    setError("Invalid credentials. Please check your email and password.");
+                } else if (apiError.status === 422) {
+                    // Validation error
+                    if (Array.isArray(apiError.data?.detail)) {
+                        setError(apiError.data.detail[0]?.msg || "Validation failed");
+                    } else if (typeof apiError.data?.detail === 'string') {
+                        setError(apiError.data.detail);
+                    } else {
+                        setError("Invalid input data. Please check all fields.");
+                    }
+                } else if (apiError.status === 409) {
+                    setError("User already exists with this email or username");
+                } else {
+                    setError(`Authentication failed (${apiError.status}). Please try again.`);
+                }
+            } else if (err instanceof Error) {
+                setError(err.message || "Network error. Please check your connection.");
+            } else {
+                setError("An unexpected error occurred. Please try again.");
+            }
         } finally {
             setLoading(false);
         }
     };
 
+    const validateForm = (): boolean => {
+        if (isLogin) {
+            // For login, we need either email/username and password
+            if (!formData.password.trim()) {
+                setError('Password is required');
+                return false;
+            }
+
+            // Check if we have either username or email
+            if (!formData.username.trim() && !formData.email.trim()) {
+                setError('Email or username is required');
+                return false;
+            }
+
+            // If email is provided, validate format
+            if (formData.email.trim()) {
+                const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+                if (!emailRegex.test(formData.email)) {
+                    setError('Please enter a valid email address');
+                    return false;
+                }
+            }
+        } else {
+            // For registration, we need all fields
+            if (!formData.username.trim() || !formData.password.trim() || !formData.email.trim()) {
+                setError('Please complete all required fields');
+                return false;
+            }
+
+            // Validate email format
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            if (!emailRegex.test(formData.email)) {
+                setError('Please enter a valid email address');
+                return false;
+            }
+
+            if (formData.password.length < 8) {
+                setError('Password must be at least 8 characters long');
+                return false;
+            }
+        }
+
+        return true;
+    };
+
+    const handleKeyPress = (e: KeyboardEvent<HTMLInputElement>): void => {
+        if (e.key === 'Enter') {
+            handleSubmit();
+        }
+    };
+
+    const handleInputChange = (e: ChangeEvent<HTMLInputElement | HTMLSelectElement>): void => {
+        const { name, value } = e.target;
+        setFormData(prev => ({
+            ...prev,
+            [name]: value
+        }));
+    };
+
+    const toggleMode = (): void => {
+        setIsLogin(!isLogin);
+        setError('');
+        // Clear form when toggling
+        setFormData({
+            username: '',
+            email: '',
+            password: '',
+            investorType: 'Retail',
+            riskProfile: 'Moderate'
+        });
+    };
+
     return (
-        <div className="min-h-screen w-full flex">
+                   <div className="min-h-screen w-full flex">
             {/* Left Panel - Authentication */}
             <div className="w-full lg:w-[480px] flex flex-col justify-center p-8 md:p-12 border-r border-slate-800/80 bg-slate-900/95 backdrop-blur-xl z-10 shadow-2xl">
                 <div className="mb-12">
@@ -138,19 +289,29 @@ const LoginPage = ({ onLogin, setCurrentPage }: LoginPageProps) => {
                             <div className="grid grid-cols-2 gap-3">
                                 <div className="space-y-1.5">
                                     <label className="text-xs font-semibold text-slate-400">Investor Type</label>
-                                    <select className="w-full bg-slate-800/50 border border-slate-700/50 rounded-lg px-3 py-2 text-sm text-slate-300 focus:border-violet-500 focus:ring-1 focus:ring-violet-500 outline-none transition-all">
-                                        <option>Retail</option>
-                                        <option>Professional</option>
-                                        <option>Institutional</option>
-                                        <option>Academic</option>
+                                    <select
+                                        name="investorType"
+                                        value={formData.investorType}
+                                        onChange={handleInputChange}
+                                        className="w-full bg-slate-800/50 border border-slate-700/50 rounded-lg px-3 py-2 text-sm text-slate-300 focus:border-violet-500 focus:ring-1 focus:ring-violet-500 outline-none transition-all"
+                                    >
+                                        <option value="Retail">Retail</option>
+                                        <option value="Professional">Professional</option>
+                                        <option value="Institutional">Institutional</option>
+                                        <option value="Academic">Academic</option>
                                     </select>
                                 </div>
                                 <div className="space-y-1.5">
                                     <label className="text-xs font-semibold text-slate-400">Risk Profile</label>
-                                    <select className="w-full bg-slate-800/50 border border-slate-700/50 rounded-lg px-3 py-2 text-sm text-slate-300 focus:border-violet-500 focus:ring-1 focus:ring-violet-500 outline-none transition-all">
-                                        <option>Conservative</option>
-                                        <option>Moderate</option>
-                                        <option>Aggressive</option>
+                                    <select
+                                        name="riskProfile"
+                                        value={formData.riskProfile}
+                                        onChange={handleInputChange}
+                                        className="w-full bg-slate-800/50 border border-slate-700/50 rounded-lg px-3 py-2 text-sm text-slate-300 focus:border-violet-500 focus:ring-1 focus:ring-violet-500 outline-none transition-all"
+                                    >
+                                        <option value="Conservative">Conservative</option>
+                                        <option value="Moderate">Moderate</option>
+                                        <option value="Aggressive">Aggressive</option>
                                     </select>
                                 </div>
                             </div>
@@ -158,38 +319,48 @@ const LoginPage = ({ onLogin, setCurrentPage }: LoginPageProps) => {
                     )}
 
                     <div className="space-y-4">
+                        <div className="space-y-1.5">
+                            <label className="text-xs font-semibold text-slate-400 tracking-wide">
+                                {isLogin ? 'Email or Username' : 'Username'}
+                            </label>
+                            <input
+                                type="text"
+                                name="username"
+                                placeholder={isLogin ? "Enter your email or username" : "Enter your username"}
+                                value={formData.username}
+                                onChange={handleInputChange}
+                                className="w-full bg-slate-800/50 border border-slate-700/50 rounded-lg px-4 py-3 text-slate-200 placeholder:text-slate-600 focus:border-violet-500 focus:ring-1 focus:ring-violet-500 outline-none transition-all"
+                            />
+                        </div>
+
                         {!isLogin && (
                             <div className="space-y-1.5">
                                 <label className="text-xs font-semibold text-slate-400 tracking-wide">Email Address</label>
                                 <input
                                     type="email"
+                                    name="email"
                                     placeholder="name@institution.com"
                                     value={formData.email}
-                                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                                    onChange={handleInputChange}
                                     className="w-full bg-slate-800/50 border border-slate-700/50 rounded-lg px-4 py-3 text-slate-200 placeholder:text-slate-600 focus:border-violet-500 focus:ring-1 focus:ring-violet-500 outline-none transition-all"
                                 />
                             </div>
                         )}
-                        <div className="space-y-1.5">
-                            <label className="text-xs font-semibold text-slate-400 tracking-wide">Username</label>
-                            <input
-                                type="text"
-                                placeholder="Enter your username"
-                                value={formData.username}
-                                onChange={(e) => setFormData({ ...formData, username: e.target.value })}
-                                className="w-full bg-slate-800/50 border border-slate-700/50 rounded-lg px-4 py-3 text-slate-200 placeholder:text-slate-600 focus:border-violet-500 focus:ring-1 focus:ring-violet-500 outline-none transition-all"
-                            />
-                        </div>
+
                         <div className="space-y-1.5">
                             <label className="text-xs font-semibold text-slate-400 tracking-wide">Password</label>
                             <input
                                 type="password"
+                                name="password"
                                 placeholder="••••••••••"
                                 value={formData.password}
-                                onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                                onKeyPress={(e) => e.key === 'Enter' && handleSubmit()}
+                                onChange={handleInputChange}
+                                onKeyPress={handleKeyPress}
                                 className="w-full bg-slate-800/50 border border-slate-700/50 rounded-lg px-4 py-3 text-slate-200 placeholder:text-slate-600 focus:border-violet-500 focus:ring-1 focus:ring-violet-500 outline-none transition-all"
                             />
+                            {!isLogin && (
+                                <p className="text-xs text-slate-500 mt-1">Password must be at least 8 characters</p>
+                            )}
                         </div>
                     </div>
 
@@ -205,18 +376,21 @@ const LoginPage = ({ onLogin, setCurrentPage }: LoginPageProps) => {
                     <button
                         onClick={handleSubmit}
                         disabled={loading}
-                        className="w-full py-4 bg-gradient-to-r from-violet-600 to-fuchsia-600 hover:from-violet-500 hover:to-fuchsia-500 disabled:from-slate-700 disabled:to-slate-700 text-white rounded-xl font-semibold transition-all shadow-xl shadow-violet-500/20 disabled:shadow-none flex items-center justify-center space-x-2"
+                        className="w-full py-4 bg-gradient-to-r from-violet-600 to-fuchsia-600 hover:from-violet-500 hover:to-fuchsia-500 disabled:from-slate-700 disabled:to-slate-700 text-white rounded-xl font-semibold transition-all shadow-xl shadow-violet-500/20 disabled:shadow-none flex items-center justify-center space-x-2 disabled:opacity-70"
                     >
                         {loading ? (
-                            <RefreshCw size={20} className="animate-spin" />
+                            <>
+                                <RefreshCw size={20} className="animate-spin" />
+                                <span>Processing...</span>
+                            </>
                         ) : (
                             <span>{isLogin ? 'Sign In' : 'Create Account'}</span>
                         )}
                     </button>
 
                     <button
-                        onClick={() => { setIsLogin(!isLogin); setError(''); }}
-                        className="w-full text-center text-sm text-slate-400 hover:text-slate-300 transition-colors py-2 font-medium"
+                        onClick={toggleMode}
+                        className="w-full text-center text-sm text-slate-400 hover:text-slate-300 transition-colors py-2 font-medium hover:underline"
                     >
                         {isLogin ? "Don't have an account? Sign up" : "Already have an account? Sign in"}
                     </button>
@@ -230,7 +404,6 @@ const LoginPage = ({ onLogin, setCurrentPage }: LoginPageProps) => {
                     <div className="text-xs text-slate-600 font-medium">v2.0.1</div>
                 </div>
             </div>
-
             {/* Right Panel - Features */}
             <div className="hidden lg:flex flex-1 relative bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 items-center justify-center p-16 overflow-hidden">
                 <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-violet-600/10 rounded-full blur-[150px]" />
@@ -253,9 +426,15 @@ const LoginPage = ({ onLogin, setCurrentPage }: LoginPageProps) => {
                         {features.map((feature, i) => (
                             <div
                                 key={i}
-                                className="group flex items-start space-x-5 p-6 rounded-2xl bg-slate-800/40 backdrop-blur-sm border border-slate-700/50 hover:bg-slate-800/60 hover:border-slate-600/50 transition-all"
+                                className="group flex items-start space-x-5 p-6 rounded-2xl bg-slate-800/40 backdrop-blur-sm border border-slate-700/50 hover:bg-slate-800/60 hover:border-slate-600/50 transition-all duration-300 cursor-pointer"
+                                onClick={() => {
+                                    if (!isLogin) {
+                                        const featureTitles = features.map(f => f.title);
+                                        setError(`The "${featureTitles[i]}" feature will be available after registration!`);
+                                    }
+                                }}
                             >
-                                <div className={`p-3 rounded-xl bg-gradient-to-br ${feature.color} shadow-lg`}>
+                                <div className={`p-3 rounded-xl bg-gradient-to-br ${feature.color} shadow-lg group-hover:scale-105 transition-transform duration-300`}>
                                     <feature.icon size={24} className="text-white" strokeWidth={2} />
                                 </div>
                                 <div className="flex-1">
@@ -267,7 +446,7 @@ const LoginPage = ({ onLogin, setCurrentPage }: LoginPageProps) => {
                                     </p>
                                 </div>
                                 <ArrowRight
-                                    className="self-center text-slate-700 opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all"
+                                    className="self-center text-slate-700 opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all duration-300"
                                     size={20}
                                 />
                             </div>

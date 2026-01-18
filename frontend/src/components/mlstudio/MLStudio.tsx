@@ -46,7 +46,7 @@ import {
     YAxis
 } from 'recharts';
 import { mlstudio } from '@/utils/api';
-import { MLModel, TrainingConfig } from '@/types/api.types';
+import { MLModel, TrainingConfig } from '@/types/api';
 
 const MLStudio = () => {
     const [isTraining, setIsTraining] = useState(false);
@@ -85,7 +85,7 @@ const MLStudio = () => {
             const response = await mlstudio.list();
             if (response.data) {
                 // Map backend snake_case to frontend camelCase if needed, 
-                // but our api.types.ts defines camelCase for fields that come as snake_case from Pydantic
+                // but our api.ts defines camelCase for fields that come as snake_case from Pydantic
                 // The API needs to return matching keys or we need to map them here.
                 // Assuming Pydantic v2 or aliasing works, or we map manually. 
                 // Let's assume manual mapping for safety given the previous schema.

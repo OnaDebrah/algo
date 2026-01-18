@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { Search, Filter, Grid, List, TrendingUp, Info, Star, ArrowRight, BookOpen, Activity, Zap, Target } from 'lucide-react';
 import { strategy as strategyApi } from "@/utils/api";
-import { StrategyInfo } from "@/types/api.types";
+import { StrategyInfo } from "@/types/api";
 
 const StrategyLibrary = () => {
     const [strategies, setStrategies] = useState<StrategyInfo[]>([]);

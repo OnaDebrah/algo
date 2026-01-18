@@ -15,7 +15,7 @@ import {
     Loader2
 } from "lucide-react";
 import { settings } from "@/utils/api";
-import { UserSettings, BacktestSettings, GeneralSettings } from "@/types/api.types";
+import { UserSettings, BacktestSettings, GeneralSettings } from "@/types/api";
 
 const SettingsPage = () => {
     const [activeTab, setActiveTab] = useState('profile');

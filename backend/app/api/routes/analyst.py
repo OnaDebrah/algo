@@ -216,7 +216,7 @@ def convert_core_report_to_api(core_report, ticker_info: Dict) -> AnalystReport:
 async def get_analyst_report(
     ticker: str,
     depth: str = Query("standard", description="Analysis depth: quick, standard, comprehensive, deep_dive"),
-    current_user: User = Depends(check_permission(Permission.ADVANCED_ANALYTICS)),
+    current_user: User = Depends(check_permission(Permission.UNLIMITED_BACKTESTS)),
     db: AsyncSession = Depends(get_db)
 ):
     """
