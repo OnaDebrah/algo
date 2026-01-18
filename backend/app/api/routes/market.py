@@ -1,5 +1,5 @@
 """
-Market data routes - Enhanced with MarketService
+Market data routes
 """
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -52,9 +52,6 @@ async def get_quotes(
         return quotes
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to fetch quotes: {str(e)} for user: {current_user}")
-
-
-# In backend/app/api/routes/market.py
 
 @router.get("/historical/{symbol}")
 async def get_historical_data(

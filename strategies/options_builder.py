@@ -44,7 +44,8 @@ class OptionsStrategyBuilder:
 
         if premium is None:
             # Calculate theoretical premium
-            T = (expiry - datetime.now()).days / 365.0
+            expiry_naive = expiry.replace(tzinfo=None) if expiry.tzinfo else expiry
+            T = (expiry_naive - datetime.now()).days / 365.0
 
             if volatility is None:
                 # Estimate IV from chain

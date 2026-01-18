@@ -174,19 +174,41 @@ class OptionsChain:
             logger.error(f"Error fetching expirations for {self.symbol}: {e}")
             return []
 
-    def get_chain(self, expiration: str) -> Tuple[pd.DataFrame, pd.DataFrame]:
+    def get_chain(self, expiration: str = None):
         """
-        Get options chain for specific expiration
+        Get options chain data
+
+        Args:
+            expiration: Specific expiration date (YYYY-MM-DD) or None for all dates
 
         Returns:
-            Tuple of (calls_df, puts_df)
+            dict with 'calls' and 'puts' DataFrames, or just expiration info
         """
         try:
+            # Get all available expiration dates
+            if not hasattr(self.ticker, 'options') or len(self.ticker.options) == 0:
+                raise ValueError(f"No options available for {self.symbol}")
+
+            # If no expiration specified, return metadata only
+            if expiration is None:
+                return {
+                    'expiration_dates': list(self.ticker.options),
+                    'calls': pd.DataFrame(),
+                    'puts': pd.DataFrame()
+                }
+
+            # Get options for specific expiration
             opt = self.ticker.option_chain(expiration)
-            return opt.calls, opt.puts
+
+            return {
+                'calls': opt.calls,
+                'puts': opt.puts,
+                'expiration_dates': list(self.ticker.options)
+            }
+
         except Exception as e:
-            logger.error(f"Error fetching chain for {self.symbol} {expiration}: {e}")
-            return pd.DataFrame(), pd.DataFrame()
+            print(f"Error fetching options chain: {str(e)}")
+            raise
 
     def get_current_price(self) -> float:
         """Get current stock price"""

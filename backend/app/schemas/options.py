@@ -8,16 +8,30 @@ class OptionContract(BaseModel):
     expiration: str
     premium: float
 
+class OptionData(BaseModel):
+    strike: float
+    lastPrice: float
+    bid: float
+    ask: float
+    volume: int
+    openInterest: int
+    impliedVolatility: Optional[float] = None
+    delta: Optional[float] = None
+    gamma: Optional[float] = None
+    theta: Optional[float] = None
+    vega: Optional[float] = None
+    inTheMoney: bool = False
+
 class ChainRequest(BaseModel):
     symbol: str
-    expiration: Optional[str] = None
+    expiration: Optional[str] = None  # ✅ Make optional
 
 class ChainResponse(BaseModel):
     symbol: str
-    underlying_price: float
+    current_price: float
     expiration_dates: List[str]
-    calls: List[Dict[str, Any]]
-    puts: List[Dict[str, Any]]
+    calls: List[OptionData]
+    puts: List[OptionData]
 
 class BacktestRequest(BaseModel):
     symbol: str

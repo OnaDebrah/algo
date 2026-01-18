@@ -92,7 +92,7 @@ class FinancialAnalystAgent:
         Returns:
             Complete analyst report
         """
-        print(f"🔍 Starting analysis for {ticker}...")
+        logger.info(f"🔍 Starting analysis for {ticker}...")
 
         # Step 1: Gather all data
         data = await self._gather_market_data(ticker)

@@ -322,7 +322,7 @@ export const regime = {
     client.get<RegimeData[]>(`/regime/history/${symbol}`, { params }),
 
   getReport: (symbol: string, params?: RegimeParams) =>
-    client.get<Record<string, unknown>>(`/regime/report/${symbol}`, { params }),
+    client.get<Record<string, any>>(`/regime/report/${symbol}`, { params }),
 
   detectBatch: (symbols: string[], params?: RegimeParams) =>
     client.post<CurrentRegimeResponse[]>(`/regime/batch`, symbols, { params }),
@@ -331,7 +331,7 @@ export const regime = {
     client.post<{ success: boolean; model_id: string }>(`/regime/train/${symbol}`, null, { params }),
 
   getWarning: (symbol: string, params?: RegimeParams) =>
-    client.get<Record<string, unknown>>(`/regime/warning/${symbol}`, { params }),
+    client.get<Record<string, any>>(`/regime/warning/${symbol}`, { params }),
 
   getAllocation: (symbol: string, params?: RegimeParams) =>
     client.get<AllocationResponse>(`/regime/allocation/${symbol}`, { params }),

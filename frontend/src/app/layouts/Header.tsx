@@ -47,7 +47,7 @@ const Header = ({ user, currentPage, serverStatus = false, onLogout }: HeaderPro
                 // Example symbols to fetch
                 const symbols = ['SPY', 'QQQ', 'BTC-USD'];
                 const quotes = await api.market.getQuotes(symbols);
-                setMarketData(quotes.data);
+                setMarketData(quotes);
             } catch (error) {
                 console.error("Failed to fetch market data", error);
                 // Keep existing data on error

@@ -72,13 +72,13 @@ const AppShell: React.FC<AppShellProps> = () => {
       const userData = await api.auth.getMe();
 
       setUser({
-        id: userData.data.id,
-        username: userData.data.username,
-        email: userData.data.email,
-        tier: userData.data.tier,
-        is_active: userData.data.is_active,
-        created_at: userData.data.created_at,
-        last_login: userData.data.last_login,
+        id: userData.id,
+        username: userData.username,
+        email: userData.email,
+        tier: userData.tier,
+        is_active: userData.is_active,
+        created_at: userData.created_at,
+        last_login: userData.last_login,
       });
 
       // Store user in localStorage for quick access

@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
 import { backtest } from '@/utils/api';
-import { MultiAssetBacktestRequest, MultiAssetBacktestResponse } from '@/types/api';
+import { MultiAssetBacktestRequest, MultiAssetBacktestResponse } from '@/types/all_types';
 
 export const useMultiAssetBacktest = () => {
   const [loading, setLoading] = useState(false);
