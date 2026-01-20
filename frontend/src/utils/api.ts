@@ -482,88 +482,36 @@ export const mlstudio = {
 };
 
 // ==================== OPTIONS ====================
-// export const options = {
-//   getChain: (data: ChainRequest) =>
-//     client.post<ChainResponse>('/options/chain', data),
-//
-//   runBacktest: (data: OptionsBacktestRequest) =>
-//     client.post<OptionsBacktestResponse>('/options/backtest', data),
-//
-//   analyzeStrategy: (data: StrategyAnalysisRequest) =>
-//     client.post<StrategyAnalysisResponse>('/options/analyze', data),
-//
-//   calculateGreeks: (data: GreeksRequest) =>
-//     client.post<GreeksResponse>('/options/greeks', data),
-//
-//   compareStrategies: (data: StrategyComparisonRequest) =>
-//     client.post<StrategyComparisonResponse>('/options/compare', data),
-//
-//   calculateProbability: (data: ProbabilityRequest) =>
-//     client.post<ProbabilityResponse>('/options/analytics/probability', data),
-//
-//   optimizeStrike: (data: StrikeOptimizerRequest) =>
-//     client.post<StrikeOptimizerResponse>('/options/analytics/optimize-strike', data),
-//
-//   calculateRiskMetrics: (data: RiskMetricsRequest) =>
-//     client.post<RiskMetricsResponse>('/options/analytics/risk-metrics', data),
-//
-//   calculatePortfolioStats: (data: PortfolioStatsRequest) =>
-//     client.post<PortfolioStatsResponse>('/options/analytics/portfolio-stats', data),
-//
-//   runMonteCarlo: (data: MonteCarloRequest) =>
-//     client.post<MonteCarloResponse>('/options/analytics/monte-carlo', data),
-// };
-
 export const options = {
-  // Chain endpoint
-  getChain: async (request: { symbol: string; expiration?: string }) => {
-    return client.post('/options/chain', request);
-  },
+  getChain: (data: ChainRequest) =>
+    client.post<ChainResponse>('/options/chain', data),
 
-  // Backtest endpoint
-  runBacktest: async (request: any) => {
-    return client.post('/options/backtest', request);
-  },
+  runBacktest: (data: OptionsBacktestRequest) =>
+    client.post<OptionsBacktestResponse>('/options/backtest', data),
 
-  // Strategy analysis
-  analyzeStrategy: async (request: any) => {
-    return client.post('/options/analyze', request);
-  },
+  analyzeStrategy: (data: StrategyAnalysisRequest) =>
+    client.post<StrategyAnalysisResponse>('/options/analyze', data),
 
-  // Greeks calculation
-  calculateGreeks: async (request: any) => {
-    return client.post('/options/greeks', request);
-  },
+  calculateGreeks: (data: GreeksRequest) =>
+    client.post<GreeksResponse>('/options/greeks', data),
 
-  // Strategy comparison
-  compareStrategies: async (request: any) => {
-    return client.post('/options/compare', request);
-  },
+  compareStrategies: (data: StrategyComparisonRequest) =>
+    client.post<StrategyComparisonResponse>('/options/compare', data),
 
-  // Risk metrics
-  calculateRiskMetrics: async (request: any) => {
-    return client.post('/options/analytics/risk-metrics', request);
-  },
+  calculateProbability: (data: ProbabilityRequest) =>
+    client.post<ProbabilityResponse>('/options/analytics/probability', data),
 
-  // Monte Carlo simulation
-  runMonteCarlo: async (request: any) => {
-    return client.post('/options/analytics/monte-carlo', request);
-  },
+  optimizeStrike: (data: StrikeOptimizerRequest) =>
+    client.post<StrikeOptimizerResponse>('/options/analytics/optimize-strike', data),
 
-  // Strike optimization
-  optimizeStrike: async (request: any) => {
-    return client.post('/options/analytics/optimize-strike', request);
-  },
+  calculateRiskMetrics: (data: RiskMetricsRequest) =>
+    client.post<RiskMetricsResponse>('/options/analytics/risk-metrics', data),
 
-  // Portfolio statistics
-  calculatePortfolioStats: async (request: any) => {
-    return client.post('/options/analytics/portfolio-stats', request);
-  },
+  calculatePortfolioStats: (data: PortfolioStatsRequest) =>
+    client.post<PortfolioStatsResponse>('/options/analytics/portfolio-stats', data),
 
-  // Probability calculation
-  calculateProbability: async (request: any) => {
-    return client.post('/options/analytics/probability', request);
-  }
+  runMonteCarlo: (data: MonteCarloRequest) =>
+    client.post<MonteCarloResponse>('/options/analytics/monte-carlo', data),
 };
 
 // ==================== SETTINGS ====================

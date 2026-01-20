@@ -1,7 +1,7 @@
 'use client'
-import React, { useState, useEffect } from 'react';
-import { Loader2 } from "lucide-react";
-import {MLForecast, OptionLeg, BacktestConfig, StrategyTemplate} from '@/types/all_types';
+import React, {useState, useEffect} from 'react';
+import {Loader2} from "lucide-react";
+import {MLForecast, OptionLeg, BacktestConfig, StrategyTemplate, ChainRequest, ChainResponse} from '@/types/all_types';
 import Header from './Header';
 import MLForecastPanel from './MLForecastPanel';
 import ChainTab from './tabs/ChainTab';
@@ -12,16 +12,17 @@ import VolatilityTab from './tabs/VolatilityTab';
 import RiskTab from './tabs/RiskTab';
 import {mockAPI} from "@/components/optionsdesk/contants/mockedApi";
 import Tabs from "@/components/optionsdesk/tabs/Tabs";
+import {options} from "@/utils/api";
+import {AxiosResponse} from "axios";
 
 const OptionsDesk = () => {
     const [selectedSymbol, setSelectedSymbol] = useState('SPY');
     const [selectedExpiry, setSelectedExpiry] = useState('');
     const [currentPrice, setCurrentPrice] = useState(450);
+    const [optionsChain, setOptionsChain] = useState<ChainResponse | null>(null);
     const [isLoading, setIsLoading] = useState(false);
-
     const [activeTab, setActiveTab] = useState<'chain' | 'builder' | 'compare' | 'backtest' | 'volatility' | 'risk' | 'ml'>('chain');
     const [mlForecast, setMlForecast] = useState<MLForecast | null>(null);
-    const [optionsChain, setOptionsChain] = useState<any>(null);
     const [customLegs, setCustomLegs] = useState<OptionLeg[]>([]);
     const [selectedStrategies, setSelectedStrategies] = useState<StrategyTemplate[]>([]);
     const [strategyAnalysis, setStrategyAnalysis] = useState<any[]>([]);
@@ -55,14 +56,57 @@ const OptionsDesk = () => {
     });
 
     useEffect(() => {
-        fetchOptionsChain();
-        fetchMLForecast();
+        if (selectedSymbol) {
+            fetchExpirations();
+        }
     }, [selectedSymbol]);
+
+
+    useEffect(() => {
+        if (selectedExpiry && selectedSymbol) {
+            fetchOptionsChain();
+            fetchMLForecast();
+        }
+    }, [selectedExpiry]);
+
+    const fetchExpirations = async () => {
+        setIsLoading(true);
+        try {
+            const request: ChainRequest = {
+                symbol: selectedSymbol,
+                expiration: null
+            }
+            const response: AxiosResponse<ChainResponse> = await options.getChain(request);
+
+            if (response && response.expiration_dates && response.expiration_dates.length > 0) {
+                setOptionsChain(prevData => ({
+                    ...prevData,
+                    symbol: response.symbol,
+                    current_price: response.current_price,
+                    expiration_dates: response.expiration_dates,
+                    calls: prevData?.calls || [],
+                    puts: prevData?.puts || []
+                } as ChainResponse));
+
+                setSelectedExpiry(response.expiration_dates[0]);
+            }
+        } catch (err) {
+            console.error("❌ Failed to fetch expirations:", err);
+        } finally {
+            setIsLoading(false);
+        }
+    };
 
     const fetchOptionsChain: () => Promise<void> = async () => {
         setIsLoading(true);
         try {
-            const response = await mockAPI.getChain({ symbol: selectedSymbol });
+            const request: ChainRequest = {
+                symbol: selectedSymbol,
+                expiration: selectedExpiry || null
+            };
+
+            const response = await options.getChain(request);
+
             setOptionsChain(response);
             setCurrentPrice(response.current_price || 450);
 
@@ -238,7 +282,7 @@ const OptionsDesk = () => {
             } = await mockAPI.runBacktest(backtestConfig);
 
             if (response && response.data) {
-                const { result, equity_curve, trades } = response.data;
+                const {result, equity_curve, trades} = response.data;
 
                 setBacktestResults(result);
 
@@ -302,7 +346,7 @@ const OptionsDesk = () => {
                     />
                 )}
 
-                <Tabs activeTab={activeTab} setActiveTab={setActiveTab} />
+                <Tabs activeTab={activeTab} setActiveTab={setActiveTab}/>
 
                 {activeTab === 'chain' && optionsChain && (
                     <ChainTab
@@ -372,7 +416,7 @@ const OptionsDesk = () => {
                 {isLoading && (
                     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
                         <div className="bg-slate-900 p-6 rounded-xl border border-slate-800 flex items-center gap-3">
-                            <Loader2 className="animate-spin text-amber-400" size={24} />
+                            <Loader2 className="animate-spin text-amber-400" size={24}/>
                             <span className="text-slate-300">Processing...</span>
                         </div>
                     </div>
