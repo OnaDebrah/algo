@@ -248,7 +248,7 @@ def generated_strategy(data):
                 </div>
             </div>
 
-            {/* Main Tabs Navigation */}
+            {/* Main Tabs.tsx Navigation */}
             <div className="flex flex-col lg:flex-row gap-6">
                 {/* Left Sidebar - Components Library */}
                 <div className="lg:w-64 space-y-6">
@@ -302,7 +302,7 @@ def generated_strategy(data):
 
                 {/* Main Content Area */}
                 <div className="flex-1">
-                    {/* Tabs Navigation */}
+                    {/* Tabs.tsx Navigation */}
                     <div className="flex flex-col md:flex-row items-center justify-between border-b border-slate-800 pb-2 gap-4 mb-6">
                         <div className="flex bg-slate-900/50 p-1 rounded-xl border border-slate-800/50 w-full overflow-x-auto">
                             {[

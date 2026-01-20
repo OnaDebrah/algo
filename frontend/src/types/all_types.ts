@@ -74,7 +74,7 @@ export interface StrategyConfig {
 
 export interface BacktestRequest {
     symbol: string;
-    strategy_key: string;
+    strategy_type: string;
     parameters: Record<string, any>;
     period?: string;
     interval?: string;
@@ -754,11 +754,13 @@ export interface OptionLegRequest {
 export interface ChainRequest {
     symbol: string;
     expiration: string | null;
+    includeGreeks?: boolean,
+    includeIV?: boolean
 }
 
 export interface ChainResponse {
     symbol: string;
-    underlying_price: number;
+    current_price: number;
     expiration_dates: string[];
     calls: Record<string, any>[];
     puts: Record<string, any>[];
@@ -915,6 +917,61 @@ export interface MonteCarloResponse {
     simulated_prices: number[];
 }
 
+export interface OptionLeg {
+    id: string;
+    type: 'call' | 'put';
+    position: 'long' | 'short';
+    strike: number;
+    quantity: number;
+    expiration: string;
+    premium?: number;
+    iv?: number;
+    delta?: number;
+    gamma?: number;
+    theta?: number;
+    vega?: number;
+}
+
+export interface MLForecast {
+    direction: 'bullish' | 'bearish' | 'neutral';
+    confidence: number;
+    suggestedStrategies: string[];
+    priceTargets?: {
+        low: number;
+        median: number;
+        high: number;
+    };
+    timeline?: {
+        short: string;
+        medium: string;
+        long: string;
+    };
+}
+
+export interface StrategyTemplate {
+    id: string;
+    name: string;
+    description: string;
+    risk: string;
+    sentiment: string;
+    icon: any;
+    legs: OptionLeg[];
+    typicalSetup?: {
+        strikes: number[];
+        expirations: string[];
+    };
+}
+
+export interface BacktestConfig {
+    symbol: string;
+    strategy_type: string;
+    initial_capital: number;
+    risk_free_rate: number;
+    start_date: string;
+    end_date: string;
+    entry_rules: Record<string, any>;
+    exit_rules: Record<string, any>;
+}
 // ==================== SETTINGS ====================
 
 export interface BacktestSettings {

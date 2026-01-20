@@ -24,8 +24,6 @@ class CurrentRegimeResponse(BaseModel):
     historical_regimes: List[RegimeData]
     market_health_score: float
 
-# Enhanced schemas for new endpoints
-
 class StrategyAllocation(BaseModel):
     trend_following: float
     momentum: float

@@ -1035,7 +1035,7 @@ const AIAnalyst = () => {
                         </div>
                     </div>
 
-                    {/* Tabs */}
+                    {/* Tabs.tsx */}
                     <div className="mb-6">
                         <div className="flex space-x-1 border-b border-slate-800">
                             {['summary', 'fundamental', 'technical', 'sentiment', 'risks', 'valuation'].map((tab) => (

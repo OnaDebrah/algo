@@ -308,7 +308,7 @@ def _render_trading_interface(
         pnl = account["equity"] - (account["equity"] - (account["equity"] - account.get("equity", account["equity"])))
         st.metric("Day P&L", f"${pnl:0:.2f}")  # Would need to track this
 
-    # Tabs for different sections
+    # Tabs.tsx for different sections
     tab1, tab2, tab3, tab4 = st.tabs(["🚀 Start Trading", "📊 Positions", "📋 Orders", "⚙️ Settings"])
 
     with tab1:

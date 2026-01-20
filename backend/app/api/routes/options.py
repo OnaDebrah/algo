@@ -1,3 +1,4 @@
+import logging
 from datetime import datetime, timedelta
 
 import numpy as np
@@ -26,6 +27,8 @@ from backend.app.services.auth_service import AuthService
 from backend.app.services.market_service import get_market_service
 from backend.app.strategies.options_builder import OptionsStrategy
 from strategies.options_strategies import OptionsChain
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/options", tags=["Options"])
 
@@ -367,8 +370,8 @@ async def run_backtest(
 
     except Exception as e:
         import traceback
-        print(f"❌ Backtest error: {str(e)}")
-        print(traceback.format_exc())
+        logger.info(f"❌ Backtest error: {str(e)}")
+        logger.info(traceback.format_exc())
         raise HTTPException(
             status_code=500,
             detail=f"Backtest failed for {request.symbol}: {str(e)}"
@@ -725,7 +728,7 @@ async def calculate_risk_metrics(
     """
     Calculate portfolio risk metrics (VaR, CVaR, Kelly Criterion)
     """
-    await AuthService.track_usage(db, current_user.id, "calculate_risk_metrics", {"type": request.option_type})
+    await AuthService.track_usage(db, current_user.id, "calculate_risk_metrics")
     try:
         returns_array = np.array(request.returns)
 
@@ -795,7 +798,7 @@ async def calculate_portfolio_stats(
     """
     Calculate comprehensive portfolio statistics
     """
-    await AuthService.track_usage(db, current_user.id, "calculate_portfolio_stats", {"type": request.option_type})
+    await AuthService.track_usage(db, current_user.id, "calculate_portfolio_stats")
     try:
         # Convert positions to dict format
         positions = [pos.dict() for pos in request.positions]
@@ -821,7 +824,7 @@ async def run_monte_carlo(
     """
     Run Monte Carlo simulation for price distribution
     """
-    await AuthService.track_usage(db, current_user.id, "run_monte_carlo", {"type": request.option_type})
+    await AuthService.track_usage(db, current_user.id, "run_monte_carlo")
     try:
         # Run simulation
         final_prices = OptionsAnalytics.monte_carlo_simulation(

@@ -138,7 +138,7 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-# Tabs for Page/Register
+# Tabs.tsx for Page/Register
 tab1, tab2 = st.tabs(["🔐 Sign In", "📝 Create Account"])
 
 with tab1:

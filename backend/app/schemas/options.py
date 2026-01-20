@@ -10,11 +10,11 @@ class OptionContract(BaseModel):
 
 class OptionData(BaseModel):
     strike: float
-    lastPrice: float
-    bid: float
-    ask: float
-    volume: int
-    openInterest: int
+    lastPrice: Optional[float] = 0.0
+    bid: Optional[float] = 0.0
+    ask: Optional[float] = 0.0
+    volume: Optional[int] = 0
+    openInterest: Optional[int] = 0
     impliedVolatility: Optional[float] = None
     delta: Optional[float] = None
     gamma: Optional[float] = None
@@ -24,7 +24,7 @@ class OptionData(BaseModel):
 
 class ChainRequest(BaseModel):
     symbol: str
-    expiration: Optional[str] = None  # ✅ Make optional
+    expiration: Optional[str] = None
 
 class ChainResponse(BaseModel):
     symbol: str
