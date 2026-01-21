@@ -919,7 +919,7 @@ export interface MonteCarloResponse {
 
 export interface OptionLeg {
     id: string;
-    type: 'call' | 'put';
+    type: 'call' | 'put' | 'stock'
     position: 'long' | 'short';
     strike: number;
     quantity: number;

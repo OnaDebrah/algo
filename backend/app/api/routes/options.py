@@ -290,8 +290,8 @@ async def run_backtest(
                 "Close": prices
             }, index=dates)
 
-        print(f"📊 Running backtest for {request.symbol} from {request.start_date} to {request.end_date}")
-        print(f"📊 Data shape: {data.shape}, Strategy: {request.strategy_type}")
+        logger.info(f"📊 Running backtest for {request.symbol} from {request.start_date} to {request.end_date}")
+        logger.info(f"📊 Data shape: {data.shape}, Strategy: {request.strategy_type}")
 
         # ✅ FIX 1: Convert strategy type string to enum
         try:
@@ -313,7 +313,7 @@ async def run_backtest(
             risk_free_rate=request.risk_free_rate
         )
 
-        print(f"✅ Backtest complete: {results['total_trades']} trades, {results['win_rate']:.1f}% win rate")
+        logger.info(f"✅ Backtest complete: {results['total_trades']} trades, {results['win_rate']:.1f}% win rate")
 
         # ✅ FIX 3: Get engine from results
         engine = results.get("engine")

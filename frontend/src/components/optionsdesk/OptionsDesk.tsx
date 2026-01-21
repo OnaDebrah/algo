@@ -1,7 +1,28 @@
 'use client'
-import React, {useState, useEffect} from 'react';
+import React, {useEffect, useState} from 'react';
 import {Loader2} from "lucide-react";
-import {MLForecast, OptionLeg, BacktestConfig, StrategyTemplate, ChainRequest, ChainResponse} from '@/types/all_types';
+import {
+    BacktestConfig,
+    ChainRequest,
+    ChainResponse,
+    GreeksRequest,
+    GreeksResponse,
+    MLForecast,
+    MonteCarloRequest,
+    MonteCarloResponse,
+    OptionLeg,
+    OptionsBacktestRequest,
+    PortfolioStatsRequest,
+    RiskMetricsRequest,
+    RiskMetricsResponse,
+    StrategyAnalysisRequest,
+    StrategyAnalysisResponse,
+    StrategyComparisonRequest,
+    StrategyComparisonResponse,
+    StrategyTemplate,
+    StrikeOptimizerRequest,
+    StrikeOptimizerResponse
+} from '@/types/all_types';
 import Header from './Header';
 import MLForecastPanel from './MLForecastPanel';
 import ChainTab from './tabs/ChainTab';
@@ -10,9 +31,8 @@ import CompareTab from './tabs/CompareTab';
 import BacktestTab from './tabs/BacktestTab';
 import VolatilityTab from './tabs/VolatilityTab';
 import RiskTab from './tabs/RiskTab';
-import {mockAPI} from "@/components/optionsdesk/contants/mockedApi";
 import Tabs from "@/components/optionsdesk/tabs/Tabs";
-import {options} from "@/utils/api";
+import {market, options, regime} from "@/utils/api";
 import {AxiosResponse} from "axios";
 
 const OptionsDesk = () => {
@@ -26,6 +46,7 @@ const OptionsDesk = () => {
     const [customLegs, setCustomLegs] = useState<OptionLeg[]>([]);
     const [selectedStrategies, setSelectedStrategies] = useState<StrategyTemplate[]>([]);
     const [strategyAnalysis, setStrategyAnalysis] = useState<any[]>([]);
+    const [comparisonData, setComparisonData] = useState<any[]>([]);
     const [profitLossData, setProfitLossData] = useState<any[]>([]);
     const [greeksChartData, setGreeksChartData] = useState<any[]>([]);
     const [monteCarloDistribution, setMonteCarloDistribution] = useState<any>(null);
@@ -69,6 +90,12 @@ const OptionsDesk = () => {
         }
     }, [selectedExpiry]);
 
+    useEffect(() => {
+        if (customLegs.length > 0) {
+            calculatePortfolioStats();
+        }
+    }, [customLegs]);
+
     const fetchExpirations = async () => {
         setIsLoading(true);
         try {
@@ -108,7 +135,7 @@ const OptionsDesk = () => {
             const response = await options.getChain(request);
 
             setOptionsChain(response);
-            setCurrentPrice(response.current_price || 450);
+            setCurrentPrice(response.current_price);
 
             if (!selectedExpiry && response.expiration_dates && response.expiration_dates.length > 0) {
                 setSelectedExpiry(response.expiration_dates[0]);
@@ -120,16 +147,36 @@ const OptionsDesk = () => {
         }
     };
 
-    const fetchMLForecast: () => Promise<void> = async () => {
+    const fetchMLForecast = async () => {
         try {
-            const mockForecast: MLForecast = {
-                direction: Math.random() > 0.5 ? 'bullish' : 'bearish',
-                confidence: 0.65 + Math.random() * 0.3,
-                suggestedStrategies: ['Covered Call', 'Bull Put Spread', 'Iron Condor', 'Long Straddle'],
+            const regimeData = await regime.detect(selectedSymbol, {period: '1y'});
+
+            let direction: 'bullish' | 'bearish' | 'neutral' = 'neutral';
+            if (regimeData.current_regime.confidence >= 3 || regimeData.current_regime.metrics.volatility >= .5) {
+                direction = 'bullish';
+            } else if (regimeData.current_regime.confidence <= 3 || regimeData.current_regime.metrics.volatility <= .5) {
+                direction = 'bearish';
+            }
+
+            const confidence = regimeData.current_regime.confidence || 0.8;
+
+            const historicalData = await market.getHistorical(selectedSymbol, {period: '1y', interval: '1d'});
+            const recentPrices = historicalData.data.slice(-30).map(d => d.close);
+            const avgPrice = recentPrices.reduce((a, b) => a + b, 0) / recentPrices.length;
+            const volatility = Math.sqrt(recentPrices.reduce((sum, p) => sum + Math.pow(p - avgPrice, 2), 0) / recentPrices.length);
+            //TODO add more metrics...
+            const forecast: MLForecast = {
+                direction,
+                confidence,
+                suggestedStrategies: direction === 'bullish'
+                    ? ['Covered Call', 'Bull Put Spread']
+                    : direction === 'bearish'
+                        ? ['Long Put', 'Bear Call Spread']
+                        : ['Iron Condor', 'Long Straddle'],
                 priceTargets: {
-                    low: currentPrice * (0.9 + Math.random() * 0.05),
-                    median: currentPrice * (1.0 + Math.random() * 0.1),
-                    high: currentPrice * (1.1 + Math.random() * 0.15)
+                    low: currentPrice - volatility,
+                    median: currentPrice,
+                    high: currentPrice + volatility
                 },
                 timeline: {
                     short: '1-2 weeks',
@@ -137,49 +184,201 @@ const OptionsDesk = () => {
                     long: '3-6 months'
                 }
             };
-            setMlForecast(mockForecast);
+            setMlForecast(forecast);
         } catch (error) {
             console.error('Failed to fetch ML forecast:', error);
         }
     };
 
-    const addCustomLeg: () => void = () => {
+    const calculateGreeksForLegs = async (legs: OptionLeg[]): Promise<GreeksResponse | null> => {
+        try {
+            const request: GreeksRequest = {
+                symbol: selectedSymbol,
+                legs: legs.map(leg => ({
+                    option_type: leg.type.toUpperCase(),
+                    strike: Number(leg.strike),
+                    expiration: leg.expiration,
+                    quantity: leg.position === 'long' ? Number(leg.quantity) : -Number(leg.quantity),
+                    premium: leg.premium ?? null
+                })),
+                volatility: 0.2
+            };
+
+            return await options.calculateGreeks(request);
+
+        } catch (error) {
+            console.error('Failed to calculate Greeks:', error);
+            return null;
+        }
+    };
+
+    const analyzeStrategy = async (strategyId: string, legs: OptionLeg[]): Promise<StrategyAnalysisResponse | null> => {
+        try {
+            const request: StrategyAnalysisRequest = {
+                symbol: selectedSymbol,
+                legs: legs.map(leg => ({
+                    option_type: leg.type.toUpperCase(),
+                    strike: Number(leg.strike),
+                    expiration: leg.expiration,
+                    quantity: leg.position === 'long' ? Number(leg.quantity) : -Number(leg.quantity),
+                    premium: leg.premium ?? undefined
+                })),
+                volatility: 0.2
+            };
+            return await options.analyzeStrategy(request);
+        } catch (error) {
+            console.error('Failed to analyze strategy:', error);
+            return null;
+        }
+    };
+
+    const calculateRiskMetrics = async (portfolioValue: number, returns: number[] = []): Promise<RiskMetricsResponse | null> => {
+        try {
+            const request: RiskMetricsRequest = {
+                portfolio_value: portfolioValue,
+                returns: returns.length > 0 ? returns : [0.05, -0.02, 0.03, -0.01, 0.04],
+                confidence_level: 0.95
+            };
+            return await options.calculateRiskMetrics(request);
+        } catch (error) {
+            console.error('Failed to calculate risk metrics:', error);
+            return null;
+        }
+    };
+
+    const runMonteCarlo = async (): Promise<MonteCarloResponse | null> => {
+        try {
+            const request: MonteCarloRequest = {
+                current_price: currentPrice,
+                volatility: 0.2,
+                days: 30,
+                num_simulations: 10000,
+                drift: 0.08
+            };
+            return await options.runMonteCarlo(request);
+        } catch (error) {
+            console.error('Failed to run Monte Carlo:', error);
+            return null;
+        }
+    };
+
+    const compareStrategies = async (strategies: any[]): Promise<StrategyComparisonResponse | null> => {
+        try {
+            const request: StrategyComparisonRequest = {
+                symbol: selectedSymbol,
+                strategies: strategies.map(strat => ({
+                    name: strat.name,
+                    legs: strat.analysis?.legs || []
+                }))
+            };
+            return await options.compareStrategies(request);
+        } catch (error) {
+            console.error('Failed to compare strategies:', error);
+            return null;
+        }
+    };
+
+    const optimizeStrikes = async (strategyType: string): Promise<StrikeOptimizerResponse | null> => {
+        try {
+            const request: StrikeOptimizerRequest = {
+                symbol: selectedSymbol,
+                current_price: currentPrice,
+                volatility: 0.2,
+                days_to_expiration: 30,
+                strategy_type: strategyType,
+                num_strikes: 10
+            };
+            // @ts-expect-error - this is the normal behaviour of interceptor
+            return await options.optimizeStrike(request);
+        } catch (error) {
+            console.error('Failed to optimize strikes:', error);
+            return null;
+        }
+    };
+
+    const calculatePortfolioStats = async () => {
+        try {
+            if (customLegs.length === 0) {
+                return;
+            }
+
+            const positions = customLegs.map(leg => ({
+                pnl: (leg.premium || 0) * leg.quantity * (leg.position === 'long' ? -1 : 1),
+                pnl_pct: ((leg.premium || 0) / leg.strike) * 100,
+                days_held: 0
+            }));
+
+            const request: PortfolioStatsRequest = {
+                positions
+            };
+
+            const stats = await options.calculatePortfolioStats(request);
+            setPortfolioStats(stats);
+        } catch (error) {
+            console.error('Failed to calculate portfolio stats:', error);
+        }
+    };
+
+    const addCustomLeg = () => {
         if (!newLeg.strike || !newLeg.expiration) {
             alert('Please enter strike price and expiration date');
             return;
         }
 
-        const leg: OptionLeg = {
-            id: Date.now().toString(),
-            type: newLeg.type || 'call',
-            position: newLeg.position || 'long',
-            strike: Number(newLeg.strike),
-            quantity: Number(newLeg.quantity) || 1,
-            expiration: newLeg.expiration,
-            premium: Math.random() * 10 + 5,
-            delta: (newLeg.type === 'call' ? 0.5 : -0.5) * (newLeg.position === 'long' ? 1 : -1),
-            gamma: 0.02,
-            theta: -0.05,
-            vega: 0.15
+        const calculateLegGreeks = async () => {
+            try {
+                const greeksRequest: GreeksRequest = {
+                    symbol: selectedSymbol,
+                    legs: [{
+                        option_type: (newLeg.type || 'call').toUpperCase() as 'CALL' | 'PUT',
+                        strike: Number(newLeg.strike),
+                        expiration: newLeg.expiration || '',
+                        quantity: 1,
+                        premium: null
+                    }],
+                    volatility: 0.2
+                };
+
+                return await options.calculateGreeks(greeksRequest);
+            } catch (error) {
+                console.error('Failed to calculate Greeks for leg:', error);
+                return null;
+            }
         };
 
-        setCustomLegs([...customLegs, leg]);
+        calculateLegGreeks().then(greeks => {
+            const leg: OptionLeg = {
+                id: Date.now().toString(),
+                type: newLeg.type || 'call',
+                position: newLeg.position || 'long',
+                strike: Number(newLeg.strike),
+                quantity: Number(newLeg.quantity) || 1,
+                expiration: newLeg.expiration || '',
+                premium: undefined,
+                delta: greeks?.delta || 0,
+                gamma: greeks?.gamma || 0,
+                theta: greeks?.theta || 0,
+                vega: greeks?.vega || 0
+            };
 
-        setNewLeg({
-            ...newLeg,
-            strike: currentPrice,
-            expiration: selectedExpiry || '2024-03-15'
+            setCustomLegs([...customLegs, leg]);
+
+            setNewLeg({
+                ...newLeg,
+                strike: currentPrice,
+                expiration: selectedExpiry || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+            });
         });
     };
 
-    const removeLeg: (id: string) => void = (id: string) => {
+    const removeLeg = (id: string) => {
         setCustomLegs(customLegs.filter(leg => leg.id !== id));
     };
 
-    const addStrategyToCompare: (strategy: StrategyTemplate) => Promise<void> = async (strategy: StrategyTemplate) => {
+    const addStrategyToCompare = async (strategy: StrategyTemplate) => {
         if (selectedStrategies.find(s => s.id === strategy.id)) return;
 
-        const adjustedLegs = strategy.legs.map((leg: OptionLeg) => ({
+        const adjustedLegs = strategy.legs.map(leg => ({
             ...leg,
             strike: currentPrice + (leg.strike || 0),
             expiration: selectedExpiry || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
@@ -187,22 +386,29 @@ const OptionsDesk = () => {
 
         setIsLoading(true);
         try {
-            const greeks = await mockAPI.calculateGreeks({});
-            const analysis = await mockAPI.analyzeStrategy({});
+            const greeks = await calculateGreeksForLegs(adjustedLegs);
+            const analysis = await analyzeStrategy(strategy.id, adjustedLegs);
+            const risk = await calculateRiskMetrics(analysis?.initial_cost || 0);
 
             if (greeks && analysis) {
                 const strategyAnalysisItem = {
                     id: strategy.id,
                     name: strategy.name,
                     analysis,
-                    greeks
+                    greeks,
+                    riskMetrics: risk || undefined
                 };
 
                 setSelectedStrategies([...selectedStrategies, strategy]);
                 setStrategyAnalysis([...strategyAnalysis, strategyAnalysisItem]);
 
+                const comparison = await compareStrategies([...strategyAnalysis, strategyAnalysisItem]);
+                if (comparison) {
+                    setComparisonData(comparison.comparisons || []);
+                }
+
                 if (analysis.payoff_diagram) {
-                    const plData = analysis.payoff_diagram.map((point: any) => ({
+                    const plData = analysis.payoff_diagram.map(point => ({
                         price: point.price,
                         profit: point.payoff,
                         strategy: strategy.name
@@ -212,26 +418,27 @@ const OptionsDesk = () => {
             }
         } catch (error) {
             console.error('Failed to add strategy:', error);
+            alert('Failed to add strategy. Please try again.');
         } finally {
             setIsLoading(false);
         }
     };
 
-    const removeStrategyFromCompare: (id: string) => void = (id: string) => {
+    const removeStrategyFromCompare = (id: string) => {
         setSelectedStrategies(selectedStrategies.filter(s => s.id !== id));
         setStrategyAnalysis(strategyAnalysis.filter(s => s.id !== id));
     };
 
-    const analyzeCustomStrategy: () => Promise<void> = async () => {
+    const analyzeCustomStrategy = async () => {
         if (customLegs.length === 0) return;
 
         setIsLoading(true);
         try {
-            const greeks = await mockAPI.calculateGreeks({});
-            const analysis = await mockAPI.analyzeStrategy({});
-            const risk = await mockAPI.calculateRiskMetrics({});
-            const monteCarlo = await mockAPI.runMonteCarlo({});
-            const strikes = await mockAPI.optimizeStrike({});
+            const greeks = await calculateGreeksForLegs(customLegs);
+            const analysis = await analyzeStrategy('custom', customLegs);
+            const risk = await calculateRiskMetrics(analysis?.initial_cost || 0);
+            const monteCarlo = await runMonteCarlo();
+            const strikes = await optimizeStrikes('custom');
 
             if (greeks && analysis) {
                 setRiskMetrics(risk);
@@ -249,7 +456,7 @@ const OptionsDesk = () => {
                 setGreeksChartData(chartData);
 
                 if (analysis.payoff_diagram) {
-                    setProfitLossData(analysis.payoff_diagram.map((point: any) => ({
+                    setProfitLossData(analysis.payoff_diagram.map(point => ({
                         price: point.price,
                         profit: point.payoff,
                         strategy: 'Custom'
@@ -258,12 +465,13 @@ const OptionsDesk = () => {
             }
         } catch (error) {
             console.error('Failed to analyze strategy:', error);
+            alert('Failed to analyze strategy. Please try again.');
         } finally {
             setIsLoading(false);
         }
     };
 
-    const runStrategyBacktest: () => Promise<void> = async () => {
+    const runStrategyBacktest = async () => {
         if (!backtestConfig.start_date || !backtestConfig.end_date || !backtestConfig.strategy_type) {
             alert('Please fill all backtest parameters');
             return;
@@ -273,33 +481,36 @@ const OptionsDesk = () => {
         setBacktestResults(null);
 
         try {
-            const response: {
-                data: {
-                    result: { total_return: number; win_rate: number; profit_factor: number; sharpe_ratio: number };
-                    equity_curve: { timestamp: string; equity: number; drawdown: number; cash: number }[];
-                    trades: { symbol: string; strategy: string; profit: number; timestamp: string }[]
-                }
-            } = await mockAPI.runBacktest(backtestConfig);
+            const request: OptionsBacktestRequest = {
+                symbol: selectedSymbol,
+                strategy_type: backtestConfig.strategy_type,
+                initial_capital: backtestConfig.initial_capital,
+                risk_free_rate: backtestConfig.risk_free_rate,
+                start_date: backtestConfig.start_date,
+                end_date: backtestConfig.end_date,
+                entry_rules: backtestConfig.entry_rules,
+                exit_rules: backtestConfig.exit_rules
+            };
 
-            if (response && response.data) {
-                const {result, equity_curve, trades} = response.data;
+            const response = await options.runBacktest(request);
 
-                setBacktestResults(result);
+            if (response) {
+                setBacktestResults(response);
 
-                const formattedCurve = equity_curve.map((point: any) => ({
-                    date: new Date(point.timestamp).toLocaleDateString(),
+                const formattedCurve = response.equity_curve.map((point: any) => ({
+                    date: new Date(point.date).toLocaleDateString(),
                     equity: point.equity,
-                    drawdown: point.drawdown || 0,
-                    cash: point.cash
+                    drawdown: 0,
+                    cash: point.equity
                 }));
                 setEquityData(formattedCurve);
 
-                const formattedTrades = trades.map((t: any) => ({
-                    symbol: t.symbol,
+                const formattedTrades = response.trades.map((t: any) => ({
+                    symbol: selectedSymbol,
                     strategy: t.strategy,
-                    profit: t.profit || 0,
-                    time: new Date(t.timestamp).toLocaleDateString(),
-                    status: (t.profit || 0) >= 0 ? 'win' : 'loss'
+                    profit: t.pnl || 0,
+                    time: new Date(t.date).toLocaleDateString(),
+                    status: (t.pnl || 0) >= 0 ? 'win' : 'loss'
                 }));
                 setRecentTrades(formattedTrades);
 
@@ -307,17 +518,9 @@ const OptionsDesk = () => {
             }
         } catch (error) {
             console.error('Failed to run backtest:', error);
+            alert('Failed to run backtest. Please try again.');
         } finally {
             setIsLoading(false);
-        }
-    };
-
-    const calculatePortfolioStats: () => Promise<void> = async () => {
-        try {
-            const stats = await mockAPI.calculatePortfolioStats({});
-            setPortfolioStats(stats);
-        } catch (error) {
-            console.error('Failed to calculate portfolio stats:', error);
         }
     };
 
