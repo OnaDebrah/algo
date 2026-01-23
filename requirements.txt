@@ -29,3 +29,4 @@ torch>=2.0.0
 sqlalchemy
 pydantic
 statsmodels
+fastapi

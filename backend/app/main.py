@@ -4,6 +4,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 
+from backend.app.api.routes import optimise
 from backend.app.config import settings
 from backend.app.database import create_tables
 from backend.app.init_data import init_default_data
@@ -73,6 +74,7 @@ app.include_router(live.router)
 app.include_router(marketplace.router)
 app.include_router(mlstudio.router)
 app.include_router(options.router)
+app.include_router(optimise.router)
 app.include_router(settings_router.router)
 app.include_router(health.router)
 app.include_router(root.router)

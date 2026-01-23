@@ -133,7 +133,7 @@ const OptionsDesk = () => {
             };
 
             const response = await options.getChain(request);
-
+             // @ts-expect-error - this is the normal behaviour of interceptor
             setOptionsChain(response);
             setCurrentPrice(response.current_price);
 
@@ -203,7 +203,7 @@ const OptionsDesk = () => {
                 })),
                 volatility: 0.2
             };
-
+             // @ts-expect-error - this is the normal behavior of interceptor
             return await options.calculateGreeks(request);
 
         } catch (error) {
@@ -262,7 +262,7 @@ const OptionsDesk = () => {
         }
     };
 
-    const compareStrategies = async (strategies: any[]): Promise<StrategyComparisonResponse | null> => {
+    const compareStrategies = async (strategies:  Record<string, any>[]): Promise<StrategyComparisonResponse | null> => {
         try {
             const request: StrategyComparisonRequest = {
                 symbol: selectedSymbol,
@@ -288,7 +288,7 @@ const OptionsDesk = () => {
                 strategy_type: strategyType,
                 num_strikes: 10
             };
-            // @ts-expect-error - this is the normal behaviour of interceptor
+
             return await options.optimizeStrike(request);
         } catch (error) {
             console.error('Failed to optimize strikes:', error);
