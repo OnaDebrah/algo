@@ -1,34 +1,41 @@
-
-
 'use client'
-import React, { useState, useMemo } from 'react';
+import React, {useMemo, useState} from 'react';
 import {
-    Play, RefreshCw, Search, Filter, TrendingUp, Target,
-    Calendar, Clock, DollarSign, Shield, Zap, Info,
-    BarChart3, Activity, TrendingDown, Settings,
-    Download, Save, Copy, AlertCircle, Check, X,
-    ChevronDown, Star, Grid, List, Eye, EyeOff
+    Activity,
+    AlertCircle,
+    BarChart3,
+    Calendar,
+    Check,
+    ChevronDown,
+    Clock,
+    Copy,
+    DollarSign,
+    Download,
+    Eye,
+    EyeOff,
+    Filter,
+    Grid,
+    Info,
+    List,
+    Play,
+    RefreshCw,
+    Save,
+    Search,
+    Settings,
+    Star,
+    Target,
+    TrendingUp,
+    X,
+    Zap
 } from 'lucide-react';
-import BacktestResults from "@/components/backtest/BacktestResults";
+import SingleBacktestResults from "@/components/backtest/SingleBacktestResults";
 import StrategyParameterForm from "@/components/backtest/StrategyParameterForm";
-import { BacktestResult, Strategy } from "@/types/backtest";
-import { formatCurrency } from "@/utils/formatters";
+import {BacktestResult, ScalarParam, SingleAssetConfig, Strategy} from "@/types/all_types";
+import {formatCurrency} from "@/utils/formatters";
 
 interface SingleAssetBacktestProps {
-    config: {
-        symbol: string;
-        period: string;
-        interval: string;
-        strategy: string;
-        params: Record<string, string | number | boolean>;
-        initialCapital: number;
-        maxPositionPct?: string | readonly string[] | number | undefined;
-        riskLevel?: string;
-        commission?: number;
-        slippage?: number;
-    };
-
-    setConfig: (config: any) => void;
+    config: SingleAssetConfig;
+    setConfig: (config: SingleAssetConfig) => void;
     strategies: Strategy[];
     runBacktest: () => Promise<void>;
     isRunning: boolean;
@@ -42,7 +49,7 @@ const SingleAssetBacktest: React.FC<SingleAssetBacktestProps> = ({
     runBacktest,
     isRunning,
     results
-}) => {
+}: SingleAssetBacktestProps) => {
     const [selectedCategory, setSelectedCategory] = useState('All');
     const [showAdvanced, setShowAdvanced] = useState(false);
     const [showParameters, setShowParameters] = useState(false);
@@ -69,7 +76,7 @@ const SingleAssetBacktest: React.FC<SingleAssetBacktestProps> = ({
 
     // Find selected strategy
     const selectedStrategy = useMemo(() =>
-        strategies.find((s: Strategy) => s.id === config.strategy),
+        strategies.find((s) => s.id === config.strategy),
         [config.strategy, strategies]
     );
 
@@ -483,7 +490,7 @@ const SingleAssetBacktest: React.FC<SingleAssetBacktestProps> = ({
                     </div>
 
                     {/* Parameters Card */}
-                    {selectedStrategy && selectedStrategy.params && Object.keys(selectedStrategy.params).length > 0 && (
+                    {selectedStrategy && selectedStrategy.parameters && Object.keys(selectedStrategy.parameters).length > 0 && (
                         <div className="bg-gradient-to-br from-slate-900/90 to-slate-800/90 backdrop-blur-xl border border-slate-700/50 rounded-2xl p-6 shadow-xl">
                             <div className="flex items-center justify-between mb-6">
                                 <div className="flex items-center gap-3">
@@ -493,7 +500,7 @@ const SingleAssetBacktest: React.FC<SingleAssetBacktestProps> = ({
                                     <div>
                                         <h4 className="text-sm font-bold text-slate-300">Strategy Parameters</h4>
                                         <p className="text-xs text-slate-500 font-medium mt-0.5">
-                                            Fine-tune {Object.keys(selectedStrategy.params).length} parameters
+                                            Fine-tune {Object.keys(selectedStrategy.parameters).length} parameters
                                         </p>
                                     </div>
                                 </div>
@@ -506,7 +513,7 @@ const SingleAssetBacktest: React.FC<SingleAssetBacktestProps> = ({
                                         <span>{showParameters ? 'Hide' : 'Show'}</span>
                                     </button>
                                     <button
-                                        onClick={() => setConfig({ ...config, params: selectedStrategy.params })}
+                                        onClick={() => setConfig({ ...config, params: selectedStrategy?.parameters })}
                                         className="flex items-center gap-2 px-3 py-2 text-xs font-bold text-slate-500 hover:text-violet-400 transition-colors bg-slate-800/50 rounded-lg border border-slate-700/50"
                                     >
                                         <RefreshCw size={14} />
@@ -518,7 +525,7 @@ const SingleAssetBacktest: React.FC<SingleAssetBacktestProps> = ({
                             {showParameters && (
                                 <div className="animate-in fade-in">
                                     <StrategyParameterForm
-                                        params={selectedStrategy.params}
+                                        params={selectedStrategy.parameters}
                                         values={config.params || {}}
                                         onChange={handleParamChange}
                                     />
@@ -732,26 +739,13 @@ const SingleAssetBacktest: React.FC<SingleAssetBacktestProps> = ({
             </div>
 
             {/* Results Section */}
-            {results && results.type === 'single' && (
+            {results && (
                 <div className="pt-6 border-t border-slate-800/80 animate-in fade-in">
-                    <BacktestResults results={results} />
+                    <SingleBacktestResults results={results} />
                 </div>
             )}
         </div>
     );
 };
-
-// // Star component for ratings
-// const Star = ({ size, className }: { size: number; className: string }) => (
-//     <svg
-//         width={size}
-//         height={size}
-//         viewBox="0 0 24 24"
-//         fill="currentColor"
-//         className={className}
-//     >
-//         <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
-//     </svg>
-// );
 
 export default SingleAssetBacktest;

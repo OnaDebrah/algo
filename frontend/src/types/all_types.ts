@@ -1,4 +1,5 @@
 // ==================== BASE TYPES ====================
+export type ScalarParam = string | number | boolean;
 
 export interface ValidationError {
     loc: Array<string | number>;
@@ -66,15 +67,14 @@ export interface StrategyInfo {
 }
 
 export interface StrategyConfig {
-    strategy_key: string;
+    strategy_type: string;
     parameters: Record<string, any>;
 }
 
 // ==================== BACKTEST ====================
-
-export interface BacktestRequest {
+export interface SingleBacktestRequest {
     symbol: string;
-    strategy_type: string;
+    strategy_key: string;
     parameters: Record<string, any>;
     period?: string;
     interval?: string;
@@ -98,6 +98,11 @@ export interface BacktestResult {
     profit_factor: number;
     final_equity: number;
     initial_capital: number;
+    num_symbols?: number;
+    equity_curve?: EquityCurvePoint[];
+    trades?: Trade[];
+    price_data?: Record<string, any>[] | null;
+    symbol_stats?: Record<string, SymbolStats>
 }
 
 export interface EquityCurvePoint {
@@ -120,14 +125,56 @@ export interface Trade {
     profit_pct: number | null;
 }
 
-export interface BacktestResponse {
+export interface SingleBacktestResponse {
     result: BacktestResult;
     equity_curve: EquityCurvePoint[];
     trades: Trade[];
     price_data: Record<string, any>[] | null;
 }
 
+export interface SingleAssetConfig {
+    symbol: string;
+    period: string;
+    interval: string;
+    strategy: string;
+    initialCapital: number;
+    maxPositionPct: number;
+    params: Record<string, any>
+    riskLevel?: string;
+    commission?: number;
+}
+
 // ==================== MULTI-ASSET BACKTEST ====================
+export interface MultiAssetConfig {
+    symbols: string[];
+    symbolInput: string;
+    period: string;
+    interval: string;
+    strategyMode: 'same' | 'different' | 'portfolio';
+    params: Record<string, any>;
+    strategy: string;
+    strategies: Record<string, string>;
+    allocationMethod: string;
+    allocations: Record<string, number>;
+    initialCapital: number;
+    maxPositionPct: number;
+    riskLevel: string;
+}
+
+export interface Strategy {
+    id: string;
+    name: string;
+    category: string;
+    parameters: Record<string, any>;
+    description: string;
+    complexity: 'Beginner' | 'Intermediate' | 'Advanced' | 'Expert' | 'Institutional';
+    time_horizon: string | null;
+    best_for?: string[];
+    rating?: number;
+    monthly_return?: number;
+    drawdown?: number;
+    sharpe_ratio?: number;
+}
 
 export interface SymbolStats {
     total_trades: number;
@@ -159,7 +206,7 @@ export interface MultiAssetBacktestResult {
 
 export interface MultiAssetBacktestRequest {
     symbols: string[];
-    strategy_configs: Record<string, StrategyConfig>;
+    strategy_configs?: Record<string, StrategyConfig>;
     allocation_method?: string;
     custom_allocations: Record<string, number> | null;
     period?: string;
@@ -972,6 +1019,7 @@ export interface BacktestConfig {
     entry_rules: Record<string, any>;
     exit_rules: Record<string, any>;
 }
+
 // ==================== SETTINGS ====================
 
 export interface BacktestSettings {
@@ -1114,7 +1162,7 @@ export interface AuthState {
 }
 
 export interface BacktestState {
-    currentBacktest: BacktestResponse | null;
+    currentBacktest: SingleBacktestResponse | null;
     history: BacktestHistoryItem[];
     isLoading: boolean;
     error: string | null;

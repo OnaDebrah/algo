@@ -2,13 +2,13 @@ import {DollarSign, LineChart as LineChartIcon, Loader2, Play, Settings} from "l
 import {Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis} from "recharts";
 import React from "react";
 import {STRATEGY_TEMPLATES} from "@/components/optionsdesk/contants/strategyTemplates";
-import {BacktestConfig} from "@/types/all_types";
+import {BacktestConfig, BacktestResult} from "@/types/all_types";
 
 interface BackTestTabProps {
     backtestConfig: BacktestConfig,
     setBacktestConfig:  React.Dispatch<React.SetStateAction<BacktestConfig>>,
     runStrategyBacktest: () => Promise<void> ,
-    backtestResults: any,
+    backtestResults: BacktestResult,
     equityData: any,
     recentTrades: any,
     isLoading: boolean,

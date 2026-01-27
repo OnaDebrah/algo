@@ -13,10 +13,10 @@ export const useMultiAssetBacktest = () => {
 
     try {
       const response = await backtest.runMulti(request);
-      setData(response.data);
-      return response.data;
+      setData(response);
+      return response;
     } catch (err: any) {
-      const errorMessage = err.response?.data?.detail || err.message || 'Multi-asset backtest failed';
+      const errorMessage = err.response?.detail || err.message || 'Multi-asset backtest failed';
       setError(errorMessage);
       throw err;
     } finally {

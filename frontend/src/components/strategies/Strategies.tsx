@@ -1,4 +1,4 @@
-import { Strategy } from "@/types/backtest";
+import {Strategy, StrategyInfo} from "@/types/all_types";
 
 export const strategies: Strategy[] = [
     // TECHNICAL INDICATORS - TREND FOLLOWING
@@ -10,7 +10,7 @@ export const strategies: Strategy[] = [
         complexity: 'Beginner',
         time_horizon: 'Short to Medium-term',
         best_for: ["Trending markets", "Beginner traders", "Clear trends"],
-        params: { short_window: 20, long_window: 50 }
+        parameters: { short_window: 20, long_window: 50 }
     },
     {
         id: 'macd',
@@ -20,7 +20,7 @@ export const strategies: Strategy[] = [
         complexity: 'Intermediate',
         time_horizon: 'Medium-term',
         best_for: ["Trend identification", "Momentum confirmation", "Swing trading"],
-        params: { fast: 12, slow: 26, signal: 9 }
+        parameters: { fast: 12, slow: 26, signal: 9 }
     },
     {
         id: 'kama',
@@ -30,7 +30,7 @@ export const strategies: Strategy[] = [
         complexity: 'Intermediate',
         time_horizon: 'Medium-term',
         best_for: ["Trending markets", "Swing trading", "Reduced whipsaws", "Adaptive trend following"],
-        params: { period: 10, fast_ema: 2, slow_ema: 30, signal_threshold: 0.0 }
+        parameters: { period: 10, fast_ema: 2, slow_ema: 30, signal_threshold: 0.0 }
     },
     {
         id: 'multi_kama',
@@ -40,7 +40,7 @@ export const strategies: Strategy[] = [
         complexity: 'Intermediate',
         time_horizon: 'Medium-term',
         best_for: ["Trending markets", "Swing trading", "Reduced whipsaws", "Adaptive trend following"],
-        params: { short_period: 10, long_period: 15, fast_ema: 2, slow_ema: 30 }
+        parameters: { short_period: 10, long_period: 15, fast_ema: 2, slow_ema: 30 }
     },
     {
         id: 'donchian',
@@ -50,7 +50,7 @@ export const strategies: Strategy[] = [
         complexity: 'Beginner',
         time_horizon: 'Medium to Long-term',
         best_for: ["Trending markets", "Futures trading", "Long-term trend following", "Systematic trading"],
-        params: { entry_period: 20, exit_period: 10, use_both_sides: true }
+        parameters: { entry_period: 20, exit_period: 10, use_both_sides: true }
     },
     {
         id: 'donchian_atr',
@@ -60,7 +60,7 @@ export const strategies: Strategy[] = [
         complexity: 'Intermediate',
         time_horizon: 'Medium to Long-term',
         best_for: ["Risk-managed trend following", "Volatile markets", "Professional trading"],
-        params: { entry_period: 20, exit_period: 10, atr_period: 14, atr_multiplier: 2.0 }
+        parameters: { entry_period: 20, exit_period: 10, atr_period: 14, atr_multiplier: 2.0 }
     },
     {
         id: 'filtered_donchian',
@@ -70,7 +70,7 @@ export const strategies: Strategy[] = [
         complexity: 'Intermediate',
         time_horizon: 'Medium to Long-term',
         best_for: ["Reducing false breakouts", "Trend-aligned trading", "Lower drawdown tolerance"],
-        params: { entry_period: 20, exit_period: 10, trend_period: 50 }
+        parameters: { entry_period: 20, exit_period: 10, trend_period: 50 }
     },
     {
         id: 'parabolic_sar',
@@ -80,7 +80,7 @@ export const strategies: Strategy[] = [
         complexity: 'Intermediate',
         time_horizon: 'Medium-term',
         best_for: ["Trending markets", "Trailing stops", "Crypto/Volatile assets"],
-        params: { start: 0.02, increment: 0.02, maximum: 0.2 }
+        parameters: { start: 0.02, increment: 0.02, maximum: 0.2 }
     },
 
     // MOMENTUM
@@ -92,7 +92,7 @@ export const strategies: Strategy[] = [
         complexity: 'Beginner',
         time_horizon: 'Short-term',
         best_for: ["Range-bound markets", "Momentum trading", "Quick trades"],
-        params: { period: 14, oversold: 30, overbought: 70 }
+        parameters: { period: 14, oversold: 30, overbought: 70 }
     },
     {
         id: 'ts_momentum',
@@ -102,7 +102,7 @@ export const strategies: Strategy[] = [
         complexity: 'Intermediate',
         time_horizon: 'Short to Medium-term',
         best_for: ["Trending assets", "Futures trading", "Systematic strategies"],
-        params: { lookback: 12, holding_period: 1 }
+        parameters: { lookback: 12, holding_period: 1 }
     },
     {
         id: 'cs_momentum',
@@ -112,7 +112,7 @@ export const strategies: Strategy[] = [
         complexity: 'Intermediate',
         time_horizon: 'Medium-term',
         best_for: ["Stock portfolios", "ETF rotation", "Long-short strategies"],
-        params: { lookback: 6, top_pct: 0.2, bottom_pct: 0.2 }
+        parameters: { lookback: 6, top_pct: 0.2, bottom_pct: 0.2 }
     },
 
     // MEAN REVERSION
@@ -124,7 +124,7 @@ export const strategies: Strategy[] = [
         complexity: 'Intermediate',
         time_horizon: 'Short-term',
         best_for: ["Range-bound markets", "Mean reversion", "Swing trading"],
-        params: { period: 20, std_dev: 2.0 }
+        parameters: { period: 20, std_dev: 2.0 }
     },
     {
         id: 'pairs_trading',
@@ -134,7 +134,7 @@ export const strategies: Strategy[] = [
         complexity: 'Advanced',
         time_horizon: 'Short to Medium-term',
         best_for: ["Market-neutral strategies", "Statistical arbitrage", "Hedge funds"],
-        params: { lookback: 60, entry_threshold: 2.0, exit_threshold: 0.5 }
+        parameters: { lookback: 60, entry_threshold: 2.0, exit_threshold: 0.5 }
     },
 
     // VOLATILITY
@@ -146,7 +146,7 @@ export const strategies: Strategy[] = [
         complexity: 'Intermediate',
         time_horizon: 'Short-term',
         best_for: ["Volatile markets", "Breakout trading", "Crypto and commodities"],
-        params: { period: 20, std_dev: 2.0 }
+        parameters: { period: 20, std_dev: 2.0 }
     },
     {
         id: 'volatility_targeting',
@@ -156,7 +156,7 @@ export const strategies: Strategy[] = [
         complexity: 'Advanced',
         time_horizon: 'All timeframes',
         best_for: ["Risk management", "Portfolio optimization", "Professional trading"],
-        params: { target_vol: 0.15, lookback: 21 }
+        parameters: { target_vol: 0.15, lookback: 21 }
     },
     {
         id: 'dynamic_scaling',
@@ -166,7 +166,7 @@ export const strategies: Strategy[] = [
         complexity: 'Advanced',
         time_horizon: 'All timeframes',
         best_for: ["Risk-adjusted returns", "Drawdown management", "Adaptive trading"],
-        params: { base_size: 0.1, scaling_factor: 1.5 }
+        parameters: { base_size: 0.1, scaling_factor: 1.5 }
     },
     {
         id: 'variance_risk_premium',
@@ -176,7 +176,7 @@ export const strategies: Strategy[] = [
         complexity: 'Advanced',
         time_horizon: 'Medium-term',
         best_for: ["Options trading", "Volatility arbitrage", "Institutional strategies"],
-        params: { lookback: 30, threshold: 0.05 }
+        parameters: { lookback: 30, threshold: 0.05 }
     },
 
     // STATISTICAL ARBITRAGE
@@ -188,7 +188,7 @@ export const strategies: Strategy[] = [
         complexity: 'Advanced',
         time_horizon: 'Short to Medium-term',
         best_for: ["Hedge funds", "Market-neutral portfolios", "Statistical arbitrage"],
-        params: { lookback: 60, rebalance_freq: 20 }
+        parameters: { lookback: 60, rebalance_freq: 20 }
     },
 
     // MACHINE LEARNING
@@ -200,7 +200,7 @@ export const strategies: Strategy[] = [
         complexity: 'Advanced',
         time_horizon: 'Adaptable',
         best_for: ["Complex pattern recognition", "Multi-factor analysis"],
-        params: { n_estimators: 100, max_depth: 10, test_size: 0.2 }
+        parameters: { n_estimators: 100, max_depth: 10, test_size: 0.2 }
     },
     {
         id: 'ml_gradient_boosting',
@@ -210,7 +210,7 @@ export const strategies: Strategy[] = [
         complexity: 'Advanced',
         time_horizon: 'Adaptable',
         best_for: ["Complex patterns", "Incremental learning"],
-        params: { n_estimators: 100, learning_rate: 0.1, max_depth: 5 }
+        parameters: { n_estimators: 100, learning_rate: 0.1, max_depth: 5 }
     },
     {
         id: 'ml_svm',
@@ -220,7 +220,7 @@ export const strategies: Strategy[] = [
         complexity: 'Advanced',
         time_horizon: 'Adaptable',
         best_for: ["Regime classification", "Non-linear boundaries"],
-        params: { model_type: 'svm', test_size: 0.2 }
+        parameters: { model_type: 'svm', test_size: 0.2 }
     },
     {
         id: 'ml_logistic',
@@ -230,7 +230,7 @@ export const strategies: Strategy[] = [
         complexity: 'Intermediate',
         time_horizon: 'Adaptable',
         best_for: ["Baseline models", "Interpretability"],
-        params: { model_type: 'logistic_regression', test_size: 0.2 }
+        parameters: { model_type: 'logistic_regression', test_size: 0.2 }
     },
     {
         id: 'ml_lstm',
@@ -240,7 +240,7 @@ export const strategies: Strategy[] = [
         complexity: 'Expert',
         time_horizon: 'Short to Medium-term',
         best_for: ["Time-series forecasting", "Sequence patterns", "Complex temporal dependencies"],
-        params: { lookback: 10, classes: 2, epochs: 20 }
+        parameters: { lookback: 10, classes: 2, epochs: 20 }
     },
 
     // ADAPTIVE
@@ -248,11 +248,11 @@ export const strategies: Strategy[] = [
         id: 'adaptive_trend',
         name: 'Adaptive Trend Following',
         category: 'Adaptive Strategies',
-        description: 'Dynamically adjusts trend-following parameters based on market conditions and volatility.',
+        description: 'Dynamically adjusts trend-following params based on market conditions and volatility.',
         complexity: 'Advanced',
         time_horizon: 'Medium to Long-term',
         best_for: ["Changing market conditions", "Volatile markets", "Institutional trading"],
-        params: { lookback_period: 50, volatility_threshold: 0.02 }
+        parameters: { lookback_period: 50, volatility_threshold: 0.02 }
     },
     {
         id: 'kalman_filter',
@@ -262,7 +262,7 @@ export const strategies: Strategy[] = [
         complexity: 'Institutional',
         time_horizon: 'Intraday to Medium-term',
         best_for: ["Pairs Trading", "Statistical Arbitrage", "Mean Reversion"],
-        params: { entry_z: 2.0, exit_z: 0.5, transitory_std: 0.01, observation_std: 0.1, decay_factor: 0.99, min_obs: 20 }
+        parameters: { entry_z: 2.0, exit_z: 0.5, transitory_std: 0.01, observation_std: 0.1, decay_factor: 0.99, min_obs: 20 }
     },
 
     // OPTIONS
@@ -274,7 +274,7 @@ export const strategies: Strategy[] = [
         complexity: 'Intermediate',
         time_horizon: 'Short to Medium-term',
         best_for: ["Income generation", "Range-bound markets", "Conservative traders"],
-        params: { strategy_type: 'covered_call', strike_pct: 0.05, dte: 30 }
+        parameters: { strategy_type: 'covered_call', strike_pct: 0.05, dte: 30 }
     },
     {
         id: 'iron_condor',
@@ -284,7 +284,7 @@ export const strategies: Strategy[] = [
         complexity: 'Advanced',
         time_horizon: 'Short-term',
         best_for: ["Low volatility markets", "Income generation", "Range-bound stocks"],
-        params: { strategy_type: 'iron_condor', wing_width: 0.05, dte: 30 }
+        parameters: { strategy_type: 'iron_condor', wing_width: 0.05, dte: 30 }
     },
     {
         id: 'butterfly_spread',
@@ -294,7 +294,7 @@ export const strategies: Strategy[] = [
         complexity: 'Advanced',
         time_horizon: 'Short-term',
         best_for: ["Neutral outlook", "Low volatility expected", "Precise targets"],
-        params: { strategy_type: 'butterfly_spread', wing_width: 0.03, dte: 30 }
+        parameters: { strategy_type: 'butterfly_spread', wing_width: 0.03, dte: 30 }
     },
     {
         id: 'straddle',
@@ -304,6 +304,6 @@ export const strategies: Strategy[] = [
         complexity: 'Intermediate',
         time_horizon: 'Short-term',
         best_for: ["Earnings events", "High expected volatility", "Direction unknown"],
-        params: { strategy_type: 'straddle', dte: 30, iv_threshold: 0.30 }
+        parameters: { strategy_type: 'straddle', dte: 30, iv_threshold: 0.30 }
     }
 ];

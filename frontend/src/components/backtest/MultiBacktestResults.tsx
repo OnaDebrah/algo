@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { Activity, Target, TrendingDown, TrendingUp } from 'lucide-react';
 import MetricCard from "@/components/backtest/MetricCard";
-import { formatCurrency, formatPercent, toPrecision } from "@/utils/formatters";
+import {formatCurrency, formatDate, formatPercent, toPrecision} from "@/utils/formatters";
 
 const MultiBacktestResults = ({ results }: any) => {
     const [tradeFilter, setTradeFilter] = useState('all');
@@ -134,10 +134,10 @@ const MultiBacktestResults = ({ results }: any) => {
                                             </span>
                                         </td>
                                         <td className="px-6 py-4 text-[11px] text-slate-400 font-medium">
-                                            {trade.entry_time}
+                                            {formatDate(trade.entry_time)}
                                         </td>
                                         <td className="px-6 py-4 text-[11px] text-slate-400 font-medium">
-                                            {trade.exit_time}
+                                            {formatDate(trade.exit_time)}
                                         </td>
                                         <td className="px-6 py-4 text-right font-mono text-xs text-slate-300">
                                             {formatCurrency(trade.entry_price)}

@@ -8,8 +8,8 @@ import {
     UserLogin,
 
     // Backtest
-    BacktestRequest,
-    BacktestResponse,
+    SingleBacktestRequest,
+    SingleBacktestResponse,
     MultiAssetBacktestRequest,
     MultiAssetBacktestResponse,
     OptionsBacktestRequest,
@@ -170,16 +170,16 @@ export const auth = {
 // ==================== BACKTEST ====================
 export const backtest = {
     // Single asset backtest
-    runSingle: (data: BacktestRequest) =>
-        client.post<BacktestResponse>('/backtest/single', data),
-
-    // Multi-asset backtest
-    runMulti: (data: MultiAssetBacktestRequest) =>
-        client.post<MultiAssetBacktestResponse>('/backtest/multi', data),
+    runSingle: async (request: SingleBacktestRequest): Promise<SingleBacktestResponse> => {
+        return client.post<SingleBacktestResponse>('/backtest/single', request);
+    },
+    runMulti: async (request: MultiAssetBacktestRequest): Promise<MultiAssetBacktestResponse> => {
+        return client.post<MultiAssetBacktestResponse>('/backtest/multi', request);
+    },
 
     // Options backtest
-    runOptions: (data: OptionsBacktestRequest) =>
-        client.post<OptionsBacktestResponse>('/backtest/options', data),
+    runOptions: (request: OptionsBacktestRequest) =>
+        client.post<OptionsBacktestResponse>('/backtest/options', request),
 
     getHistory: (params?: {
         limit?: number;
@@ -290,7 +290,9 @@ export const market = {
 
 // ==================== STRATEGY ====================
 export const strategy = {
-    list: () => client.get<StrategyInfo[]>('/strategy/list'),
+    list: async (): Promise<StrategyInfo[]> => {
+        return client.get<StrategyInfo[]>('/strategy/list')
+    },
 
     get: (strategy_key: string) =>
         client.get<StrategyInfo>(`/strategy/${strategy_key}`),

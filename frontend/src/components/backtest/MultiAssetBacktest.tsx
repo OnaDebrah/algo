@@ -31,6 +31,7 @@ import {
     Settings,
     Shield,
     Sliders,
+    Star,
     Target,
     X,
     Zap
@@ -38,41 +39,15 @@ import {
 import React, {useMemo, useState} from "react";
 import StrategyParameterForm from "@/components/backtest/StrategyParameterForm";
 import MultiBacktestResults from "@/components/backtest/MultiBacktestResults";
-import {MultiAssetBacktestRequest, MultiAssetBacktestResponse, StrategyConfig} from "@/types/all_types";
-import {useMultiAssetBacktest} from '@/hooks/useMultiAssetBacktest';
+import {BacktestResult, MultiAssetConfig, Strategy} from "@/types/all_types";
 
 interface MultiAssetBacktestProps {
-    config: {
-        symbols: string[];
-        symbolInput: string;
-        strategy: string;
-        strategyMode: 'same' | 'different' | 'portfolio';
-        params: Record<string, unknown>;
-        period: string;
-        interval: string;
-        initialCapital: number;
-        allocations: Record<string, number>;
-        maxPositionPct: number;
-        riskLevel: string;
-    };
-    setConfig: (config: unknown) => void;
-    strategies: Array<{
-        id: string;
-        key: string;
-        name: string;
-        description: string;
-        category: string;
-        parameters: Record<string, unknown>;
-        complexity: string;
-        time_horizon?: string;
-        best_for?: string[];
-        monthly_return?: number;
-        drawdown?: number;
-        sharpe_ratio?: number;
-    }>;
-    runBacktest: (request: MultiAssetBacktestRequest) => Promise<MultiAssetBacktestResponse>;
+    config: MultiAssetConfig;
+    setConfig: (config: MultiAssetConfig) => void;
+    strategies: Strategy[];
+    runBacktest: () => Promise<void>;
     isRunning: boolean;
-    results: MultiAssetBacktestResponse | null;
+    results: BacktestResult | null;
     addSymbol: () => void;
     removeSymbol: (symbol: string) => void;
 }
@@ -86,13 +61,14 @@ const MultiAssetBacktest: React.FC<MultiAssetBacktestProps> = ({
                                                                    results,
                                                                    addSymbol,
                                                                    removeSymbol
-                                                               }) => {
-    const [activeCategory, setActiveCategory] = useState<string>('All');
+                                                               }: MultiAssetBacktestProps) => {
+    const [activeCategory, setActiveCategory] = useState('All');
     const [showAdvanced, setShowAdvanced] = useState(false);
     const [hasRunBacktest, setHasRunBacktest] = useState(false);
     const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
     const [showParameters, setShowParameters] = useState(true);
     const [allocationMode, setAllocationMode] = useState<'equal' | 'manual' | 'optimized'>('equal');
+    const [searchQuery, setSearchQuery] = useState('');
 
     // Find the currently active strategy
     const selectedStrategy = useMemo(() =>
@@ -107,79 +83,34 @@ const MultiAssetBacktest: React.FC<MultiAssetBacktestProps> = ({
     );
 
     // Filter strategies by category
-    const filteredStrategies = useMemo(() =>
-            activeCategory === 'All'
-                ? strategies
-                : strategies.filter((s) => s.category === activeCategory),
-        [activeCategory, strategies]
-    );
+    const filteredStrategies = useMemo(() => {
+        let filtered = activeCategory === 'All'
+            ? strategies
+            : strategies.filter((s) => s.category === activeCategory);
 
-    const {runMultiBacktest} = useMultiAssetBacktest();
+        if (searchQuery) {
+            const query = searchQuery.toLowerCase();
+            filtered = filtered.filter(s =>
+                s.name.toLowerCase().includes(query) ||
+                s.description.toLowerCase().includes(query) ||
+                s.category.toLowerCase().includes(query)
+            );
+        }
 
-    // Update parameters
-    const handleParamChange = (key: string, val: unknown) => {
+        return filtered;
+    }, [strategies, activeCategory, searchQuery]);
+
+
+    const handleParamChange = (key: string, val: any) => {
         setConfig({
             ...config,
             params: {...(config.params || {}), [key]: val}
         });
     };
 
-    // Handle backtest execution
-    // Update the handleRunBacktest function in MultiAssetBacktest.tsx
     const handleRunBacktest = async () => {
-        setHasRunBacktest(false);
-
-        // Transform frontend config to backend request
-        const backendRequest: MultiAssetBacktestRequest = {
-            symbols: config.symbols,
-            strategy_configs: {}, // We need to build this based on strategyMode
-            allocation_method: allocationMode === 'equal' ? 'equal' :
-                allocationMode === 'manual' ? 'custom' : 'optimized',
-            custom_allocations: {},
-            initial_capital: config.initialCapital || 100000,
-            period: config.period || '1y',
-            interval: config.interval || '1d',
-            commission_rate: 0.001,
-            slippage_rate: 0.0005,
-        };
-
-        // Handle strategy assignment based on mode
-        if (config.strategyMode === 'same' && selectedStrategy) {
-            // Same strategy for all symbols
-            const strategyConfigs: Record<string, StrategyConfig> = {};
-            config.symbols.forEach((symbol: string) => {
-                strategyConfigs[symbol] = {
-                    strategy_key: selectedStrategy.key || selectedStrategy.id,
-                    parameters: config.params || selectedStrategy.parameters || {},
-                };
-            });
-            backendRequest.strategy_configs = strategyConfigs;
-        } else if (config.strategyMode === 'different') {
-            // Different strategies per symbol (you need to implement this selection)
-            // For now, use the same strategy for all
-            const strategyConfigs: Record<string, StrategyConfig> = {};
-            config.symbols.forEach((symbol: string) => {
-                strategyConfigs[symbol] = {
-                    strategy_key: selectedStrategy?.key || 'moving_average_crossover',
-                    parameters: config.params || {},
-                };
-            });
-            backendRequest.strategy_configs = strategyConfigs;
-        }
-
-        // Handle custom allocations
-        if (allocationMode === 'manual' && config.allocations) {
-            backendRequest.custom_allocations = config.allocations;
-        }
-
-        try {
-            const result = await runMultiBacktest(backendRequest);
-            setHasRunBacktest(true);
-            return result;
-        } catch (err) {
-            console.error('Backtest failed:', err);
-            setHasRunBacktest(false);
-        }
+        await runBacktest();
+        setHasRunBacktest(true);
     };
 
     // Asset suggestions
@@ -287,7 +218,7 @@ const MultiAssetBacktest: React.FC<MultiAssetBacktestProps> = ({
                                             ...config,
                                             symbolInput: e.target.value.toUpperCase()
                                         })}
-                                        onKeyPress={(e) => e.key === 'Enter' && addSymbol()}
+                                        onKeyUp={(e) => e.key === 'Enter' && addSymbol()}
                                         className="w-full pl-12 pr-4 py-3.5 bg-slate-800/50 border border-slate-700/50 rounded-xl focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20 outline-none transition-all placeholder:text-slate-600 font-mono text-sm text-slate-200"
                                     />
                                 </div>
@@ -482,6 +413,20 @@ const MultiAssetBacktest: React.FC<MultiAssetBacktestProps> = ({
                             </div>
 
                             <div className="flex gap-3">
+                                {/* Search Bar */}
+                                <div className="relative group">
+                                    <Search
+                                        className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-600 group-focus-within:text-violet-500 transition-colors"
+                                        size={16}
+                                    />
+                                    <input
+                                        type="text"
+                                        placeholder="Search strategies..."
+                                        value={searchQuery}
+                                        onChange={(e) => setSearchQuery(e.target.value)}
+                                        className="pl-10 pr-4 py-2.5 bg-slate-800/60 border border-slate-700/50 rounded-xl focus:border-violet-500 outline-none text-sm text-slate-200 w-48"
+                                    />
+                                </div>
                                 {/* Category Filter */}
                                 <div className="flex items-center space-x-2">
                                     <Filter size={14} className="text-slate-600"/>
@@ -527,7 +472,11 @@ const MultiAssetBacktest: React.FC<MultiAssetBacktestProps> = ({
                                 return (
                                     <button
                                         key={strat.id}
-                                        onClick={() => setConfig({...config, strategy: strat.id, params: strat.parameters})}
+                                        onClick={() => setConfig({
+                                            ...config,
+                                            strategy: strat.id,
+                                            params: strat.parameters
+                                        })}
                                         className={`group relative overflow-hidden p-4 rounded-xl border transition-all text-left ${isSelected
                                             ? 'border-violet-500 bg-gradient-to-br from-violet-500/10 to-purple-500/10 shadow-xl shadow-violet-500/20'
                                             : 'border-slate-700/50 bg-slate-800/40 hover:border-slate-600/50 hover:bg-slate-800/60'
@@ -579,7 +528,7 @@ const MultiAssetBacktest: React.FC<MultiAssetBacktestProps> = ({
                         </div>
                     </div>
 
-                    {/* Enhanced Backtest Configuration */}
+                    {/* Backtest Configuration */}
                     {config.symbols.length >= 2 && (
                         <div
                             className="bg-gradient-to-br from-slate-900/90 to-slate-800/90 backdrop-blur-xl border border-slate-700/50 rounded-2xl p-6 shadow-xl">
@@ -650,7 +599,7 @@ const MultiAssetBacktest: React.FC<MultiAssetBacktestProps> = ({
                                             return (
                                                 <button
                                                     key={mode.id}
-                                                    onClick={() => setConfig({...config, strategyMode: mode.id})}
+                                                    onClick={() => setConfig({...config, strategyMode: mode.id || '' || ''})}
                                                     className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold uppercase transition-all ${config.strategyMode === mode.id
                                                         ? 'bg-gradient-to-r from-violet-600 to-purple-600 text-white shadow-lg'
                                                         : 'text-slate-500 hover:text-slate-300 hover:bg-slate-800'
@@ -664,7 +613,7 @@ const MultiAssetBacktest: React.FC<MultiAssetBacktestProps> = ({
                                     </div>
                                 </div>
 
-                                {/* Different Strategy Mode - Enhanced Per Asset Table */}
+                                {/* Different Strategy Mode - Per Asset Table */}
                                 {config.strategyMode === 'different' && (
                                     <div
                                         className="bg-slate-800/40 rounded-xl border border-slate-700/50 overflow-hidden">
@@ -906,7 +855,8 @@ const MultiAssetBacktest: React.FC<MultiAssetBacktestProps> = ({
                         )}
 
                         {/* Enhanced Parameter Editor Card */}
-                        {selectedStrategy && selectedStrategy.parameters && Object.keys(selectedStrategy.parameters).length > 0 && (
+                        {selectedStrategy && selectedStrategy.parameters !== undefined && (
+
                             <div
                                 className="bg-gradient-to-br from-slate-900/90 to-slate-800/90 backdrop-blur-xl border border-slate-700/50 rounded-2xl p-6 shadow-xl">
                                 <div className="flex items-center justify-between mb-6">
@@ -1025,19 +975,5 @@ const MultiAssetBacktest: React.FC<MultiAssetBacktestProps> = ({
         </div>
     );
 };
-
-// Star component for ratings
-const Star = ({size, className}: { size: number; className: string }) => (
-    <svg
-        width={size}
-        height={size}
-        viewBox="0 0 24 24"
-        fill="currentColor"
-        className={className}
-    >
-        <polygon
-            points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
-    </svg>
-);
 
 export default MultiAssetBacktest;
