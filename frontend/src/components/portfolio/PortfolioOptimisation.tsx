@@ -79,7 +79,7 @@ const PortfolioOptimization = () => {
     // API Response States
     const [optimizationResult, setOptimizationResult] = useState<OptimizationResponse | null>(null);
     const [frontierData, setFrontierData] = useState<FrontierPoint[]>([]);
-    const [allocation, setAllocation] = useState<AllocationItem[]>([]);
+    const [allocation, setAllocation] = useState<any[]>([]);
     const [error, setError] = useState<string | null>(null);
 
     const selectedMethod = OPTIMIZATION_METHODS.find(m => m.id === method);
@@ -536,7 +536,7 @@ const PortfolioOptimization = () => {
                                                     border: '1px solid #1e293b',
                                                     borderRadius: '12px'
                                                 }}
-                                                formatter={(val: number) => [`${(val * 100).toFixed(2)}%`, 'Allocation']}
+                                                formatter={(val: number | undefined) => [`${((val ?? 0) * 100).toFixed(2)}%`, 'Allocation']}
                                             />
                                         </RePie>
                                     </ResponsiveContainer>
@@ -564,9 +564,10 @@ const PortfolioOptimization = () => {
                                     <BarChart3 size={14} className="text-blue-500"/>
                                     Efficient Frontier
                                 </h4>
-                                <Info size={14} className="text-slate-600 cursor-help"
-                                      title="The efficient frontier shows optimal portfolios. Your selected portfolio is highlighted in orange."/>
-                            </div>
+                                <Info size={14} className="text-slate-600 cursor-help">
+                                    <title>The efficient frontier shows optimal portfolios. Your selected portfolio is highlighted in orange.</title>
+                                </Info>
+                                </div>
                             <div className="h-[280px]">
                                 {frontierData.length > 0 ? (
                                     <ResponsiveContainer width="100%" height="100%">

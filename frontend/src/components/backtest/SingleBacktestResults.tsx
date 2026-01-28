@@ -1,11 +1,22 @@
 'use client'
 import React, {useState} from 'react';
-import {Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis} from 'recharts';
+import {
+    Area,
+    AreaChart,
+    CartesianGrid,
+    ComposedChart,
+    ResponsiveContainer,
+    Scatter,
+    Tooltip,
+    XAxis,
+    YAxis
+} from 'recharts';
 import {Activity, Download, Target, TrendingDown, TrendingUp} from 'lucide-react';
 import MetricCard from "@/components/backtest/MetricCard";
-import {formatCurrency, formatDate, formatPercent, toPrecision} from "@/utils/formatters";
+import {formatCurrency, formatPercent, toPrecision} from "@/utils/formatters";
+import {BacktestResult, Trade} from "@/types/all_types";
 
-const SingleBacktestResults = ({results}: any) => {
+const SingleBacktestResults = ({results}: { results: BacktestResult }) => {
     const [tradeFilter, setTradeFilter] = useState('all');
     const trades = results.trades || [];
 
@@ -59,6 +70,126 @@ const SingleBacktestResults = ({results}: any) => {
                     </AreaChart>
                 </ResponsiveContainer>
             </div>
+
+            {/* Price Chart with Trade Markers */}
+            {results.price_data && results.price_data.length > 0 && (
+                <div
+                    className="bg-gradient-to-br from-slate-900/90 to-slate-800/90 backdrop-blur-xl border border-slate-700/50 rounded-2xl p-6 shadow-xl">
+                    <div className="flex justify-between items-center mb-6">
+                        <div>
+                            <h3 className="text-xl font-semibold text-slate-100">Price Action with Trade Signals</h3>
+                            <p className="text-xs text-slate-500 mt-1">Entry (🟢) and Exit (🔴) points overlaid on price
+                                movement</p>
+                        </div>
+                    </div>
+                    <ResponsiveContainer width="100%" height={400}>
+                        <ComposedChart data={(() => {
+                            // Prepare price data with trade markers
+                            const priceData = results.price_data.map((point) => {
+                                const timestamp: string = new Date(point.timestamp).toLocaleDateString();
+                                const buyTrades: Trade[] = trades.filter((t: Trade) =>
+                                    t.order_type === 'BUY' &&
+                                    new Date(t.timestamp).toLocaleDateString() === timestamp
+                                );
+                                const sellTrades: Trade[] = trades.filter((t: Trade) =>
+                                    t.order_type === 'SELL' &&
+                                    new Date(t.timestamp).toLocaleDateString() === timestamp
+                                );
+
+                                return {
+                                    timestamp,
+                                    close: point.close,
+                                    buyPrice: buyTrades.length > 0 ? buyTrades[0].price : null,
+                                    sellPrice: sellTrades.length > 0 ? sellTrades[0].price : null,
+                                };
+                            });
+                            return priceData;
+                        })()}>
+                            <defs>
+                                <linearGradient id="colorPrice" x1="0" y1="0" x2="0" y2="1">
+                                    <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3}/>
+                                    <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
+                                </linearGradient>
+                            </defs>
+                            <CartesianGrid strokeDasharray="3 3" stroke="#334155" opacity={0.3}/>
+                            <XAxis
+                                dataKey="timestamp"
+                                stroke="#64748b"
+                                style={{fontSize: '11px', fontWeight: 500}}
+                                interval="preserveStartEnd"
+                                minTickGap={50}
+                            />
+                            <YAxis
+                                stroke="#64748b"
+                                tickFormatter={(value) => `$${value.toFixed(2)}`}
+                                style={{fontSize: '12px', fontWeight: 500}}
+                                domain={['auto', 'auto']}
+                            />
+                            <Tooltip
+                                contentStyle={{
+                                    backgroundColor: '#1e293b',
+                                    border: '1px solid #334155',
+                                    borderRadius: '12px',
+                                    padding: '12px'
+                                }}
+                                formatter={(value: number | undefined, name: string | undefined) => {
+                                    if (value === undefined) return ['', name];
+
+                                    if (name === 'close') return [formatCurrency(value), 'Close Price'];
+                                    if (name === 'buyPrice') return [formatCurrency(value), 'BUY'];
+                                    if (name === 'sellPrice') return [formatCurrency(value), 'SELL'];
+
+                                    return [value.toString(), name];
+                                }}
+                                labelStyle={{color: '#94a3b8', fontWeight: 600, marginBottom: '4px'}}
+                            />
+
+                            {/* Price line */}
+                            <Area
+                                type="monotone"
+                                dataKey="close"
+                                stroke="#3b82f6"
+                                strokeWidth={2}
+                                fillOpacity={1}
+                                fill="url(#colorPrice)"
+                            />
+
+                            {/* Buy signals (green) */}
+                            <Scatter
+                                dataKey="buyPrice"
+                                fill="#10b981"
+                                shape="circle"
+                                r={6}
+                            />
+
+                            {/* Sell signals (red) */}
+                            <Scatter
+                                dataKey="sellPrice"
+                                fill="#ef4444"
+                                shape="circle"
+                                r={6}
+                            />
+                        </ComposedChart>
+                    </ResponsiveContainer>
+
+                    {/* Legend */}
+                    <div className="flex items-center justify-center space-x-6 mt-4">
+                        <div className="flex items-center space-x-2">
+                            <div className="w-3 h-3 rounded-full bg-blue-500"></div>
+                            <span className="text-xs text-slate-400 font-medium">Price</span>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                            <div className="w-3 h-3 rounded-full bg-emerald-500"></div>
+                            <span className="text-xs text-slate-400 font-medium">Buy Signal</span>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                            <div className="w-3 h-3 rounded-full bg-red-500"></div>
+                            <span className="text-xs text-slate-400 font-medium">Sell Signal</span>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {/* 3. Detailed Trade Ledger Table */}
             <div
                 className="bg-slate-900/50 backdrop-blur-xl border border-slate-800/50 rounded-2xl overflow-hidden shadow-2xl">
@@ -88,21 +219,21 @@ const SingleBacktestResults = ({results}: any) => {
                         <thead>
                         <tr className="bg-white/[0.01] text-[10px] font-black text-slate-500 uppercase tracking-widest border-b border-slate-800/50">
                             <th className="px-6 py-4">Asset</th>
-                            <th className="px-6 py-4">Side</th>
-                            <th className="px-6 py-4">Entry Date</th>
-                            <th className="px-6 py-4">Exit Date</th>
-                            <th className="px-6 py-4 text-right">Entry Price</th>
-                            <th className="px-6 py-4 text-right">Exit Price</th>
-                            <th className="px-6 py-4 text-right">Size</th>
-                            <th className="px-6 py-4 text-right">P&L</th>
+                            <th className="px-6 py-4">Type</th>
+                            <th className="px-6 py-4">Timestamp</th>
+                            <th className="px-6 py-4">Strategy</th>
+                            <th className="px-6 py-4 text-right">Price</th>
+                            <th className="px-6 py-4 text-right">Quantity</th>
+                            <th className="px-6 py-4 text-right">Commission</th>
+                            <th className="px-6 py-4 text-right">Profit</th>
                         </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-800/30">
-                        {trades.length > 0 ? trades.map((trade: any, idx: number) => {
-                            const isWin = trade.pnl >= 0;
-                            // Basic filter logic
-                            if (tradeFilter === 'profitable' && !isWin) return null;
-                            if (tradeFilter === 'loss' && isWin) return null;
+                        {trades.length > 0 ? trades.map((trade, idx: number) => {
+                            const isWin = trade.profit && trade.profit >= 0;
+                            const isClosed = trade.profit !== null && trade.profit !== undefined;
+                            if (tradeFilter === 'profitable' && (!isClosed || !isWin)) return null;
+                            if (tradeFilter === 'loss' && (!isClosed || isWin)) return null;
 
                             return (
                                 <tr key={idx} className="hover:bg-white/[0.02] transition-colors group">
@@ -117,32 +248,38 @@ const SingleBacktestResults = ({results}: any) => {
                                     </td>
                                     <td className="px-6 py-4">
                                             <span
-                                                className={`px-2 py-1 rounded text-[9px] font-black uppercase tracking-tighter ${trade.side === 'LONG' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-red-500/10 text-red-400'
+                                                className={`px-2 py-1 rounded text-[9px] font-black uppercase tracking-tighter ${trade.order_type === 'BUY' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-red-500/10 text-red-400'
                                                 }`}>
-                                                {trade.side}
+                                                {trade.order_type}
                                             </span>
                                     </td>
                                     <td className="px-6 py-4 text-[11px] text-slate-400 font-medium">
-                                        {formatDate(trade.entry_time)}
+                                        {trade.timestamp}
                                     </td>
                                     <td className="px-6 py-4 text-[11px] text-slate-400 font-medium">
-                                        {formatDate(trade.exit_time)}
+                                        {trade.strategy}
                                     </td>
                                     <td className="px-6 py-4 text-right font-mono text-xs text-slate-300">
-                                        {formatCurrency(trade.entry_price)}
-                                    </td>
-                                    <td className="px-6 py-4 text-right font-mono text-xs text-slate-300">
-                                        {formatCurrency(trade.exit_price)}
+                                        {formatCurrency(trade.price)}
                                     </td>
                                     <td className="px-6 py-4 text-right font-mono text-xs text-slate-500">
                                         {toPrecision(trade.quantity)}
                                     </td>
-                                    <td className={`px-6 py-4 text-right font-bold text-xs ${isWin ? 'text-emerald-400' : 'text-red-400'}`}>
+                                    <td className="px-6 py-4 text-right font-mono text-xs text-slate-500">
+                                        {formatCurrency(trade.commission)}
+                                    </td>
+                                    <td className={`px-6 py-4 text-right font-bold text-xs ${isClosed ? (isWin ? 'text-emerald-400' : 'text-red-400') : 'text-slate-500'}`}>
                                         <div className="flex flex-col items-end">
-                                            <span>{isWin ? '+' : ''}{formatCurrency(trade.pnl)}</span>
-                                            <span className="text-[9px] font-medium opacity-60">
-                                                    ({formatPercent(trade.pnl)})
-                                                </span>
+                                            {isClosed ? (
+                                                <>
+                                                    <span>{isWin ? '+' : ''}{formatCurrency(trade.profit || 0)}</span>
+                                                    <span className="text-[9px] font-medium opacity-60">
+                                                        ({trade.profit_pct?.toFixed(2) || '0.00'}%)
+                                                    </span>
+                                                </>
+                                            ) : (
+                                                <span className="text-[10px] uppercase">Open</span>
+                                            )}
                                         </div>
                                     </td>
                                 </tr>

@@ -4,11 +4,11 @@ import React from "react";
 import {getStrategyColor} from "@/components/optionsdesk/utils/colors";
 import {formatCurrency, formatPercent} from "@/utils/formatters";
 import {STRATEGY_TEMPLATES} from "@/components/optionsdesk/contants/strategyTemplates";
-import {StrategyTemplate} from "@/types/all_types";
+import {StrategyAnalysis, StrategyTemplate} from "@/types/all_types";
 
 interface CompareTabProps {
-    selectedStrategies: any,
-    strategyAnalysis: any,
+    selectedStrategies: StrategyTemplate[],
+    strategyAnalysis: StrategyAnalysis[],
     addStrategyToCompare: any,
     removeStrategyFromCompare: any,
     profitLossData: any,
@@ -62,7 +62,7 @@ const CompareTabs: React.FC<CompareTabProps> = ({
             {strategyAnalysis.length > 0 && (
                 <>
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                        {strategyAnalysis.map((analysis) => (
+                        {strategyAnalysis.map((analysis: StrategyAnalysis) => (
                             <div key={analysis.id}
                                  className="bg-slate-900/50 border border-slate-800/50 rounded-xl p-6 relative">
                                 <button
@@ -76,25 +76,25 @@ const CompareTabs: React.FC<CompareTabProps> = ({
                                     <div className="flex justify-between items-center">
                                         <span className="text-xs text-slate-400">Max Profit</span>
                                         <span className="text-sm font-bold text-emerald-400">
-                                                        {formatCurrency(analysis.analysis.max_profit)}
+                                                        {formatCurrency(analysis.analysis?.max_profit ?? 0)}
                                                     </span>
                                     </div>
                                     <div className="flex justify-between items-center">
                                         <span className="text-xs text-slate-400">Max Loss</span>
                                         <span className="text-sm font-bold text-red-400">
-                                                        {formatCurrency(Math.abs(analysis.analysis.max_loss))}
+                                                        {formatCurrency(Math.abs(analysis.analysis?.max_loss ?? 0))}
                                                     </span>
                                     </div>
                                     <div className="flex justify-between items-center">
                                         <span className="text-xs text-slate-400">Win Prob</span>
                                         <span className="text-sm font-bold text-amber-400">
-                                                        {formatPercent(analysis.analysis.probability_of_profit)}
+                                                        {formatPercent(analysis.analysis?.probability_of_profit ?? 0)}
                                                     </span>
                                     </div>
                                     <div className="flex justify-between items-center">
                                         <span className="text-xs text-slate-400">Initial Cost</span>
                                         <span className="text-sm font-bold text-blue-400">
-                                                        {formatCurrency(analysis.analysis.initial_cost)}
+                                                        {formatCurrency(analysis.analysis?.initial_cost ?? 0)}
                                                     </span>
                                     </div>
                                 </div>
@@ -110,11 +110,11 @@ const CompareTabs: React.FC<CompareTabProps> = ({
                                     <ResponsiveContainer width="100%" height="100%">
                                         <RadarChart data={strategyAnalysis.map(s => ({
                                             subject: s.name,
-                                            delta: Math.abs(s.greeks.delta),
-                                            gamma: Math.abs(s.greeks.gamma),
-                                            theta: Math.abs(s.greeks.theta),
-                                            vega: Math.abs(s.greeks.vega),
-                                            rho: Math.abs(s.greeks.rho)
+                                            delta: Math.abs(s.greeks?.delta ?? 0),
+                                            gamma: Math.abs(s.greeks?.gamma ?? 0),
+                                            theta: Math.abs(s.greeks?.theta ?? 0),
+                                            vega: Math.abs(s.greeks?.vega ?? 0),
+                                            rho: Math.abs(s.greeks?.rho ?? 0)
                                         }))}>
                                             <PolarGrid/>
                                             <PolarAngleAxis dataKey="subject"/>

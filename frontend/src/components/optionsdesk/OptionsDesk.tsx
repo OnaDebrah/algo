@@ -5,23 +5,30 @@ import {
     BacktestConfig,
     ChainRequest,
     ChainResponse,
+    EquityCurvePoint,
+    GreeksChartData,
     GreeksRequest,
     GreeksResponse,
+    HistoricalDataPoint,
     MLForecast,
     MonteCarloRequest,
     MonteCarloResponse,
     OptionLeg,
     OptionsBacktestRequest,
+    PayoffPoint,
     PortfolioStatsRequest,
+    RecentTrades,
     RiskMetricsRequest,
     RiskMetricsResponse,
+    StrategyAnalysis,
     StrategyAnalysisRequest,
     StrategyAnalysisResponse,
     StrategyComparisonRequest,
     StrategyComparisonResponse,
     StrategyTemplate,
     StrikeOptimizerRequest,
-    StrikeOptimizerResponse
+    StrikeOptimizerResponse,
+    Trade
 } from '@/types/all_types';
 import Header from './Header';
 import MLForecastPanel from './MLForecastPanel';
@@ -33,7 +40,6 @@ import VolatilityTab from './tabs/VolatilityTab';
 import RiskTab from './tabs/RiskTab';
 import Tabs from "@/components/optionsdesk/tabs/Tabs";
 import {market, options, regime} from "@/utils/api";
-import {AxiosResponse} from "axios";
 
 const OptionsDesk = () => {
     const [selectedSymbol, setSelectedSymbol] = useState('SPY');
@@ -45,17 +51,17 @@ const OptionsDesk = () => {
     const [mlForecast, setMlForecast] = useState<MLForecast | null>(null);
     const [customLegs, setCustomLegs] = useState<OptionLeg[]>([]);
     const [selectedStrategies, setSelectedStrategies] = useState<StrategyTemplate[]>([]);
-    const [strategyAnalysis, setStrategyAnalysis] = useState<any[]>([]);
+    const [strategyAnalysis, setStrategyAnalysis] = useState<StrategyAnalysis[]>([]);
     const [comparisonData, setComparisonData] = useState<any[]>([]);
     const [profitLossData, setProfitLossData] = useState<any[]>([]);
-    const [greeksChartData, setGreeksChartData] = useState<any[]>([]);
+    const [greeksChartData, setGreeksChartData] = useState<GreeksChartData[]>([]);
     const [monteCarloDistribution, setMonteCarloDistribution] = useState<any>(null);
     const [riskMetrics, setRiskMetrics] = useState<any>(null);
     const [portfolioStats, setPortfolioStats] = useState<any>(null);
-    const [strikeOptimizer, setStrikeOptimizer] = useState<any>(null);
+    const [strikeOptimizer, setStrikeOptimizer] = useState<StrikeOptimizerResponse | null >(null);
     const [backtestResults, setBacktestResults] = useState<any>(null);
     const [equityData, setEquityData] = useState<any[]>([]);
-    const [recentTrades, setRecentTrades] = useState<any[]>([]);
+    const [recentTrades, setRecentTrades] = useState<RecentTrades[]>([]);
 
     const [newLeg, setNewLeg] = useState<Partial<OptionLeg>>({
         type: 'call',
@@ -103,7 +109,7 @@ const OptionsDesk = () => {
                 symbol: selectedSymbol,
                 expiration: null
             }
-            const response: AxiosResponse<ChainResponse> = await options.getChain(request);
+            const response: ChainResponse = await options.getChain(request);
 
             if (response && response.expiration_dates && response.expiration_dates.length > 0) {
                 setOptionsChain(prevData => ({
@@ -133,7 +139,7 @@ const OptionsDesk = () => {
             };
 
             const response = await options.getChain(request);
-             // @ts-expect-error - this is the normal behaviour of interceptor
+
             setOptionsChain(response);
             setCurrentPrice(response.current_price);
 
@@ -160,8 +166,11 @@ const OptionsDesk = () => {
 
             const confidence = regimeData.current_regime.confidence || 0.8;
 
-            const historicalData = await market.getHistorical(selectedSymbol, {period: '1y', interval: '1d'});
-            const recentPrices = historicalData.data.slice(-30).map(d => d.close);
+            const historicalData: HistoricalDataPoint[] = await market.getHistorical(selectedSymbol, {
+                period: '1y',
+                interval: '1d'
+            });
+            const recentPrices = historicalData.slice(-30).map(d => d.close);
             const avgPrice = recentPrices.reduce((a, b) => a + b, 0) / recentPrices.length;
             const volatility = Math.sqrt(recentPrices.reduce((sum, p) => sum + Math.pow(p - avgPrice, 2), 0) / recentPrices.length);
             //TODO add more metrics...
@@ -203,7 +212,7 @@ const OptionsDesk = () => {
                 })),
                 volatility: 0.2
             };
-             // @ts-expect-error - this is the normal behavior of interceptor
+
             return await options.calculateGreeks(request);
 
         } catch (error) {
@@ -262,7 +271,7 @@ const OptionsDesk = () => {
         }
     };
 
-    const compareStrategies = async (strategies:  Record<string, any>[]): Promise<StrategyComparisonResponse | null> => {
+    const compareStrategies = async (strategies: Record<string, any>[]): Promise<StrategyComparisonResponse | null> => {
         try {
             const request: StrategyComparisonRequest = {
                 symbol: selectedSymbol,
@@ -354,7 +363,7 @@ const OptionsDesk = () => {
                 strike: Number(newLeg.strike),
                 quantity: Number(newLeg.quantity) || 1,
                 expiration: newLeg.expiration || '',
-                premium: undefined,
+                premium: newLeg.premium,
                 delta: greeks?.delta || 0,
                 gamma: greeks?.gamma || 0,
                 theta: greeks?.theta || 0,
@@ -394,9 +403,9 @@ const OptionsDesk = () => {
                 const strategyAnalysisItem = {
                     id: strategy.id,
                     name: strategy.name,
-                    analysis,
-                    greeks,
-                    riskMetrics: risk || undefined
+                    analysis: analysis,
+                    greeks: greeks,
+                    riskMetrics: risk
                 };
 
                 setSelectedStrategies([...selectedStrategies, strategy]);
@@ -408,7 +417,7 @@ const OptionsDesk = () => {
                 }
 
                 if (analysis.payoff_diagram) {
-                    const plData = analysis.payoff_diagram.map(point => ({
+                    const plData = analysis.payoff_diagram.map((point: PayoffPoint) => ({
                         price: point.price,
                         profit: point.payoff,
                         strategy: strategy.name
@@ -424,8 +433,8 @@ const OptionsDesk = () => {
         }
     };
 
-    const removeStrategyFromCompare = (id: string) => {
-        setSelectedStrategies(selectedStrategies.filter(s => s.id !== id));
+    const removeStrategyFromCompare: (id: string) => void = (id: string) => {
+        setSelectedStrategies(selectedStrategies.filter((s: StrategyTemplate) => s.id !== id));
         setStrategyAnalysis(strategyAnalysis.filter(s => s.id !== id));
     };
 
@@ -438,14 +447,14 @@ const OptionsDesk = () => {
             const analysis = await analyzeStrategy('custom', customLegs);
             const risk = await calculateRiskMetrics(analysis?.initial_cost || 0);
             const monteCarlo = await runMonteCarlo();
-            const strikes = await optimizeStrikes('custom');
+            const strikes: StrikeOptimizerResponse | null = await optimizeStrikes('custom');
 
             if (greeks && analysis) {
                 setRiskMetrics(risk);
                 setMonteCarloDistribution(monteCarlo);
                 setStrikeOptimizer(strikes);
 
-                const chartData = [{
+                const chartData: GreeksChartData[] = [{
                     name: 'Portfolio',
                     delta: greeks.delta,
                     gamma: greeks.gamma,
@@ -497,20 +506,20 @@ const OptionsDesk = () => {
             if (response) {
                 setBacktestResults(response);
 
-                const formattedCurve = response.equity_curve.map((point: any) => ({
-                    date: new Date(point.date).toLocaleDateString(),
+                const formattedCurve = response.equity_curve.map((point: EquityCurvePoint) => ({
+                    date: new Date(point.timestamp).toLocaleDateString(),
                     equity: point.equity,
-                    drawdown: 0,
+                    drawdown: point.drawdown,
                     cash: point.equity
                 }));
                 setEquityData(formattedCurve);
 
-                const formattedTrades = response.trades.map((t: any) => ({
+                const formattedTrades: RecentTrades[] = response.trades.map((trade: Trade) => ({
                     symbol: selectedSymbol,
-                    strategy: t.strategy,
-                    profit: t.pnl || 0,
-                    time: new Date(t.date).toLocaleDateString(),
-                    status: (t.pnl || 0) >= 0 ? 'win' : 'loss'
+                    strategy: trade.strategy,
+                    profit: trade.profit || 0,
+                    time: new Date(trade.timestamp).toLocaleDateString(),
+                    status: (trade.profit || 0) >= 0 ? 'win' : 'loss'
                 }));
                 setRecentTrades(formattedTrades);
 

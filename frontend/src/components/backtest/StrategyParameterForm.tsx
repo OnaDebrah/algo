@@ -7,9 +7,23 @@ const StrategyParameterForm = ({ params, values, onChange }: {
     values: Record<string, any>,
     onChange: (key: string, val: any) => void
 }) => {
+    // Safety check: ensure params is a valid object (not array, not null)
+    const safeParams = typeof params === 'object' && !Array.isArray(params) && params !== null
+        ? params
+        : {};
+
+    // If no parameters, show a message
+    if (Object.keys(safeParams).length === 0) {
+        return (
+            <div className="p-6 text-center">
+                <p className="text-sm text-slate-500">This strategy has no configurable parameters.</p>
+            </div>
+        );
+    }
+
     return (
         <div className="space-y-4">
-            {Object.entries(params).map(([key, defaultValue]) => {
+            {Object.entries(safeParams).map(([key, defaultValue]) => {
                 const currentVal = values[key] ?? defaultValue;
                 const label = key.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
 

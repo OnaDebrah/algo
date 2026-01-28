@@ -3,7 +3,7 @@ import {CartesianGrid, Line, LineChart, ReferenceLine, ResponsiveContainer, Tool
 import React from "react";
 import {formatCurrency, formatPercent} from "@/utils/formatters";
 import {getGreekColor} from "@/components/optionsdesk/utils/colors";
-import {OptionLeg} from "@/types/all_types";
+import {GreeksChartData, OptionLeg} from "@/types/all_types";
 
 interface BuilderTabProps {
     customLegs: OptionLeg[],
@@ -15,7 +15,7 @@ interface BuilderTabProps {
     profitLossData: any,
     riskMetrics: any,
     strikeOptimizer: any,
-    greeksChartData: any,
+    greeksChartData: GreeksChartData[],
     currentPrice: number,
     isLoading: boolean,
 }

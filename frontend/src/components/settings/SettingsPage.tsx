@@ -1,21 +1,24 @@
-import React, { useEffect, useState } from "react";
+import React, {useEffect, useState} from "react";
 import {
-    Bell, Check,
+    Bell,
+    Check,
     Copy,
     CreditCard,
     Database,
-    Globe, Info,
+    Globe,
+    Info,
     Key,
     Landmark,
+    Loader2,
     Percent,
     RefreshCw,
     Save,
-    ShieldCheck, TrendingDown,
-    User,
-    Loader2
+    ShieldCheck,
+    TrendingDown,
+    User
 } from "lucide-react";
-import { settings } from "@/utils/api";
-import { UserSettings, BacktestSettings, GeneralSettings } from "@/types/api";
+import {settings} from "@/utils/api";
+import {UserSettings} from "@/types/all_types";
 
 const SettingsPage = () => {
     const [activeTab, setActiveTab] = useState('profile');
@@ -36,12 +39,12 @@ const SettingsPage = () => {
         setIsLoading(true);
         try {
             const response = await settings.get();
-            if (response.data) {
-                setUserSettings(response.data);
+            if (response) {
+                setUserSettings(response);
                 // Initialize local state from fetched settings
-                setDataSource(response.data.backtest.data_source);
-                setSlippage(response.data.backtest.slippage);
-                setCommission(response.data.backtest.commission);
+                setDataSource(response.backtest.data_source ?? "YAHOO");
+                setSlippage(response.backtest.slippage ?? 0.0001);
+                setCommission(response.backtest.commission ?? 0.0001);
             }
         } catch (error) {
             console.error("Failed to fetch settings:", error);

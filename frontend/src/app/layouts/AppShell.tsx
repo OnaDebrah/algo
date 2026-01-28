@@ -97,8 +97,8 @@ const AppShell: React.FC<AppShellProps> = () => {
   // Health check
   const checkHealth = useCallback(async () => {
     try {
-      const healthData = await api.health.check();
-      setServerStatus(healthData.status === 0 || healthData.status === 1);
+      const healthData: {status: string, timestamp: string} = await api.health.check();
+      setServerStatus(healthData.status === '0' || healthData.status === '1');
     } catch (error) {
       console.error("Health check failed:", error);
       setServerStatus(false);

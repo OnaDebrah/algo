@@ -32,10 +32,10 @@ const LiveExecution = () => {
     const fetchStatus = async () => {
         try {
             const response = await live.getStatus();
-            if (response.data) {
-                setIsConnected(response.data.is_connected);
-                setEngineStatus(response.data.engine_status);
-                setActiveBroker(response.data.active_broker);
+            if (response) {
+                setIsConnected(response.is_connected);
+                setEngineStatus(response.engine_status);
+                setActiveBroker(response.active_broker);
             }
         } catch (err) {
             console.error("Failed to fetch live status:", err);
@@ -45,8 +45,8 @@ const LiveExecution = () => {
     const fetchOrders = async () => {
         try {
             const response = await live.getOrders();
-            if (response.data) {
-                setOrders(response.data);
+            if (response) {
+                setOrders(response);
             }
         } catch (err) {
             console.error("Failed to fetch orders:", err);

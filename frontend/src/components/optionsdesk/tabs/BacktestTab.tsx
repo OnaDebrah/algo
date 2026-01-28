@@ -2,7 +2,7 @@ import {DollarSign, LineChart as LineChartIcon, Loader2, Play, Settings} from "l
 import {Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis} from "recharts";
 import React from "react";
 import {STRATEGY_TEMPLATES} from "@/components/optionsdesk/contants/strategyTemplates";
-import {BacktestConfig, BacktestResult} from "@/types/all_types";
+import {BacktestConfig, BacktestResult, RecentTrades} from "@/types/all_types";
 
 interface BackTestTabProps {
     backtestConfig: BacktestConfig,
@@ -10,7 +10,7 @@ interface BackTestTabProps {
     runStrategyBacktest: () => Promise<void> ,
     backtestResults: BacktestResult,
     equityData: any,
-    recentTrades: any,
+    recentTrades: RecentTrades[],
     isLoading: boolean,
 }
 

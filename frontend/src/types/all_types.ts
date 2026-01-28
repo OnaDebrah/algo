@@ -102,7 +102,7 @@ export interface BacktestResult {
     equity_curve?: EquityCurvePoint[];
     trades?: Trade[];
     price_data?: Record<string, any>[] | null;
-    symbol_stats?: Record<string, SymbolStats>
+    symbol_stats: Record<string, SymbolStats>
 }
 
 export interface EquityCurvePoint {
@@ -220,6 +220,7 @@ export interface MultiAssetBacktestResponse {
     result: MultiAssetBacktestResult;
     equity_curve: EquityCurvePoint[];
     trades: Trade[];
+    price_data: Record<string, any>[] | null;
 }
 
 // ==================== OPTIONS BACKTEST ====================
@@ -365,7 +366,6 @@ export interface QuoteData {
     changePercent: number;
     volume: number;
     marketCap: number | null;
-    // Add other fields as needed
 }
 
 export interface HistoricalDataPoint {
@@ -390,6 +390,14 @@ export interface SearchResult {
     name: string;
     type: string;
     exchange: string;
+}
+
+export interface RecentTrades {
+    symbol: string;
+    strategy: string;
+    profit: number;
+    time: string;
+    status: string
 }
 
 // ==================== MARKET REGIME ====================
@@ -471,6 +479,98 @@ export interface FeaturesResponse {
     symbol: string;
     current_regime: string;
     top_features: FeatureImportance[];
+    timestamp: string;
+}
+
+export interface RegimeHistoryResponse {
+    symbol: string;
+    history: Array<{
+        timestamp: string;
+        regime: string;
+        confidence: number;
+        strength: number;
+        allocation: StrategyAllocation;
+        method: string;
+        features?: Record<string, number>;
+    }>;
+    total_entries: number;
+    period?: string;
+    timestamp?: string;
+}
+
+export interface RegimeReportResponse {
+    symbol: string;
+    report: {
+        current_regime: string;
+        current_confidence: number;
+        current_strength: number;
+        current_allocation: StrategyAllocation;
+        regime_statistics?: {
+            counts: Record<string, number>;
+            percentages: Record<string, number>;
+            avg_durations: Record<string, number>;
+        };
+        duration_prediction?: {
+            expected_duration: number;
+            median_duration: number;
+            probability_end_next_week: number;
+        };
+        change_warning?: RegimeWarning;
+        history_length: number;
+    };
+    timestamp: string;
+    period_analyzed?: string;
+    data_points?: number;
+}
+
+export interface RegimeWarning {
+    has_warning: boolean;
+    warning_level: string;
+    expected_transition: string;
+    confidence: number;
+    reasons: string[];
+    suggested_actions: string[];
+    timeframe: string;
+}
+
+export interface RegimeWarningResponse {
+    symbol: string;
+    current_regime: string;
+    warning: RegimeWarning;
+    threshold_used?: number;
+    timestamp: string;
+}
+
+export interface RegimeBatchResponse {
+    results: Array<{
+        symbol: string;
+        regime: string;
+        confidence: number;
+        strategy_allocation: StrategyAllocation;
+        regime_strength: number;
+        method: string;
+        timestamp: string;
+        scores: Record<string, number>;
+    }>;
+    errors: Array<{
+        symbol: string;
+        error: string;
+        timestamp: string;
+    }>;
+    total_requested: number;
+    successful: number;
+    failed: number;
+    timestamp: string;
+}
+
+export interface RegimeTrainResponse {
+    symbol: string;
+    success: boolean;
+    model_id: string;
+    training_samples: number;
+    test_accuracy?: number;
+    training_date: string;
+    message: string;
     timestamp: string;
 }
 
@@ -795,7 +895,7 @@ export interface OptionLegRequest {
     strike: number;
     expiration: string;
     quantity: number;
-    premium: number | null;
+    premium?: number | null;
 }
 
 export interface ChainRequest {
@@ -827,6 +927,15 @@ export interface GreeksResponse {
     rho: number;
 }
 
+export interface GreeksChartData {
+    name: string;
+    delta: number;
+    gamma: number;
+    theta: number;
+    vega: number;
+    rho: number;
+}
+
 export interface PayoffPoint {
     price: number;
     payoff: number;
@@ -850,6 +959,14 @@ export interface StrategyAnalysisResponse {
     max_loss_condition: string;
     probability_of_profit: number;
     payoff_diagram: PayoffPoint[];
+}
+
+export interface StrategyAnalysis {
+    id: string,
+    name: string,
+    analysis: StrategyAnalysisResponse | null,
+    greeks: GreeksResponse | null,
+    riskMetrics: RiskMetricsResponse | null,
 }
 
 export interface StrategyComparisonRequest {

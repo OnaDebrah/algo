@@ -85,19 +85,18 @@ const AIAdvisor = () => {
     const handleGenerate = async () => {
         setIsGenerating(true);
         try {
-            const res = await advisor.generateGuide(quizAnswers);
-            if (res.data) {
-                // Map backend response to UI format
-                const recs = res.data.recommendations.map((r: Recommendation) => ({
+            const response = await advisor.generateGuide(quizAnswers);
+            if (response) {
+                const recs = response.recommendations.map((r: Recommendation) => ({
                     ...r,
-                    icon: getIcon(r.icon), // Map string to component
+                    icon: getIcon(r.icon),
                     theme: {
                         ...r.theme,
-                        icon: getThemeIcon(r.theme.icon, r.theme.text) // Map theme icon
+                        icon: getThemeIcon(r.theme.icon, r.theme.text)
                     }
                 }));
                 setRecommendations(recs);
-                setRadarData(res.data.radar_data);
+                setRadarData(response.radar_data);
                 setView('results');
             }
         } catch (e) {

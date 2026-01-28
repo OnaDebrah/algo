@@ -30,7 +30,7 @@ import {
 } from 'lucide-react';
 import SingleBacktestResults from "@/components/backtest/SingleBacktestResults";
 import StrategyParameterForm from "@/components/backtest/StrategyParameterForm";
-import {BacktestResult, ScalarParam, SingleAssetConfig, Strategy} from "@/types/all_types";
+import {BacktestResult, SingleAssetConfig, Strategy} from "@/types/all_types";
 import {formatCurrency} from "@/utils/formatters";
 
 interface SingleAssetBacktestProps {

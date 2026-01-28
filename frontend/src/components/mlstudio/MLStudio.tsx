@@ -1,35 +1,29 @@
 'use client'
-import React, { useEffect, useMemo, useState } from 'react';
+import React, {useEffect, useMemo, useState} from 'react';
 import {
-    BarChart2,
     BarChart3,
     BrainCircuit,
     CheckCircle2,
     Clock,
     Cloud,
-    Copy,
     Cpu,
     Cpu as CpuIcon,
-    Download,
     Filter,
     Info,
-    Layers,
     LineChart,
+    Loader2,
     Maximize2,
     Minus,
     PieChart,
     Play,
     Plus,
-    RefreshCcw,
     Settings2,
-    Sparkles,
     Target,
     Trash2,
+    TreePine,
     TrendingUp,
     Upload,
-    Zap,
-    TreePine,
-    Loader2
+    Zap
 } from "lucide-react";
 import {
     Area,
@@ -45,8 +39,8 @@ import {
     XAxis,
     YAxis
 } from 'recharts';
-import { mlstudio } from '@/utils/api';
-import { MLModel, TrainingConfig } from '@/types/api';
+import {mlstudio} from '@/utils/api';
+import {MLModel, TrainingConfig} from '@/types/all_types';
 
 const MLStudio = () => {
     const [isTraining, setIsTraining] = useState(false);
@@ -63,15 +57,15 @@ const MLStudio = () => {
     // Training configuration
     const [config, setConfig] = useState<TrainingConfig>({
         symbol: 'AAPL',
-        modelType: 'Random Forest',
-        trainingPeriod: '1Y',
-        testSize: 20,
+        model_type: 'Random Forest',
+        training_period: '1Y',
+        test_size: 20,
         epochs: 50,
-        batchSize: 32,
-        learningRate: 0.001,
+        batch_size: 32,
+        learning_rate: 0.001,
         threshold: 0.6,
-        useFeatureEngineering: true,
-        useCrossValidation: true
+        use_feature_engineering: true,
+        use_cross_validation: true
     });
 
     // Load models on mount
@@ -82,14 +76,14 @@ const MLStudio = () => {
     const fetchModels = async () => {
         setIsLoadingModels(true);
         try {
-            const response = await mlstudio.list();
-            if (response.data) {
+            const response = await mlstudio.getModels();
+            if (response) {
                 // Map backend snake_case to frontend camelCase if needed, 
                 // but our api.ts defines camelCase for fields that come as snake_case from Pydantic
                 // The API needs to return matching keys or we need to map them here.
                 // Assuming Pydantic v2 or aliasing works, or we map manually. 
                 // Let's assume manual mapping for safety given the previous schema.
-                const mappedModels = response.data.map((m: any) => ({
+                const mappedModels = response.map((m) => ({
                     ...m,
                     testAccuracy: m.test_accuracy,
                     overfitScore: m.overfit_score,
@@ -136,27 +130,27 @@ const MLStudio = () => {
             // Map frontend config to backend expected format (snake_case)
             const backendConfig = {
                 symbol: config.symbol,
-                model_type: config.modelType,
-                training_period: config.trainingPeriod,
-                test_size: config.testSize,
+                model_type: config.model_type,
+                training_period: config.training_period,
+                test_size: config.test_size,
                 epochs: config.epochs,
-                batch_size: config.batchSize,
-                learning_rate: config.learningRate,
+                batch_size: config.batch_size,
+                learning_rate: config.learning_rate,
                 threshold: config.threshold,
-                use_feature_engineering: config.useFeatureEngineering,
-                use_cross_validation: config.useCrossValidation
+                use_feature_engineering: config.use_feature_engineering,
+                use_cross_validation: config.use_cross_validation
             };
 
-            const response = await mlstudio.train(backendConfig);
+            const response = await mlstudio.trainModel(backendConfig);
             setTrainingProgress(100);
 
-            if (response.data) {
+            if (response) {
                 const newModel = {
-                    ...response.data,
-                    testAccuracy: (response.data as any).test_accuracy,
-                    overfitScore: (response.data as any).overfit_score,
-                    trainingTime: (response.data as any).training_time,
-                    featureImportance: (response.data as any).feature_importance,
+                    ...response,
+                    testAccuracy: response.test_accuracy,
+                    overfitScore: response.overfit_score,
+                    trainingTime: response.training_time,
+                    featureImportance: response.feature_importance,
                 };
 
                 setModels(prev => [newModel, ...prev]);
@@ -177,7 +171,7 @@ const MLStudio = () => {
     const handleDeploy = async (modelId: string) => {
         setIsDeploying(true);
         try {
-            await mlstudio.deploy(modelId);
+            await mlstudio.deployModel(modelId);
             setModels(prev => prev.map(model =>
                 model.id === modelId
                     ? { ...model, status: 'deployed' as const }
@@ -192,7 +186,7 @@ const MLStudio = () => {
 
     const handleDelete = async (modelId: string) => {
         try {
-            await mlstudio.delete(modelId);
+            await mlstudio.deleteModel(modelId);
             setModels(prev => prev.filter(model => model.id !== modelId));
             if (selectedModel?.id === modelId) {
                 const nextModel = models.find(m => m.id !== modelId);
@@ -208,7 +202,7 @@ const MLStudio = () => {
         setConfig({
             ...config,
             symbol: model.symbol,
-            modelType: model.type
+            model_type: model.type
         });
         setExpandedSection('config');
         window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -316,8 +310,8 @@ const MLStudio = () => {
                                         {(['Random Forest', 'Gradient Boosting', 'LSTM', 'XGBoost'] as const).map((type) => (
                                             <button
                                                 key={type}
-                                                onClick={() => setConfig({ ...config, modelType: type })}
-                                                className={`p-3 rounded-xl border transition-all ${config.modelType === type
+                                                onClick={() => setConfig({ ...config, model_type: type })}
+                                                className={`p-3 rounded-xl border transition-all ${config.model_type === type
                                                     ? 'bg-fuchsia-500/10 border-fuchsia-500/50 text-fuchsia-400'
                                                     : 'bg-slate-900/50 border-slate-800 text-slate-400 hover:border-slate-700'
                                                     }`}
@@ -340,8 +334,8 @@ const MLStudio = () => {
                                         {(['1M', '3M', '6M', '1Y', '5Y'] as const).map((period) => (
                                             <button
                                                 key={period}
-                                                onClick={() => setConfig({ ...config, trainingPeriod: period })}
-                                                className={`px-3 py-2 rounded-lg text-xs transition-all ${config.trainingPeriod === period
+                                                onClick={() => setConfig({ ...config, training_period: period })}
+                                                className={`px-3 py-2 rounded-lg text-xs transition-all ${config.training_period === period
                                                     ? 'bg-fuchsia-500 text-white'
                                                     : 'bg-slate-800 text-slate-400 hover:bg-slate-700'
                                                     }`}
@@ -358,15 +352,15 @@ const MLStudio = () => {
                                 <div className="space-y-2">
                                     <label className="text-xs font-medium text-slate-400 flex items-center gap-2">
                                         <PieChart size={12} />
-                                        Test Set Size: {config.testSize}%
+                                        Test Set Size: {config.test_size}%
                                     </label>
                                     <input
                                         type="range"
                                         min="10"
                                         max="40"
                                         step="5"
-                                        value={config.testSize}
-                                        onChange={(e) => setConfig({ ...config, testSize: parseInt(e.target.value) })}
+                                        value={config.test_size}
+                                        onChange={(e) => setConfig({ ...config, test_size: parseInt(e.target.value) })}
                                         className="w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-fuchsia-500"
                                     />
                                     <div className="flex justify-between text-[10px] text-slate-500">
@@ -376,7 +370,7 @@ const MLStudio = () => {
                                     </div>
                                 </div>
 
-                                {config.modelType === 'LSTM' && (
+                                {config.model_type === 'LSTM' && (
                                     <div className="grid grid-cols-2 gap-4">
                                         <div className="space-y-2">
                                             <label className="text-xs font-medium text-slate-400">Epochs</label>
@@ -392,8 +386,8 @@ const MLStudio = () => {
                                         <div className="space-y-2">
                                             <label className="text-xs font-medium text-slate-400">Batch Size</label>
                                             <select
-                                                value={config.batchSize}
-                                                onChange={(e) => setConfig({ ...config, batchSize: parseInt(e.target.value) })}
+                                                value={config.batch_size}
+                                                onChange={(e) => setConfig({ ...config, batch_size: parseInt(e.target.value) })}
                                                 className="w-full bg-slate-950/70 border border-slate-800 rounded-xl py-2 px-3 text-sm text-slate-300 focus:border-fuchsia-500 outline-none"
                                             >
                                                 <option value="16">16</option>
@@ -414,19 +408,19 @@ const MLStudio = () => {
                                                 min="0.0001"
                                                 max="0.01"
                                                 step="0.0001"
-                                                value={config.learningRate}
-                                                onChange={(e) => setConfig({ ...config, learningRate: parseFloat(e.target.value) })}
+                                                value={config.learning_rate}
+                                                onChange={(e) => setConfig({ ...config, learning_rate: parseFloat(e.target.value) })}
                                                 className="w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-fuchsia-500"
                                             />
-                                            <div className="text-xs text-slate-500 text-center">{config.learningRate.toFixed(4)}</div>
+                                            <div className="text-xs text-slate-500 text-center">{config.learning_rate.toFixed(4)}</div>
                                         </div>
 
                                         <div className="flex items-center gap-3">
                                             <label className="flex items-center gap-2 text-xs text-slate-400">
                                                 <input
                                                     type="checkbox"
-                                                    checked={config.useFeatureEngineering}
-                                                    onChange={(e) => setConfig({ ...config, useFeatureEngineering: e.target.checked })}
+                                                    checked={config.use_feature_engineering}
+                                                    onChange={(e) => setConfig({ ...config, use_feature_engineering: e.target.checked })}
                                                     className="rounded accent-fuchsia-500"
                                                 />
                                                 Feature Engineering
@@ -434,8 +428,8 @@ const MLStudio = () => {
                                             <label className="flex items-center gap-2 text-xs text-slate-400">
                                                 <input
                                                     type="checkbox"
-                                                    checked={config.useCrossValidation}
-                                                    onChange={(e) => setConfig({ ...config, useCrossValidation: e.target.checked })}
+                                                    checked={config.use_cross_validation}
+                                                    onChange={(e) => setConfig({ ...config, use_cross_validation: e.target.checked })}
                                                     className="rounded accent-fuchsia-500"
                                                 />
                                                 5-Fold CV
@@ -447,7 +441,7 @@ const MLStudio = () => {
                         </div>
 
                         {/* Feature Engineering Options */}
-                        {config.useFeatureEngineering && (
+                        {config.use_feature_engineering && (
                             <div className="mt-6 p-4 bg-slate-950/50 border border-slate-800 rounded-xl">
                                 <div className="flex items-center gap-2 mb-3">
                                     <Filter className="text-fuchsia-500" size={14} />
@@ -559,7 +553,7 @@ const MLStudio = () => {
                                 <div className="text-center p-3 bg-slate-900/30 rounded-lg">
                                     <div className="text-xl font-bold text-purple-400">
                                         {models.length > 0
-                                            ? (models.reduce((acc, m) => acc + m.trainingTime, 0) / models.length / 60).toFixed(1)
+                                            ? (models.reduce((acc, m) => acc + m.training_time, 0) / models.length / 60).toFixed(1)
                                             : '0.0'
                                         }
                                     </div>
@@ -613,14 +607,14 @@ const MLStudio = () => {
                         <div className="bg-gradient-to-br from-slate-900/40 to-slate-950/40 border border-slate-800/50 p-5 rounded-2xl">
                             <p className="text-xs font-medium text-slate-500 mb-2">Test Accuracy</p>
                             <div className="flex items-end gap-2">
-                                <span className="text-2xl font-bold text-pink-400">{(selectedModel.testAccuracy * 100).toFixed(1)}%</span>
+                                <span className="text-2xl font-bold text-pink-400">{(selectedModel.test_accuracy * 100).toFixed(1)}%</span>
                                 <span className="text-xs text-slate-500 mb-1">±1.8%</span>
                             </div>
                         </div>
                         <div className="bg-gradient-to-br from-slate-900/40 to-slate-950/40 border border-slate-800/50 p-5 rounded-2xl">
                             <p className="text-xs font-medium text-slate-500 mb-2">Overfit Score</p>
                             <div className="flex items-center justify-between">
-                                <span className="text-2xl font-bold text-emerald-400">{(selectedModel.overfitScore * 100).toFixed(1)}%</span>
+                                <span className="text-2xl font-bold text-emerald-400">{(selectedModel.overfit_score * 100).toFixed(1)}%</span>
                                 <CheckCircle2 className="text-emerald-500" size={20} />
                             </div>
                         </div>
@@ -642,11 +636,11 @@ const MLStudio = () => {
                                     <BarChart3 className="text-fuchsia-500" size={18} />
                                     Feature Importance
                                 </h4>
-                                <span className="text-xs text-slate-500">{selectedModel.featureImportance.length} features</span>
+                                <span className="text-xs text-slate-500">{selectedModel.feature_importance.length} features</span>
                             </div>
                             <div className="h-[300px]">
                                 <ResponsiveContainer width="100%" height="100%">
-                                    <BarChart data={selectedModel.featureImportance} layout="vertical">
+                                    <BarChart data={selectedModel.feature_importance} layout="vertical">
                                         <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" horizontal={false} />
                                         <XAxis type="number" domain={[0, 0.35]} hide />
                                         <YAxis
@@ -660,7 +654,7 @@ const MLStudio = () => {
                                             contentStyle={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '8px' }}
                                         />
                                         <Bar dataKey="importance" radius={[0, 4, 4, 0]}>
-                                            {selectedModel.featureImportance.map((entry, index) => (
+                                            {selectedModel.feature_importance.map((entry, index) => (
                                                 <Cell
                                                     key={`cell-${index}`}
                                                     fill={`url(#gradient-${index})`}
@@ -668,7 +662,7 @@ const MLStudio = () => {
                                             ))}
                                         </Bar>
                                         <defs>
-                                            {selectedModel.featureImportance.map((_, index) => (
+                                            {selectedModel.feature_importance.map((_, index) => (
                                                 <linearGradient key={`gradient-${index}`} id={`gradient-${index}`} x1="0" y1="0" x2="1" y2="0">
                                                     <stop offset="0%" stopColor="#d946ef" stopOpacity={0.8} />
                                                     <stop offset="100%" stopColor="#ec4899" stopOpacity={0.8} />

@@ -23,105 +23,13 @@ import {
     AllocationResponse,
     CurrentRegimeResponse,
     FeatureImportance,
-    FeaturesResponse,
-    RegimeStrengthResponse,
+    FeaturesResponse, RegimeBatchResponse, RegimeData, RegimeHistoryResponse, RegimeReportResponse,
+    RegimeStrengthResponse, RegimeTrainResponse, RegimeWarning, RegimeWarningResponse,
     StrategyAllocation,
     TransitionProbability,
     TransitionResponse
 } from '@/types/all_types';
 import {formatPercent} from "@/utils/formatters";
-
-interface RegimeHistoryResponse {
-    symbol: string;
-    history: Array<{
-        timestamp: string;
-        regime: string;
-        confidence: number;
-        strength: number;
-        allocation: StrategyAllocation;
-        method: string;
-        features?: Record<string, number>;
-    }>;
-    total_entries: number;
-    period?: string;
-    timestamp?: string;
-}
-
-interface RegimeReportResponse {
-    symbol: string;
-    report: {
-        current_regime: string;
-        current_confidence: number;
-        current_strength: number;
-        current_allocation: StrategyAllocation;
-        regime_statistics?: {
-            counts: Record<string, number>;
-            percentages: Record<string, number>;
-            avg_durations: Record<string, number>;
-        };
-        duration_prediction?: {
-            expected_duration: number;
-            median_duration: number;
-            probability_end_next_week: number;
-        };
-        change_warning?: RegimeWarning;
-        history_length: number;
-    };
-    timestamp: string;
-    period_analyzed?: string;
-    data_points?: number;
-}
-
-interface RegimeWarning {
-    has_warning: boolean;
-    warning_level: string;
-    expected_transition: string;
-    confidence: number;
-    reasons: string[];
-    suggested_actions: string[];
-    timeframe: string;
-}
-
-interface RegimeWarningResponse {
-    symbol: string;
-    current_regime: string;
-    warning: RegimeWarning;
-    threshold_used?: number;
-    timestamp: string;
-}
-
-interface RegimeBatchResponse {
-    results: Array<{
-        symbol: string;
-        regime: string;
-        confidence: number;
-        strategy_allocation: StrategyAllocation;
-        regime_strength: number;
-        method: string;
-        timestamp: string;
-        scores: Record<string, number>;
-    }>;
-    errors: Array<{
-        symbol: string;
-        error: string;
-        timestamp: string;
-    }>;
-    total_requested: number;
-    successful: number;
-    failed: number;
-    timestamp: string;
-}
-
-interface RegimeTrainResponse {
-    symbol: string;
-    success: boolean;
-    model_id: string;
-    training_samples: number;
-    test_accuracy?: number;
-    training_date: string;
-    message: string;
-    timestamp: string;
-}
 
 const RegimeDetector = () => {
     const [selectedSymbol, setSelectedSymbol] = useState('SPY');

@@ -767,7 +767,7 @@ def generated_strategy(data):
                                                                 borderRadius: '8px',
                                                                 color: '#e2e8f0'
                                                             }}
-                                                            formatter={(value) => [`$${value.toLocaleString()}`, 'Value']}
+                                                            formatter={(value) => [`$${(value ?? 0).toLocaleString()}`, 'Value']}
                                                         />
                                                         <Area
                                                             type="monotone"

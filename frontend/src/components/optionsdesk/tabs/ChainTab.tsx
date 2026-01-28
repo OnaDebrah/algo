@@ -1,13 +1,14 @@
 import React from 'react';
 import { Layers } from "lucide-react";
 import {getGreekColor} from "@/components/optionsdesk/utils/colors";
+import {ChainResponse} from "@/types/all_types";
 
 interface ChainTabProps {
     selectedSymbol: string;
     currentPrice: number;
     selectedExpiry: string;
     setSelectedExpiry: (expiry: string) => void;
-    optionsChain: any;
+    optionsChain: ChainResponse;
 }
 
 const ChainTab: React.FC<ChainTabProps> = ({
@@ -57,7 +58,7 @@ const ChainTab: React.FC<ChainTabProps> = ({
                                 </tr>
                             </thead>
                             <tbody>
-                                {optionsChain.calls?.slice(0, 10).map((call: any, idx: number) => (
+                                {optionsChain.calls?.slice(0, 10).map((call, idx: number) => (
                                     <tr key={idx} className="border-b border-slate-800/50 hover:bg-slate-800/30">
                                         <td className="py-2 text-slate-300">${call.strike}</td>
                                         <td className="py-2 text-emerald-400">${call.bid?.toFixed(2)}</td>
@@ -89,7 +90,7 @@ const ChainTab: React.FC<ChainTabProps> = ({
                                 </tr>
                             </thead>
                             <tbody>
-                                {optionsChain.puts?.slice(0, 10).map((put: any, idx: number) => (
+                                {optionsChain.puts?.slice(0, 10).map((put, idx: number) => (
                                     <tr key={idx} className="border-b border-slate-800/50 hover:bg-slate-800/30">
                                         <td className="py-2 text-slate-300">${put.strike}</td>
                                         <td className="py-2 text-emerald-400">${put.bid?.toFixed(2)}</td>

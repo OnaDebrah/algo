@@ -5,7 +5,7 @@ import {formatCurrency, formatPercent} from "@/utils/formatters";
 
 import {useEffect, useState} from "react";
 import {analytics, portfolio, strategy} from "@/utils/api";
-import {PortfolioTrade, StrategyInfo} from "@/types/all_types";
+import {Portfolio, PortfolioTrade, StrategyInfo} from "@/types/all_types";
 
 const Dashboard = () => {
     const [metrics, setMetrics] = useState({
@@ -23,10 +23,10 @@ const Dashboard = () => {
         const fetchDashboardData = async () => {
             try {
                 setLoading(true);
-                const portfoliosRes = await portfolio.list();
+                const response: Portfolio[] = await portfolio.list();
 
-                if (portfoliosRes.data && portfoliosRes.data.length > 0) {
-                    const pid = portfoliosRes.data[0].id;
+                if (response && response.length > 0) {
+                    const pid = response[0].id;
 
                     // 1. Get Performance metrics
                     const perfRes = await analytics.getPerformance(pid, {period: "1M"});
@@ -43,8 +43,8 @@ const Dashboard = () => {
 
                     // 2. Get Recent Trades
                     const tradesRes = await portfolio.getTrades(pid);
-                    if (tradesRes.data) {
-                        setRecentTrades(tradesRes.data.slice(0, 5).map((t: PortfolioTrade) => ({
+                    if (tradesRes) {
+                        setRecentTrades(tradesRes.slice(0, 5).map((t: PortfolioTrade) => ({
                             symbol: t.symbol,
                             strategy: t.strategy || 'Manual',
                             profit: t.profit || 0,
@@ -55,8 +55,8 @@ const Dashboard = () => {
 
                     // 3. Get Strategies
                     const strategiesRes = await strategy.list();
-                    if (strategiesRes.data) {
-                        setActiveStrategies(strategiesRes.data.slice(0, 4).map((s: StrategyInfo) => ({
+                    if (strategiesRes) {
+                        setActiveStrategies(strategiesRes.slice(0, 4).map((s: StrategyInfo) => ({
                             name: s.name,
                             performance: s.historical_return || 0,
                             trades: s.total_trades || 0,

@@ -475,7 +475,9 @@ const MultiAssetBacktest: React.FC<MultiAssetBacktestProps> = ({
                                         onClick={() => setConfig({
                                             ...config,
                                             strategy: strat.id,
-                                            params: strat.parameters
+                                            params: typeof strat.parameters === 'object' && !Array.isArray(strat.parameters)
+                                                ? strat.parameters
+                                                : {}
                                         })}
                                         className={`group relative overflow-hidden p-4 rounded-xl border transition-all text-left ${isSelected
                                             ? 'border-violet-500 bg-gradient-to-br from-violet-500/10 to-purple-500/10 shadow-xl shadow-violet-500/20'
@@ -599,7 +601,7 @@ const MultiAssetBacktest: React.FC<MultiAssetBacktestProps> = ({
                                             return (
                                                 <button
                                                     key={mode.id}
-                                                    onClick={() => setConfig({...config, strategyMode: mode.id || '' || ''})}
+                                                    onClick={() => setConfig({...config, strategyMode: mode.id as "same" | "different" | "portfolio"})}
                                                     className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold uppercase transition-all ${config.strategyMode === mode.id
                                                         ? 'bg-gradient-to-r from-violet-600 to-purple-600 text-white shadow-lg'
                                                         : 'text-slate-500 hover:text-slate-300 hover:bg-slate-800'
@@ -641,8 +643,15 @@ const MultiAssetBacktest: React.FC<MultiAssetBacktestProps> = ({
                                                             </div>
                                                         </div>
                                                         <select
+                                                            value={config.strategies[symbol] || config.strategy}
+                                                            onChange={(e) => setConfig({
+                                                                ...config,
+                                                                strategies: {
+                                                                    ...config.strategies,
+                                                                    [symbol]: e.target.value
+                                                                }
+                                                            })}
                                                             className="bg-slate-800/50 border border-slate-700/50 rounded-xl px-4 py-2.5 text-sm text-slate-300 focus:border-violet-500 outline-none min-w-[180px]"
-                                                            defaultValue={strategies[0]?.id}
                                                         >
                                                             {strategies.map((st) => (
                                                                 <option key={st.id} value={st.id}>{st.name}</option>

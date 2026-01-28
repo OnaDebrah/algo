@@ -132,6 +132,7 @@ const BacktestPage = () => {
                         avg_loss: result.avg_loss,
                         profit_factor: result.profit_factor,
                         initial_capital: result.initial_capital,
+                        symbol_stats: result.symbol_stats,
                         equity_curve: response.equity_curve ? response.equity_curve.map((equityCurvePoint: EquityCurvePoint) => ({
                             timestamp: new Date(equityCurvePoint.timestamp).toLocaleDateString(), // Format timestamp
                             equity: equityCurvePoint.equity,
@@ -158,23 +159,58 @@ const BacktestPage = () => {
                 }
             } else {
                 // Multi-asset backtest
-                const request = {
+                // Build strategy_configs based on mode
+                let strategyConfigs: Record<string, any> = {};
+
+                if (multiConfig.strategyMode === 'same') {
+                    // Apply same strategy to all symbols
+                    strategyConfigs = multiConfig.symbols.reduce((acc, sym: string) => ({
+                        ...acc,
+                        [sym]: {
+                            strategy_key: multiConfig.strategy,
+                            parameters: typeof multiConfig.params === 'object' && !Array.isArray(multiConfig.params)
+                                ? multiConfig.params
+                                : {}
+                        }
+                    }), {});
+                } else if (multiConfig.strategyMode === 'different') {
+                    // Use different strategies per symbol (from multiConfig.strategies)
+                    strategyConfigs = multiConfig.symbols.reduce((acc, sym: string) => ({
+                        ...acc,
+                        [sym]: {
+                            strategy_key: multiConfig.strategies[sym] || multiConfig.strategy,
+                            parameters: typeof multiConfig.params === 'object' && !Array.isArray(multiConfig.params)
+                                ? multiConfig.params
+                                : {}
+                        }
+                    }), {});
+                } else {
+                    // Portfolio mode - use default strategy for all
+                    strategyConfigs = multiConfig.symbols.reduce((acc, sym: string) => ({
+                        ...acc,
+                        [sym]: {
+                            strategy_key: multiConfig.strategy,
+                            parameters: typeof multiConfig.params === 'object' && !Array.isArray(multiConfig.params)
+                                ? multiConfig.params
+                                : {}
+                        }
+                    }), {});
+                }
+
+                const request: any = {
                     symbols: multiConfig.symbols,
-                    strategy_configs: multiConfig.strategyMode === 'same'
-                        ? multiConfig.symbols.reduce((acc, sym: string) => ({
-                            ...acc,
-                            [sym]: {
-                                strategy_key: multiConfig.strategy,
-                                parameters: multiConfig.params || {}
-                            }
-                        }), {})
-                        : {},
-                    allocation_method: multiConfig.allocationMethod,
-                    custom_allocations: multiConfig.allocationMethod === 'custom' ? multiConfig.allocations : null,
+                    strategy_configs: strategyConfigs,
                     period: multiConfig.period,
                     interval: multiConfig.interval,
                     initial_capital: multiConfig.initialCapital
                 };
+
+                // Only add allocation fields if using custom allocation
+                if (multiConfig.allocationMethod === 'custom') {
+                    request.allocation_method = 'custom';
+                    request.custom_allocations = multiConfig.allocations;
+                }
+
                 console.log('Running multi-asset backtest with:', request);
 
                 const response = await backtest.runMulti(request);

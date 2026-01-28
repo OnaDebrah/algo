@@ -10,7 +10,7 @@ import {
     Loader2
 } from "lucide-react";
 import { marketplace } from '@/utils/api';
-import { StrategyListing } from '@/types/api';
+import { StrategyListing } from '@/types/all_types';
 import StrategyDetailsModal from './StrategyDetailsModal';
 
 const CATEGORIES = [
@@ -48,9 +48,9 @@ const Marketplace = () => {
     const fetchStrategies = async (params: any = {}) => {
         setIsLoading(true);
         try {
-            const response = await marketplace.getAll(params);
-            if (response.data) {
-                setStrategies(response.data);
+            const response = await marketplace.browse(params);
+            if (response) {
+                setStrategies(response);
             }
         } catch (err) {
             console.error("Failed to fetch strategies:", err);

@@ -49,7 +49,7 @@ import {
 import {api} from "@/utils/api";
 import {
     AnalystReport,
-    FundamentalData,
+    FundamentalData, HistoricalDataPoint,
     RisksData,
     SentimentData,
     TechnicalData,
@@ -108,18 +108,18 @@ const AIAnalyst = () => {
 
                 console.log(`📊 Fetching ${ticker} data: period=${period}, interval=${interval}`);
 
-                const historicalData = await api.market.getHistorical(
+                const historicalData: HistoricalDataPoint[] = await api.market.getHistorical(
                     ticker,
                     {period, interval, use_cache: false}
                 );
 
                 console.log('📊 Raw historical data:', historicalData);
 
-                if (historicalData && historicalData.data && Array.isArray(historicalData.data)) {
-                    const formattedData: PriceDataPoint[] = historicalData.data.map((item: any) => {
+                if (historicalData && Array.isArray(historicalData)) {
+                    const formattedData: PriceDataPoint[] = historicalData.map((item: HistoricalDataPoint) => {
                         // Parse the date - handle both ISO string and timestamp
                         let dateStr: string;
-                        const rawDate = item.date || item.timestamp || item.Date;
+                        const rawDate = item.timestamp;
 
                         try {
                             const dateObj = new Date(rawDate);
@@ -152,8 +152,8 @@ const AIAnalyst = () => {
 
                         return {
                             date: dateStr,
-                            price: Number(item.close || item.Close || 0),
-                            volume: Number(item.volume || item.Volume || 0)
+                            price: Number(item.close || 0),
+                            volume: Number(item.volume || 0)
                         };
                     });
 
@@ -365,7 +365,7 @@ const AIAnalyst = () => {
                                         border: '1px solid #334155',
                                         borderRadius: '8px'
                                     }}
-                                    formatter={(value: any) => [`$${Number(value).toFixed(2)}`, '']}
+                                    formatter={(value) => [`$${Number(value).toFixed(2)}`, '']}
                                 />
                                 <Legend/>
                                 <Area

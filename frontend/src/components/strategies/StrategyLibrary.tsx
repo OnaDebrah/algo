@@ -1,8 +1,8 @@
 'use client'
-import React, { useState, useEffect } from 'react';
-import { Search, Filter, Grid, List, TrendingUp, Info, Star, ArrowRight, BookOpen, Activity, Zap, Target } from 'lucide-react';
-import { strategy as strategyApi } from "@/utils/api";
-import { StrategyInfo } from "@/types/api";
+import React, {useEffect, useState} from 'react';
+import {Activity, ArrowRight, BookOpen, Filter, Grid, List, Search, Target, Zap} from 'lucide-react';
+import {strategy as strategyApi} from "@/utils/api";
+import {StrategyInfo} from "@/types/all_types";
 
 const StrategyLibrary = () => {
     const [strategies, setStrategies] = useState<StrategyInfo[]>([]);
@@ -14,9 +14,9 @@ const StrategyLibrary = () => {
     useEffect(() => {
         const fetchStrategies = async () => {
             try {
-                const res = await strategyApi.list();
-                if (res.data) {
-                    setStrategies(res.data);
+                const response: StrategyInfo[] = await strategyApi.list();
+                if (response) {
+                    setStrategies(response);
                 }
             } catch (error) {
                 console.error("Failed to fetch strategies", error);

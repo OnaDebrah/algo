@@ -21,7 +21,7 @@ const StrategyDetailsModal = ({ strategyId, onClose }: StrategyDetailsModalProps
         const fetchDetails = async () => {
             try {
                 const response = await marketplace.getDetails(strategyId);
-                setStrategy(response.data);
+                setStrategy(response);
             } catch (err) {
                 console.error("Failed to fetch strategy details:", err);
             } finally {
