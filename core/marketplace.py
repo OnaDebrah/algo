@@ -86,7 +86,7 @@ class BacktestResults:
         return asdict(self)
 
     @classmethod
-    def from_dict(cls, data: Dict) -> "BacktestResults":
+    def from_dict(cls, data: Dict) -> "SingleBacktestResults":
         """Create from dictionary"""
         return cls(**data)
 
@@ -211,7 +211,7 @@ class StrategyMarketplace:
                 version TEXT NOT NULL,
 
                 -- Complete backtest results (JSON)
-                backtest_data TEXT NOT NULL,  -- Serialized BacktestResults
+                backtest_data TEXT NOT NULL,  -- Serialized SingleBacktestResults
 
                 -- Time series data (can be large, stored separately)
                 equity_curve BLOB,  -- Pickled pandas DataFrame
@@ -375,7 +375,7 @@ class StrategyMarketplace:
 
         Returns:
             Dictionary with:
-                - backtest_results: BacktestResults object
+                - backtest_results: SingleBacktestResults object
                 - equity_curve: pandas DataFrame
                 - trades: pandas DataFrame
                 - daily_returns: pandas DataFrame
@@ -605,16 +605,16 @@ class StrategyMarketplace:
         return None
 
 
-# Helper function to convert backtest engine results to BacktestResults
+# Helper function to convert backtest engine results to SingleBacktestResults
 def convert_engine_results_to_backtest(engine_results: Dict) -> BacktestResults:
     """
-    Convert your trading engine backtest results to BacktestResults format
+    Convert your trading engine backtest results to SingleBacktestResults format
 
     Args:
         engine_results: Output from your TradingEngine.backtest()
 
     Returns:
-        BacktestResults object
+        SingleBacktestResults object
     """
     return BacktestResults(
         total_return=engine_results.get("total_return", 0),

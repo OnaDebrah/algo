@@ -426,13 +426,17 @@ class OptionsBacktestEngine:
         if not self.closed_positions:
             return {
                 "total_trades": 0,
+                "winning_trades": 0,
+                "losing_trades": 0,
                 "win_rate": 0,
                 "total_return": 0,
-                "avg_profit": 0,
-                "avg_loss": 0,
-                "profit_factor": 0,
                 "max_drawdown": 0,
                 "sharpe_ratio": 0,
+                "profit_factor": 0,
+                "total_profit": 0,
+                "total_loss": 0,
+                "equity_curve": [],
+                "trades": [],
             }
 
         # Basic metrics

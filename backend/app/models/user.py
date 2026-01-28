@@ -24,6 +24,7 @@ class User(Base):
 
     backtest_runs = relationship("BacktestRun", back_populates="user")
     portfolios = relationship("Portfolio", back_populates="user")
+    settings = relationship("UserSettings", back_populates="user", uselist=False, cascade="all, delete-orphan")
 
     def to_dict(self):
         return {

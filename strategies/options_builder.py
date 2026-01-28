@@ -4,7 +4,7 @@ Supports complex options strategies with Greeks calculation
 """
 
 import logging
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Tuple
 
 import numpy as np
@@ -44,7 +44,8 @@ class OptionsStrategyBuilder:
 
         if premium is None:
             # Calculate theoretical premium
-            T = (expiry - datetime.now()).days / 365.0
+            expiry_naive = expiry.replace(tzinfo=None) if expiry.tzinfo else expiry
+            T = (expiry_naive - datetime.now()).days / 365.0
 
             if volatility is None:
                 # Estimate IV from chain
@@ -246,25 +247,18 @@ def create_preset_strategy(
     **kwargs,
 ) -> OptionsStrategyBuilder:
     """
-    Create a preset options strategy
-
-    Args:
-        strategy_type: Type of strategy to create
-        symbol: Underlying symbol
-        current_price: Current stock price
-        expiration: Expiration date
-        **kwargs: Strategy-specific parameters
-
-    Returns:
-        OptionsStrategyBuilder with legs added
+    Create a preset options strategy matching the frontend templates.
     """
-
     builder = OptionsStrategyBuilder(symbol)
     builder.current_price = current_price
 
+    # Helper for secondary expiration (Calendar/Diagonal)
+    expiration_long = kwargs.get("expiration_long", expiration + timedelta(days=30))
+
     if strategy_type == OptionsStrategy.COVERED_CALL:
         # Long 100 shares + Short 1 OTM call
-        strike = kwargs.get("strike", current_price * 1.05)
+        strike = kwargs.get("strike", round(current_price * 1.05, 2))
+        builder.add_leg(OptionType.STOCK, 0, None, 100) # Underlying leg
         builder.add_leg(OptionType.CALL, strike, expiration, -1)
 
     elif strategy_type == OptionsStrategy.CASH_SECURED_PUT:
@@ -274,29 +268,30 @@ def create_preset_strategy(
 
     elif strategy_type == OptionsStrategy.PROTECTIVE_PUT:
         # Long stock + Long 1 OTM put
-        strike = kwargs.get("strike", current_price * 0.95)
+        strike = kwargs.get("strike", round(current_price * 0.95, 2))
+        builder.add_leg(OptionType.STOCK, 0, None, 100)
         builder.add_leg(OptionType.PUT, strike, expiration, 1)
 
     elif strategy_type == OptionsStrategy.VERTICAL_CALL_SPREAD:
-        # Long lower strike call + Short higher strike call
-        long_strike = kwargs.get("long_strike", current_price)
-        short_strike = kwargs.get("short_strike", current_price * 1.05)
+        # Long lower strike call + Short higher strike call (Bull Call)
+        long_strike = kwargs.get("long_strike", round(current_price, 2))
+        short_strike = kwargs.get("short_strike", round(current_price * 1.05, 2))
         builder.add_leg(OptionType.CALL, long_strike, expiration, 1)
         builder.add_leg(OptionType.CALL, short_strike, expiration, -1)
 
     elif strategy_type == OptionsStrategy.VERTICAL_PUT_SPREAD:
-        # Long higher strike put + Short lower strike put
-        long_strike = kwargs.get("long_strike", current_price)
-        short_strike = kwargs.get("short_strike", current_price * 0.95)
+        # Long higher strike put + Short lower strike put (Bear Put)
+        long_strike = kwargs.get("long_strike", round(current_price, 2))
+        short_strike = kwargs.get("short_strike", round(current_price * 0.95, 2))
         builder.add_leg(OptionType.PUT, long_strike, expiration, 1)
         builder.add_leg(OptionType.PUT, short_strike, expiration, -1)
 
     elif strategy_type == OptionsStrategy.IRON_CONDOR:
         # OTM put spread + OTM call spread
-        put_short = kwargs.get("put_short_strike", current_price * 0.95)
-        put_long = kwargs.get("put_long_strike", current_price * 0.90)
-        call_short = kwargs.get("call_short_strike", current_price * 1.05)
-        call_long = kwargs.get("call_long_strike", current_price * 1.10)
+        put_long = kwargs.get("put_long_strike", round(current_price * 0.90, 2))
+        put_short = kwargs.get("put_short_strike", round(current_price * 0.95, 2))
+        call_short = kwargs.get("call_short_strike", round(current_price * 1.05, 2))
+        call_long = kwargs.get("call_long_strike", round(current_price * 1.10, 2))
 
         builder.add_leg(OptionType.PUT, put_long, expiration, 1)
         builder.add_leg(OptionType.PUT, put_short, expiration, -1)
@@ -304,34 +299,55 @@ def create_preset_strategy(
         builder.add_leg(OptionType.CALL, call_long, expiration, 1)
 
     elif strategy_type == OptionsStrategy.BUTTERFLY_SPREAD:
-        # 1 lower strike + 2 middle strike + 1 higher strike (all same type)
         opt_type = kwargs.get("option_type", OptionType.CALL)
-        lower = kwargs.get("lower_strike", current_price * 0.95)
-        middle = kwargs.get("middle_strike", current_price)
-        upper = kwargs.get("upper_strike", current_price * 1.05)
+        lower = kwargs.get("lower_strike", round(current_price * 0.95, 2))
+        middle = kwargs.get("middle_strike", round(current_price, 2))
+        upper = kwargs.get("upper_strike", round(current_price * 1.05, 2))
 
         builder.add_leg(opt_type, lower, expiration, 1)
         builder.add_leg(opt_type, middle, expiration, -2)
         builder.add_leg(opt_type, upper, expiration, 1)
 
-    elif strategy_type == OptionsStrategy.STRADDLE:
-        # Long 1 call + Long 1 put (same strike, ATM)
-        strike = kwargs.get("strike", current_price)
+    elif strategy_type == OptionsStrategy.LONG_STRADDLE:
+        strike = kwargs.get("strike", round(current_price, 2))
         builder.add_leg(OptionType.CALL, strike, expiration, 1)
         builder.add_leg(OptionType.PUT, strike, expiration, 1)
 
-    elif strategy_type == OptionsStrategy.STRANGLE:
-        # Long 1 OTM call + Long 1 OTM put
-        call_strike = kwargs.get("call_strike", current_price * 1.05)
-        put_strike = kwargs.get("put_strike", current_price * 0.95)
+    elif strategy_type == OptionsStrategy.LONG_STRANGLE:
+        call_strike = kwargs.get("call_strike", round(current_price * 1.05, 2))
+        put_strike = kwargs.get("put_strike", round(current_price * 0.95, 2))
         builder.add_leg(OptionType.CALL, call_strike, expiration, 1)
         builder.add_leg(OptionType.PUT, put_strike, expiration, 1)
 
+    elif strategy_type == OptionsStrategy.CALENDAR_SPREAD:
+        # Sell Near-term, Buy Long-term (Same Strike)
+        strike = kwargs.get("strike", round(current_price, 2))
+        opt_type = kwargs.get("option_type", OptionType.CALL)
+        builder.add_leg(opt_type, strike, expiration, -1) # Short near
+        builder.add_leg(opt_type, strike, expiration_long, 1) # Long far
+
+    elif strategy_type == OptionsStrategy.DIAGONAL_SPREAD:
+        # Sell Near OTM, Buy Far ITM/ATM
+        short_strike = kwargs.get("short_strike", round(current_price * 1.05, 2))
+        long_strike = kwargs.get("long_strike", round(current_price, 2))
+        opt_type = kwargs.get("option_type", OptionType.CALL)
+        builder.add_leg(opt_type, short_strike, expiration, -1)
+        builder.add_leg(opt_type, long_strike, expiration_long, 1)
+
     elif strategy_type == OptionsStrategy.COLLAR:
         # Long stock + Long OTM put + Short OTM call
-        put_strike = kwargs.get("put_strike", current_price * 0.95)
-        call_strike = kwargs.get("call_strike", current_price * 1.05)
+        put_strike = kwargs.get("put_strike", round(current_price * 0.95, 2))
+        call_strike = kwargs.get("call_strike", round(current_price * 1.05, 2))
+        builder.add_leg(OptionType.STOCK, 0, None, 100)
         builder.add_leg(OptionType.PUT, put_strike, expiration, 1)
         builder.add_leg(OptionType.CALL, call_strike, expiration, -1)
+
+    elif strategy_type == OptionsStrategy.RATIO_SPREAD:
+        # Buy 1 ITM/ATM, Sell 2 OTM
+        long_strike = kwargs.get("long_strike", round(current_price, 2))
+        short_strike = kwargs.get("short_strike", round(current_price * 1.05, 2))
+        opt_type = kwargs.get("option_type", OptionType.CALL)
+        builder.add_leg(opt_type, long_strike, expiration, 1)
+        builder.add_leg(opt_type, short_strike, expiration, -2)
 
     return builder

@@ -28,6 +28,8 @@ class MultiAssetEngine:
         risk_manager: RiskManager = None,
         db: DatabaseManager = None,
         allocation_method: str = "equal",  # equal, optimized, custom
+        commission_rate: float = 0.0,
+        slippage_rate: float = 0.0,
     ):
         """
         Initialize multi-asset backtesting engine
@@ -48,6 +50,8 @@ class MultiAssetEngine:
         self.risk_manager = risk_manager or RiskManager()
         self.db = db or DatabaseManager()
         self.allocation_method = allocation_method
+        self.commission_rate = commission_rate
+        self.slippage_rate = slippage_rate
 
         # Calculate capital allocation per symbol
         self._calculate_allocations()
@@ -156,15 +160,20 @@ class MultiAssetEngine:
 
         # Buy signal
         if signal == 1 and symbol not in self.positions:
-            quantity = self.risk_manager.calculate_position_size(available_capital, current_price)
-            cost = quantity * current_price
+            # Apply slippage (buy higher)
+            slipped_price = current_price * (1 + self.slippage_rate)
+            
+            quantity = self.risk_manager.calculate_position_size(available_capital, slipped_price)
+            trade_value = quantity * slipped_price
+            commission = trade_value * self.commission_rate
+            total_cost = trade_value + commission
 
-            if cost <= self.cash:
-                self.cash -= cost
+            if total_cost <= self.cash:
+                self.cash -= total_cost
                 self.positions[symbol] = {
                     "symbol": symbol,
                     "quantity": quantity,
-                    "entry_price": current_price,
+                    "entry_price": slipped_price,
                     "entry_time": timestamp,
                     "strategy": strategy_name,
                 }
@@ -173,7 +182,9 @@ class MultiAssetEngine:
                     "symbol": symbol,
                     "order_type": "BUY",
                     "quantity": quantity,
-                    "price": current_price,
+                    "price": slipped_price,
+                    "commission": commission,
+                    "slippage": slipped_price - current_price,
                     "timestamp": (timestamp.isoformat() if isinstance(timestamp, datetime) else str(timestamp)),
                     "strategy": strategy_name,
                 }
@@ -181,21 +192,31 @@ class MultiAssetEngine:
                 self.trades.append(trade_data)
                 self.db.save_trade(trade_data)
 
-                logger.debug(f"BUY: {quantity} {symbol} @ ${current_price:.2f}")
+                logger.debug(f"BUY: {quantity} {symbol} @ ${slipped_price:.2f} (Comm: ${commission:.2f})")
 
         # Sell signal
         elif signal == -1 and symbol in self.positions:
             position = self.positions[symbol]
-            profit = (current_price - position["entry_price"]) * position["quantity"]
-            profit_pct = ((current_price - position["entry_price"]) / position["entry_price"]) * 100
+            
+            # Apply slippage (sell lower)
+            slipped_price = current_price * (1 - self.slippage_rate)
+            
+            revenue = position["quantity"] * slipped_price
+            commission = revenue * self.commission_rate
+            net_revenue = revenue - commission
+            
+            profit = net_revenue - (position["entry_price"] * position["quantity"])
+            profit_pct = (profit / (position["entry_price"] * position["quantity"])) * 100
 
-            self.cash += position["quantity"] * current_price
+            self.cash += net_revenue
 
             trade_data = {
                 "symbol": symbol,
                 "order_type": "SELL",
                 "quantity": position["quantity"],
-                "price": current_price,
+                "price": slipped_price,
+                "commission": commission,
+                "slippage": current_price - slipped_price,
                 "timestamp": (timestamp.isoformat() if isinstance(timestamp, datetime) else str(timestamp)),
                 "strategy": strategy_name,
                 "profit": profit,
@@ -205,7 +226,7 @@ class MultiAssetEngine:
             self.trades.append(trade_data)
             self.db.save_trade(trade_data)
 
-            logger.debug(f"SELL: {position['quantity']} {symbol} @ ${current_price:.2f} " f"(P&L: ${profit:.2f})")
+            logger.debug(f"SELL: {position['quantity']} {symbol} @ ${slipped_price:.2f} " f"(P&L: ${profit:.2f}, Comm: ${commission:.2f})")
 
             del self.positions[symbol]
 

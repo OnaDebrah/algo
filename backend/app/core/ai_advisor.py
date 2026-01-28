@@ -6,7 +6,7 @@ import json
 from dataclasses import dataclass
 from typing import Dict, List
 
-from core.ai_advisor_api import AIAdvisorAPI
+from backend.app.core.ai_advisor_api import AIAdvisorAPI
 
 
 @dataclass

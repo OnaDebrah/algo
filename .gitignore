@@ -26,6 +26,7 @@ wheels/
 
 # IDEs
 .vscode/
+!.vscode/settings.json
 .idea/
 *.swp
 *.swo
@@ -60,3 +61,6 @@ data/*.json
 .pytest_cache/
 .coverage
 htmlcov/
+
+# Auto Claude data directory
+.auto-claude/

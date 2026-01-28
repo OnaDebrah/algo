@@ -12,6 +12,7 @@ from backend.app.api.deps import get_current_active_user
 from backend.app.database import get_db
 from backend.app.models.user import User
 from backend.app.schemas.auth import LoginResponse, User as UserSchema, UserCreate, UserLogin
+from backend.app.services.auth_service import AuthService
 from backend.app.utils.security import create_access_token, get_password_hash, verify_password
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
@@ -36,8 +37,11 @@ async def register(user_data: UserCreate, db: AsyncSession = Depends(get_db)):
     await db.refresh(new_user)
 
     # Generate tokens
-    access_token = create_access_token(data={"sub": new_user.id})
-    refresh_token = create_access_token(data={"sub": new_user.id, "refresh": True})
+    access_token = create_access_token(data={"sub": str(new_user.id)})
+    refresh_token = create_access_token(data={"sub": str(new_user.id), "refresh": True})
+
+    # Track usage
+    await AuthService.track_usage(db, new_user.id, "register", {"tier": new_user.tier})
 
     return LoginResponse(user=UserSchema.from_orm(new_user), access_token=access_token, refresh_token=refresh_token, token_type="bearer")
 
@@ -45,7 +49,8 @@ async def register(user_data: UserCreate, db: AsyncSession = Depends(get_db)):
 @router.post("/login", response_model=LoginResponse)
 async def login(credentials: UserLogin, db: AsyncSession = Depends(get_db)):
     """Login user"""
-    result = await db.execute(select(User).where(User.email == credentials.email))
+    # Allow login with either email or username
+    result = await db.execute(select(User).where((User.email == credentials.email) | (User.username == credentials.email)))
     user = result.scalar_one_or_none()
 
     if not user or not verify_password(credentials.password, user.hashed_password):
@@ -63,8 +68,11 @@ async def login(credentials: UserLogin, db: AsyncSession = Depends(get_db)):
     await db.commit()
 
     # Generate tokens
-    access_token = create_access_token(data={"sub": user.id})
-    refresh_token = create_access_token(data={"sub": user.id, "refresh": True})
+    access_token = create_access_token(data={"sub": str(user.id)})
+    refresh_token = create_access_token(data={"sub": str(user.id), "refresh": True})
+
+    # Track usage
+    await AuthService.track_usage(db, user.id, "login")
 
     return LoginResponse(user=UserSchema.from_orm(user), access_token=access_token, refresh_token=refresh_token, token_type="bearer")
 
