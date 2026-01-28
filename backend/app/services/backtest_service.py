@@ -158,7 +158,7 @@ class BacktestService:
                 for t in engine.trades
             ]
 
-            return BacktestResponse(result=result, equity_curve=equity_curve, trades=trades)
+            return BacktestResponse(result=result, equity_curve=equity_curve, trades=trades, price_data=engine.trades)
 
         except Exception as e:
             # Update database with error
@@ -262,7 +262,7 @@ class BacktestService:
                 for t in engine.trades
             ]
 
-            return MultiAssetBacktestResponse(result=result, equity_curve=equity_curve, trades=trades)
+            return MultiAssetBacktestResponse(result=result, equity_curve=equity_curve, trades=trades, price_data=engine.trades)
 
         except Exception as e:
             if backtest_run:
