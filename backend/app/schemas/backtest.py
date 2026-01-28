@@ -98,6 +98,8 @@ class MultiAssetBacktestResponse(BaseModel):
     result: MultiAssetBacktestResult
     equity_curve: List[EquityCurvePoint]
     trades: List[Trade]
+    price_data: Optional[List[Dict]] = None
+
 
 
 # Options backtest
