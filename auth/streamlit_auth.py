@@ -27,14 +27,14 @@ def render_login_page():
     init_auth_state()
     st.title("🔐 ORACULUM")
 
-    tab1, tab2 = st.tabs(["Login", "Register"])
+    tab1, tab2 = st.tabs(["Page", "Register"])
 
     with tab1:
-        st.subheader("Login to Your Account")
+        st.subheader("Page to Your Account")
         with st.form("login_form"):
             username = st.text_input("Username or Email")
             password = st.text_input("Password", type="password")
-            submit = st.form_submit_button("Login", use_container_width=True)
+            submit = st.form_submit_button("Page", use_container_width=True)
 
             if submit:
                 if not username or not password:
@@ -45,7 +45,7 @@ def render_login_page():
                         st.session_state.authenticated = True
                         st.session_state.user = result["user"]
                         st.session_state.token = result["token"]
-                        st.success("✅ Login successful!")
+                        st.success("✅ Page successful!")
                         st.rerun()
                     else:
                         st.error(f"❌ {result['message']}")

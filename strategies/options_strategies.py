@@ -22,6 +22,7 @@ class OptionType(Enum):
 
     CALL = "Call"
     PUT = "Put"
+    STOCK = "Stock"
 
 
 class OptionsStrategy(Enum):
@@ -34,8 +35,8 @@ class OptionsStrategy(Enum):
     VERTICAL_PUT_SPREAD = "Vertical Put Spread"
     IRON_CONDOR = "Iron Condor"
     BUTTERFLY_SPREAD = "Butterfly Spread"
-    STRADDLE = "Long Straddle"
-    STRANGLE = "Long Strangle"
+    LONG_STRADDLE = "Long Straddle"
+    LONG_STRANGLE = "Long Strangle"
     CALENDAR_SPREAD = "Calendar Spread"
     DIAGONAL_SPREAD = "Diagonal Spread"
     COLLAR = "Collar"
@@ -82,13 +83,13 @@ class BlackScholesCalculator:
 
     @staticmethod
     def calculate_option_price(
-        S: float,  # Current stock price
-        K: float,  # Strike price
-        T: float,  # Time to expiration (years)
-        r: float,  # Risk-free rate
-        sigma: float,  # Volatility
-        option_type: OptionType,
-        q: float = 0.0,  # Dividend yield
+            S: float,  # Current stock price
+            K: float,  # Strike price
+            T: float,  # Time to expiration (years)
+            r: float,  # Risk-free rate
+            sigma: float,  # Volatility
+            option_type: OptionType,
+            q: float = 0.0,  # Dividend yield
     ) -> float:
         """Calculate option price using Black-Scholes"""
 
@@ -99,7 +100,7 @@ class BlackScholesCalculator:
             else:
                 return max(K - S, 0)
 
-        d1 = (np.log(S / K) + (r - q + 0.5 * sigma**2) * T) / (sigma * np.sqrt(T))
+        d1 = (np.log(S / K) + (r - q + 0.5 * sigma ** 2) * T) / (sigma * np.sqrt(T))
         d2 = d1 - sigma * np.sqrt(T)
 
         if option_type == OptionType.CALL:
@@ -111,20 +112,20 @@ class BlackScholesCalculator:
 
     @staticmethod
     def calculate_greeks(
-        S: float,
-        K: float,
-        T: float,
-        r: float,
-        sigma: float,
-        option_type: OptionType,
-        q: float = 0.0,
+            S: float,
+            K: float,
+            T: float,
+            r: float,
+            sigma: float,
+            option_type: OptionType,
+            q: float = 0.0,
     ) -> Greeks:
         """Calculate option Greeks"""
 
         if T <= 0:
             return Greeks(delta=0, gamma=0, theta=0, vega=0, rho=0)
 
-        d1 = (np.log(S / K) + (r - q + 0.5 * sigma**2) * T) / (sigma * np.sqrt(T))
+        d1 = (np.log(S / K) + (r - q + 0.5 * sigma ** 2) * T) / (sigma * np.sqrt(T))
         d2 = d1 - sigma * np.sqrt(T)
 
         # Delta
@@ -174,19 +175,41 @@ class OptionsChain:
             logger.error(f"Error fetching expirations for {self.symbol}: {e}")
             return []
 
-    def get_chain(self, expiration: str) -> Tuple[pd.DataFrame, pd.DataFrame]:
+    def get_chain(self, expiration: str = None):
         """
-        Get options chain for specific expiration
+        Get options chain data
+
+        Args:
+            expiration: Specific expiration date (YYYY-MM-DD) or None for all dates
 
         Returns:
-            Tuple of (calls_df, puts_df)
+            dict with 'calls' and 'puts' DataFrames, or just expiration info
         """
         try:
+            # Get all available expiration dates
+            if not hasattr(self.ticker, 'options') or len(self.ticker.options) == 0:
+                raise ValueError(f"No options available for {self.symbol}")
+
+            # If no expiration specified, return metadata only
+            if expiration is None:
+                return {
+                    'expiration_dates': list(self.ticker.options),
+                    'calls': pd.DataFrame(),
+                    'puts': pd.DataFrame()
+                }
+
+            # Get options for specific expiration
             opt = self.ticker.option_chain(expiration)
-            return opt.calls, opt.puts
+
+            return {
+                'calls': opt.calls,
+                'puts': opt.puts,
+                'expiration_dates': list(self.ticker.options)
+            }
+
         except Exception as e:
-            logger.error(f"Error fetching chain for {self.symbol} {expiration}: {e}")
-            return pd.DataFrame(), pd.DataFrame()
+            logger.error(f"Error fetching options chain: {str(e)}")
+            raise
 
     def get_current_price(self) -> float:
         """Get current stock price"""
@@ -199,7 +222,7 @@ class OptionsChain:
     def get_implied_volatility(self, expiration: str) -> float:
         """Estimate implied volatility from options chain"""
         try:
-            calls, puts = self.get_chain(expiration)
+            calls, puts, expirations = self.get_chain(expiration)
 
             # Use ATM options for IV estimation
             current_price = self.get_current_price()
@@ -216,7 +239,7 @@ class OptionsChain:
             return returns.std() * np.sqrt(252)
 
         except Exception as e:
-            logger.warning(f"Error calculating IV for {self.symbol}: {e}")
+            logger.error(f"Error calculating IV for {self.symbol}: {e}")
             return 0.3  # Default 30%
 
 
@@ -264,6 +287,62 @@ def get_strategy_description(strategy: OptionsStrategy) -> Dict[str, str]:
             "best_for": "High volatility events (earnings, news)",
             "breakeven": "Strike +/- total premium paid",
         },
+        OptionsStrategy.VERTICAL_PUT_SPREAD: {
+            "description": "Buy a put and sell a lower strike put",
+            "outlook": "Moderately bearish",
+            "max_profit": "Spread width - net debit",
+            "max_loss": "Net debit paid",
+            "best_for": "Directional bearish trades with defined risk",
+            "breakeven": "Long strike - net debit",
+        },
+        OptionsStrategy.BUTTERFLY_SPREAD: {
+            "description": "Buy 1 ITM call, sell 2 ATM calls, buy 1 OTM call",
+            "outlook": "Neutral (target specific price at expiration)",
+            "max_profit": "Distance between strikes - net debit",
+            "max_loss": "Net debit paid",
+            "best_for": "Low volatility; targeting a specific price pinpoint",
+            "breakeven": "Lower strike + debit / Higher strike - debit",
+        },
+        OptionsStrategy.STRANGLE: {
+            "description": "Buy OTM call and OTM put at different strikes",
+            "outlook": "Expecting very large move in either direction",
+            "max_profit": "Unlimited",
+            "max_loss": "Total premium paid",
+            "best_for": "Lower cost than straddle; betting on high volatility",
+            "breakeven": "Call strike + premium / Put strike - premium",
+        },
+        OptionsStrategy.CALENDAR_SPREAD: {
+            "description": "Sell a short-term option and buy a long-term option",
+            "outlook": "Neutral to slightly directional (targeting time decay)",
+            "max_profit": "Limited (depends on implied volatility shift)",
+            "max_loss": "Net debit paid",
+            "best_for": "Profiting from faster decay of near-term options",
+            "breakeven": "Dynamic (varies with volatility)",
+        },
+        OptionsStrategy.PROTECTIVE_PUT: {
+            "description": "Buy a put for a stock you already own",
+            "outlook": "Bullish but concerned about short-term downside",
+            "max_profit": "Unlimited (offset by put cost)",
+            "max_loss": "Stock cost + put premium - put strike",
+            "best_for": "Hedging stock positions against a market crash",
+            "breakeven": "Stock cost + put premium",
+        },
+        OptionsStrategy.COLLAR: {
+            "description": "Long stock + Short OTM Call + Long OTM Put",
+            "outlook": "Neutral to slightly bullish",
+            "max_profit": "Call strike - stock price + net credit/debit",
+            "max_loss": "Stock price - put strike - net credit/debit",
+            "best_for": "Protecting large gains while funding the hedge with income",
+            "breakeven": "Stock cost - net credit (or + net debit)",
+        },
+        OptionsStrategy.RATIO_SPREAD: {
+            "description": "Buy 1 option and sell 2+ options at a further strike",
+            "outlook": "Directional but with a specific target price",
+            "max_profit": "Width of spread + net credit (if any)",
+            "max_loss": "Unlimited (on the short side if price exceeds strikes)",
+            "best_for": "Aggressive directional traders; potential zero-cost entry",
+            "breakeven": "Short strike + width of spread (for call ratio)",
+        }
     }
 
     return descriptions.get(strategy, {})

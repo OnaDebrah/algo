@@ -25,3 +25,8 @@ tweepy>=4.16.0
 praw>=7.8.0
 pykalman>=0.9
 torch>=2.0.0
+
+sqlalchemy
+pydantic
+statsmodels
+fastapi

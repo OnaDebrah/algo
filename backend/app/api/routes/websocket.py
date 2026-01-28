@@ -12,7 +12,7 @@ from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
 from backend.app.utils.security import decode_access_token
 
-router = APIRouter()
+router = APIRouter(prefix="/websocket", tags=["WebSocket"])
 
 
 class ConnectionManager:

@@ -65,7 +65,7 @@ def render_user_management():
     conn.close()
 
     if users:
-        users_df = pd.DataFrame(users, columns=["ID", "Username", "Email", "Tier", "Created", "Last Login", "Active"])
+        users_df = pd.DataFrame(users, columns=["ID", "Username", "Email", "Tier", "Created", "Last Page", "Active"])
 
         st.dataframe(users_df, use_container_width=True, hide_index=True)
 
