@@ -8,7 +8,7 @@ from fastapi import APIRouter, Depends, Query
 
 from backend.app.api.deps import get_current_active_user
 from backend.app.models.user import User
-from core.database import DatabaseManager
+from backend.app.core import DatabaseManager
 
 router = APIRouter(prefix="/analytics", tags=["Analytics"])
 db = DatabaseManager()
@@ -40,7 +40,7 @@ async def get_performance_analytics(
     equity_curve = db.get_equity_curve(portfolio_id, start_date, end_date)
 
     # Calculate metrics
-    from analytics.performance import calculate_performance_metrics
+    from streamlit.analytics.performance import calculate_performance_metrics
 
     if equity_curve:
         initial_equity = equity_curve[0]["equity"]
@@ -74,7 +74,7 @@ async def get_returns_analysis(portfolio_id: int, current_user: User = Depends(g
         return {"daily_returns": [], "monthly_returns": [], "cumulative_returns": []}
 
     # Calculate returns
-    from analytics.performance import calculate_returns
+    from streamlit.analytics.performance import calculate_returns
 
     returns = calculate_returns(trades)
 
@@ -90,7 +90,7 @@ async def get_risk_metrics(portfolio_id: int, current_user: User = Depends(get_c
     if not trades or not equity_curve:
         return {"volatility": 0, "beta": 0, "var_95": 0, "cvar_95": 0, "max_drawdown": 0, "sharpe_ratio": 0, "sortino_ratio": 0}
 
-    from analytics.risk import calculate_risk_metrics
+    from streamlit.analytics import calculate_risk_metrics
 
     metrics = calculate_risk_metrics(trades, equity_curve)
 
@@ -105,7 +105,7 @@ async def get_drawdown_analysis(portfolio_id: int, current_user: User = Depends(
     if not equity_curve:
         return {"drawdowns": [], "max_drawdown": 0, "max_drawdown_duration": 0}
 
-    from analytics.drawdown import analyze_drawdowns
+    from streamlit.analytics import analyze_drawdowns
 
     analysis = analyze_drawdowns(equity_curve)
 

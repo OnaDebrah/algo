@@ -9,9 +9,9 @@ from typing import Dict, List
 import pandas as pd
 
 from config import DEFAULT_INITIAL_CAPITAL
-from core.database import DatabaseManager
-from core.risk_manager import RiskManager
-from strategies.base_strategy import BaseStrategy
+from backend.app.core import DatabaseManager
+from backend.app.core import RiskManager
+from backend.app.strategies import BaseStrategy
 
 logger = logging.getLogger(__name__)
 

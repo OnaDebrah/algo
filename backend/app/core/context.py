@@ -8,9 +8,9 @@ from typing import Dict, Optional
 
 import streamlit as st
 
-from alerts.alert_manager import AlertManager
-from core.database import DatabaseManager
-from core.risk_manager import RiskManager
+from backend.app.alerts import AlertManager
+from backend.app.core import DatabaseManager
+from backend.app.core import RiskManager
 
 
 @dataclass
@@ -34,7 +34,7 @@ def get_app_context() -> AppContext:
         AppContext: Initialized context
     """
     if "app_context" not in st.session_state:
-        from analytics.market_regime_detector import MarketRegimeDetector
+        from backend.app.analytics import MarketRegimeDetector
 
         st.session_state.app_context = AppContext(
             db=DatabaseManager(),

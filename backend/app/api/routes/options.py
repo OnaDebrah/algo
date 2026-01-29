@@ -7,6 +7,7 @@ import yfinance as yf
 from fastapi import APIRouter, HTTPException, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from backend.app.analytics.options_analytics import OptionsAnalytics
 from backend.app.api.deps import get_current_active_user
 from backend.app.core.options_engine import OptionsBacktestEngine, backtest_options_strategy
 from backend.app.database import get_db
@@ -26,7 +27,7 @@ from backend.app.schemas.options import (
 from backend.app.services.auth_service import AuthService
 from backend.app.services.market_service import get_market_service
 from backend.app.strategies.options_builder import OptionsStrategy
-from strategies.options_strategies import OptionsChain
+from backend.app.strategies.options_strategies import OptionsChain
 
 logger = logging.getLogger(__name__)
 
@@ -392,7 +393,7 @@ async def analyze_strategy(
     """
     await AuthService.track_usage(db, current_user.id, "analyze_strategy", {"symbol": request.symbol})
     try:
-        from strategies.options_builder import OptionsStrategyBuilder, OptionType
+        from backend.app.strategies import OptionsStrategyBuilder, OptionType
 
         # Get current price
         ticker = yf.Ticker(request.symbol)
@@ -467,7 +468,7 @@ async def calculate_greeks(
     """
     await AuthService.track_usage(db, current_user.id, "calculate_greeks", {"symbol": request.symbol})
     try:
-        from strategies.options_builder import OptionsStrategyBuilder, OptionType
+        from streamlit.strategies import OptionsStrategyBuilder, OptionType
 
         # Get current price
         ticker = yf.Ticker(request.symbol)
@@ -518,7 +519,7 @@ async def compare_strategies(
     """
     await AuthService.track_usage(db, current_user.id, "compare_strategies", {"symbol": request.symbol})
     try:
-        from strategies.options_builder import OptionsStrategyBuilder, OptionType, create_preset_strategy
+        from backend.app.strategies.options_builder import OptionsStrategyBuilder, OptionType, create_preset_strategy
 
         # Get current price
         ticker = yf.Ticker(request.symbol)
@@ -538,7 +539,7 @@ async def compare_strategies(
             # Build strategy
             if strategy_type and hasattr(OptionsStrategy, strategy_type.upper()):
                 # Preset strategy
-                from strategies.options_builder import OptionsStrategy as OptStrat
+                from backend.app.strategies.options_strategies import OptionsStrategy as OptStrat
                 strategy_enum = OptStrat[strategy_type.upper()]
                 expiration = datetime.fromisoformat(strategy_config.get("expiration",
                                                                         (datetime.now() + timedelta(
@@ -603,8 +604,6 @@ async def compare_strategies(
 # ============================================================
 # OPTIONS ANALYTICS ENDPOINTS
 # ============================================================
-
-from backend.app.analytics.options_analytics import OptionsAnalytics
 
 
 @router.post("/analytics/probability", response_model=ProbabilityResponse)

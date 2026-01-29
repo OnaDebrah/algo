@@ -11,7 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from backend.app.analytics.market_regime_detector import MarketRegimeDetector
 from backend.app.api.deps import get_current_active_user
 from backend.app.models.user import User
-from core.data_fetcher import fetch_stock_data
+from backend.app.core import fetch_stock_data
 from backend.app.database import get_db
 from backend.app.services.auth_service import AuthService
 

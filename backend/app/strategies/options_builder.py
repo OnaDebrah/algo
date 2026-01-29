@@ -9,7 +9,7 @@ from typing import Dict, List, Optional, Tuple
 
 import numpy as np
 
-from strategies.options_strategies import (
+from backend.app.strategies.options_strategies import (
     BlackScholesCalculator,
     OptionLeg,
     OptionsChain,
@@ -32,13 +32,13 @@ class OptionsStrategyBuilder:
         self.current_price = self.chain.get_current_price()
 
     def add_leg(
-        self,
-        option_type: OptionType,
-        strike: float,
-        expiry: datetime,
-        quantity: int,
-        premium: Optional[float] = None,
-        volatility: Optional[float] = None,
+            self,
+            option_type: OptionType,
+            strike: float,
+            expiry: datetime,
+            quantity: int,
+            premium: Optional[float] = None,
+            volatility: Optional[float] = None,
     ):
         """Add an option leg to the strategy"""
 
@@ -195,9 +195,9 @@ class OptionsStrategyBuilder:
         return max_loss, condition
 
     def calculate_probability_of_profit(
-        self,
-        volatility: Optional[float] = None,
-        days_to_expiration: Optional[int] = None,
+            self,
+            volatility: Optional[float] = None,
+            days_to_expiration: Optional[int] = None,
     ) -> float:
         """
         Calculate probability of profit at expiration
@@ -230,7 +230,8 @@ class OptionsStrategyBuilder:
 
         # Sample many prices
         num_samples = 10000
-        prices = self.current_price * np.exp((self.risk_free_rate - 0.5 * volatility**2) * T + volatility * np.sqrt(T) * np.random.randn(num_samples))
+        prices = self.current_price * np.exp(
+            (self.risk_free_rate - 0.5 * volatility ** 2) * T + volatility * np.sqrt(T) * np.random.randn(num_samples))
 
         payoffs = self.calculate_payoff(prices)
         total_prob = np.sum(payoffs > 0) / num_samples
@@ -239,11 +240,11 @@ class OptionsStrategyBuilder:
 
 
 def create_preset_strategy(
-    strategy_type: OptionsStrategy,
-    symbol: str,
-    current_price: float,
-    expiration: datetime,
-    **kwargs,
+        strategy_type: OptionsStrategy,
+        symbol: str,
+        current_price: float,
+        expiration: datetime,
+        **kwargs,
 ) -> OptionsStrategyBuilder:
     """
     Create a preset options strategy matching the frontend templates.
@@ -257,7 +258,7 @@ def create_preset_strategy(
     if strategy_type == OptionsStrategy.COVERED_CALL:
         # Long 100 shares + Short 1 OTM call
         strike = kwargs.get("strike", round(current_price * 1.05, 2))
-        builder.add_leg(OptionType.STOCK, 0, None, 100) # Underlying leg
+        builder.add_leg(OptionType.STOCK, 0, None, 100)  # Underlying leg
         builder.add_leg(OptionType.CALL, strike, expiration, -1)
 
     elif strategy_type == OptionsStrategy.CASH_SECURED_PUT:
@@ -322,8 +323,8 @@ def create_preset_strategy(
         # Sell Near-term, Buy Long-term (Same Strike)
         strike = kwargs.get("strike", round(current_price, 2))
         opt_type = kwargs.get("option_type", OptionType.CALL)
-        builder.add_leg(opt_type, strike, expiration, -1) # Short near
-        builder.add_leg(opt_type, strike, expiration_long, 1) # Long far
+        builder.add_leg(opt_type, strike, expiration, -1)  # Short near
+        builder.add_leg(opt_type, strike, expiration_long, 1)  # Long far
 
     elif strategy_type == OptionsStrategy.DIAGONAL_SPREAD:
         # Sell Near OTM, Buy Far ITM/ATM

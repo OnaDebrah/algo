@@ -7,31 +7,32 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Dict, List, Type
 
-from strategies import KAMAStrategy, MultiTimeframeKAMAStrategy
-from strategies.adpative_trend_ff_strategy import AdaptiveTrendFollowingStrategy
-from strategies.base_strategy import BaseStrategy
-from strategies.bb_mean_reversion import BollingerMeanReversionStrategy
-from strategies.cs_momentum_strategy import CrossSectionalMomentumStrategy
-from strategies.donchain_strategy import DonchianATRStrategy, DonchianChannelStrategy, FilteredDonchianStrategy
-from strategies.kalman_filter_strategy import KalmanFilterStrategy
-from strategies.lstm_strategy import LSTMStrategy
-from strategies.macd_strategy import MACDStrategy
-from strategies.ml_strategy import MLStrategy
-from strategies.options_strategies import OptionsStrategy
-from strategies.pairs_trading_strategy import PairsTradingStrategy
-from strategies.parabolic_sar import ParabolicSARStrategy
-from strategies.rsi_strategy import RSIStrategy
-from strategies.sma_crossover import SMACrossoverStrategy
+from backend.app.strategies import KAMAStrategy, MultiTimeframeKAMAStrategy
+from backend.app.strategies.adpative_trend_ff_strategy import AdaptiveTrendFollowingStrategy
+from backend.app.strategies import BaseStrategy
+from backend.app.strategies.bb_mean_reversion import BollingerMeanReversionStrategy
+from backend.app.strategies.cs_momentum_strategy import CrossSectionalMomentumStrategy
+from backend.app.strategies.donchain_strategy import DonchianATRStrategy, DonchianChannelStrategy, FilteredDonchianStrategy
+from backend.app.strategies.kalman_filter_strategy import KalmanFilterStrategy
+from backend.app.strategies.lstm_strategy import LSTMStrategy
+from backend.app.strategies import MACDStrategy
+from backend.app.strategies import MLStrategy
+from backend.app.strategies.options_strategies import OptionsStrategy
+from backend.app.strategies.pairs_trading_strategy import PairsTradingStrategy
+from backend.app.strategies.parabolic_sar import ParabolicSARStrategy
+from backend.app.strategies.rsi_strategy import RSIStrategy
+from backend.app.strategies.sma_crossover import SMACrossoverStrategy
 
 # Statistical Arbitrage
-from strategies.stat_arb.sector_neutral import SectorNeutralStrategy
-from strategies.ts_momentum_strategy import TimeSeriesMomentumStrategy
-from strategies.volatility.dynamic_scaling import DynamicVolatilityScalingStrategy
-from strategies.volatility.variance_risk_premium import VarianceRiskPremiumStrategy
+# from backend.app.strategies import SectorNeutralStrategy
+from backend.app.strategies.ts_momentum_strategy import TimeSeriesMomentumStrategy
+from backend.app.strategies.volatility.dynamic_scaling import DynamicVolatilityScalingStrategy
+from backend.app.strategies.volatility.variance_risk_premium import VarianceRiskPremiumStrategy
 
 # Volatility strategies
-from strategies.volatility.volatility_breakout import VolatilityBreakoutStrategy
-from strategies.volatility.volatility_targeting import VolatilityTargetingStrategy
+from backend.app.strategies.volatility.volatility_breakout import VolatilityBreakoutStrategy
+from backend.app.strategies.volatility.volatility_targeting import VolatilityTargetingStrategy
+from backend.app.strategies.stat_arb.sector_neutral import SectorNeutralStrategy
 
 
 class StrategyCategory(Enum):

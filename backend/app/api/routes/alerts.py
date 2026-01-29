@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.app.api.deps import get_current_active_user, get_db
@@ -6,7 +6,7 @@ from backend.app.config import settings
 from backend.app.models.user import User
 from backend.app.schemas.alerts import EmailAlertRequest, SMSAlertRequest, AlertTestResponse
 from backend.app.services.auth_service import AuthService
-from alerts.alert_manager import AlertManager
+from backend.app.alerts import AlertManager
 
 router = APIRouter(prefix="/alerts", tags=["Alerts"])
 

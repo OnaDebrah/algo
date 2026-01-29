@@ -448,7 +448,7 @@ class AssetClassManager:
         logger.info(f"Fetching {asset_class.value} data for {symbol}")
 
         try:
-            from core.data_fetcher import fetch_stock_data
+            from backend.app.core import fetch_stock_data
 
             data = fetch_stock_data(symbol, period, interval)
 
