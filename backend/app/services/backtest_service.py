@@ -3,9 +3,11 @@ Enhanced Backtest service with database integration
 """
 
 import asyncio
+import logging
 from datetime import datetime
 from typing import List
 
+import pandas as pd
 from sqlalchemy.orm import Session
 
 from backend.app.models.backtest import BacktestRun
@@ -27,6 +29,9 @@ from backend.app.core import RiskManager
 from backend.app.core import TradingEngine
 from backend.app.strategies.strategy_catalog import get_catalog
 from backend.app.core.multi_asset_engine import MultiAssetEngine
+from backend.app.core.benchmark_calculator import BenchmarkCalculator
+
+logger = logging.getLogger(__name__)
 
 
 class BacktestService:
@@ -143,6 +148,13 @@ class BacktestService:
                 EquityCurvePoint(timestamp=str(point["timestamp"]), equity=point["equity"], cash=point["cash"]) for point in engine.equity_curve
             ]
 
+            equity_series = pd.Series([point.equity for point in equity_curve])
+            running_max = equity_series.expanding().max()
+            drawdown = (equity_series - running_max) / running_max
+
+            for i, point in enumerate(equity_curve):
+                point.drawdown = drawdown.iloc[i]
+
             trades = [
                 Trade(
                     symbol=t["symbol"],
@@ -158,10 +170,27 @@ class BacktestService:
                 for t in engine.trades
             ]
 
-            return BacktestResponse(result=result, equity_curve=equity_curve, trades=trades, price_data=engine.trades)
+            # Calculate SPY benchmark
+            benchmark_calc = BenchmarkCalculator(request.initial_capital)
+            benchmark = benchmark_calc.calculate_spy_benchmark(
+                period=request.period,
+                interval=request.interval,
+                commission_rate=request.commission_rate
+            )
+
+            # Add comparison metrics
+            if benchmark:
+                benchmark['comparison'] = benchmark_calc.compare_to_benchmark(metrics, benchmark)
+
+            return BacktestResponse(
+                result=result,
+                equity_curve=equity_curve,
+                trades=trades,
+                price_data=engine.trades,
+                benchmark=benchmark
+            )
 
         except Exception as e:
-            # Update database with error
             if backtest_run:
                 self.update_backtest_status(backtest_run.id, "failed", error_message=str(e))
             raise ValueError(f"Backtest failed: {str(e)}")
@@ -221,31 +250,18 @@ class BacktestService:
 
             # Update database
             if backtest_run:
-                self.update_backtest_status(backtest_run.id, "completed", results)
-
-            # Build response
-            result = MultiAssetBacktestResult(
-                total_return=results["total_return"],
-                total_return_pct=results["total_return"],
-                win_rate=results["win_rate"],
-                sharpe_ratio=results["sharpe_ratio"],
-                max_drawdown=results["max_drawdown"],
-                total_trades=results["total_trades"],
-                winning_trades=results.get("winning_trades", 0),
-                losing_trades=results.get("losing_trades", 0),
-                avg_profit=results["avg_profit"],
-                avg_win=results.get("avg_win", 0),
-                avg_loss=results.get("avg_loss", 0),
-                profit_factor=results.get("profit_factor", 0),
-                final_equity=results["final_equity"],
-                initial_capital=request.initial_capital,
-                symbol_stats={symbol: SymbolStats(**stats) for symbol, stats in results["symbol_stats"].items()},
-                num_symbols=results["num_symbols"],
-            )
+                self.update_backtest_status(backtest_run.id, "completed", results.model_dump())
 
             equity_curve = [
                 EquityCurvePoint(timestamp=str(point["timestamp"]), equity=point["equity"], cash=point["cash"]) for point in engine.equity_curve
             ]
+
+            equity_series = pd.Series([point.equity for point in equity_curve])
+            running_max = equity_series.expanding().max()
+            drawdown = (equity_series - running_max) / running_max
+
+            for i, point in enumerate(equity_curve):
+                point.drawdown = drawdown.iloc[i]
 
             trades = [
                 Trade(
@@ -262,7 +278,40 @@ class BacktestService:
                 for t in engine.trades
             ]
 
-            return MultiAssetBacktestResponse(result=result, equity_curve=equity_curve, trades=trades, price_data=engine.trades)
+            # Calculate multi-asset benchmark (equal-weight buy-and-hold of the same symbols)
+            benchmark_calc = BenchmarkCalculator(request.initial_capital)
+
+            # Get price data for all symbols
+            data_dict = {}
+            for symbol in request.symbols:
+                try:
+                    data = await asyncio.to_thread(fetch_stock_data, symbol, request.period, request.interval)
+                    if not data.empty:
+                        data_dict[symbol] = data
+                except Exception as e:
+                    logger.warning(f"Failed to get benchmark data for {symbol}: {e}")
+
+            # Calculate benchmark
+            benchmark = None
+            if data_dict:
+                benchmark = benchmark_calc.calculate_multi_benchmark(
+                    symbols=list(data_dict.keys()),
+                    data_dict=data_dict,
+                    allocations=request.custom_allocations if request.allocation_method == 'custom' else None,
+                    commission_rate=request.commission_rate
+                )
+
+                # Add comparison metrics
+                if benchmark:
+                    benchmark['comparison'] = benchmark_calc.compare_to_benchmark(results.model_dump(), benchmark)
+
+            return MultiAssetBacktestResponse(
+                result=results,
+                equity_curve=equity_curve,
+                trades=trades,
+                price_data=engine.trades,
+                benchmark=benchmark
+            )
 
         except Exception as e:
             if backtest_run:

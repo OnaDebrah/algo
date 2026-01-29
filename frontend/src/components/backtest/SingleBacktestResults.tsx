@@ -1,22 +1,15 @@
 'use client'
 import React, {useState} from 'react';
-import {
-    Area,
-    AreaChart,
-    CartesianGrid,
-    ComposedChart,
-    ResponsiveContainer,
-    Scatter,
-    Tooltip,
-    XAxis,
-    YAxis
-} from 'recharts';
+import {Area, CartesianGrid, ComposedChart, ResponsiveContainer, Scatter, Tooltip, XAxis, YAxis} from 'recharts';
 import {Activity, Download, Target, TrendingDown, TrendingUp} from 'lucide-react';
 import MetricCard from "@/components/backtest/MetricCard";
-import {formatCurrency, formatPercent, toPrecision} from "@/utils/formatters";
-import {BacktestResult, Trade} from "@/types/all_types";
+import BenchmarkComparison from "@/components/backtest/BenchmarkComparison";
+import {formatCurrency, formatPercent, formatTimeZone, toPrecision} from "@/utils/formatters";
+import {BacktestResult, EquityCurvePoint, Trade} from "@/types/all_types";
 
-const SingleBacktestResults = ({results}: { results: BacktestResult }) => {
+const SingleBacktestResults: ({results}: { results: BacktestResult }) => React.JSX.Element = ({results}: {
+    results: BacktestResult
+}) => {
     const [tradeFilter, setTradeFilter] = useState('all');
     const trades = results.trades || [];
 
@@ -36,7 +29,14 @@ const SingleBacktestResults = ({results}: { results: BacktestResult }) => {
             <div
                 className="bg-gradient-to-br from-slate-900/90 to-slate-800/90 backdrop-blur-xl border border-slate-700/50 rounded-2xl p-6 shadow-xl">
                 <div className="flex justify-between items-center mb-6">
-                    <h3 className="text-xl font-semibold text-slate-100">Equity Curve</h3>
+                    <div>
+                        <h3 className="text-xl font-semibold text-slate-100">Equity Curve</h3>
+                        {results.benchmark && (
+                            <p className="text-xs text-slate-500 mt-1">
+                                Strategy (green) vs Benchmark (blue)
+                            </p>
+                        )}
+                    </div>
                     <button
                         className="flex items-center space-x-2 px-4 py-2 bg-slate-800/60 hover:bg-slate-700/60 border border-slate-700/50 rounded-lg transition-all text-sm font-medium text-slate-300">
                         <Download size={18} strokeWidth={2}/>
@@ -44,11 +44,37 @@ const SingleBacktestResults = ({results}: { results: BacktestResult }) => {
                     </button>
                 </div>
                 <ResponsiveContainer width="100%" height={320}>
-                    <AreaChart data={results.equity_curve}>
+                    <ComposedChart data={(() => {
+
+                        const strategyData: EquityCurvePoint[] = results?.equity_curve || [];
+                        const benchmarkData: EquityCurvePoint[] = results.benchmark?.equity_curve || [];
+
+                        const merged: {
+                            timestamp: string;
+                            strategy_equity: number;
+                            benchmark_equity: number | null
+                        }[] = strategyData.map((point: EquityCurvePoint) => {
+                            const benchmarkPoint: EquityCurvePoint | undefined = benchmarkData.find((bp: EquityCurvePoint) =>
+                                formatTimeZone(bp.timestamp) === point.timestamp
+                            );
+
+                            return {
+                                timestamp: point.timestamp,
+                                strategy_equity: point.equity,
+                                benchmark_equity: benchmarkPoint?.equity || null
+                            };
+                        });
+
+                        return merged;
+                    })()}>
                         <defs>
-                            <linearGradient id="colorEquity" x1="0" y1="0" x2="0" y2="1">
+                            <linearGradient id="colorStrategyEquity" x1="0" y1="0" x2="0" y2="1">
                                 <stop offset="5%" stopColor="#10b981" stopOpacity={0.4}/>
                                 <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
+                            </linearGradient>
+                            <linearGradient id="colorBenchmarkEquity" x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.2}/>
+                                <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
                             </linearGradient>
                         </defs>
                         <CartesianGrid strokeDasharray="3 3" stroke="#334155" opacity={0.3}/>
@@ -62,14 +88,59 @@ const SingleBacktestResults = ({results}: { results: BacktestResult }) => {
                                 borderRadius: '12px',
                                 padding: '12px'
                             }}
-                            formatter={(value) => [formatCurrency(Number(value || 0)), 'Equity']}
+                            formatter={(value: number | undefined, name: string | undefined) => {
+                                if (name === 'strategy_equity') return [formatCurrency(Number(value || 0)), 'Strategy'];
+                                if (name === 'benchmark_equity') return [formatCurrency(Number(value || 0)), 'Benchmark'];
+                                return [formatCurrency(Number(value || 0)), name];
+                            }}
                             labelStyle={{color: '#94a3b8', fontWeight: 600, marginBottom: '4px'}}
                         />
-                        <Area type="monotone" dataKey="equity" stroke="#10b981" strokeWidth={2} fillOpacity={1}
-                              fill="url(#colorEquity)"/>
-                    </AreaChart>
+
+                        {/* Benchmark line (below) */}
+                        {results.benchmark && (
+                            <Area
+                                type="monotone"
+                                dataKey="benchmark_equity"
+                                stroke="#3b82f6"
+                                strokeWidth={2}
+                                fillOpacity={1}
+                                fill="url(#colorBenchmarkEquity)"
+                                strokeDasharray="5 5"
+                            />
+                        )}
+
+                        {/* Strategy line (on top) */}
+                        <Area
+                            type="monotone"
+                            dataKey="strategy_equity"
+                            stroke="#10b981"
+                            strokeWidth={2}
+                            fillOpacity={1}
+                            fill="url(#colorStrategyEquity)"
+                        />
+                    </ComposedChart>
                 </ResponsiveContainer>
+
+                {/* Legend */}
+                {results.benchmark && (
+                    <div className="flex items-center justify-center space-x-6 mt-4">
+                        <div className="flex items-center space-x-2">
+                            <div className="w-3 h-3 rounded-full bg-emerald-500"></div>
+                            <span className="text-xs text-slate-400 font-medium">Strategy</span>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                            <div className="w-3 h-3 rounded-full bg-blue-500"></div>
+                            <span
+                                className="text-xs text-slate-400 font-medium">Benchmark ({results.benchmark.symbol || 'SPY'})</span>
+                        </div>
+                    </div>
+                )}
             </div>
+
+            {/* Benchmark Comparison */}
+            {results.benchmark && (
+                <BenchmarkComparison benchmark={results.benchmark}/>
+            )}
 
             {/* Price Chart with Trade Markers */}
             {results.price_data && results.price_data.length > 0 && (

@@ -10,10 +10,12 @@ from typing import Dict, List
 import numpy as np
 import pandas as pd
 
-from backend.app.core import fetch_stock_data
-from backend.app.core import DatabaseManager
-from backend.app.core import RiskManager
+from backend.app.analytics import calculate_performance_metrics
+from backend.app.core.data_fetcher import fetch_stock_data
+from backend.app.core.database import DatabaseManager
+from backend.app.core.risk_manager import RiskManager
 from backend.app.strategies import BaseStrategy
+from backend.app.schemas.backtest import MultiAssetBacktestResult
 
 logger = logging.getLogger(__name__)
 
@@ -22,14 +24,14 @@ class MultiAssetEngine:
     """Engine for backtesting across multiple assets"""
 
     def __init__(
-        self,
-        strategies: Dict[str, BaseStrategy],  # {symbol: strategy}
-        initial_capital: float = 100000,
-        risk_manager: RiskManager = None,
-        db: DatabaseManager = None,
-        allocation_method: str = "equal",  # equal, optimized, custom
-        commission_rate: float = 0.0,
-        slippage_rate: float = 0.0,
+            self,
+            strategies: Dict[str, BaseStrategy],  # {symbol: strategy}
+            initial_capital: float = 100000,
+            risk_manager: RiskManager = None,
+            db: DatabaseManager = None,
+            allocation_method: str = "equal",  # equal, optimized, custom
+            commission_rate: float = 0.05,
+            slippage_rate: float = 0.03,
     ):
         """
         Initialize multi-asset backtesting engine
@@ -50,6 +52,7 @@ class MultiAssetEngine:
         self.risk_manager = risk_manager or RiskManager()
         self.db = db or DatabaseManager()
         self.allocation_method = allocation_method
+
         self.commission_rate = commission_rate
         self.slippage_rate = slippage_rate
 
@@ -78,7 +81,8 @@ class MultiAssetEngine:
             period: Time period
             interval: Data interval
         """
-        logger.info(f"Starting multi-asset backtest: {len(symbols)} symbols, " f"period: {period}, interval: {interval}")
+        logger.info(
+            f"Starting multi-asset backtest: {len(symbols)} symbols, " f"period: {period}, interval: {interval}")
 
         # Fetch data for all symbols
         data_dict = {}
@@ -119,7 +123,8 @@ class MultiAssetEngine:
             # Calculate portfolio equity
             self._update_equity(timestamp, aligned_data, i)
 
-        logger.info(f"Backtest complete: {len(self.trades)} trades, " f"Final equity: ${self.equity_curve[-1]['equity']:,.2f}")
+        logger.info(
+            f"Backtest complete: {len(self.trades)} trades, " f"Final equity: ${self.equity_curve[-1]['equity']:,.2f}")
 
     def _align_data(self, data_dict: Dict[str, pd.DataFrame]) -> Dict:
         """Align data across all symbols to common timestamps"""
@@ -145,26 +150,27 @@ class MultiAssetEngine:
         return aligned
 
     def _execute_trade(
-        self,
-        symbol: str,
-        signal: int,
-        current_price: float,
-        timestamp,
-        strategy_name: str,
+            self,
+            symbol: str,
+            signal: int,
+            current_price: float,
+            timestamp,
+            strategy_name: str,
     ):
-        """Execute trade for a specific symbol"""
+        """Execute trade with commission and slippage"""
 
-        # Calculate available capital for this symbol
         symbol_allocation = self.allocations.get(symbol, 0)
         available_capital = self.cash * symbol_allocation
 
-        # Buy signal
+        # --- BUY SIGNAL ---
         if signal == 1 and symbol not in self.positions:
-            # Apply slippage (buy higher)
-            slipped_price = current_price * (1 + self.slippage_rate)
-            
-            quantity = self.risk_manager.calculate_position_size(available_capital, slipped_price)
-            trade_value = quantity * slipped_price
+            # Apply Slippage (Paying more than current_price)
+            execution_price = current_price * (1 + self.slippage_rate)
+
+            quantity = self.risk_manager.calculate_position_size(available_capital, execution_price)
+
+            # Calculate Costs
+            trade_value = quantity * execution_price
             commission = trade_value * self.commission_rate
             total_cost = trade_value + commission
 
@@ -173,50 +179,54 @@ class MultiAssetEngine:
                 self.positions[symbol] = {
                     "symbol": symbol,
                     "quantity": quantity,
-                    "entry_price": slipped_price,
+                    "entry_price": execution_price,  # We track the "penalized" price
                     "entry_time": timestamp,
                     "strategy": strategy_name,
+                    "entry_commission": commission
                 }
 
                 trade_data = {
                     "symbol": symbol,
                     "order_type": "BUY",
                     "quantity": quantity,
-                    "price": slipped_price,
+                    "price": execution_price,
                     "commission": commission,
-                    "slippage": slipped_price - current_price,
+                    "slippage_impact": execution_price - current_price,
                     "timestamp": (timestamp.isoformat() if isinstance(timestamp, datetime) else str(timestamp)),
                     "strategy": strategy_name,
                 }
 
                 self.trades.append(trade_data)
                 self.db.save_trade(trade_data)
+                logger.debug(f"BUY: {quantity} {symbol} @ ${execution_price:.2f} (Comm: ${commission:.2f})")
 
-                logger.debug(f"BUY: {quantity} {symbol} @ ${slipped_price:.2f} (Comm: ${commission:.2f})")
-
-        # Sell signal
+        # --- SELL SIGNAL ---
         elif signal == -1 and symbol in self.positions:
             position = self.positions[symbol]
-            
-            # Apply slippage (sell lower)
-            slipped_price = current_price * (1 - self.slippage_rate)
-            
-            revenue = position["quantity"] * slipped_price
-            commission = revenue * self.commission_rate
-            net_revenue = revenue - commission
-            
-            profit = net_revenue - (position["entry_price"] * position["quantity"])
-            profit_pct = (profit / (position["entry_price"] * position["quantity"])) * 100
 
-            self.cash += net_revenue
+            # Apply Slippage (Receiving less than current_price)
+            execution_price = current_price * (1 - self.slippage_rate)
+
+            # Calculate Costs
+            trade_value = position["quantity"] * execution_price
+            commission = trade_value * self.commission_rate
+
+            # Net Cash Received
+            net_proceeds = trade_value - commission
+            self.cash += net_proceeds
+
+            # Calculate P&L (Total commission includes entry + exit)
+            total_commissions = position.get("entry_commission", 0) + commission
+            profit = (trade_value - (position["quantity"] * position["entry_price"])) - total_commissions
+            profit_pct = (profit / (position["quantity"] * position["entry_price"])) * 100
 
             trade_data = {
                 "symbol": symbol,
                 "order_type": "SELL",
                 "quantity": position["quantity"],
-                "price": slipped_price,
+                "price": execution_price,
                 "commission": commission,
-                "slippage": current_price - slipped_price,
+                "total_fees": total_commissions,
                 "timestamp": (timestamp.isoformat() if isinstance(timestamp, datetime) else str(timestamp)),
                 "strategy": strategy_name,
                 "profit": profit,
@@ -226,7 +236,8 @@ class MultiAssetEngine:
             self.trades.append(trade_data)
             self.db.save_trade(trade_data)
 
-            logger.debug(f"SELL: {position['quantity']} {symbol} @ ${slipped_price:.2f} " f"(P&L: ${profit:.2f}, Comm: ${commission:.2f})")
+            logger.debug(f"SELL: {position['quantity']} {symbol} @ ${execution_price:.2f} "
+                         f"(Net P&L: ${profit:.2f}, Fees: ${total_commissions:.2f})")
 
             del self.positions[symbol]
 
@@ -249,78 +260,17 @@ class MultiAssetEngine:
             }
         )
 
-    def get_results(self) -> Dict:
+    def get_results(self) -> MultiAssetBacktestResult:
         """Get backtest results"""
 
-        if not self.equity_curve:
-            return {}
-
-        final_equity = self.equity_curve[-1]["equity"]
-        total_return = ((final_equity - self.initial_capital) / self.initial_capital) * 100
-
-        # Per-symbol statistics
         symbol_stats = self._calculate_symbol_stats()
 
-        # Overall statistics
-        if not self.trades:
-            # No trades executed
-            return {
-                "total_return": total_return,
-                "win_rate": 0,
-                "sharpe_ratio": 0,
-                "max_drawdown": 0,
-                "total_trades": 0,
-                "avg_profit": 0,
-                "final_equity": final_equity,
-                "symbol_stats": symbol_stats,
-                "num_symbols": len(self.strategies),
-            }
-
-        trades_df = pd.DataFrame(self.trades)
-
-        # Check if profit column exists
-        if "profit" in trades_df.columns:
-            completed_trades = trades_df[trades_df["profit"].notna()]
-        else:
-            completed_trades = pd.DataFrame()
-
-        if not completed_trades.empty:
-            win_rate = (completed_trades["profit"] > 0).sum() / len(completed_trades) * 100
-            avg_profit = completed_trades["profit"].mean()
-
-            returns = completed_trades["profit_pct"].values
-            if len(returns) > 1:
-                sharpe = (np.mean(returns) / np.std(returns)) * np.sqrt(252)
-            else:
-                sharpe = 0
-        else:
-            win_rate = 0
-            avg_profit = 0
-            sharpe = 0
-
-        # Max drawdown
-        equity_values = [e["equity"] for e in self.equity_curve]
-        peak = equity_values[0]
-        max_dd = 0
-
-        for value in equity_values:
-            if value > peak:
-                peak = value
-            dd = ((peak - value) / peak) * 100
-            if dd > max_dd:
-                max_dd = dd
-
-        return {
-            "total_return": total_return,
-            "win_rate": win_rate,
-            "sharpe_ratio": sharpe,
-            "max_drawdown": max_dd,
-            "total_trades": len(completed_trades),
-            "avg_profit": avg_profit,
-            "final_equity": final_equity,
-            "symbol_stats": symbol_stats,
-            "num_symbols": len(self.strategies),
-        }
+        metrics = calculate_performance_metrics(self.trades, self.equity_curve, self.initial_capital)
+        return MultiAssetBacktestResult(
+            **metrics,
+            num_symbols=len(self.strategies),
+            symbol_stats=symbol_stats,
+        )
 
     def _calculate_symbol_stats(self) -> Dict:
         """Calculate per-symbol statistics"""
@@ -332,11 +282,12 @@ class MultiAssetEngine:
             # Return empty stats for all symbols
             for symbol in self.strategies.keys():
                 stats[symbol] = {
-                    "total_profit": 0,
-                    "num_trades": 0,
-                    "win_rate": 0,
-                    "avg_profit": 0,
-                    "strategy": self.strategies[symbol].name,
+                    "total_trades": 0,
+                    "winning_trades": 0,
+                    "losing_trades": 0,
+                    "total_return": 0.0,
+                    "win_rate": 0.0,
+                    "avg_profit": 0.0,
                 }
             return stats
 
@@ -348,11 +299,12 @@ class MultiAssetEngine:
             # Return empty stats for all symbols
             for symbol in self.strategies.keys():
                 stats[symbol] = {
-                    "total_profit": 0,
-                    "num_trades": 0,
-                    "win_rate": 0,
-                    "avg_profit": 0,
-                    "strategy": self.strategies[symbol].name,
+                    "total_trades": 0,
+                    "winning_trades": 0,
+                    "losing_trades": 0,
+                    "total_return": 0.0,
+                    "win_rate": 0.0,
+                    "avg_profit": 0.0,
                 }
             return stats
 
@@ -366,24 +318,29 @@ class MultiAssetEngine:
                 completed = pd.DataFrame()
 
             if not completed.empty:
-                total_profit = completed["profit"].sum()
-                num_trades = len(completed)
-                win_rate = (completed["profit"] > 0).sum() / num_trades * 100
+                profits = completed["profit"]
+                total_trades = len(completed)
+                winning_trades = (profits > 0).sum()
+                losing_trades = (profits < 0).sum()
+                total_return = profits.sum()
+                win_rate = (winning_trades / total_trades * 100) if total_trades > 0 else 0.0
 
                 stats[symbol] = {
-                    "total_profit": total_profit,
-                    "num_trades": num_trades,
-                    "win_rate": win_rate,
-                    "avg_profit": completed["profit"].mean(),
-                    "strategy": self.strategies[symbol].name,
+                    "total_trades": int(total_trades),
+                    "winning_trades": int(winning_trades),
+                    "losing_trades": int(losing_trades),
+                    "total_return": float(total_return),
+                    "win_rate": float(win_rate),
+                    "avg_profit": float(profits.mean()),
                 }
             else:
                 stats[symbol] = {
-                    "total_profit": 0,
-                    "num_trades": 0,
-                    "win_rate": 0,
-                    "avg_profit": 0,
-                    "strategy": self.strategies[symbol].name,
+                    "total_trades": 0,
+                    "winning_trades": 0,
+                    "losing_trades": 0,
+                    "total_return": 0.0,
+                    "win_rate": 0.0,
+                    "avg_profit": 0.0,
                 }
 
         return stats
@@ -393,11 +350,11 @@ class PortfolioBacktester:
     """Backtest a portfolio with single strategy across multiple assets"""
 
     def __init__(
-        self,
-        strategy: BaseStrategy,
-        symbols: List[str],
-        weights: Dict[str, float] = None,
-        initial_capital: float = 100000,
+            self,
+            strategy: BaseStrategy,
+            symbols: List[str],
+            weights: Dict[str, float] = None,
+            initial_capital: float = 100000,
     ):
         """
         Initialize portfolio backtester
@@ -445,4 +402,4 @@ class PortfolioBacktester:
         # Run backtest
         engine.run_backtest(self.symbols, period, interval)
 
-        return engine.get_results()
+        return engine.get_results().model_dump()
