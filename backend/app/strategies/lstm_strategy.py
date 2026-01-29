@@ -10,7 +10,7 @@ import torch
 import torch.nn as nn
 from sklearn.preprocessing import StandardScaler
 
-from strategies.base_strategy import BaseStrategy
+from backend.app.strategies import BaseStrategy
 
 logger = logging.getLogger(__name__)
 

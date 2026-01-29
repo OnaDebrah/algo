@@ -21,12 +21,12 @@ from backend.app.schemas.backtest import (
     SymbolStats,
     Trade,
 )
-from core.data_fetcher import fetch_stock_data
-from core.database import DatabaseManager
-from core.multi_asset_engine import MultiAssetEngine
-from core.risk_manager import RiskManager
-from core.trading_engine import TradingEngine
-from strategies.strategy_catalog import get_catalog
+from backend.app.core import fetch_stock_data
+from backend.app.core import DatabaseManager
+from backend.app.core import RiskManager
+from backend.app.core import TradingEngine
+from backend.app.strategies.strategy_catalog import get_catalog
+from backend.app.core.multi_asset_engine import MultiAssetEngine
 
 
 class BacktestService:
@@ -128,7 +128,7 @@ class BacktestService:
             await asyncio.to_thread(engine.run_backtest, request.symbol, data)
 
             # Calculate metrics
-            from analytics.performance import calculate_performance_metrics
+            from backend.app.analytics.performance import calculate_performance_metrics
 
             metrics = calculate_performance_metrics(engine.trades, engine.equity_curve, request.initial_capital)
 

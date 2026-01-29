@@ -4,7 +4,7 @@ Parabolic SAR Strategy
 
 import pandas as pd
 
-from strategies.base_strategy import BaseStrategy
+from backend.app.strategies import BaseStrategy
 
 
 class ParabolicSARStrategy(BaseStrategy):

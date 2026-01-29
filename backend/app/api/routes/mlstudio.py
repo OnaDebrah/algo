@@ -8,7 +8,7 @@ from backend.app.schemas.mlstudio import MLModel, TrainingConfig
 from backend.app.api.deps import get_current_active_user
 from backend.app.models import User
 from backend.app.config import settings
-from strategies.ml_strategy import MLStrategy
+from backend.app.strategies import MLStrategy
 from backend.app.core import fetch_stock_data
 
 router = APIRouter(prefix="/mlstudio", tags=["ML Studio"])

@@ -5,7 +5,7 @@ Simple Moving Average Crossover Strategy
 import pandas as pd
 
 from config import DEFAULT_SMA_LONG, DEFAULT_SMA_SHORT
-from strategies.base_strategy import BaseStrategy
+from backend.app.strategies import BaseStrategy
 
 
 class SMACrossoverStrategy(BaseStrategy):

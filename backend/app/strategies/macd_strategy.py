@@ -5,7 +5,7 @@ Moving Average Convergence Divergence (MACD) Strategy
 import pandas as pd
 
 from config import DEFAULT_MACD_FAST, DEFAULT_MACD_SIGNAL, DEFAULT_MACD_SLOW
-from strategies.base_strategy import BaseStrategy
+from backend.app.strategies import BaseStrategy
 
 
 class MACDStrategy(BaseStrategy):

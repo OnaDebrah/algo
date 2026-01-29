@@ -12,7 +12,7 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.svm import SVC
 
 from config import DEFAULT_ML_TEST_SIZE, DEFAULT_ML_THRESHOLD
-from strategies import BaseStrategy
+from backend.app.strategies import BaseStrategy
 
 logger = logging.getLogger(__name__)
 
