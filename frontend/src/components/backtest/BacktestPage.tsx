@@ -139,7 +139,7 @@ const BacktestPage = () => {
                             cash: equityCurvePoint.cash,
                             drawdown: equityCurvePoint.drawdown
                         })) : [],
-
+                        benchmark: result.benchmark,
                         trades: (response.trades || []).map((trade: Trade) => ({
                             id: trade.id || Math.random(),
                             timestamp: new Date(trade.timestamp).toLocaleString(),

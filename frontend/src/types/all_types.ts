@@ -83,6 +83,23 @@ export interface SingleBacktestRequest {
     slippage_rate?: number;
 }
 
+export interface ComparisonInfo {
+    outperformance: number;
+    alpha: number;
+    sharpe_ratio_diff: number;
+    max_drawdown_diff: number;
+    strategy_return: number;
+    benchmark_return: number;
+    strategy_sharpe: number;
+    benchmark_sharpe: number;
+}
+
+export interface BenchmarkInfo {
+    symbol: string;
+    comparison: ComparisonInfo;
+    equity_curve: EquityCurvePoint[];
+}
+
 export interface BacktestResult {
     total_return: number;
     total_return_pct: number;
@@ -100,6 +117,7 @@ export interface BacktestResult {
     initial_capital: number;
     num_symbols?: number;
     equity_curve?: EquityCurvePoint[];
+    benchmark?: BenchmarkInfo;
     trades?: Trade[];
     price_data?: Record<string, any>[] | null;
     symbol_stats: Record<string, SymbolStats>
@@ -130,6 +148,7 @@ export interface SingleBacktestResponse {
     equity_curve: EquityCurvePoint[];
     trades: Trade[];
     price_data: Record<string, any>[] | null;
+    benchmark: Record<string, any>[] | null;
 }
 
 export interface SingleAssetConfig {
@@ -221,6 +240,8 @@ export interface MultiAssetBacktestResponse {
     equity_curve: EquityCurvePoint[];
     trades: Trade[];
     price_data: Record<string, any>[] | null;
+    benchmark: Record<string, any>[] | null;
+
 }
 
 // ==================== OPTIONS BACKTEST ====================

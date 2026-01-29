@@ -60,6 +60,7 @@ class BacktestResponse(BaseModel):
     equity_curve: List[EquityCurvePoint]
     trades: List[Trade]
     price_data: Optional[List[Dict]] = None
+    benchmark: Optional[Dict] = None
 
 
 # Multi-asset backtest
@@ -99,6 +100,7 @@ class MultiAssetBacktestResponse(BaseModel):
     equity_curve: List[EquityCurvePoint]
     trades: List[Trade]
     price_data: Optional[List[Dict]] = None
+    benchmark: Optional[Dict] = None
 
 
 
