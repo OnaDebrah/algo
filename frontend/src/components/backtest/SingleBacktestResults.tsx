@@ -1,13 +1,13 @@
 'use client'
-import React, {useState} from 'react';
-import {Area, CartesianGrid, ComposedChart, ResponsiveContainer, Scatter, Tooltip, XAxis, YAxis} from 'recharts';
-import {Activity, Download, Target, TrendingDown, TrendingUp} from 'lucide-react';
+import React, { useState } from 'react';
+import { Area, CartesianGrid, ComposedChart, ResponsiveContainer, Scatter, Tooltip, XAxis, YAxis } from 'recharts';
+import { Activity, Download, Target, TrendingDown, TrendingUp } from 'lucide-react';
 import MetricCard from "@/components/backtest/MetricCard";
 import BenchmarkComparison from "@/components/backtest/BenchmarkComparison";
-import {formatCurrency, formatPercent, formatTimeZone, toPrecision} from "@/utils/formatters";
-import {BacktestResult, EquityCurvePoint, Trade} from "@/types/all_types";
+import { formatCurrency, formatPercent, formatTimeZone, toPrecision } from "@/utils/formatters";
+import { BacktestResult, EquityCurvePoint, Trade } from "@/types/all_types";
 
-const SingleBacktestResults: ({results}: { results: BacktestResult }) => React.JSX.Element = ({results}: {
+const SingleBacktestResults: ({ results }: { results: BacktestResult }) => React.JSX.Element = ({ results }: {
     results: BacktestResult
 }) => {
     const [tradeFilter, setTradeFilter] = useState('all');
@@ -17,13 +17,13 @@ const SingleBacktestResults: ({results}: { results: BacktestResult }) => React.J
         <div className="space-y-6">
             <div className="grid grid-cols-4 gap-6">
                 <MetricCard title="Total Return" value={formatPercent(results.total_return)} icon={TrendingUp}
-                            trend="up" color="emerald"/>
+                    trend="up" color="emerald" />
                 <MetricCard title="Win Rate" value={`${results.win_rate.toFixed(1)}%`} icon={Target} trend="up"
-                            color="blue"/>
+                    color="blue" />
                 <MetricCard title="Sharpe Ratio" value={results.sharpe_ratio.toFixed(2)} icon={Activity} trend="up"
-                            color="violet"/>
+                    color="violet" />
                 <MetricCard title="Max Drawdown" value={formatPercent(results.max_drawdown)} icon={TrendingDown}
-                            trend="down" color="red"/>
+                    trend="down" color="red" />
             </div>
 
             <div
@@ -39,7 +39,7 @@ const SingleBacktestResults: ({results}: { results: BacktestResult }) => React.J
                     </div>
                     <button
                         className="flex items-center space-x-2 px-4 py-2 bg-slate-800/60 hover:bg-slate-700/60 border border-slate-700/50 rounded-lg transition-all text-sm font-medium text-slate-300">
-                        <Download size={18} strokeWidth={2}/>
+                        <Download size={18} strokeWidth={2} />
                         <span>Export</span>
                     </button>
                 </div>
@@ -54,8 +54,9 @@ const SingleBacktestResults: ({results}: { results: BacktestResult }) => React.J
                             strategy_equity: number;
                             benchmark_equity: number | null
                         }[] = strategyData.map((point: EquityCurvePoint) => {
+                            // Both timestamps are already formatted the same way (via formatDate in BacktestPage)
                             const benchmarkPoint: EquityCurvePoint | undefined = benchmarkData.find((bp: EquityCurvePoint) =>
-                                formatTimeZone(bp.timestamp) === point.timestamp
+                                bp.timestamp === point.timestamp
                             );
 
                             return {
@@ -69,18 +70,18 @@ const SingleBacktestResults: ({results}: { results: BacktestResult }) => React.J
                     })()}>
                         <defs>
                             <linearGradient id="colorStrategyEquity" x1="0" y1="0" x2="0" y2="1">
-                                <stop offset="5%" stopColor="#10b981" stopOpacity={0.4}/>
-                                <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
+                                <stop offset="5%" stopColor="#10b981" stopOpacity={0.4} />
+                                <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
                             </linearGradient>
                             <linearGradient id="colorBenchmarkEquity" x1="0" y1="0" x2="0" y2="1">
-                                <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.2}/>
-                                <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
+                                <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.2} />
+                                <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
                             </linearGradient>
                         </defs>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#334155" opacity={0.3}/>
-                        <XAxis dataKey="timestamp" stroke="#64748b" style={{fontSize: '12px', fontWeight: 500}}/>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#334155" opacity={0.3} />
+                        <XAxis dataKey="timestamp" stroke="#64748b" style={{ fontSize: '12px', fontWeight: 500 }} />
                         <YAxis stroke="#64748b" tickFormatter={(value) => formatCurrency(value)}
-                               style={{fontSize: '12px', fontWeight: 500}}/>
+                            style={{ fontSize: '12px', fontWeight: 500 }} />
                         <Tooltip
                             contentStyle={{
                                 backgroundColor: '#1e293b',
@@ -93,7 +94,7 @@ const SingleBacktestResults: ({results}: { results: BacktestResult }) => React.J
                                 if (name === 'benchmark_equity') return [formatCurrency(Number(value || 0)), 'Benchmark'];
                                 return [formatCurrency(Number(value || 0)), name];
                             }}
-                            labelStyle={{color: '#94a3b8', fontWeight: 600, marginBottom: '4px'}}
+                            labelStyle={{ color: '#94a3b8', fontWeight: 600, marginBottom: '4px' }}
                         />
 
                         {/* Benchmark line (below) */}
@@ -139,7 +140,7 @@ const SingleBacktestResults: ({results}: { results: BacktestResult }) => React.J
 
             {/* Benchmark Comparison */}
             {results.benchmark && (
-                <BenchmarkComparison benchmark={results.benchmark}/>
+                <BenchmarkComparison benchmark={results.benchmark} />
             )}
 
             {/* Price Chart with Trade Markers */}
@@ -178,22 +179,22 @@ const SingleBacktestResults: ({results}: { results: BacktestResult }) => React.J
                         })()}>
                             <defs>
                                 <linearGradient id="colorPrice" x1="0" y1="0" x2="0" y2="1">
-                                    <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3}/>
-                                    <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
+                                    <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3} />
+                                    <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
                                 </linearGradient>
                             </defs>
-                            <CartesianGrid strokeDasharray="3 3" stroke="#334155" opacity={0.3}/>
+                            <CartesianGrid strokeDasharray="3 3" stroke="#334155" opacity={0.3} />
                             <XAxis
                                 dataKey="timestamp"
                                 stroke="#64748b"
-                                style={{fontSize: '11px', fontWeight: 500}}
+                                style={{ fontSize: '11px', fontWeight: 500 }}
                                 interval="preserveStartEnd"
                                 minTickGap={50}
                             />
                             <YAxis
                                 stroke="#64748b"
                                 tickFormatter={(value) => `$${value.toFixed(2)}`}
-                                style={{fontSize: '12px', fontWeight: 500}}
+                                style={{ fontSize: '12px', fontWeight: 500 }}
                                 domain={['auto', 'auto']}
                             />
                             <Tooltip
@@ -212,7 +213,7 @@ const SingleBacktestResults: ({results}: { results: BacktestResult }) => React.J
 
                                     return [value.toString(), name];
                                 }}
-                                labelStyle={{color: '#94a3b8', fontWeight: 600, marginBottom: '4px'}}
+                                labelStyle={{ color: '#94a3b8', fontWeight: 600, marginBottom: '4px' }}
                             />
 
                             {/* Price line */}
@@ -277,7 +278,7 @@ const SingleBacktestResults: ({results}: { results: BacktestResult }) => React.J
                                 key={f}
                                 onClick={() => setTradeFilter(f)}
                                 className={`px-3 py-1.5 rounded-md text-[10px] font-black uppercase tracking-widest transition-all ${tradeFilter === f ? 'bg-violet-600 text-white' : 'text-slate-500 hover:text-slate-300'
-                                }`}
+                                    }`}
                             >
                                 {f}
                             </button>
@@ -288,80 +289,80 @@ const SingleBacktestResults: ({results}: { results: BacktestResult }) => React.J
                 <div className="overflow-x-auto">
                     <table className="w-full text-left border-collapse">
                         <thead>
-                        <tr className="bg-white/[0.01] text-[10px] font-black text-slate-500 uppercase tracking-widest border-b border-slate-800/50">
-                            <th className="px-6 py-4">Asset</th>
-                            <th className="px-6 py-4">Type</th>
-                            <th className="px-6 py-4">Timestamp</th>
-                            <th className="px-6 py-4">Strategy</th>
-                            <th className="px-6 py-4 text-right">Price</th>
-                            <th className="px-6 py-4 text-right">Quantity</th>
-                            <th className="px-6 py-4 text-right">Commission</th>
-                            <th className="px-6 py-4 text-right">Profit</th>
-                        </tr>
+                            <tr className="bg-white/[0.01] text-[10px] font-black text-slate-500 uppercase tracking-widest border-b border-slate-800/50">
+                                <th className="px-6 py-4">Asset</th>
+                                <th className="px-6 py-4">Type</th>
+                                <th className="px-6 py-4">Timestamp</th>
+                                <th className="px-6 py-4">Strategy</th>
+                                <th className="px-6 py-4 text-right">Price</th>
+                                <th className="px-6 py-4 text-right">Quantity</th>
+                                <th className="px-6 py-4 text-right">Commission</th>
+                                <th className="px-6 py-4 text-right">Profit</th>
+                            </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-800/30">
-                        {trades.length > 0 ? trades.map((trade, idx: number) => {
-                            const isWin = trade.profit && trade.profit >= 0;
-                            const isClosed = trade.profit !== null && trade.profit !== undefined;
-                            if (tradeFilter === 'profitable' && (!isClosed || !isWin)) return null;
-                            if (tradeFilter === 'loss' && (!isClosed || isWin)) return null;
+                            {trades.length > 0 ? trades.map((trade, idx: number) => {
+                                const isWin = trade.profit && trade.profit >= 0;
+                                const isClosed = trade.profit !== null && trade.profit !== undefined;
+                                if (tradeFilter === 'profitable' && (!isClosed || !isWin)) return null;
+                                if (tradeFilter === 'loss' && (!isClosed || isWin)) return null;
 
-                            return (
-                                <tr key={idx} className="hover:bg-white/[0.02] transition-colors group">
-                                    <td className="px-6 py-4">
-                                        <div className="flex items-center space-x-3">
+                                return (
+                                    <tr key={idx} className="hover:bg-white/[0.02] transition-colors group">
+                                        <td className="px-6 py-4">
+                                            <div className="flex items-center space-x-3">
                                                 <span
                                                     className="w-8 h-8 rounded bg-slate-800 flex items-center justify-center font-mono text-[10px] font-bold text-violet-400 border border-slate-700">
                                                     {trade.symbol.slice(0, 2)}
                                                 </span>
-                                            <span className="font-bold text-slate-200 text-xs">{trade.symbol}</span>
-                                        </div>
-                                    </td>
-                                    <td className="px-6 py-4">
+                                                <span className="font-bold text-slate-200 text-xs">{trade.symbol}</span>
+                                            </div>
+                                        </td>
+                                        <td className="px-6 py-4">
                                             <span
                                                 className={`px-2 py-1 rounded text-[9px] font-black uppercase tracking-tighter ${trade.order_type === 'BUY' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-red-500/10 text-red-400'
-                                                }`}>
+                                                    }`}>
                                                 {trade.order_type}
                                             </span>
-                                    </td>
-                                    <td className="px-6 py-4 text-[11px] text-slate-400 font-medium">
-                                        {trade.timestamp}
-                                    </td>
-                                    <td className="px-6 py-4 text-[11px] text-slate-400 font-medium">
-                                        {trade.strategy}
-                                    </td>
-                                    <td className="px-6 py-4 text-right font-mono text-xs text-slate-300">
-                                        {formatCurrency(trade.price)}
-                                    </td>
-                                    <td className="px-6 py-4 text-right font-mono text-xs text-slate-500">
-                                        {toPrecision(trade.quantity)}
-                                    </td>
-                                    <td className="px-6 py-4 text-right font-mono text-xs text-slate-500">
-                                        {formatCurrency(trade.commission)}
-                                    </td>
-                                    <td className={`px-6 py-4 text-right font-bold text-xs ${isClosed ? (isWin ? 'text-emerald-400' : 'text-red-400') : 'text-slate-500'}`}>
-                                        <div className="flex flex-col items-end">
-                                            {isClosed ? (
-                                                <>
-                                                    <span>{isWin ? '+' : ''}{formatCurrency(trade.profit || 0)}</span>
-                                                    <span className="text-[9px] font-medium opacity-60">
-                                                        ({trade.profit_pct?.toFixed(2) || '0.00'}%)
-                                                    </span>
-                                                </>
-                                            ) : (
-                                                <span className="text-[10px] uppercase">Open</span>
-                                            )}
-                                        </div>
+                                        </td>
+                                        <td className="px-6 py-4 text-[11px] text-slate-400 font-medium">
+                                            {trade.timestamp}
+                                        </td>
+                                        <td className="px-6 py-4 text-[11px] text-slate-400 font-medium">
+                                            {trade.strategy}
+                                        </td>
+                                        <td className="px-6 py-4 text-right font-mono text-xs text-slate-300">
+                                            {formatCurrency(trade.price)}
+                                        </td>
+                                        <td className="px-6 py-4 text-right font-mono text-xs text-slate-500">
+                                            {toPrecision(trade.quantity)}
+                                        </td>
+                                        <td className="px-6 py-4 text-right font-mono text-xs text-slate-500">
+                                            {formatCurrency(trade.commission)}
+                                        </td>
+                                        <td className={`px-6 py-4 text-right font-bold text-xs ${isClosed ? (isWin ? 'text-emerald-400' : 'text-red-400') : 'text-slate-500'}`}>
+                                            <div className="flex flex-col items-end">
+                                                {isClosed ? (
+                                                    <>
+                                                        <span>{isWin ? '+' : ''}{formatCurrency(trade.profit || 0)}</span>
+                                                        <span className="text-[9px] font-medium opacity-60">
+                                                            ({trade.profit_pct?.toFixed(2) || '0.00'}%)
+                                                        </span>
+                                                    </>
+                                                ) : (
+                                                    <span className="text-[10px] uppercase">Open</span>
+                                                )}
+                                            </div>
+                                        </td>
+                                    </tr>
+                                );
+                            }) : (
+                                <tr>
+                                    <td colSpan={8} className="px-6 py-12 text-center text-slate-600 text-sm">
+                                        No transaction data available for this backtest.
                                     </td>
                                 </tr>
-                            );
-                        }) : (
-                            <tr>
-                                <td colSpan={8} className="px-6 py-12 text-center text-slate-600 text-sm">
-                                    No transaction data available for this backtest.
-                                </td>
-                            </tr>
-                        )}
+                            )}
                         </tbody>
                     </table>
                 </div>
@@ -374,12 +375,12 @@ const SingleBacktestResults: ({results}: { results: BacktestResult }) => React.J
                     </span>
                     <div className="flex items-center space-x-4">
                         <div className="flex items-center space-x-1">
-                            <div className="w-2 h-2 rounded-full bg-emerald-500"/>
+                            <div className="w-2 h-2 rounded-full bg-emerald-500" />
                             <span
                                 className="text-[10px] text-slate-400 font-bold uppercase">Average Winner: {formatCurrency(results.avg_win || 0)}</span>
                         </div>
                         <div className="flex items-center space-x-1">
-                            <div className="w-2 h-2 rounded-full bg-red-500"/>
+                            <div className="w-2 h-2 rounded-full bg-red-500" />
                             <span
                                 className="text-[10px] text-slate-400 font-bold uppercase">Average Loser: {formatCurrency(results.avg_loss || 0)}</span>
                         </div>

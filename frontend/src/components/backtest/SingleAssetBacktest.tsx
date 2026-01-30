@@ -1,5 +1,5 @@
 'use client'
-import React, {useMemo, useState} from 'react';
+import React, { useMemo, useState } from 'react';
 import {
     Activity,
     AlertCircle,
@@ -30,8 +30,8 @@ import {
 } from 'lucide-react';
 import SingleBacktestResults from "@/components/backtest/SingleBacktestResults";
 import StrategyParameterForm from "@/components/backtest/StrategyParameterForm";
-import {BacktestResult, SingleAssetConfig, Strategy} from "@/types/all_types";
-import {formatCurrency} from "@/utils/formatters";
+import { BacktestResult, SingleAssetConfig, Strategy } from "@/types/all_types";
+import { formatCurrency } from "@/utils/formatters";
 
 interface SingleAssetBacktestProps {
     config: SingleAssetConfig;
@@ -52,7 +52,7 @@ const SingleAssetBacktest: React.FC<SingleAssetBacktestProps> = ({
 }: SingleAssetBacktestProps) => {
     const [selectedCategory, setSelectedCategory] = useState('All');
     const [showAdvanced, setShowAdvanced] = useState(false);
-    const [showParameters, setShowParameters] = useState(false);
+    const [showParameters, setShowParameters] = useState(true);
     const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
     const [searchQuery, setSearchQuery] = useState('');
 
@@ -199,8 +199,8 @@ const SingleAssetBacktest: React.FC<SingleAssetBacktestProps> = ({
                                         key={asset.symbol}
                                         onClick={() => setConfig({ ...config, symbol: asset.symbol })}
                                         className={`group relative overflow-hidden px-3 py-2 bg-gradient-to-br from-slate-800/50 to-slate-900/50 border rounded-lg transition-all ${config.symbol === asset.symbol
-                                                ? 'border-violet-500 bg-violet-500/10'
-                                                : 'border-slate-700/50 hover:border-violet-500/50'
+                                            ? 'border-violet-500 bg-violet-500/10'
+                                            : 'border-slate-700/50 hover:border-violet-500/50'
                                             }`}
                                     >
                                         <div className={`absolute inset-0 bg-gradient-to-br ${asset.color} opacity-0 group-hover:opacity-10 transition-opacity`} />
@@ -443,8 +443,8 @@ const SingleAssetBacktest: React.FC<SingleAssetBacktestProps> = ({
                                         key={strategy.id}
                                         onClick={() => setConfig({ ...config, strategy: strategy.id })}
                                         className={`group relative overflow-hidden p-4 rounded-xl border transition-all text-left ${isSelected
-                                                ? 'border-violet-500 bg-gradient-to-br from-violet-500/10 to-purple-500/10 shadow-xl shadow-violet-500/20'
-                                                : 'border-slate-700/50 bg-slate-800/40 hover:border-slate-600/50 hover:bg-slate-800/60'
+                                            ? 'border-violet-500 bg-gradient-to-br from-violet-500/10 to-purple-500/10 shadow-xl shadow-violet-500/20'
+                                            : 'border-slate-700/50 bg-slate-800/40 hover:border-slate-600/50 hover:bg-slate-800/60'
                                             }`}
                                     >
                                         {isSelected && (
@@ -453,8 +453,8 @@ const SingleAssetBacktest: React.FC<SingleAssetBacktestProps> = ({
                                         <div className="relative">
                                             <div className="flex items-center justify-between mb-2">
                                                 <span className={`text-[9px] font-bold uppercase tracking-wider px-2 py-1 rounded ${isSelected
-                                                        ? 'bg-violet-500/20 text-violet-300 border border-violet-500/30'
-                                                        : 'bg-slate-700/50 text-slate-400'
+                                                    ? 'bg-violet-500/20 text-violet-300 border border-violet-500/30'
+                                                    : 'bg-slate-700/50 text-slate-400'
                                                     }`}>
                                                     {strategy.category}
                                                 </span>
@@ -470,10 +470,10 @@ const SingleAssetBacktest: React.FC<SingleAssetBacktestProps> = ({
                                             <p className="text-xs text-slate-400 line-clamp-2 mb-3">{strategy.description}</p>
                                             <div className="flex items-center justify-between">
                                                 <span className={`text-[10px] px-2.5 py-1 rounded-lg font-medium ${strategy.complexity === 'Advanced'
-                                                        ? 'bg-red-500/10 text-red-400 border border-red-500/20'
-                                                        : strategy.complexity === 'Intermediate'
-                                                            ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
-                                                            : 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
+                                                    ? 'bg-red-500/10 text-red-400 border border-red-500/20'
+                                                    : strategy.complexity === 'Intermediate'
+                                                        ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
+                                                        : 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
                                                     }`}>
                                                     {strategy.complexity}
                                                 </span>
@@ -489,50 +489,6 @@ const SingleAssetBacktest: React.FC<SingleAssetBacktestProps> = ({
                         </div>
                     </div>
 
-                    {/* Parameters Card */}
-                    {selectedStrategy && selectedStrategy.parameters && Object.keys(selectedStrategy.parameters).length > 0 && (
-                        <div className="bg-gradient-to-br from-slate-900/90 to-slate-800/90 backdrop-blur-xl border border-slate-700/50 rounded-2xl p-6 shadow-xl">
-                            <div className="flex items-center justify-between mb-6">
-                                <div className="flex items-center gap-3">
-                                    <div className="p-2 bg-purple-500/20 rounded-lg border border-purple-500/30">
-                                        <Settings className="text-purple-400" size={20} strokeWidth={2} />
-                                    </div>
-                                    <div>
-                                        <h4 className="text-sm font-bold text-slate-300">Strategy Parameters</h4>
-                                        <p className="text-xs text-slate-500 font-medium mt-0.5">
-                                            Fine-tune {Object.keys(selectedStrategy.parameters).length} parameters
-                                        </p>
-                                    </div>
-                                </div>
-                                <div className="flex gap-2">
-                                    <button
-                                        onClick={() => setShowParameters(!showParameters)}
-                                        className="flex items-center gap-2 px-3 py-2 text-xs font-bold text-slate-500 hover:text-violet-400 transition-colors bg-slate-800/50 rounded-lg border border-slate-700/50"
-                                    >
-                                        {showParameters ? <Eye size={14} /> : <EyeOff size={14} />}
-                                        <span>{showParameters ? 'Hide' : 'Show'}</span>
-                                    </button>
-                                    <button
-                                        onClick={() => setConfig({ ...config, params: selectedStrategy?.parameters })}
-                                        className="flex items-center gap-2 px-3 py-2 text-xs font-bold text-slate-500 hover:text-violet-400 transition-colors bg-slate-800/50 rounded-lg border border-slate-700/50"
-                                    >
-                                        <RefreshCw size={14} />
-                                        <span>Reset</span>
-                                    </button>
-                                </div>
-                            </div>
-
-                            {showParameters && (
-                                <div className="animate-in fade-in">
-                                    <StrategyParameterForm
-                                        params={selectedStrategy.parameters}
-                                        values={config.params || {}}
-                                        onChange={handleParamChange}
-                                    />
-                                </div>
-                            )}
-                        </div>
-                    )}
                 </div>
 
                 {/* RIGHT: Strategy Intelligence & Action Panel */}
@@ -569,10 +525,10 @@ const SingleAssetBacktest: React.FC<SingleAssetBacktestProps> = ({
                                         <div className="bg-slate-800/40 p-3 rounded-xl border border-slate-700/50">
                                             <p className="text-[10px] text-slate-500 font-bold uppercase mb-1">Complexity</p>
                                             <p className={`text-sm font-bold ${selectedStrategy.complexity === 'Advanced'
-                                                    ? 'text-red-400'
-                                                    : selectedStrategy.complexity === 'Intermediate'
-                                                        ? 'text-amber-400'
-                                                        : 'text-emerald-400'
+                                                ? 'text-red-400'
+                                                : selectedStrategy.complexity === 'Intermediate'
+                                                    ? 'text-amber-400'
+                                                    : 'text-emerald-400'
                                                 }`}>
                                                 {selectedStrategy.complexity}
                                             </p>
@@ -627,6 +583,51 @@ const SingleAssetBacktest: React.FC<SingleAssetBacktestProps> = ({
                                 <p className="text-xs text-slate-700 text-center mt-2 max-w-[200px]">
                                     Choose a strategy from the library to view detailed intelligence
                                 </p>
+                            </div>
+                        )}
+
+                        {/* Strategy Parameters Card */}
+                        {selectedStrategy && selectedStrategy.parameters && Object.keys(selectedStrategy.parameters).length > 0 && (
+                            <div className="bg-gradient-to-br from-slate-900/90 to-slate-800/90 backdrop-blur-xl border border-slate-700/50 rounded-2xl p-6 shadow-xl">
+                                <div className="flex items-center justify-between mb-6">
+                                    <div className="flex items-center gap-3">
+                                        <div className="p-2 bg-purple-500/20 rounded-lg border border-purple-500/30">
+                                            <Settings className="text-purple-400" size={20} strokeWidth={2} />
+                                        </div>
+                                        <div>
+                                            <h4 className="text-sm font-bold text-slate-300">Strategy Parameters</h4>
+                                            <p className="text-xs text-slate-500 font-medium mt-0.5">
+                                                Fine-tune {Object.keys(selectedStrategy.parameters).length} parameters
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <div className="flex gap-2">
+                                        <button
+                                            onClick={() => setShowParameters(!showParameters)}
+                                            className="flex items-center gap-2 px-3 py-2 text-xs font-bold text-slate-500 hover:text-violet-400 transition-colors bg-slate-800/50 rounded-lg border border-slate-700/50"
+                                        >
+                                            {showParameters ? <Eye size={14} /> : <EyeOff size={14} />}
+                                            <span>{showParameters ? 'Hide' : 'Show'}</span>
+                                        </button>
+                                        <button
+                                            onClick={() => setConfig({ ...config, params: selectedStrategy?.parameters })}
+                                            className="flex items-center gap-2 px-3 py-2 text-xs font-bold text-slate-500 hover:text-violet-400 transition-colors bg-slate-800/50 rounded-lg border border-slate-700/50"
+                                        >
+                                            <RefreshCw size={14} />
+                                            <span>Reset</span>
+                                        </button>
+                                    </div>
+                                </div>
+
+                                {showParameters && (
+                                    <div className="animate-in fade-in">
+                                        <StrategyParameterForm
+                                            params={selectedStrategy.parameters}
+                                            values={config.params || {}}
+                                            onChange={handleParamChange}
+                                        />
+                                    </div>
+                                )}
                             </div>
                         )}
 
@@ -722,8 +723,8 @@ const SingleAssetBacktest: React.FC<SingleAssetBacktestProps> = ({
                                 <div className="flex items-center justify-between">
                                     <span className="text-xs text-slate-500">Risk Level</span>
                                     <span className={`text-sm font-bold ${config.riskLevel === 'high' ? 'text-red-400' :
-                                            config.riskLevel === 'medium' ? 'text-amber-400' :
-                                                'text-emerald-400'
+                                        config.riskLevel === 'medium' ? 'text-amber-400' :
+                                            'text-emerald-400'
                                         }`}>
                                         {config.riskLevel || 'medium'}
                                     </span>

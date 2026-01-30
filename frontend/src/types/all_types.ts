@@ -148,7 +148,7 @@ export interface SingleBacktestResponse {
     equity_curve: EquityCurvePoint[];
     trades: Trade[];
     price_data: Record<string, any>[] | null;
-    benchmark: Record<string, any>[] | null;
+    benchmark: BenchmarkInfo | null;
 }
 
 export interface SingleAssetConfig {
@@ -240,7 +240,7 @@ export interface MultiAssetBacktestResponse {
     equity_curve: EquityCurvePoint[];
     trades: Trade[];
     price_data: Record<string, any>[] | null;
-    benchmark: Record<string, any>[] | null;
+    benchmark: BenchmarkInfo | null;
 
 }
 

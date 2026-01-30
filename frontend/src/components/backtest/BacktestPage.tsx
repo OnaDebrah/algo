@@ -1,9 +1,9 @@
 'use client'
-import React, {useEffect, useState} from 'react';
-import {BarChart3, TrendingUp} from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { BarChart3, TrendingUp } from 'lucide-react';
 import MultiAssetBacktest from "@/components/backtest/MultiAssetBacktest";
 import SingleAssetBacktest from "@/components/backtest/SingleAssetBacktest";
-import {strategies} from "@/components/strategies/Strategies";
+import { strategies } from "@/components/strategies/Strategies";
 import {
     BacktestResult,
     EquityCurvePoint,
@@ -14,7 +14,8 @@ import {
     Trade
 } from "@/types/all_types";
 
-import {backtest, strategy as strategyApi} from "@/utils/api";
+import { backtest, strategy as strategyApi } from "@/utils/api";
+import { formatDate } from "@/utils/formatters";
 
 const BacktestPage = () => {
     const [backtestMode, setBacktestMode] = useState('single');
@@ -29,7 +30,15 @@ const BacktestPage = () => {
                         ...s,
                         id: s.key,
                         complexity: 'Intermediate' as const,
-                        parameters: s.parameters,
+                        // Convert parameters array to object format for StrategyParameterForm
+                        // API returns: [{name: "short_window", default: 10}, ...]
+                        // Form expects: {short_window: 10, ...}
+                        parameters: Array.isArray(s.parameters)
+                            ? s.parameters.reduce((acc: Record<string, any>, p: any) => {
+                                acc[p.name] = p.default;
+                                return acc;
+                            }, {})
+                            : s.parameters,
                         time_horizon: s.time_horizon,
                     }));
                     setStrategiesList(mapped);
@@ -88,7 +97,7 @@ const BacktestPage = () => {
 
     const removeSymbol = (symbolToRemove: string) => {
         const newSymbols = multiConfig.symbols.filter(s => s !== symbolToRemove);
-        const newAllocations = {...multiConfig.allocations};
+        const newAllocations = { ...multiConfig.allocations };
         delete newAllocations[symbolToRemove];
         setMultiConfig({
             ...multiConfig,
@@ -117,6 +126,15 @@ const BacktestPage = () => {
                 if (response) {
                     const result: BacktestResult = response.result;
 
+                    const formattedBenchmark = response.benchmark ? {
+                        ...response.benchmark,
+                        // We MUST format the benchmark's internal curve to match the strategy's curve
+                        equity_curve: response.benchmark.equity_curve.map((bp: EquityCurvePoint) => ({
+                            ...bp,
+                            timestamp: formatDate(bp.timestamp)
+                        }))
+                    } : undefined;
+
                     setResults({
                         total_return: result.total_return,
                         total_return_pct: result.total_return_pct,
@@ -134,12 +152,12 @@ const BacktestPage = () => {
                         initial_capital: result.initial_capital,
                         symbol_stats: result.symbol_stats,
                         equity_curve: response.equity_curve ? response.equity_curve.map((equityCurvePoint: EquityCurvePoint) => ({
-                            timestamp: new Date(equityCurvePoint.timestamp).toLocaleDateString(), // Format timestamp
+                            timestamp: formatDate(equityCurvePoint.timestamp),
                             equity: equityCurvePoint.equity,
                             cash: equityCurvePoint.cash,
                             drawdown: equityCurvePoint.drawdown
                         })) : [],
-                        benchmark: result.benchmark,
+                        benchmark: formattedBenchmark,
                         trades: (response.trades || []).map((trade: Trade) => ({
                             id: trade.id || Math.random(),
                             timestamp: new Date(trade.timestamp).toLocaleString(),
@@ -290,9 +308,9 @@ const BacktestPage = () => {
                             className={`px-5 py-2.5 rounded-lg text-sm font-semibold transition-all ${backtestMode === 'single'
                                 ? 'bg-gradient-to-r from-violet-600 to-fuchsia-600 text-white shadow-lg'
                                 : 'text-slate-400 hover:text-slate-200'
-                            }`}
+                                }`}
                         >
-                            <BarChart3 size={16} className="inline mr-2" strokeWidth={2}/>
+                            <BarChart3 size={16} className="inline mr-2" strokeWidth={2} />
                             Single Asset
                         </button>
                         <button
@@ -300,9 +318,9 @@ const BacktestPage = () => {
                             className={`px-5 py-2.5 rounded-lg text-sm font-semibold transition-all ${backtestMode === 'multi'
                                 ? 'bg-gradient-to-r from-violet-600 to-fuchsia-600 text-white shadow-lg'
                                 : 'text-slate-400 hover:text-slate-200'
-                            }`}
+                                }`}
                         >
-                            <TrendingUp size={16} className="inline mr-2" strokeWidth={2}/>
+                            <TrendingUp size={16} className="inline mr-2" strokeWidth={2} />
                             Multi-Asset
                         </button>
                     </div>
