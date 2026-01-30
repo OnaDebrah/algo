@@ -33,7 +33,7 @@ async def create_portfolio(
     """Create new portfolio"""
     await AuthService.track_usage(db, current_user.id, "create_portfolios", {"portfolio_name": portfolio_data.name})
     service = PortfolioService(db)
-    portfolio = service.create_portfolio(current_user.id, portfolio_data)
+    portfolio = await service.create_portfolio(current_user.id, portfolio_data)
     return portfolio
 
 
