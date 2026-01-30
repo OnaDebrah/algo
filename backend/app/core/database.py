@@ -70,7 +70,7 @@ class DatabaseManager:
                 initial_capital REAL NOT NULL,
                 current_capital REAL NOT NULL,
                 is_active BOOLEAN DEFAULT 1,
-                created_at TEXT NOT NULL,
+                created_at TEXT DEFAULT CURRENT_TIMESTAMP,
                 updated_at TEXT,
                 FOREIGN KEY (user_id) REFERENCES users(id)
             )
@@ -171,24 +171,59 @@ class DatabaseManager:
         conn.commit()
         conn.close()
 
-    def get_trades(self, portfolio_id: int = 1, limit: int = 100) -> List[Dict]:
+    def get_trades(
+        self, portfolio_id: int = 1, limit: int = 100, start_date: datetime = None, end_date: datetime = None
+    ) -> List[Dict]:
         """Retrieve trades from database"""
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
 
-        cursor.execute(
-            """
-            SELECT * FROM trades WHERE portfolio_id = ?
-            ORDER BY timestamp DESC LIMIT ?
-        """,
-            (portfolio_id, limit),
-        )
+        query = "SELECT * FROM trades WHERE portfolio_id = ?"
+        params = [portfolio_id]
+
+        if start_date:
+            query += " AND timestamp >= ?"
+            params.append(start_date.isoformat())
+        if end_date:
+            query += " AND timestamp <= ?"
+            params.append(end_date.isoformat())
+
+        query += " ORDER BY timestamp DESC LIMIT ?"
+        params.append(limit)
+
+        cursor.execute(query, params)
 
         columns = [desc[0] for desc in cursor.description]
         trades = [dict(zip(columns, row)) for row in cursor.fetchall()]
 
         conn.close()
         return trades
+
+    def get_equity_curve(
+        self, portfolio_id: int, start_date: datetime = None, end_date: datetime = None
+    ) -> List[Dict]:
+        """Retrieve equity curve from database"""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+
+        query = "SELECT * FROM performance_history WHERE portfolio_id = ?"
+        params = [portfolio_id]
+
+        if start_date:
+            query += " AND timestamp >= ?"
+            params.append(start_date.isoformat())
+        if end_date:
+            query += " AND timestamp <= ?"
+            params.append(end_date.isoformat())
+
+        query += " ORDER BY timestamp ASC"
+
+        cursor.execute(query, params)
+        columns = [desc[0] for desc in cursor.description]
+        curve = [dict(zip(columns, row)) for row in cursor.fetchall()]
+
+        conn.close()
+        return curve
 
     def save_performance(self, portfolio_id: int, equity: float, cash: float, total_return: float):
         """Save performance snapshot"""

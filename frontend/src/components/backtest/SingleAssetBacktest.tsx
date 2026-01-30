@@ -18,6 +18,9 @@ import {
     Info,
     List,
     Play,
+    Zap,
+    FolderOpen,
+    ChevronRight,
     RefreshCw,
     Save,
     Search,
@@ -25,14 +28,15 @@ import {
     Star,
     Target,
     TrendingUp,
-    X,
-    Zap
+    X
 } from 'lucide-react';
 import SingleBacktestResults from "@/components/backtest/SingleBacktestResults";
 import StrategyParameterForm from "@/components/backtest/StrategyParameterForm";
 import RiskAnalysisModal from "@/components/backtest/RiskAnalysisModal";
-import { BacktestResult, SingleAssetConfig, Strategy } from "@/types/all_types";
+import LoadConfigModal from "@/components/backtest/LoadConfigModal";
+import { BacktestResult, SingleAssetConfig, Strategy, PortfolioCreate } from "@/types/all_types";
 import { formatCurrency } from "@/utils/formatters";
+import { portfolio } from "@/utils/api";
 
 interface SingleAssetBacktestProps {
     config: SingleAssetConfig;
@@ -57,6 +61,8 @@ const SingleAssetBacktest: React.FC<SingleAssetBacktestProps> = ({
     const [showRiskAnalysis, setShowRiskAnalysis] = useState(false);
     const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
     const [searchQuery, setSearchQuery] = useState('');
+    const [isSaving, setIsSaving] = useState(false);
+    const [showLoadModal, setShowLoadModal] = useState(false);
 
     // Asset suggestions
     const assetSuggestions = [
@@ -170,6 +176,40 @@ const SingleAssetBacktest: React.FC<SingleAssetBacktestProps> = ({
         document.body.removeChild(link);
     };
 
+    const handleSavePortfolio = async () => {
+        try {
+            setIsSaving(true);
+            const portfolioName = `Single Backtest: ${config.symbol || 'Unnamed'} ${new Date().toLocaleDateString()}`;
+
+            // We store the configuration JSON in the description field
+            const description = JSON.stringify({
+                type: 'single',
+                strategy: config.strategy,
+                symbol: config.symbol,
+                params: config.params,
+                period: config.period,
+                interval: config.interval,
+                riskLevel: config.riskLevel,
+                initialCapital: config.initialCapital
+            });
+
+            const data: PortfolioCreate = {
+                name: portfolioName,
+                initial_capital: config.initialCapital,
+                description: description
+            };
+
+            await portfolio.create(data);
+
+            alert('Backtest Configuration Saved Successfully!');
+        } catch (error) {
+            console.error('Failed to save portfolio:', error);
+            alert('Failed to save portfolio. Please try again.');
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
     return (
         <div className="space-y-6">
             {/* Header with Stats */}
@@ -187,9 +227,12 @@ const SingleAssetBacktest: React.FC<SingleAssetBacktestProps> = ({
                 </div>
 
                 <div className="flex gap-3">
-                    <button className="flex items-center gap-2 px-5 py-2.5 bg-slate-800/60 hover:bg-slate-700/60 border border-slate-700/50 text-slate-300 rounded-xl text-sm font-bold transition-all">
-                        <Save size={16} />
-                        <span>Save Setup</span>
+                    <button
+                        onClick={handleSavePortfolio}
+                        disabled={isSaving}
+                        className="flex items-center gap-2 px-5 py-2.5 bg-slate-800/60 hover:bg-slate-700/60 border border-slate-700/50 text-slate-300 rounded-xl text-sm font-bold transition-all disabled:opacity-50">
+                        {isSaving ? <RefreshCw size={16} className="animate-spin" /> : <Save size={16} />}
+                        <span>{isSaving ? 'Saving...' : 'Save Setup'}</span>
                     </button>
                     <button className="flex items-center gap-2 px-5 py-2.5 bg-slate-800/60 hover:bg-slate-700/60 border border-slate-700/50 text-slate-300 rounded-xl text-sm font-bold transition-all">
                         <Copy size={16} />
@@ -712,6 +755,41 @@ const SingleAssetBacktest: React.FC<SingleAssetBacktestProps> = ({
 
                             <div className="space-y-3">
                                 <button
+                                    onClick={handleSavePortfolio}
+                                    disabled={isSaving}
+                                    className="w-full flex items-center justify-between p-3 bg-slate-800/40 hover:bg-slate-800/60 border border-slate-700/50 rounded-xl transition-all group disabled:opacity-50">
+                                    <div className="flex items-center gap-3">
+                                        <div className="p-2 bg-emerald-500/20 rounded-lg border border-emerald-500/30">
+                                            {isSaving ? (
+                                                <RefreshCw size={16} className="text-emerald-400 animate-spin" />
+                                            ) : (
+                                                <Save size={16} className="text-emerald-400" />
+                                            )}
+                                        </div>
+                                        <div className="text-left">
+                                            <p className="text-sm font-bold text-slate-200">
+                                                {isSaving ? 'Saving...' : 'Save Portfolio'}
+                                            </p>
+                                            <p className="text-xs text-slate-500">Store current configuration</p>
+                                        </div>
+                                    </div>
+                                    <ChevronDown size={16} className="text-slate-500 group-hover:text-violet-400" />
+                                </button>
+                                <button
+                                    onClick={() => setShowLoadModal(true)}
+                                    className="w-full flex items-center justify-between p-3 bg-slate-800/40 hover:bg-slate-800/60 border border-slate-700/50 rounded-xl transition-all group">
+                                    <div className="flex items-center gap-3">
+                                        <div className="p-2 bg-violet-500/20 rounded-lg border border-violet-500/30">
+                                            <FolderOpen size={16} className="text-violet-400" />
+                                        </div>
+                                        <div className="text-left">
+                                            <p className="text-sm font-bold text-slate-200">Load Config</p>
+                                            <p className="text-xs text-slate-500">Restore a saved setup</p>
+                                        </div>
+                                    </div>
+                                    <ChevronRight size={16} className="text-slate-500 group-hover:text-violet-400" />
+                                </button>
+                                <button
                                     onClick={handleExport}
                                     disabled={!results}
                                     className="w-full flex items-center justify-between p-3 bg-slate-800/40 hover:bg-slate-800/60 border border-slate-700/50 rounded-xl transition-all group disabled:opacity-50 disabled:cursor-not-allowed"
@@ -815,6 +893,25 @@ const SingleAssetBacktest: React.FC<SingleAssetBacktestProps> = ({
                 <RiskAnalysisModal
                     results={results}
                     onClose={() => setShowRiskAnalysis(false)}
+                />
+            )}
+
+            {showLoadModal && (
+                <LoadConfigModal
+                    mode="single"
+                    onClose={() => setShowLoadModal(false)}
+                    onSelect={(savedConfig: any) => {
+                        setConfig({
+                            ...config,
+                            strategy: savedConfig.strategy || config.strategy,
+                            symbol: savedConfig.symbol || config.symbol,
+                            params: savedConfig.params || config.params,
+                            period: savedConfig.period || config.period,
+                            interval: savedConfig.interval || config.interval,
+                            riskLevel: savedConfig.riskLevel || config.riskLevel,
+                            initialCapital: savedConfig.initialCapital || config.initialCapital,
+                        });
+                    }}
                 />
             )}
         </div>
