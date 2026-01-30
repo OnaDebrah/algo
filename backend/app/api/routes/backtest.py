@@ -133,6 +133,8 @@ async def get_backtest_history(
             final_equity=run.final_equity,
             status=run.status,
             error_message=run.error_message,
+            equity_curve=run.equity_curve,
+            trades=run.trades_json,
             created_at=run.created_at.isoformat() if run.created_at else None,
             completed_at=run.completed_at.isoformat() if run.completed_at else None,
         )
@@ -192,6 +194,8 @@ async def get_backtest_details(backtest_id: int, current_user: User = Depends(ge
         final_equity=backtest.final_equity,
         status=backtest.status,
         error_message=backtest.error_message,
+        equity_curve=backtest.equity_curve,
+        trades=backtest.trades_json,
         created_at=backtest.created_at.isoformat() if backtest.created_at else None,
         completed_at=backtest.completed_at.isoformat() if backtest.completed_at else None,
     )
