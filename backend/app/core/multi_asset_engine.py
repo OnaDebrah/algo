@@ -192,7 +192,9 @@ class MultiAssetEngine:
                     "price": execution_price,
                     "commission": commission,
                     "slippage_impact": execution_price - current_price,
-                    "timestamp": (timestamp.isoformat() if isinstance(timestamp, datetime) else str(timestamp)),
+                    "total_value": trade_value + commission,
+                    "side": "BUY",
+                    "executed_at": (timestamp.isoformat() if isinstance(timestamp, datetime) else str(timestamp)),
                     "strategy": strategy_name,
                 }
 
@@ -227,7 +229,9 @@ class MultiAssetEngine:
                 "price": execution_price,
                 "commission": commission,
                 "total_fees": total_commissions,
-                "timestamp": (timestamp.isoformat() if isinstance(timestamp, datetime) else str(timestamp)),
+                "total_value": trade_value,
+                "side": "SELL",
+                "executed_at": (timestamp.isoformat() if isinstance(timestamp, datetime) else str(timestamp)),
                 "strategy": strategy_name,
                 "profit": profit,
                 "profit_pct": profit_pct,

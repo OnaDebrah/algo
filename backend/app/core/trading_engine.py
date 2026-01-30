@@ -77,7 +77,7 @@ class TradingEngine:
                     "symbol": symbol,
                     "quantity": quantity,
                     "entry_price": slipped_price,
-                    "entry_time": timestamp,
+                    "created_at": (timestamp.isoformat() if isinstance(timestamp, datetime) else str(timestamp)),
                 }
 
                 trade_data = {
@@ -87,7 +87,9 @@ class TradingEngine:
                     "price": slipped_price,
                     "commission": commission,
                     "slippage": slipped_price - current_price,
-                    "timestamp": (timestamp.isoformat() if isinstance(timestamp, datetime) else str(timestamp)),
+                    "total_value": total_cost,
+                    "side": "BUY",
+                    "executed_at": (timestamp.isoformat() if isinstance(timestamp, datetime) else str(timestamp)),
                     "strategy": self.strategy.name,
                 }
 
@@ -117,7 +119,9 @@ class TradingEngine:
                 "price": slipped_price,
                 "commission": commission,
                 "slippage": current_price - slipped_price,
-                "timestamp": (timestamp.isoformat() if isinstance(timestamp, datetime) else str(timestamp)),
+                "total_value": revenue,
+                "side": "SELL",
+                "executed_at": (timestamp.isoformat() if isinstance(timestamp, datetime) else str(timestamp)),
                 "strategy": self.strategy.name,
                 "profit": profit,
                 "profit_pct": profit_pct,

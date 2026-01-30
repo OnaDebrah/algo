@@ -33,10 +33,15 @@ class DatabaseManager:
                 order_type TEXT NOT NULL,
                 quantity INTEGER NOT NULL,
                 price REAL NOT NULL,
-                timestamp TEXT NOT NULL,
+                executed_at TEXT NOT NULL,
                 strategy TEXT NOT NULL,
                 profit REAL,
                 profit_pct REAL,
+                commission REAL,
+                slippage REAL,
+                total_value REAL NOT NULL,
+                side TEXT,
+                notes TEXT,
                 portfolio_id INTEGER
             )
         """
@@ -53,7 +58,7 @@ class DatabaseManager:
                 entry_price REAL NOT NULL,
                 current_price REAL NOT NULL,
                 unrealized_pnl REAL NOT NULL,
-                entry_time TEXT NOT NULL,
+                created_at TEXT NOT NULL,
                 portfolio_id INTEGER
             )
         """
@@ -151,20 +156,25 @@ class DatabaseManager:
 
         cursor.execute(
             """
-            INSERT INTO trades (symbol, order_type, quantity, price, timestamp,
-                              strategy, profit, profit_pct, portfolio_id)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO trades (symbol, order_type, quantity, price, executed_at,
+                               strategy, profit, profit_pct, commission, slippage, total_value, side, notes, portfolio_id)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """,
             (
                 trade_data["symbol"],
                 trade_data["order_type"],
                 trade_data["quantity"],
                 trade_data["price"],
-                trade_data["timestamp"],
+                trade_data.get("executed_at") or trade_data.get("timestamp"),
                 trade_data["strategy"],
                 trade_data.get("profit"),
                 trade_data.get("profit_pct"),
-                portfolio_id,
+                trade_data.get("commission"),
+                trade_data.get("slippage"),
+                trade_data.get("total_value") or (trade_data["quantity"] * trade_data["price"]),
+                trade_data.get("side") or trade_data.get("order_type"),
+                trade_data.get("notes"),
+                trade_data.get("portfolio_id") or portfolio_id,
             ),
         )
 
@@ -182,13 +192,13 @@ class DatabaseManager:
         params = [portfolio_id]
 
         if start_date:
-            query += " AND timestamp >= ?"
+            query += " AND executed_at >= ?"
             params.append(start_date.isoformat())
         if end_date:
-            query += " AND timestamp <= ?"
+            query += " AND executed_at <= ?"
             params.append(end_date.isoformat())
 
-        query += " ORDER BY timestamp DESC LIMIT ?"
+        query += " ORDER BY executed_at DESC LIMIT ?"
         params.append(limit)
 
         cursor.execute(query, params)
@@ -251,10 +261,10 @@ class DatabaseManager:
             cursor.execute(
                 """
                 INSERT INTO portfolios
-                (name, initial_capital, current_capital, created_at)
-                VALUES (?, ?, ?, ?)
+                (user_id, name, initial_capital, current_capital, created_at)
+                VALUES (?, ?, ?, ?, ?)
             """,
-                (name, initial_capital, initial_capital, datetime.now().isoformat()),
+                (1, name, initial_capital, initial_capital, datetime.now().isoformat()),
             )
 
             portfolio_id = cursor.lastrowid

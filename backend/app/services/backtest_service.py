@@ -82,6 +82,10 @@ class BacktestService:
                 backtest_run.win_rate = results.get("win_rate")
                 backtest_run.total_trades = results.get("total_trades")
                 backtest_run.final_equity = results.get("final_equity")
+                
+                # Save the high-fidelity data
+                backtest_run.equity_curve = results.get("equity_curve")
+                backtest_run.trades_json = results.get("trades")
 
             if error_message:
                 backtest_run.error_message = error_message
@@ -162,7 +166,10 @@ class BacktestService:
                     quantity=t["quantity"],
                     price=t["price"],
                     commission=t["commission"],
-                    timestamp=t["timestamp"],
+                    executed_at=t.get("executed_at") or t.get("timestamp"),
+                    total_value=t.get("total_value") or (t["quantity"] * t["price"]),
+                    side=t.get("side") or t.get("order_type"),
+                    notes=t.get("notes"),
                     strategy=t["strategy"],
                     profit=t.get("profit"),
                     profit_pct=t.get("profit_pct"),
@@ -270,7 +277,10 @@ class BacktestService:
                     quantity=t["quantity"],
                     price=t["price"],
                     commission=t["commission"],
-                    timestamp=t["timestamp"],
+                    executed_at=t.get("executed_at") or t.get("timestamp"),
+                    total_value=t.get("total_value") or (t["quantity"] * t["price"]),
+                    side=t.get("side") or t.get("order_type"),
+                    notes=t.get("notes"),
                     strategy=t["strategy"],
                     profit=t.get("profit"),
                     profit_pct=t.get("profit_pct"),
