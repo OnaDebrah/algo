@@ -13,10 +13,11 @@ import {
 } from 'recharts';
 import {Activity, Target, TrendingDown, TrendingUp} from 'lucide-react';
 import MetricCard from "@/components/backtest/MetricCard";
-import {formatCurrency, formatPercent, toPrecision} from "@/utils/formatters";
+import BenchmarkComparison from "@/components/backtest/BenchmarkComparison";
+import {formatCurrency, formatDate, formatPercent, toPrecision} from "@/utils/formatters";
 import {BacktestResult, SymbolStats, Trade} from "@/types/all_types";
 
-const MultiBacktestResults: ({results}: { results: BacktestResult }) => React.JSX.Element = ({results}: { results: BacktestResult }) => {
+const MultiBacktestResults = ({results}: { results: BacktestResult }) => {
     const [tradeFilter, setTradeFilter] = useState('all');
     const trades = results.trades || [];
 
@@ -47,6 +48,7 @@ const MultiBacktestResults: ({results}: { results: BacktestResult }) => React.JS
                                 </div>
                                 <div>
                                     <p className="font-semibold text-slate-200">{symbol}</p>
+                                    <p className="text-xs text-slate-500 font-medium">{stats.strategy}</p>
                                 </div>
                             </div>
                             <div className="flex items-center space-x-8">
@@ -72,13 +74,41 @@ const MultiBacktestResults: ({results}: { results: BacktestResult }) => React.JS
 
             <div
                 className="bg-gradient-to-br from-slate-900/90 to-slate-800/90 backdrop-blur-xl border border-slate-700/50 rounded-2xl p-6 shadow-xl">
-                <h3 className="text-xl font-semibold text-slate-100 mb-6">Portfolio Equity Curve</h3>
+                <div className="mb-6">
+                    <h3 className="text-xl font-semibold text-slate-100">Portfolio Equity Curve</h3>
+                    {results.benchmark && (
+                        <p className="text-xs text-slate-500 mt-1">
+                            Strategy (purple) vs Benchmark (blue)
+                        </p>
+                    )}
+                </div>
                 <ResponsiveContainer width="100%" height={320}>
-                    <AreaChart data={results.equity_curve}>
+                    <ComposedChart data={(() => {
+                        const strategyData = results.equity_curve;
+                        const benchmarkData = results.benchmark?.equity_curve || [];
+
+                        const merged = strategyData.map((point: any) => {
+                            const benchmarkPoint = benchmarkData.find((bp: any) => {
+                                return bp.timestamp === point.timestamp;
+                            });
+
+                            return {
+                                timestamp: point.timestamp,
+                                strategy_equity: point.equity,
+                                benchmark_equity: benchmarkPoint?.equity || null
+                            };
+                        });
+
+                        return merged;
+                    })()}>
                         <defs>
-                            <linearGradient id="colorMultiEquity" x1="0" y1="0" x2="0" y2="1">
+                            <linearGradient id="colorMultiStrategyEquity" x1="0" y1="0" x2="0" y2="1">
                                 <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.4}/>
                                 <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0}/>
+                            </linearGradient>
+                            <linearGradient id="colorMultiBenchmarkEquity" x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.2}/>
+                                <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
                             </linearGradient>
                         </defs>
                         <CartesianGrid strokeDasharray="3 3" stroke="#334155" opacity={0.3}/>
@@ -92,21 +122,74 @@ const MultiBacktestResults: ({results}: { results: BacktestResult }) => React.JS
                                 borderRadius: '12px',
                                 padding: '12px'
                             }}
-                            formatter={(value) => [formatCurrency(Number(value || 0)), 'Equity']}
+                            formatter={(value: any, name: string) => {
+                                if (name === 'strategy_equity') return [formatCurrency(Number(value || 0)), 'Strategy'];
+                                if (name === 'benchmark_equity') return [formatCurrency(Number(value || 0)), 'Benchmark'];
+                                return [formatCurrency(Number(value || 0)), name];
+                            }}
                             labelStyle={{color: '#94a3b8', fontWeight: 600, marginBottom: '4px'}}
                         />
-                        <Area type="monotone" dataKey="equity" stroke="#8b5cf6" strokeWidth={2} fillOpacity={1}
-                              fill="url(#colorMultiEquity)"/>
-                    </AreaChart>
+
+                        {/* Benchmark line (below) */}
+                        {results.benchmark && (
+                            <Area
+                                type="monotone"
+                                dataKey="benchmark_equity"
+                                stroke="#3b82f6"
+                                strokeWidth={2}
+                                fillOpacity={1}
+                                fill="url(#colorMultiBenchmarkEquity)"
+                                strokeDasharray="5 5"
+                            />
+                        )}
+
+                        {/* Strategy line (on top) */}
+                        <Area
+                            type="monotone"
+                            dataKey="strategy_equity"
+                            stroke="#8b5cf6"
+                            strokeWidth={2}
+                            fillOpacity={1}
+                            fill="url(#colorMultiStrategyEquity)"
+                        />
+                    </ComposedChart>
                 </ResponsiveContainer>
+
+                {/* Legend */}
+                {results.benchmark && (
+                    <div className="flex items-center justify-center space-x-6 mt-4">
+                        <div className="flex items-center space-x-2">
+                            <div className="w-3 h-3 rounded-full bg-violet-500"></div>
+                            <span className="text-xs text-slate-400 font-medium">Strategy</span>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                            <div className="w-3 h-3 rounded-full bg-blue-500"></div>
+                            <span className="text-xs text-slate-400 font-medium">Benchmark (Equal Weight)</span>
+                        </div>
+                    </div>
+                )}
             </div>
+
+            {/* Benchmark Comparison */}
+            {results.benchmark && (
+                <BenchmarkComparison benchmark={results.benchmark} />
+            )}
 
             {/* Price Charts with Trade Markers for Each Symbol */}
             {results.price_data && Object.keys(results.price_data).length > 0 && (
                 <div className="space-y-6">
-                    {Object.entries(results.price_data).map(([symbol, prices]: [string, prices: Record<string, any>]) => {
-                        const pricesArray = Object.values(prices) as any[];
+                    {Object.entries(results.price_data).map(([symbol, prices]: [string, any]) => {
+                        // Ensure prices is an array
+                        if (!Array.isArray(prices) || prices.length === 0) {
+                            return null;
+                        }
+
                         const symbolTrades: Trade[] = trades.filter((t: Trade) => t.symbol === symbol);
+
+                        // Skip if no trades for this symbol
+                        if (symbolTrades.length === 0) {
+                            return null;
+                        }
 
                         return (
                             <div
@@ -124,15 +207,15 @@ const MultiBacktestResults: ({results}: { results: BacktestResult }) => React.JS
                                 <ResponsiveContainer width="100%" height={350}>
                                     <ComposedChart data={(() => {
                                         // Prepare price data with trade markers
-                                        const priceData = pricesArray.map((point) => {
+                                        const priceData = prices.map((point: any) => {
                                             const timestamp: string = new Date(point.timestamp).toLocaleDateString();
-                                            const buyTrades: Trade[] = symbolTrades.filter((trade: Trade) =>
-                                                trade.order_type === 'BUY' &&
-                                                new Date(trade.timestamp).toLocaleDateString() === timestamp
+                                            const buyTrades: Trade[] = symbolTrades.filter((t: Trade) =>
+                                                t.order_type === 'BUY' &&
+                                                new Date(t.timestamp).toLocaleDateString() === timestamp
                                             );
-                                            const sellTrades: Trade[] = symbolTrades.filter((trade: Trade) =>
-                                                trade.order_type === 'SELL' &&
-                                                new Date(trade.timestamp).toLocaleDateString() === timestamp
+                                            const sellTrades: Trade[] = symbolTrades.filter((t: Trade) =>
+                                                t.order_type === 'SELL' &&
+                                                new Date(t.timestamp).toLocaleDateString() === timestamp
                                             );
 
                                             return {
@@ -172,7 +255,7 @@ const MultiBacktestResults: ({results}: { results: BacktestResult }) => React.JS
                                                 padding: '12px'
                                             }}
                                             formatter={(value: number | undefined, name: string | undefined) => {
-                                                if (value === undefined) return ['', name];
+                                                if (value === undefined || value === null) return ['', name];
 
                                                 if (name === 'close') return [formatCurrency(value), 'Close Price'];
                                                 if (name === 'buyPrice') return [formatCurrency(value), 'BUY'];
@@ -270,7 +353,7 @@ const MultiBacktestResults: ({results}: { results: BacktestResult }) => React.JS
                         </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-800/30">
-                        {trades.length > 0 ? trades.map((trade: Trade, idx: number) => {
+                        {trades.length > 0 ? trades.map((trade, idx: number) => {
                             const isWin = trade.profit && trade.profit >= 0;
                             const isClosed = trade.profit !== null && trade.profit !== undefined;
                             // Basic filter logic

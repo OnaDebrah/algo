@@ -255,12 +255,20 @@ const BacktestPage = () => {
                         symbol_stats: result.symbol_stats || {},
 
                         equity_curve: response.equity_curve ? response.equity_curve.map((equityCurvePoint: EquityCurvePoint) => ({
-                            timestamp: new Date(equityCurvePoint.timestamp).toLocaleDateString(),
+                            timestamp: formatDate(equityCurvePoint.timestamp),
                             equity: equityCurvePoint.equity,
                             num_positions: 0,
                             cash: equityCurvePoint.cash,
                             drawdown: equityCurvePoint.drawdown
                         })) : [],
+
+                        benchmark: response.benchmark ? {
+                            ...response.benchmark,
+                            equity_curve: response.benchmark.equity_curve.map((p: EquityCurvePoint) => ({
+                                ...p,
+                                timestamp: formatDate(p.timestamp)
+                            }))
+                        } : undefined,
 
                         trades: (response.trades || []).map((trade: Trade) => ({
                             id: trade.id || Math.random(),
