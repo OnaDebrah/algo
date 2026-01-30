@@ -34,12 +34,14 @@ import {
     Star,
     Target,
     X,
-    Zap
+    Zap,
+    FolderOpen
 } from "lucide-react";
 import React, { useMemo, useState } from "react";
 import StrategyParameterForm from "@/components/backtest/StrategyParameterForm";
 import MultiBacktestResults from "@/components/backtest/MultiBacktestResults";
 import RiskAnalysisModal from "@/components/backtest/RiskAnalysisModal";
+import LoadConfigModal from "@/components/backtest/LoadConfigModal";
 import { BacktestResult, MultiAssetConfig, Strategy, PortfolioCreate } from "@/types/all_types";
 import { portfolio } from "@/utils/api";
 
@@ -73,6 +75,7 @@ const MultiAssetBacktest: React.FC<MultiAssetBacktestProps> = ({
     const [searchQuery, setSearchQuery] = useState('');
     const [showRiskAnalysis, setShowRiskAnalysis] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
+    const [showLoadModal, setShowLoadModal] = useState(false);
 
     // Find the currently active strategy
     const selectedStrategy = useMemo(() =>
@@ -1080,6 +1083,20 @@ const MultiAssetBacktest: React.FC<MultiAssetBacktestProps> = ({
                                     <ChevronRight size={16} className="text-slate-500 group-hover:text-violet-400" />
                                 </button>
                                 <button
+                                    onClick={() => setShowLoadModal(true)}
+                                    className="w-full flex items-center justify-between p-3 bg-slate-800/40 hover:bg-slate-800/60 border border-slate-700/50 rounded-xl transition-all group">
+                                    <div className="flex items-center gap-3">
+                                        <div className="p-2 bg-violet-500/20 rounded-lg border border-violet-500/30">
+                                            <FolderOpen size={16} className="text-violet-400" />
+                                        </div>
+                                        <div className="text-left">
+                                            <p className="text-sm font-bold text-slate-200">Load Config</p>
+                                            <p className="text-xs text-slate-500">Restore a saved setup</p>
+                                        </div>
+                                    </div>
+                                    <ChevronRight size={16} className="text-slate-500 group-hover:text-violet-400" />
+                                </button>
+                                <button
                                     onClick={handleExportResults}
                                     disabled={!results}
                                     className="w-full flex items-center justify-between p-3 bg-slate-800/40 hover:bg-slate-800/60 border border-slate-700/50 rounded-xl transition-all group disabled:opacity-50 disabled:cursor-not-allowed">
@@ -1127,6 +1144,24 @@ const MultiAssetBacktest: React.FC<MultiAssetBacktestProps> = ({
                 <RiskAnalysisModal
                     results={results}
                     onClose={() => setShowRiskAnalysis(false)}
+                />
+            )}
+
+            {showLoadModal && (
+                <LoadConfigModal
+                    mode="multi"
+                    onClose={() => setShowLoadModal(false)}
+                    onSelect={(savedConfig: any) => {
+                        setConfig({
+                            ...config,
+                            strategy: savedConfig.strategy || config.strategy,
+                            symbols: savedConfig.symbols || config.symbols,
+                            allocations: savedConfig.allocations || config.allocations,
+                            params: savedConfig.params || config.params,
+                            period: savedConfig.period || config.period,
+                            interval: savedConfig.interval || config.interval,
+                        });
+                    }}
                 />
             )}
         </div>
