@@ -64,10 +64,15 @@ class DatabaseManager:
             """
             CREATE TABLE IF NOT EXISTS portfolios (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
                 name TEXT NOT NULL UNIQUE,
+                description TEXT,
                 initial_capital REAL NOT NULL,
                 current_capital REAL NOT NULL,
-                created_at TEXT NOT NULL
+                is_active BOOLEAN DEFAULT 1,
+                created_at TEXT NOT NULL,
+                updated_at TEXT,
+                FOREIGN KEY (user_id) REFERENCES users(id)
             )
         """
         )
