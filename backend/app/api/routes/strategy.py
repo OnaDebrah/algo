@@ -29,23 +29,19 @@ async def list_strategies(
     strategies = []
 
     for key, info in catalog.strategies.items():
-        strategy_class = info.class_type
-
-        # Get parameters from strategy class
+        # Get parameters from catalog info (already defined in strategy_catalog.py)
         parameters = []
-        if hasattr(strategy_class, "get_parameters"):
-            params = strategy_class.get_parameters()
-            for param_name, param_info in params.items():
-                parameters.append(
-                    StrategyParameter(
-                        name=param_name,
-                        type=param_info.get("type", "number"),
-                        default=param_info.get("default"),
-                        min=param_info.get("min"),
-                        max=param_info.get("max"),
-                        description=param_info.get("description", ""),
-                    )
+        for param_name, param_info in info.parameters.items():
+            parameters.append(
+                StrategyParameter(
+                    name=param_name,
+                    type=param_info.get("type", "number"),
+                    default=param_info.get("default"),
+                    min=param_info.get("min") if param_info.get("min") is not None else (param_info.get("range")[0] if param_info.get("range") else None),
+                    max=param_info.get("max") if param_info.get("max") is not None else (param_info.get("range")[1] if param_info.get("range") else None),
+                    description=param_info.get("description", ""),
                 )
+            )
 
         strategies.append(
             StrategyInfo(
@@ -78,23 +74,20 @@ async def get_strategy(
         raise HTTPException(status_code=404, detail="Strategy not found")
 
     info = catalog.strategies[strategy_key]
-    strategy_class = info.class_type
 
-    # Get parameters
+    # Get parameters from catalog info
     parameters = []
-    if hasattr(strategy_class, "get_parameters"):
-        params = strategy_class.get_parameters()
-        for param_name, param_info in params.items():
-            parameters.append(
-                StrategyParameter(
-                    name=param_name,
-                    type=param_info.get("type", "number"),
-                    default=param_info.get("default"),
-                    min=param_info.get("min"),
-                    max=param_info.get("max"),
-                    description=param_info.get("description", ""),
-                )
+    for param_name, param_info in info.parameters.items():
+        parameters.append(
+            StrategyParameter(
+                name=param_name,
+                type=param_info.get("type", "number"),
+                default=param_info.get("default"),
+                min=param_info.get("min") if param_info.get("min") is not None else (param_info.get("range")[0] if param_info.get("range") else None),
+                max=param_info.get("max") if param_info.get("max") is not None else (param_info.get("range")[1] if param_info.get("range") else None),
+                description=param_info.get("description", ""),
             )
+        )
 
     return StrategyInfo(
         key=strategy_key,
