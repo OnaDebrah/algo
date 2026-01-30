@@ -27,5 +27,8 @@ async def get_db():
 
 async def create_tables():
     """Create all tables"""
+    # Import models to ensure they are registered with Base metadata
+    import backend.app.models  # noqa
+
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)

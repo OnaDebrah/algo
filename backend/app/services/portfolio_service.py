@@ -26,7 +26,7 @@ class PortfolioService:
     def __init__(self, db: AsyncSession):
         self.db = db
 
-    def create_portfolio(self, user_id: int, portfolio_data: PortfolioCreate) -> PortfolioSchema:
+    async def create_portfolio(self, user_id: int, portfolio_data: PortfolioCreate) -> PortfolioSchema:
         """Create a new portfolio"""
         portfolio = Portfolio(
             user_id=user_id,
@@ -37,8 +37,8 @@ class PortfolioService:
         )
 
         self.db.add(portfolio)
-        self.db.commit()
-        self.db.refresh(portfolio)
+        await self.db.commit()
+        await self.db.refresh(portfolio)
 
         return PortfolioSchema(**portfolio.to_dict())
 

@@ -30,6 +30,7 @@ import {
 } from 'lucide-react';
 import SingleBacktestResults from "@/components/backtest/SingleBacktestResults";
 import StrategyParameterForm from "@/components/backtest/StrategyParameterForm";
+import RiskAnalysisModal from "@/components/backtest/RiskAnalysisModal";
 import { BacktestResult, SingleAssetConfig, Strategy } from "@/types/all_types";
 import { formatCurrency } from "@/utils/formatters";
 
@@ -53,6 +54,7 @@ const SingleAssetBacktest: React.FC<SingleAssetBacktestProps> = ({
     const [selectedCategory, setSelectedCategory] = useState('All');
     const [showAdvanced, setShowAdvanced] = useState(false);
     const [showParameters, setShowParameters] = useState(true);
+    const [showRiskAnalysis, setShowRiskAnalysis] = useState(false);
     const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
     const [searchQuery, setSearchQuery] = useState('');
 
@@ -113,6 +115,60 @@ const SingleAssetBacktest: React.FC<SingleAssetBacktestProps> = ({
         { label: '1 Year', period: '1y', interval: '1wk', capital: 50000 },
         { label: 'Full History', period: '5y', interval: '1wk', capital: 100000 },
     ];
+
+    // Export Results handler
+    const handleExport = () => {
+        if (!results) return;
+
+        // 1. Prepare CSV Content
+        const rows = [];
+
+        // Header Section - Summary Stats
+        rows.push(['Metric', 'Value']);
+        rows.push(['Total Return', `${(results.total_return * 100).toFixed(2)}%`]);
+        rows.push(['Win Rate', `${results.win_rate.toFixed(2)}%`]);
+        rows.push(['Sharpe Ratio', results.sharpe_ratio.toFixed(2)]);
+        rows.push(['Max Drawdown', `${(results.max_drawdown * 100).toFixed(2)}%`]);
+        rows.push(['Profit Factor', results.profit_factor.toFixed(2)]);
+        rows.push(['Total Trades', results.total_trades]);
+        rows.push(['Final Equity', results.final_equity.toFixed(2)]);
+        rows.push([]); // Empty row
+
+        // Trades Section
+        rows.push(['ID', 'Symbol', 'Side', 'Date', 'Qty', 'Price', 'Commission', 'Profit', 'Status']);
+
+        if (results.trades) {
+            results.trades.forEach(t => {
+                rows.push([
+                    t.id || '',
+                    t.symbol,
+                    t.order_type,
+                    t.timestamp,
+                    t.quantity,
+                    t.price,
+                    t.commission,
+                    t.profit !== null ? t.profit.toFixed(2) : '',
+                    t.profit !== null ? 'Closed' : 'Open'
+                ]);
+            });
+        }
+
+        // 2. Convert to CSV string
+        const csvContent = "data:text/csv;charset=utf-8,"
+            + rows.map(e => e.join(",")).join("\n");
+
+        // 3. Create download link and click it
+        const encodedUri = encodeURI(csvContent);
+        const link = document.createElement("a");
+        link.setAttribute("href", encodedUri);
+
+        const filename = `backtest_${config.symbol}_${new Date().toISOString().slice(0, 10)}.csv`;
+        link.setAttribute("download", filename);
+
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    };
 
     return (
         <div className="space-y-6">
@@ -655,7 +711,11 @@ const SingleAssetBacktest: React.FC<SingleAssetBacktestProps> = ({
                             </button>
 
                             <div className="space-y-3">
-                                <button className="w-full flex items-center justify-between p-3 bg-slate-800/40 hover:bg-slate-800/60 border border-slate-700/50 rounded-xl transition-all group">
+                                <button
+                                    onClick={handleExport}
+                                    disabled={!results}
+                                    className="w-full flex items-center justify-between p-3 bg-slate-800/40 hover:bg-slate-800/60 border border-slate-700/50 rounded-xl transition-all group disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
                                     <div className="flex items-center gap-3">
                                         <div className="p-2 bg-emerald-500/20 rounded-lg border border-emerald-500/30">
                                             <Download size={16} className="text-emerald-400" />
@@ -667,7 +727,11 @@ const SingleAssetBacktest: React.FC<SingleAssetBacktestProps> = ({
                                     </div>
                                     <ChevronDown size={16} className="text-slate-500 group-hover:text-violet-400" />
                                 </button>
-                                <button className="w-full flex items-center justify-between p-3 bg-slate-800/40 hover:bg-slate-800/60 border border-slate-700/50 rounded-xl transition-all group">
+                                <button
+                                    onClick={() => setShowRiskAnalysis(true)}
+                                    disabled={!results}
+                                    className="w-full flex items-center justify-between p-3 bg-slate-800/40 hover:bg-slate-800/60 border border-slate-700/50 rounded-xl transition-all group disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
                                     <div className="flex items-center gap-3">
                                         <div className="p-2 bg-blue-500/20 rounded-lg border border-blue-500/30">
                                             <AlertCircle size={16} className="text-blue-400" />
@@ -744,6 +808,14 @@ const SingleAssetBacktest: React.FC<SingleAssetBacktestProps> = ({
                 <div className="pt-6 border-t border-slate-800/80 animate-in fade-in">
                     <SingleBacktestResults results={results} />
                 </div>
+            )}
+
+            {/* Risk Analysis Modal */}
+            {showRiskAnalysis && results && (
+                <RiskAnalysisModal
+                    results={results}
+                    onClose={() => setShowRiskAnalysis(false)}
+                />
             )}
         </div>
     );
