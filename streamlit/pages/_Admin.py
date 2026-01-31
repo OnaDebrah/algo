@@ -4,8 +4,8 @@ Only accessible to admin users
 """
 
 import pandas as pd
-import streamlit as st
 
+import streamlit as st
 from streamlit.auth.auth_manager import UserTier
 from streamlit.auth.streamlit_auth import render_user_menu, require_auth
 

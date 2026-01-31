@@ -1,12 +1,15 @@
 import json
 import logging
 from typing import List, Optional
+
 from sqlalchemy.ext.asyncio import AsyncSession
-from backend.app.core.permissions import Permission, TIER_PERMISSIONS, UserTier
+
+from backend.app.core.permissions import TIER_PERMISSIONS, Permission, UserTier
 from backend.app.models.usage import UsageTracking
 from backend.app.models.user import User
 
 logger = logging.getLogger(__name__)
+
 
 class AuthService:
     """Service for authentication and authorization logic"""
@@ -31,19 +34,10 @@ class AuthService:
             return []
 
     @staticmethod
-    async def track_usage(
-        db: AsyncSession, 
-        user_id: int, 
-        action: str, 
-        metadata: Optional[dict] = None
-    ) -> None:
+    async def track_usage(db: AsyncSession, user_id: int, action: str, metadata: Optional[dict] = None) -> None:
         """Track user action in the database"""
         try:
-            usage = UsageTracking(
-                user_id=user_id,
-                action=action,
-                metadata_json=json.dumps(metadata) if metadata else None
-            )
+            usage = UsageTracking(user_id=user_id, action=action, metadata_json=json.dumps(metadata) if metadata else None)
             db.add(usage)
             await db.commit()
         except Exception as e:
@@ -51,14 +45,11 @@ class AuthService:
             # We don't raise here to avoid breaking the main flow if tracking fails
 
     @staticmethod
-    async def update_user_tier(
-        db: AsyncSession, 
-        user_id: int, 
-        new_tier: UserTier
-    ) -> bool:
+    async def update_user_tier(db: AsyncSession, user_id: int, new_tier: UserTier) -> bool:
         """Update a user's subscription tier"""
         try:
             from sqlalchemy import select
+
             result = await db.execute(select(User).where(User.id == user_id))
             user = result.scalar_one_or_none()
             if user:

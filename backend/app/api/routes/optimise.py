@@ -5,11 +5,18 @@ FastAPI endpoints for Portfolio Optimization
 import logging
 from typing import Any, Hashable
 
-from fastapi import HTTPException, Query, APIRouter
+from fastapi import APIRouter, HTTPException, Query
 
-from backend.app.optimise import PortfolioOptimizer, PortfolioBacktest
-from backend.app.schemas.optimise import PortfolioRequest, OptimizationResponse, TargetReturnRequest, BlackLittermanRequest, \
-    EfficientFrontierRequest, BacktestRequest, BacktestResponse
+from backend.app.optimise import PortfolioBacktest, PortfolioOptimizer
+from backend.app.schemas.optimise import (
+    BacktestRequest,
+    BacktestResponse,
+    BlackLittermanRequest,
+    EfficientFrontierRequest,
+    OptimizationResponse,
+    PortfolioRequest,
+    TargetReturnRequest,
+)
 
 router = APIRouter(prefix="/optimise", tags=["Optimise"])
 
@@ -18,10 +25,7 @@ logger = logging.getLogger(__name__)
 
 
 @router.post("/sharpe", response_model=OptimizationResponse)
-async def optimize_sharpe(
-        request: PortfolioRequest,
-        risk_free_rate: float = Query(0.02, ge=0.0, le=0.1, description="Risk-free rate")
-):
+async def optimize_sharpe(request: PortfolioRequest, risk_free_rate: float = Query(0.02, ge=0.0, le=0.1, description="Risk-free rate")):
     """
     Optimize portfolio for maximum Sharpe ratio
 
@@ -149,12 +153,9 @@ async def generate_efficient_frontier(request: EfficientFrontierRequest):
         frontier_df = optimizer.efficient_frontier(request.num_portfolios)
 
         # Convert DataFrame to list of dicts
-        frontier_list: list[dict[Hashable, Any]] = frontier_df.to_dict('records')
+        frontier_list: list[dict[Hashable, Any]] = frontier_df.to_dict("records")
 
-        return {
-            "num_portfolios": len(frontier_list),
-            "portfolios": frontier_list
-        }
+        return {"num_portfolios": len(frontier_list), "portfolios": frontier_list}
     except Exception as e:
         logger.error(f"Efficient frontier generation failed: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -180,7 +181,7 @@ async def run_backtest(request: BacktestRequest):
             volatility=results["volatility"],
             sharpe_ratio=results["sharpe_ratio"],
             max_drawdown=results["max_drawdown"],
-            final_value=results["final_value"]
+            final_value=results["final_value"],
         )
     except Exception as e:
         logger.error(f"Backtest failed: {e}")
@@ -208,11 +209,7 @@ async def compare_strategies(request: PortfolioRequest):
             "risk_parity": optimizer.risk_parity_portfolio(),
         }
 
-        return {
-            "symbols": optimizer.symbols,
-            "lookback_days": request.lookback_days,
-            "strategies": strategies
-        }
+        return {"symbols": optimizer.symbols, "lookback_days": request.lookback_days, "strategies": strategies}
     except Exception as e:
         logger.error(f"Strategy comparison failed: {e}")
         raise HTTPException(status_code=500, detail=str(e))

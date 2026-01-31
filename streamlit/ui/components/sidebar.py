@@ -4,7 +4,6 @@ Clean, minimal, and functional
 """
 
 import streamlit as st
-
 from streamlit.auth.streamlit_auth import init_auth_state
 
 

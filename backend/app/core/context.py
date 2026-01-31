@@ -7,10 +7,8 @@ from dataclasses import dataclass
 from typing import Dict, Optional
 
 import streamlit as st
-
 from backend.app.alerts import AlertManager
-from backend.app.core import DatabaseManager
-from backend.app.core import RiskManager
+from backend.app.core import DatabaseManager, RiskManager
 
 
 @dataclass

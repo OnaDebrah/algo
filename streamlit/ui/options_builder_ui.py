@@ -8,8 +8,8 @@ from typing import List
 import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
-import streamlit as st
 
+import streamlit as st
 from streamlit.core.data_fetcher import fetch_stock_data
 from streamlit.strategies.options_builder import OptionsStrategyBuilder, create_preset_strategy
 from streamlit.strategies.options_strategies import (

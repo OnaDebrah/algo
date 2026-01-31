@@ -3,14 +3,10 @@ Analyze Page - AI-driven analysis and market intelligence
 """
 
 import streamlit as st
-
 from streamlit.auth import UserTier, require_tier
 from streamlit.core.context import configure_page, get_app_context
-from streamlit.ui import render_analyst
+from streamlit.ui import OracleTheme, render_analyst, render_regime_detector, render_strategy_advisor
 from streamlit.ui.components.sidebar import render_page_sidebar
-from streamlit.ui import OracleTheme
-from streamlit.ui import render_regime_detector
-from streamlit.ui import render_strategy_advisor
 
 
 @require_tier(UserTier.FREE)

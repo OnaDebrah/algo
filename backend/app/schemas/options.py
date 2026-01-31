@@ -1,12 +1,14 @@
-from typing import List, Dict, Any, Optional
+from typing import Any, Dict, List, Optional
+
 from pydantic import BaseModel
-from datetime import datetime
+
 
 class OptionContract(BaseModel):
     strike: float
-    type: str # 'call' or 'put'
+    type: str  # 'call' or 'put'
     expiration: str
     premium: float
+
 
 class OptionData(BaseModel):
     strike: float
@@ -22,9 +24,11 @@ class OptionData(BaseModel):
     vega: Optional[float] = None
     inTheMoney: bool = False
 
+
 class ChainRequest(BaseModel):
     symbol: str
     expiration: Optional[str] = None
+
 
 class ChainResponse(BaseModel):
     symbol: str
@@ -32,6 +36,7 @@ class ChainResponse(BaseModel):
     expiration_dates: List[str]
     calls: List[OptionData]
     puts: List[OptionData]
+
 
 class BacktestRequest(BaseModel):
     symbol: str
@@ -42,6 +47,7 @@ class BacktestRequest(BaseModel):
     end_date: str
     entry_rules: Dict[str, Any]
     exit_rules: Dict[str, Any]
+
 
 class BacktestResult(BaseModel):
     total_trades: int
@@ -57,7 +63,9 @@ class BacktestResult(BaseModel):
     equity_curve: List[Dict[str, Any]]
     trades: List[Dict[str, Any]]
 
+
 # New schemas for enhanced endpoints
+
 
 class OptionLegRequest(BaseModel):
     option_type: str  # 'CALL' or 'PUT'
@@ -66,10 +74,12 @@ class OptionLegRequest(BaseModel):
     quantity: int  # Positive for long, negative for short
     premium: Optional[float] = None  # If None, will be calculated
 
+
 class StrategyAnalysisRequest(BaseModel):
     symbol: str
     legs: List[OptionLegRequest]
     volatility: Optional[float] = None  # If None, will be estimated
+
 
 class GreeksResponse(BaseModel):
     delta: float
@@ -78,9 +88,11 @@ class GreeksResponse(BaseModel):
     vega: float
     rho: float
 
+
 class PayoffPoint(BaseModel):
     price: float
     payoff: float
+
 
 class StrategyAnalysisResponse(BaseModel):
     symbol: str
@@ -95,21 +107,26 @@ class StrategyAnalysisResponse(BaseModel):
     probability_of_profit: float
     payoff_diagram: List[PayoffPoint]
 
+
 class GreeksRequest(BaseModel):
     symbol: str
     legs: List[OptionLegRequest]
     volatility: Optional[float] = None
 
+
 class StrategyComparisonRequest(BaseModel):
     symbol: str
     strategies: List[Dict[str, Any]]  # List of strategy configurations
+
 
 class StrategyComparisonResponse(BaseModel):
     symbol: str
     current_price: float
     comparisons: List[Dict[str, Any]]
 
+
 # Options Analytics Schemas
+
 
 class ProbabilityRequest(BaseModel):
     current_price: float
@@ -119,12 +136,14 @@ class ProbabilityRequest(BaseModel):
     risk_free_rate: Optional[float] = 0.05
     option_type: str  # 'call' or 'put'
 
+
 class ProbabilityResponse(BaseModel):
     probability_itm: float
     probability_otm: float
     probability_touch: float
     expected_return_long: float
     expected_return_short: float
+
 
 class StrikeAnalysis(BaseModel):
     strike: float
@@ -134,6 +153,7 @@ class StrikeAnalysis(BaseModel):
     prob_otm: float
     expected_return: float
 
+
 class StrikeOptimizerRequest(BaseModel):
     symbol: str
     current_price: float
@@ -142,16 +162,19 @@ class StrikeOptimizerRequest(BaseModel):
     strategy_type: str  # 'covered_call', 'cash_secured_put', etc.
     num_strikes: Optional[int] = 10
 
+
 class StrikeOptimizerResponse(BaseModel):
     symbol: str
     strategy_type: str
     current_price: float
     strikes: List[StrikeAnalysis]
 
+
 class RiskMetricsRequest(BaseModel):
     portfolio_value: float
     returns: List[float]
     confidence_level: Optional[float] = 0.95
+
 
 class RiskMetricsResponse(BaseModel):
     var_95: float
@@ -159,13 +182,16 @@ class RiskMetricsResponse(BaseModel):
     kelly_fraction: Optional[float] = None
     recommendation: str
 
+
 class PortfolioPosition(BaseModel):
     pnl: float
     pnl_pct: float
     days_held: int
 
+
 class PortfolioStatsRequest(BaseModel):
     positions: List[PortfolioPosition]
+
 
 class PortfolioStatsResponse(BaseModel):
     total_pnl: float
@@ -184,12 +210,14 @@ class PortfolioStatsResponse(BaseModel):
     kelly_fraction: float
     expectancy: float
 
+
 class MonteCarloRequest(BaseModel):
     current_price: float
     volatility: float
     days: int
     num_simulations: Optional[int] = 10000
     drift: Optional[float] = 0.0
+
 
 class MonteCarloResponse(BaseModel):
     mean_final_price: float

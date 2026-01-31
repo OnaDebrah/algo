@@ -22,14 +22,14 @@ class MultiAssetEngine:
     """Engine for backtesting across multiple assets"""
 
     def __init__(
-            self,
-            strategies: Dict[str, BaseStrategy],  # {symbol: strategy}
-            initial_capital: float = 100000,
-            risk_manager: RiskManager = None,
-            db: DatabaseManager = None,
-            allocation_method: str = "equal",  # equal, optimized, custom
-            commission_rate: float = 0.05,
-            slippage_rate: float = 0.03,
+        self,
+        strategies: Dict[str, BaseStrategy],  # {symbol: strategy}
+        initial_capital: float = 100000,
+        risk_manager: RiskManager = None,
+        db: DatabaseManager = None,
+        allocation_method: str = "equal",  # equal, optimized, custom
+        commission_rate: float = 0.05,
+        slippage_rate: float = 0.03,
     ):
         """
         Initialize multi-asset backtesting engine
@@ -79,8 +79,7 @@ class MultiAssetEngine:
             period: Time period
             interval: Data interval
         """
-        logger.info(
-            f"Starting multi-asset backtest: {len(symbols)} symbols, " f"period: {period}, interval: {interval}")
+        logger.info(f"Starting multi-asset backtest: {len(symbols)} symbols, " f"period: {period}, interval: {interval}")
 
         # Fetch data for all symbols
         data_dict = {}
@@ -121,8 +120,7 @@ class MultiAssetEngine:
             # Calculate portfolio equity
             self._update_equity(timestamp, aligned_data, i)
 
-        logger.info(
-            f"Backtest complete: {len(self.trades)} trades, " f"Final equity: ${self.equity_curve[-1]['equity']:,.2f}")
+        logger.info(f"Backtest complete: {len(self.trades)} trades, " f"Final equity: ${self.equity_curve[-1]['equity']:,.2f}")
 
     def _align_data(self, data_dict: Dict[str, pd.DataFrame]) -> Dict:
         """Align data across all symbols to common timestamps"""
@@ -148,12 +146,12 @@ class MultiAssetEngine:
         return aligned
 
     def _execute_trade(
-            self,
-            symbol: str,
-            signal: int,
-            current_price: float,
-            timestamp,
-            strategy_name: str,
+        self,
+        symbol: str,
+        signal: int,
+        current_price: float,
+        timestamp,
+        strategy_name: str,
     ):
         """Execute trade with commission and slippage"""
 
@@ -180,7 +178,7 @@ class MultiAssetEngine:
                     "entry_price": execution_price,  # We track the "penalized" price
                     "entry_time": timestamp,
                     "strategy": strategy_name,
-                    "entry_commission": commission
+                    "entry_commission": commission,
                 }
 
                 trade_data = {
@@ -234,8 +232,9 @@ class MultiAssetEngine:
             self.trades.append(trade_data)
             self.db.save_trade(trade_data)
 
-            logger.debug(f"SELL: {position['quantity']} {symbol} @ ${execution_price:.2f} "
-                         f"(Net P&L: ${profit:.2f}, Fees: ${total_commissions:.2f})")
+            logger.debug(
+                f"SELL: {position['quantity']} {symbol} @ ${execution_price:.2f} " f"(Net P&L: ${profit:.2f}, Fees: ${total_commissions:.2f})"
+            )
 
             del self.positions[symbol]
 
@@ -404,15 +403,16 @@ class MultiAssetEngine:
 
         return stats
 
+
 class PortfolioBacktester:
     """Backtest a portfolio with single strategy across multiple assets"""
 
     def __init__(
-            self,
-            strategy: BaseStrategy,
-            symbols: List[str],
-            weights: Dict[str, float] = None,
-            initial_capital: float = 100000,
+        self,
+        strategy: BaseStrategy,
+        symbols: List[str],
+        weights: Dict[str, float] = None,
+        initial_capital: float = 100000,
     ):
         """
         Initialize portfolio backtester

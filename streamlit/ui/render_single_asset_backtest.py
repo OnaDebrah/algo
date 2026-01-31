@@ -2,12 +2,12 @@ import logging
 
 import pandas as pd
 import plotly.graph_objects as go
-import streamlit as st
 from plotly.subplots import make_subplots
 
+import streamlit as st
+from config import DEFAULT_INITIAL_CAPITAL
 from streamlit.alerts.alert_manager import AlertManager
 from streamlit.analytics.performance import calculate_performance_metrics
-from config import DEFAULT_INITIAL_CAPITAL
 from streamlit.core.data_fetcher import fetch_stock_data, validate_interval_period
 from streamlit.core.database import DatabaseManager
 from streamlit.core.risk_manager import RiskManager

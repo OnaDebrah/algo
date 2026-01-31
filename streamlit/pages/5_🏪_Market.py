@@ -1,8 +1,7 @@
 from streamlit.auth import UserTier, require_tier
 from streamlit.core.context import configure_page
+from streamlit.ui import OracleTheme, marketplace
 from streamlit.ui.components.sidebar import render_page_sidebar
-from streamlit.ui import OracleTheme
-from streamlit.ui import marketplace
 
 
 @require_tier(UserTier.FREE)

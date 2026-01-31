@@ -21,7 +21,9 @@ class DatabaseManager:
 
     def init_database(self):
         """Initialize database tables"""
-        conn = sqlite3.connect(self.db_path)
+        conn = sqlite3.connect(self.db_path, timeout=30)
+        conn.execute("PRAGMA journal_mode=WAL;")
+        conn.execute("PRAGMA synchronous=NORMAL;")
         cursor = conn.cursor()
 
         # Trades table
@@ -151,7 +153,9 @@ class DatabaseManager:
 
     def save_trade(self, trade_data: Dict, portfolio_id: int = 1):
         """Save trade to database"""
-        conn = sqlite3.connect(self.db_path)
+        conn = sqlite3.connect(self.db_path, timeout=30)
+        conn.execute("PRAGMA journal_mode=WAL;")
+        conn.execute("PRAGMA synchronous=NORMAL;")
         cursor = conn.cursor()
 
         cursor.execute(
@@ -181,11 +185,63 @@ class DatabaseManager:
         conn.commit()
         conn.close()
 
-    def get_trades(
-        self, portfolio_id: int = 1, limit: int = 100, start_date: datetime = None, end_date: datetime = None
-    ) -> List[Dict]:
+    def save_trades_bulk(self, trades: List[Dict], portfolio_id: int):
+        """
+        Save multiple trades in a single transaction.
+        """
+        if not trades:
+            return
+
+        conn = sqlite3.connect(self.db_path, timeout=30)
+        conn.execute("PRAGMA journal_mode=WAL;")
+        conn.execute("PRAGMA synchronous=NORMAL;")
+        cursor = conn.cursor()
+
+        try:
+            # Prepare the list of tuples for executemany
+            trade_tuples = [
+                (
+                    t.get("symbol"),
+                    t.get("order_type"),
+                    t.get("quantity"),
+                    t.get("price"),
+                    t.get("executed_at"),
+                    t.get("strategy"),
+                    t.get("profit"),
+                    t.get("profit_pct"),
+                    t.get("commission"),
+                    t.get("slippage"),
+                    t.get("total_value"),
+                    t.get("side"),
+                    t.get("notes"),
+                    portfolio_id,
+                )
+                for t in trades
+            ]
+
+            cursor.executemany(
+                """
+                INSERT INTO trades (
+                    symbol, order_type, quantity, price, executed_at,
+                    strategy, profit, profit_pct, commission, slippage,
+                    total_value, side, notes, portfolio_id
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                trade_tuples,
+            )
+            conn.commit()
+        except Exception as e:
+            conn.rollback()
+            print(f"Error bulk saving trades: {e}")
+            raise e
+        finally:
+            conn.close()
+
+    def get_trades(self, portfolio_id: int = 1, limit: int = 100, start_date: datetime = None, end_date: datetime = None) -> List[Dict]:
         """Retrieve trades from database"""
-        conn = sqlite3.connect(self.db_path)
+        conn = sqlite3.connect(self.db_path, timeout=30)
+        conn.execute("PRAGMA journal_mode=WAL;")
+        conn.execute("PRAGMA synchronous=NORMAL;")
         cursor = conn.cursor()
 
         query = "SELECT * FROM trades WHERE portfolio_id = ?"
@@ -209,11 +265,11 @@ class DatabaseManager:
         conn.close()
         return trades
 
-    def get_equity_curve(
-        self, portfolio_id: int, start_date: datetime = None, end_date: datetime = None
-    ) -> List[Dict]:
+    def get_equity_curve(self, portfolio_id: int, start_date: datetime = None, end_date: datetime = None) -> List[Dict]:
         """Retrieve equity curve from database"""
-        conn = sqlite3.connect(self.db_path)
+        conn = sqlite3.connect(self.db_path, timeout=30)
+        conn.execute("PRAGMA journal_mode=WAL;")
+        conn.execute("PRAGMA synchronous=NORMAL;")
         cursor = conn.cursor()
 
         query = "SELECT * FROM performance_history WHERE portfolio_id = ?"
@@ -237,7 +293,9 @@ class DatabaseManager:
 
     def save_performance(self, portfolio_id: int, equity: float, cash: float, total_return: float):
         """Save performance snapshot"""
-        conn = sqlite3.connect(self.db_path)
+        conn = sqlite3.connect(self.db_path, timeout=30)
+        conn.execute("PRAGMA journal_mode=WAL;")
+        conn.execute("PRAGMA synchronous=NORMAL;")
         cursor = conn.cursor()
 
         cursor.execute(
@@ -254,7 +312,9 @@ class DatabaseManager:
 
     def create_portfolio(self, name: str, initial_capital: float) -> int:
         """Create new portfolio"""
-        conn = sqlite3.connect(self.db_path)
+        conn = sqlite3.connect(self.db_path, timeout=30)
+        conn.execute("PRAGMA journal_mode=WAL;")
+        conn.execute("PRAGMA synchronous=NORMAL;")
         cursor = conn.cursor()
 
         try:
@@ -279,7 +339,7 @@ class DatabaseManager:
         conn.close()
         return portfolio_id
 
-    def get_portfolio(self, portfolio_id: int) -> Optional[Dict]:
+    def get_portfolio(self, portfolio_id: int, timeout=30) -> Optional[Dict]:
         """Get portfolio by ID"""
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
@@ -297,7 +357,9 @@ class DatabaseManager:
         return portfolio
 
     def get_header_metrics(self, portfolio_id: int = 1) -> Dict:
-        conn = sqlite3.connect(self.db_path)
+        conn = sqlite3.connect(self.db_path, timeout=30)
+        conn.execute("PRAGMA journal_mode=WAL;")
+        conn.execute("PRAGMA synchronous=NORMAL;")
         cursor = conn.cursor()
 
         try:

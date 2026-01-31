@@ -106,7 +106,6 @@ class MultiAssetBacktestResponse(BaseModel):
     benchmark: Optional[Dict] = None
 
 
-
 # Options backtest
 class OptionsBacktestRequest(BaseModel):
     symbol: str

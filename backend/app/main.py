@@ -1,33 +1,36 @@
 """Main FastAPI application"""
+
 from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 
-from backend.app.api.routes import optimise
-from backend.app.config import settings
-from backend.app.database import create_tables
-from backend.app.init_data import init_default_data
 from backend.app.api.routes import (
     advisor,
+    alerts,
     analyst,
     analytics,
     auth,
     backtest,
-    alerts,
     health,
     live,
     market,
     marketplace,
     mlstudio,
+    optimise,
     options,
     portfolio,
     regime,
     root,
     settings as settings_router,
     strategy,
-    websocket
+    websocket,
 )
+from backend.app.config import settings
+from backend.app.database import create_tables
+from backend.app.init_data import init_default_data
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -45,7 +48,7 @@ app = FastAPI(
     description="Oraculum Backtesting Platform API",
     docs_url="/docs",
     redoc_url="/redoc",
-    lifespan=lifespan
+    lifespan=lifespan,
 )
 
 # CORS

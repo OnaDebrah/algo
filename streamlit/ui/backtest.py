@@ -3,7 +3,6 @@ Backtesting UI Component
 """
 
 import streamlit as st
-
 from streamlit.alerts.alert_manager import AlertManager
 from streamlit.core.database import DatabaseManager
 from streamlit.core.risk_manager import RiskManager

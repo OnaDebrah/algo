@@ -3,9 +3,9 @@ ORACULUM - Institutional Landing Page
 """
 
 import streamlit as st
-
 from streamlit.auth import init_auth_state
 from streamlit.ui import (
+    OracleTheme,
     render_authenticated_home,
     render_cta_section,
     render_features_section,
@@ -16,7 +16,6 @@ from streamlit.ui import (
     render_social_proof,
     render_stats_section,
 )
-from streamlit.ui import OracleTheme
 
 st.set_page_config(page_title="ORACULUM - Institutional Trading Platform", page_icon="🏛️", layout="wide", initial_sidebar_state="collapsed")
 

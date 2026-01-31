@@ -9,9 +9,9 @@ import logging
 from datetime import datetime
 from typing import Dict, List
 
-import streamlit as st
 import yfinance as yf
 
+import streamlit as st
 from streamlit.ui.components.theme import OracleTheme
 
 logger = logging.getLogger(__name__)

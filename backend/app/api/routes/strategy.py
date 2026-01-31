@@ -18,10 +18,7 @@ router = APIRouter(prefix="/strategy", tags=["Strategy"])
 
 
 @router.get("/list", response_model=List[StrategyInfo])
-async def list_strategies(
-    current_user: User = Depends(get_current_active_user),
-    db: AsyncSession = Depends(get_db)
-):
+async def list_strategies(current_user: User = Depends(get_current_active_user), db: AsyncSession = Depends(get_db)):
     """List all available strategies"""
     # Track usage (informational)
     await AuthService.track_usage(db, current_user.id, "list_strategies")
@@ -37,22 +34,26 @@ async def list_strategies(
                     name=param_name,
                     type=param_info.get("type", "number"),
                     default=param_info.get("default"),
-                    min=param_info.get("min") if param_info.get("min") is not None else (param_info.get("range")[0] if param_info.get("range") else None),
-                    max=param_info.get("max") if param_info.get("max") is not None else (param_info.get("range")[1] if param_info.get("range") else None),
+                    min=param_info.get("min")
+                    if param_info.get("min") is not None
+                    else (param_info.get("range")[0] if param_info.get("range") else None),
+                    max=param_info.get("max")
+                    if param_info.get("max") is not None
+                    else (param_info.get("range")[1] if param_info.get("range") else None),
                     description=param_info.get("description", ""),
                 )
             )
 
         strategies.append(
             StrategyInfo(
-                key=key, 
-                name=info.name, 
-                description=info.description, 
-                category=info.category.value if hasattr(info.category, 'value') else str(info.category), 
+                key=key,
+                name=info.name,
+                description=info.description,
+                category=info.category.value if hasattr(info.category, "value") else str(info.category),
                 complexity=info.complexity,
                 time_horizon=info.time_horizon,
                 best_for=info.best_for,
-                parameters=parameters
+                parameters=parameters,
             )
         )
 
@@ -61,9 +62,9 @@ async def list_strategies(
 
 @router.get("/{strategy_key}", response_model=StrategyInfo)
 async def get_strategy(
-    strategy_key: str, 
-    current_user: User = Depends(check_permission(Permission.BASIC_BACKTEST)), # Basic strategies require BASIC tier
-    db: AsyncSession = Depends(get_db)
+    strategy_key: str,
+    current_user: User = Depends(check_permission(Permission.BASIC_BACKTEST)),  # Basic strategies require BASIC tier
+    db: AsyncSession = Depends(get_db),
 ):
     """Get strategy details"""
     # Track usage
@@ -93,7 +94,7 @@ async def get_strategy(
         key=strategy_key,
         name=info.name,
         description=info.description,
-        category=info.category.value if hasattr(info.category, 'value') else str(info.category),
+        category=info.category.value if hasattr(info.category, "value") else str(info.category),
         complexity=info.complexity,
         time_horizon=info.time_horizon,
         best_for=info.best_for,

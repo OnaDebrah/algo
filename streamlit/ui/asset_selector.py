@@ -3,8 +3,8 @@ Asset Class Selection UI Component
 """
 
 import pandas as pd
-import streamlit as st
 
+import streamlit as st
 from streamlit.core.asset_classes import AssetClass, get_asset_class_names, get_asset_manager
 
 

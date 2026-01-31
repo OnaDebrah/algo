@@ -3,8 +3,8 @@ Portfolio Dashboard UI Component
 """
 
 import pandas as pd
-import streamlit as st
 
+import streamlit as st
 from streamlit.core.database import DatabaseManager
 
 

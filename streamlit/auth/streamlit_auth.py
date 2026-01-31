@@ -6,7 +6,6 @@ from functools import wraps
 from typing import Callable
 
 import streamlit as st
-
 from streamlit.auth.auth_manager import AuthManager, Permission, UserTier
 
 

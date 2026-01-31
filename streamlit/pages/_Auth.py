@@ -4,7 +4,6 @@ Professional design with ORACULUM theme
 """
 
 import streamlit as st
-
 from streamlit.auth.auth_manager import UserTier
 from streamlit.auth.streamlit_auth import init_auth_state
 from streamlit.ui import OracleTheme

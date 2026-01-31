@@ -8,9 +8,9 @@ import numpy as np
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
-import streamlit as st
 from plotly.subplots import make_subplots
 
+import streamlit as st
 from streamlit.analytics.market_regime_detector import MarketRegimeDetector
 from streamlit.core import fetch_stock_data
 

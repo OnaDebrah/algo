@@ -11,7 +11,6 @@ import numpy as np
 import pandas as pd
 
 from backend.app.strategies.options_builder import OptionsStrategyBuilder, create_preset_strategy
-
 from backend.app.strategies.options_strategies import (
     BlackScholesCalculator,
     OptionsStrategy,
@@ -27,10 +26,10 @@ class OptionsBacktestEngine:
     """
 
     def __init__(
-            self,
-            initial_capital: float = 100000,
-            risk_free_rate: float = 0.05,
-            commission_per_contract: float = 0.65,
+        self,
+        initial_capital: float = 100000,
+        risk_free_rate: float = 0.05,
+        commission_per_contract: float = 0.65,
     ):
         self.initial_capital = initial_capital
         self.capital = initial_capital
@@ -43,13 +42,13 @@ class OptionsBacktestEngine:
         self.trades = []
 
     def run_strategy_backtest(
-            self,
-            symbol: str,
-            data: pd.DataFrame,
-            strategy_type: OptionsStrategy,
-            entry_rules: Dict,
-            exit_rules: Dict,
-            volatility: float = 0.3,
+        self,
+        symbol: str,
+        data: pd.DataFrame,
+        strategy_type: OptionsStrategy,
+        entry_rules: Dict,
+        exit_rules: Dict,
+        volatility: float = 0.3,
     ) -> Dict:
         """
         Run backtest for a specific options strategy
@@ -143,7 +142,7 @@ class OptionsBacktestEngine:
             rsi_oversold = entry_rules.get("rsi_oversold", 30)
             rsi_overbought = entry_rules.get("rsi_overbought", 70)
 
-            closes = data["Close"].iloc[max(0, index - rsi_period): index + 1]
+            closes = data["Close"].iloc[max(0, index - rsi_period) : index + 1]
             delta = closes.diff()
             gain = (delta.where(delta > 0, 0)).rolling(window=rsi_period).mean()
             loss = (-delta.where(delta < 0, 0)).rolling(window=rsi_period).mean()
@@ -163,8 +162,8 @@ class OptionsBacktestEngine:
             if index < 50:
                 return False
 
-            short_ma = data["Close"].iloc[index - 20: index + 1].mean()
-            long_ma = data["Close"].iloc[index - 50: index + 1].mean()
+            short_ma = data["Close"].iloc[index - 20 : index + 1].mean()
+            long_ma = data["Close"].iloc[index - 50 : index + 1].mean()
 
             direction = entry_rules.get("direction", "bullish")
             if direction == "bullish":
@@ -175,13 +174,13 @@ class OptionsBacktestEngine:
         return False
 
     def _enter_position(
-            self,
-            symbol: str,
-            date: datetime,
-            price: float,
-            strategy_type: OptionsStrategy,
-            entry_rules: Dict,
-            volatility: float,
+        self,
+        symbol: str,
+        date: datetime,
+        price: float,
+        strategy_type: OptionsStrategy,
+        entry_rules: Dict,
+        volatility: float,
     ):
         """Enter a new options position"""
 
@@ -261,11 +260,11 @@ class OptionsBacktestEngine:
         return kwargs
 
     def _update_positions(
-            self,
-            current_date: datetime,
-            current_price: float,
-            volatility: float,
-            exit_rules: Dict,
+        self,
+        current_date: datetime,
+        current_price: float,
+        volatility: float,
+        exit_rules: Dict,
     ):
         """Update existing positions and check exit conditions"""
 
@@ -313,11 +312,11 @@ class OptionsBacktestEngine:
             self._close_position(i, current_date, current_price, volatility)
 
     def _close_position(
-            self,
-            position_index: int,
-            exit_date: datetime,
-            exit_price: float,
-            volatility: float,
+        self,
+        position_index: int,
+        exit_date: datetime,
+        exit_price: float,
+        volatility: float,
     ):
         """Close a position"""
 

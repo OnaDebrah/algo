@@ -1,4 +1,5 @@
 """Initialize default data"""
+
 import logging
 
 from sqlalchemy import select
@@ -6,6 +7,7 @@ from sqlalchemy import select
 from backend.app.database import AsyncSessionLocal
 from backend.app.models.user import User
 from backend.app.utils.security import get_password_hash
+
 logger = logging.getLogger(__name__)
 
 
@@ -24,7 +26,7 @@ async def init_default_data():
                     username="Admin User",
                     is_active=True,
                     is_superuser=True,
-                    tier="ENTERPRISE"
+                    tier="ENTERPRISE",
                 )
                 db.add(user)
                 await db.commit()

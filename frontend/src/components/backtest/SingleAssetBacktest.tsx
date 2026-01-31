@@ -532,7 +532,7 @@ const SingleAssetBacktest: React.FC<SingleAssetBacktestProps> = ({
 
                         {/* Strategy Grid/List */}
                         <div className={`
-                            ${viewMode === 'grid' ? 'grid grid-cols-2 md:grid-cols-3 gap-3' : 'space-y-2'} 
+                            ${viewMode === 'grid' ? 'grid grid-cols-2 md:grid-cols-3 gap-3' : 'space-y-2'}
                             max-h-[400px] overflow-y-auto pr-2 custom-scrollbar
                         `}>
                             {filteredStrategies.map((strategy: Strategy) => {

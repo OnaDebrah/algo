@@ -3,6 +3,7 @@ Backtest routes
 """
 
 from typing import List, Optional
+
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import desc, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -11,7 +12,6 @@ from backend.app.api.deps import check_permission, get_current_active_user, get_
 from backend.app.core.permissions import Permission
 from backend.app.models import BacktestRun
 from backend.app.models.user import User
-from backend.app.services.auth_service import AuthService
 from backend.app.schemas.backtest import (
     BacktestHistoryItem,
     BacktestRequest,
@@ -21,6 +21,7 @@ from backend.app.schemas.backtest import (
     OptionsBacktestRequest,
     OptionsBacktestResponse,
 )
+from backend.app.services.auth_service import AuthService
 from backend.app.services.backtest_service import BacktestService
 
 router = APIRouter(prefix="/backtest", tags=["Backtest"])
@@ -28,45 +29,41 @@ router = APIRouter(prefix="/backtest", tags=["Backtest"])
 
 @router.post("/single", response_model=BacktestResponse)
 async def run_single_backtest(
-    request: BacktestRequest, 
-    current_user: User = Depends(check_permission(Permission.BASIC_BACKTEST)),
-    db: AsyncSession = Depends(get_db)
+    request: BacktestRequest, current_user: User = Depends(check_permission(Permission.BASIC_BACKTEST)), db: AsyncSession = Depends(get_db)
 ):
     """Run single asset backtest"""
     # Track usage
     await AuthService.track_usage(db, current_user.id, "run_backtest_single", {"symbol": request.symbol})
 
-    service = BacktestService()
+    service = BacktestService(db)
     result = await service.run_single_backtest(request, current_user.id)
     return result
 
 
 @router.post("/multi", response_model=MultiAssetBacktestResponse)
 async def run_multi_asset_backtest(
-    request: MultiAssetBacktestRequest, 
+    request: MultiAssetBacktestRequest,
     current_user: User = Depends(check_permission(Permission.MULTI_ASSET_BACKTEST)),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
 ):
     """Run multi-asset backtest"""
     # Track usage
     await AuthService.track_usage(db, current_user.id, "run_backtest_multi", {"symbols": request.symbols})
 
-    service = BacktestService()
+    service = BacktestService(db)
     result = await service.run_multi_asset_backtest(request, current_user.id)
     return result
 
 
 @router.post("/options", response_model=OptionsBacktestResponse)
 async def run_options_backtest(
-    request: OptionsBacktestRequest, 
-    current_user: User = Depends(check_permission(Permission.ML_STRATEGIES)),
-    db: AsyncSession = Depends(get_db)
+    request: OptionsBacktestRequest, current_user: User = Depends(check_permission(Permission.ML_STRATEGIES)), db: AsyncSession = Depends(get_db)
 ):
     """Run options backtest"""
     # Track usage
     await AuthService.track_usage(db, current_user.id, "run_backtest_options", {"symbol": request.symbol})
 
-    service = BacktestService()
+    service = BacktestService(db)
     result = await service.run_options_backtest(request, current_user.id)
     return result
 

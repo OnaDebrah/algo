@@ -9,10 +9,12 @@ class ValuationMetric(BaseModel):
     benchmark: float
     description: str
 
+
 class MACDData(BaseModel):
     value: float
     signal: float
     histogram: float
+
 
 class TechnicalData(BaseModel):
     rsi: float
@@ -26,6 +28,7 @@ class TechnicalData(BaseModel):
     macd: MACDData
     volume_trend: str
 
+
 class FundamentalData(BaseModel):
     pe_ratio: float
     pb_ratio: float
@@ -37,6 +40,7 @@ class FundamentalData(BaseModel):
     profit_margin: float
     dividend_yield: float
 
+
 class SentimentData(BaseModel):
     institutional: float
     retail: float
@@ -45,6 +49,7 @@ class SentimentData(BaseModel):
     social: float
     options: float
 
+
 class RisksData(BaseModel):
     regulatory: List[str]
     competitive: List[str]
@@ -52,15 +57,16 @@ class RisksData(BaseModel):
     financial: List[str]
     operational: List[str]
 
+
 class AnalystReport(BaseModel):
     company_name: str
     ticker: str
-    recommendation: str # 'Strong Buy' | 'Buy' | ...
+    recommendation: str  # 'Strong Buy' | 'Buy' | ...
     recommendation_confidence: float
     current_price: float
     target_price: float
     upside: float
-    risk_rating: str # 'Low' | 'Medium' ...
+    risk_rating: str  # 'Low' | 'Medium' ...
     investment_thesis: str
     sector: str
     industry: str

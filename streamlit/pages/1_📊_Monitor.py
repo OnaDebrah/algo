@@ -3,13 +3,11 @@ Monitor Page - Portfolio tracking and live execution
 """
 
 import streamlit as st
-
 from streamlit.auth import require_auth
 from streamlit.core.context import configure_page, get_app_context
+from streamlit.ui import OracleTheme, render_live_trading
 from streamlit.ui.components.dashboard import render_dashboard
 from streamlit.ui.components.sidebar import render_page_sidebar
-from streamlit.ui import OracleTheme
-from streamlit.ui import render_live_trading
 
 
 @require_auth

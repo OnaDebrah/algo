@@ -8,8 +8,8 @@ from datetime import datetime
 
 import plotly.express as px
 import plotly.graph_objects as go
-import streamlit as st
 
+import streamlit as st
 from streamlit.core.analyst_agent import AnalystReport, FinancialAnalystAgent
 
 

@@ -8,10 +8,9 @@ from typing import Dict, List
 
 import pandas as pd
 
-from config import DEFAULT_INITIAL_CAPITAL
-from backend.app.core import DatabaseManager
-from backend.app.core import RiskManager
+from backend.app.core import DatabaseManager, RiskManager
 from backend.app.strategies import BaseStrategy
+from config import DEFAULT_INITIAL_CAPITAL
 
 logger = logging.getLogger(__name__)
 
@@ -65,7 +64,7 @@ class TradingEngine:
         if signal == 1 and self.position is None:
             # Apply slippage (buy higher)
             slipped_price = current_price * (1 + self.slippage_rate)
-            
+
             quantity = self.risk_manager.calculate_position_size(self.cash, slipped_price)
             trade_value = quantity * slipped_price
             commission = trade_value * self.commission_rate
@@ -94,7 +93,7 @@ class TradingEngine:
                 }
 
                 self.trades.append(trade_data)
-                self.db.save_trade(trade_data)
+                # self.db.save_trade(trade_data)
 
                 logger.info(f"BUY: {quantity} {symbol} @ ${slipped_price:.2f} " f"(Cost: ${total_cost:.2f}, Comm: ${commission:.2f})")
 
@@ -102,11 +101,11 @@ class TradingEngine:
         elif signal == -1 and self.position is not None:
             # Apply slippage (sell lower)
             slipped_price = current_price * (1 - self.slippage_rate)
-            
+
             revenue = self.position["quantity"] * slipped_price
             commission = revenue * self.commission_rate
             net_revenue = revenue - commission
-            
+
             profit = net_revenue - (self.position["entry_price"] * self.position["quantity"])
             profit_pct = (profit / (self.position["entry_price"] * self.position["quantity"])) * 100
 
@@ -128,9 +127,12 @@ class TradingEngine:
             }
 
             self.trades.append(trade_data)
-            self.db.save_trade(trade_data)
+            # self.db.save_trade(trade_data)
 
-            logger.info(f"SELL: {self.position['quantity']} {symbol} @ ${slipped_price:.2f} " f"(P&L: ${profit:.2f}, {profit_pct:.2f}%, Comm: ${commission:.2f})")
+            logger.info(
+                f"SELL: {self.position['quantity']} {symbol} @ ${slipped_price:.2f} "
+                f"(P&L: ${profit:.2f}, {profit_pct:.2f}%, Comm: ${commission:.2f})"
+            )
 
             self.position = None
 
