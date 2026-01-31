@@ -10,7 +10,7 @@ interface LoadConfigModalProps {
     onSelect: (config: any) => void;
 }
 
-const LoadConfigModal: React.FC<LoadConfigModalProps> = ({ mode, onClose, onSelect }) => {
+const LoadConfigModal: React.FC<LoadConfigModalProps> = ({ mode, onClose, onSelect }: LoadConfigModalProps) => {
     const [portfolios, setPortfolios] = useState<Portfolio[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');

@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from backend.app.models import Portfolio
 from backend.app.models.position import Position
 from backend.app.models.trade import Trade
+from backend.app.schemas import PortfolioMetrics
 from backend.app.schemas.portfolio import (
     Portfolio as PortfolioSchema,
     PortfolioCreate,
@@ -17,7 +18,6 @@ from backend.app.schemas.portfolio import (
     Position as PositionSchema,
     Trade as TradeSchema,
 )
-from backend.app.schemas import PortfolioMetrics
 
 
 class PortfolioService:
@@ -44,11 +44,7 @@ class PortfolioService:
 
     async def get_portfolios(self, user_id: int) -> List[PortfolioSchema]:
         """Get all portfolios for a user"""
-        stmt = (
-            select(Portfolio)
-            .where(Portfolio.user_id == user_id)
-            .where(Portfolio.is_active == True)
-        )
+        stmt = select(Portfolio).where(Portfolio.user_id == user_id).where(Portfolio.is_active)
 
         result = await self.db.execute(stmt)
         portfolios = result.scalars().all()
@@ -56,11 +52,7 @@ class PortfolioService:
 
     async def get_portfolio(self, portfolio_id: int, user_id: int) -> Optional[PortfolioSchema]:
         """Get a specific portfolio"""
-        stmt = (
-            select(Portfolio)
-            .where(Portfolio.id == portfolio_id)
-            .where(Portfolio.user_id == user_id)
-        )
+        stmt = select(Portfolio).where(Portfolio.id == portfolio_id).where(Portfolio.user_id == user_id)
 
         result = await self.db.execute(stmt)
         portfolio = result.scalars().first()
@@ -77,14 +69,9 @@ class PortfolioService:
 
         return PortfolioSchema(**portfolio_dict)
 
-    async def update_portfolio(self, portfolio_id: int, user_id: int, update_data: PortfolioUpdate) -> Optional[
-        PortfolioSchema]:
+    async def update_portfolio(self, portfolio_id: int, user_id: int, update_data: PortfolioUpdate) -> Optional[PortfolioSchema]:
         """Update a portfolio"""
-        stmt = (
-            select(Portfolio)
-            .where(Portfolio.id == portfolio_id)
-            .where(Portfolio.user_id == user_id)
-        )
+        stmt = select(Portfolio).where(Portfolio.id == portfolio_id).where(Portfolio.user_id == user_id)
 
         result = await self.db.execute(stmt)
         portfolio = result.scalars().first()
@@ -102,11 +89,7 @@ class PortfolioService:
 
     async def delete_portfolio(self, portfolio_id: int, user_id: int) -> bool:
         """Soft delete a portfolio"""
-        stmt = (
-            select(Portfolio)
-            .where(Portfolio.id == portfolio_id)
-            .where(Portfolio.user_id == user_id)
-        )
+        stmt = select(Portfolio).where(Portfolio.id == portfolio_id).where(Portfolio.user_id == user_id)
 
         result = await self.db.execute(stmt)
         portfolio = result.scalars().first()
@@ -121,10 +104,7 @@ class PortfolioService:
 
     async def get_positions(self, portfolio_id: int) -> List[PositionSchema]:
         """Get all positions for a portfolio"""
-        stmt = (
-            select(Position)
-            .where(Position.portfolio_id == portfolio_id)
-        )
+        stmt = select(Position).where(Position.portfolio_id == portfolio_id)
 
         result = await self.db.execute(stmt)
         positions = result.scalars().all()
@@ -133,10 +113,7 @@ class PortfolioService:
 
     async def get_trades(self, portfolio_id: int, limit: int = 100, offset: int = 0) -> List[TradeSchema]:
         """Get trades for a portfolio"""
-        stmt = (
-            select(Trade)
-            .where(Trade.portfolio_id == portfolio_id).order_by(Trade.executed_at.desc()).limit(limit).offset(offset)
-        )
+        stmt = select(Trade).where(Trade.portfolio_id == portfolio_id).order_by(Trade.executed_at.desc()).limit(limit).offset(offset)
 
         result = await self.db.execute(stmt)
         trades = result.scalars().all()
@@ -145,19 +122,12 @@ class PortfolioService:
 
     async def get_portfolio_metrics(self, portfolio_id: int, user_id: int) -> PortfolioMetrics:
         """Get all metrics for a portfolio"""
-        stmt = (
-            select(Portfolio)
-            .where(Portfolio.id == portfolio_id)
-            .where(Portfolio.user_id == user_id)
-        )
+        stmt = select(Portfolio).where(Portfolio.id == portfolio_id).where(Portfolio.user_id == user_id)
 
         result = await self.db.execute(stmt)
         portfolio = result.scalars().first()
 
-        stmt = (
-            select(Position)
-            .where(Position.portfolio_id == portfolio_id)
-        )
+        stmt = select(Position).where(Position.portfolio_id == portfolio_id)
 
         result = await self.db.execute(stmt)
         positions = result.scalars().all()
@@ -180,4 +150,3 @@ class PortfolioService:
             daily_return=nav - prev_nav,
             daily_return_pct=((nav - prev_nav) / prev_nav * 100) if prev_nav > 0 else 0,
         )
-

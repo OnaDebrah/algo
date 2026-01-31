@@ -3,13 +3,10 @@ Research Page - Backtesting, options, and portfolio optimization
 """
 
 import streamlit as st
-
 from streamlit.auth import UserTier, require_tier
 from streamlit.core.context import configure_page, get_app_context
-from streamlit.ui import render_backtest
+from streamlit.ui import OracleTheme, render_backtest, render_portfolio_optimization
 from streamlit.ui.components.sidebar import render_page_sidebar
-from streamlit.ui import OracleTheme
-from streamlit.ui import render_portfolio_optimization
 
 
 @require_tier(UserTier.FREE)

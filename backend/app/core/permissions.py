@@ -1,15 +1,19 @@
 from enum import Enum
 from typing import Dict, List
 
+
 class UserTier(str, Enum):
     """User subscription tiers"""
+
     FREE = "FREE"
     BASIC = "BASIC"
     PRO = "PRO"
     ENTERPRISE = "ENTERPRISE"
 
+
 class Permission(str, Enum):
     """Feature permissions"""
+
     VIEW_DASHBOARD = "view_dashboard"
     BASIC_BACKTEST = "basic_backtest"
     MULTI_ASSET_BACKTEST = "multi_asset_backtest"
@@ -20,6 +24,7 @@ class Permission(str, Enum):
     UNLIMITED_BACKTESTS = "unlimited_backtests"
     PRIORITY_SUPPORT = "priority_support"
     CUSTOM_STRATEGIES = "custom_strategies"
+
 
 # Tier permissions mapping
 TIER_PERMISSIONS: Dict[UserTier, List[Permission]] = {

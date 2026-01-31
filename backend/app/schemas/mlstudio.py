@@ -1,10 +1,13 @@
-from typing import List, Dict, Any, Optional
-from pydantic import BaseModel
 from datetime import datetime
+from typing import Any, Dict, List
+
+from pydantic import BaseModel
+
 
 class FeatureImportance(BaseModel):
     feature: str
     importance: float
+
 
 class MLModel(BaseModel):
     id: str
@@ -20,6 +23,7 @@ class MLModel(BaseModel):
     status: str
     feature_importance: List[FeatureImportance]
     hyperparams: Dict[str, Any]
+
 
 class TrainingConfig(BaseModel):
     symbol: str

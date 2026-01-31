@@ -26,8 +26,8 @@ const BenchmarkComparison: React.FC<BenchmarkComparisonProps> = ({ benchmark }: 
                     </p>
                 </div>
                 <div className={`flex items-center gap-2 px-4 py-2 rounded-xl ${
-                    outperforming 
-                        ? 'bg-emerald-500/10 border border-emerald-500/30' 
+                    outperforming
+                        ? 'bg-emerald-500/10 border border-emerald-500/30'
                         : 'bg-red-500/10 border border-red-500/30'
                 }`}>
                     {outperforming ? (

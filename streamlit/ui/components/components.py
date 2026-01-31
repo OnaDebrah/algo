@@ -6,7 +6,6 @@ Professional, production-ready components
 from typing import Dict, List
 
 import streamlit as st
-
 from streamlit.ui.components.theme import OracleTheme
 
 PRICING_CONFIG = [

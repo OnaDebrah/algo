@@ -5,8 +5,8 @@ Strategy Advisor UI - Streamlit interface for AI recommendations
 import asyncio
 
 import plotly.graph_objects as go
-import streamlit as st
 
+import streamlit as st
 from streamlit.core.ai_advisor import AIStrategyAdvisor, StrategyRecommendation
 from streamlit.core.ai_advisor_api import AIAdvisorAPI
 

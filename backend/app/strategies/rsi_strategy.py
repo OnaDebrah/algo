@@ -4,8 +4,8 @@ Relative Strength Index (RSI) Strategy
 
 import pandas as pd
 
-from config import DEFAULT_RSI_OVERBOUGHT, DEFAULT_RSI_OVERSOLD, DEFAULT_RSI_PERIOD
 from backend.app.strategies import BaseStrategy
+from config import DEFAULT_RSI_OVERBOUGHT, DEFAULT_RSI_OVERSOLD, DEFAULT_RSI_PERIOD
 
 
 class RSIStrategy(BaseStrategy):

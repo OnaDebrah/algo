@@ -8,7 +8,7 @@ class PortfolioRequest(BaseModel):
     symbols: List[str] = Field(..., min_length=2, description="List of stock symbols")
     lookback_days: int = Field(252, ge=30, le=1000, description="Historical lookback period in days")
 
-    @field_validator('symbols')
+    @field_validator("symbols")
     def validate_symbols(cls, v):
         if len(v) < 2:
             raise ValueError("Need at least 2 symbols")
@@ -42,7 +42,7 @@ class BacktestRequest(BaseModel):
     start_capital: float = Field(100000, ge=1000, description="Starting capital")
     period: str = Field("1y", description="Backtest period (e.g., '1y', '6mo', '2y')")
 
-    @field_validator('weights')
+    @field_validator("weights")
     def validate_weights(cls, v):
         total = sum(v.values())
         if not (0.99 <= total <= 1.01):

@@ -8,8 +8,13 @@ from datetime import datetime
 from typing import List
 
 import pandas as pd
-from sqlalchemy.orm import Session
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
+from backend.app.analytics.performance import calculate_performance_metrics
+from backend.app.core import DatabaseManager, RiskManager, TradingEngine, fetch_stock_data
+from backend.app.core.benchmark_calculator import BenchmarkCalculator
+from backend.app.core.multi_asset_engine import MultiAssetEngine
 from backend.app.models.backtest import BacktestRun
 from backend.app.schemas.backtest import (
     BacktestHistoryItem,
@@ -19,17 +24,9 @@ from backend.app.schemas.backtest import (
     EquityCurvePoint,
     MultiAssetBacktestRequest,
     MultiAssetBacktestResponse,
-    MultiAssetBacktestResult,
-    SymbolStats,
     Trade,
 )
-from backend.app.core import fetch_stock_data
-from backend.app.core import DatabaseManager
-from backend.app.core import RiskManager
-from backend.app.core import TradingEngine
 from backend.app.strategies.strategy_catalog import get_catalog
-from backend.app.core.multi_asset_engine import MultiAssetEngine
-from backend.app.core.benchmark_calculator import BenchmarkCalculator
 
 logger = logging.getLogger(__name__)
 
@@ -37,7 +34,7 @@ logger = logging.getLogger(__name__)
 class BacktestService:
     """Service for running backtests with database persistence"""
 
-    def __init__(self, db: Session = None):
+    def __init__(self, db: AsyncSession = None):
         self.catalog = get_catalog()
         self.db_manager = DatabaseManager()
         self.risk_manager = RiskManager()
@@ -65,12 +62,15 @@ class BacktestService:
 
         return backtest_run
 
-    def update_backtest_status(self, backtest_id: int, status: str, results: dict = None, error_message: str = None):
+    async def update_backtest_status(self, backtest_id: int, status: str, results: dict = None, error_message: str = None):
         """Update backtest run status"""
         if not self.db:
             return
 
-        backtest_run = self.db.query(BacktestRun).filter(BacktestRun.id == backtest_id).first()
+        stmt = select(BacktestRun).where(BacktestRun.id == backtest_id)
+
+        result = await self.db.execute(stmt)
+        backtest_run = result.scalars().first()
 
         if backtest_run:
             backtest_run.status = status
@@ -82,8 +82,7 @@ class BacktestService:
                 backtest_run.win_rate = results.get("win_rate")
                 backtest_run.total_trades = results.get("total_trades")
                 backtest_run.final_equity = results.get("final_equity")
-                
-                # Save the high-fidelity data
+
                 backtest_run.equity_curve = results.get("equity_curve")
                 backtest_run.trades_json = results.get("trades")
 
@@ -93,10 +92,16 @@ class BacktestService:
             if status in ["completed", "failed"]:
                 backtest_run.completed_at = datetime.now()
 
-            self.db.commit()
+            await self.db.commit()
+
+            await self.db.refresh(backtest_run)  # Re-fetch from the database
+            logger.info(f"Saved Backtest {backtest_id} with status {backtest_run.status}")
+            logger.info(f"Equity Curve Points: {len(backtest_run.equity_curve or [])}")
+            logger.info(f"Trades Saved: {len(backtest_run.trades_json or [])}")
 
     async def run_single_backtest(self, request: BacktestRequest, user_id: int) -> BacktestResponse:
         """Run single asset backtest"""
+
         # Create database record
         backtest_run = None
         if self.db:
@@ -109,12 +114,13 @@ class BacktestService:
                 interval=request.interval,
                 initial_capital=request.initial_capital,
             )
+        else:
+            logger.critical("CRITICAL: self.db is NONE or FALSE")
 
         try:
             # Update status to running
             if backtest_run:
-                self.update_backtest_status(backtest_run.id, "running")
-
+                await self.update_backtest_status(backtest_run.id, "running")
             # Fetch data
             data = await asyncio.to_thread(fetch_stock_data, request.symbol, request.period, request.interval)
 
@@ -136,21 +142,13 @@ class BacktestService:
 
             await asyncio.to_thread(engine.run_backtest, request.symbol, data)
 
-            # Calculate metrics
-            from backend.app.analytics.performance import calculate_performance_metrics
+            metrics: dict = calculate_performance_metrics(engine.trades, engine.equity_curve, request.initial_capital)
 
-            metrics = calculate_performance_metrics(engine.trades, engine.equity_curve, request.initial_capital)
-
-            # Update database with results
-            if backtest_run:
-                self.update_backtest_status(backtest_run.id, "completed", metrics)
-
-            # Build response
-            result = BacktestResult(**metrics)
-
-            equity_curve = [
+            equity_curve: list[EquityCurvePoint] = [
                 EquityCurvePoint(timestamp=str(point["timestamp"]), equity=point["equity"], cash=point["cash"]) for point in engine.equity_curve
             ]
+
+            result = BacktestResult(**metrics)
 
             equity_series = pd.Series([point.equity for point in equity_curve])
             running_max = equity_series.expanding().max()
@@ -177,29 +175,30 @@ class BacktestService:
                 for t in engine.trades
             ]
 
+            # Update database with results
+            if backtest_run:
+                update_data = metrics.copy()
+                update_data["equity_curve"] = [p.model_dump() for p in equity_curve]
+                update_data["trades"] = [t.model_dump() for t in trades]
+
+                self.db_manager.save_trades_bulk(update_data["trades"], backtest_run.id)
+                await self.update_backtest_status(backtest_run.id, "completed", update_data)
+
             # Calculate SPY benchmark
             benchmark_calc = BenchmarkCalculator(request.initial_capital)
             benchmark = benchmark_calc.calculate_spy_benchmark(
-                period=request.period,
-                interval=request.interval,
-                commission_rate=request.commission_rate
+                period=request.period, interval=request.interval, commission_rate=request.commission_rate
             )
 
             # Add comparison metrics
             if benchmark:
-                benchmark['comparison'] = benchmark_calc.compare_to_benchmark(metrics, benchmark)
+                benchmark["comparison"] = benchmark_calc.compare_to_benchmark(metrics, benchmark)
 
-            return BacktestResponse(
-                result=result,
-                equity_curve=equity_curve,
-                trades=trades,
-                price_data=engine.trades,
-                benchmark=benchmark
-            )
+            return BacktestResponse(result=result, equity_curve=equity_curve, trades=trades, price_data=engine.trades, benchmark=benchmark)
 
         except Exception as e:
             if backtest_run:
-                self.update_backtest_status(backtest_run.id, "failed", error_message=str(e))
+                await self.update_backtest_status(backtest_run.id, "failed", error_message=str(e))
             raise ValueError(f"Backtest failed: {str(e)}")
 
     async def run_multi_asset_backtest(self, request: MultiAssetBacktestRequest, user_id: int) -> MultiAssetBacktestResponse:
@@ -226,7 +225,7 @@ class BacktestService:
         try:
             # Update status
             if backtest_run:
-                self.update_backtest_status(backtest_run.id, "running")
+                await self.update_backtest_status(backtest_run.id, "running")
 
             # Create strategies for each symbol
             strategies = {}
@@ -252,12 +251,7 @@ class BacktestService:
             # Run backtest
             await asyncio.to_thread(engine.run_backtest, request.symbols, request.period, request.interval)
 
-            # Get results
             results = engine.get_results()
-
-            # Update database
-            if backtest_run:
-                self.update_backtest_status(backtest_run.id, "completed", results.model_dump())
 
             equity_curve = [
                 EquityCurvePoint(timestamp=str(point["timestamp"]), equity=point["equity"], cash=point["cash"]) for point in engine.equity_curve
@@ -288,6 +282,14 @@ class BacktestService:
                 for t in engine.trades
             ]
 
+            if backtest_run:
+                update_data = results.model_copy().model_dump()
+                update_data["equity_curve"] = [p.model_dump() for p in equity_curve]
+                update_data["trades"] = [t.model_dump() for t in trades]
+
+                # self.db_manager.save_trades_bulk(update_data["trades"], backtest_run.id)
+                await self.update_backtest_status(backtest_run.id, "completed", update_data)
+
             # Calculate multi-asset benchmark (equal-weight buy-and-hold of the same symbols)
             benchmark_calc = BenchmarkCalculator(request.initial_capital)
 
@@ -307,33 +309,30 @@ class BacktestService:
                 benchmark = benchmark_calc.calculate_multi_benchmark(
                     symbols=list(data_dict.keys()),
                     data_dict=data_dict,
-                    allocations=request.custom_allocations if request.allocation_method == 'custom' else None,
-                    commission_rate=request.commission_rate
+                    allocations=request.custom_allocations if request.allocation_method == "custom" else None,
+                    commission_rate=request.commission_rate,
                 )
 
                 # Add comparison metrics
                 if benchmark:
-                    benchmark['comparison'] = benchmark_calc.compare_to_benchmark(results.model_dump(), benchmark)
+                    benchmark["comparison"] = benchmark_calc.compare_to_benchmark(results.model_dump(), benchmark)
 
-            return MultiAssetBacktestResponse(
-                result=results,
-                equity_curve=equity_curve,
-                trades=trades,
-                price_data=engine.trades,
-                benchmark=benchmark
-            )
+            return MultiAssetBacktestResponse(result=results, equity_curve=equity_curve, trades=trades, price_data=engine.trades, benchmark=benchmark)
 
         except Exception as e:
             if backtest_run:
-                self.update_backtest_status(backtest_run.id, "failed", error_message=str(e))
+                await self.update_backtest_status(backtest_run.id, "failed", error_message=str(e))
             raise ValueError(f"Multi-asset backtest failed: {str(e)}")
 
-    def get_backtest_history(self, user_id: int, limit: int = 20, backtest_type: str = None) -> List[BacktestHistoryItem]:
+    async def get_backtest_history_(self, user_id: int, limit: int = 20, backtest_type: str = None) -> List[BacktestHistoryItem]:
         """Get user's backtest history"""
         if not self.db:
             return []
 
-        query = self.db.query(BacktestRun).filter(BacktestRun.user_id == user_id)
+        stmt = select(BacktestRun).where(BacktestRun.user_id == user_id)
+
+        result = await self.db.execute(stmt)
+        query = result.scalars().first()
 
         if backtest_type:
             query = query.filter(BacktestRun.backtest_type == backtest_type)

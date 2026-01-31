@@ -86,7 +86,7 @@ class BacktestResults:
         return asdict(self)
 
     @classmethod
-    def from_dict(cls, data: Dict) -> "SingleBacktestResults":
+    def from_dict(cls, data: Dict) -> "BacktestResults":
         """Create from dictionary"""
         return cls(**data)
 

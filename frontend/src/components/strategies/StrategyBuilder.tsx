@@ -73,12 +73,12 @@ class QuantumMomentumStrategy:
     """
     Advanced neural momentum strategy with dynamic risk management
     """
-    
+
     def __init__(self, params: Dict):
         self.lookback_period = params.get('lookback', 20)
         self.volatility_threshold = params.get('volatility_thresh', 0.02)
         self.risk_per_trade = params.get('risk_per_trade', 0.02)
-        
+
     def calculate_features(self, data: pd.DataFrame) -> pd.DataFrame:
         """
         Calculate technical features for ML model
@@ -86,42 +86,42 @@ class QuantumMomentumStrategy:
         # Price momentum features
         data['returns'] = data['close'].pct_change()
         data['log_returns'] = np.log(data['close'] / data['close'].shift(1))
-        
+
         # Volatility features
         data['volatility'] = data['returns'].rolling(self.lookback_period).std()
         data['atr'] = self.calculate_atr(data)
-        
+
         # Volume features
         data['volume_sma'] = data['volume'].rolling(20).mean()
         data['volume_ratio'] = data['volume'] / data['volume_sma']
-        
+
         return data.dropna()
-    
+
     def generate_signals(self, data: pd.DataFrame) -> pd.Series:
         """
         Generate trading signals using multi-factor analysis
         """
         signals = pd.Series(0, index=data.index)
-        
+
         # Momentum condition
         momentum_up = data['close'] > data['close'].rolling(20).mean()
-        
+
         # Volume confirmation
         volume_confirmed = data['volume_ratio'] > 1.2
-        
+
         # Low volatility environment
         low_vol = data['volatility'] < self.volatility_threshold
-        
+
         # Generate buy signals
         buy_signals = momentum_up & volume_confirmed & low_vol
         signals[buy_signals] = 1
-        
+
         # Generate sell signals
         momentum_down = data['close'] < data['close'].rolling(20).mean()
         signals[momentum_down] = -1
-        
+
         return signals
-    
+
     def calculate_atr(self, data: pd.DataFrame) -> pd.Series:
         """
         Calculate Average True Range for volatility
@@ -129,19 +129,19 @@ class QuantumMomentumStrategy:
         high_low = data['high'] - data['low']
         high_close = np.abs(data['high'] - data['close'].shift())
         low_close = np.abs(data['low'] - data['close'].shift())
-        
+
         true_range = pd.concat([high_low, high_close, low_close], axis=1).max(axis=1)
         atr = true_range.rolling(14).mean()
-        
+
         return atr
-    
+
     def calculate_position_size(self, capital: float, stop_loss: float) -> float:
         """
         Calculate position size based on risk management
         """
         risk_amount = capital * self.risk_per_trade
         position_size = risk_amount / stop_loss
-        
+
         return position_size`);
 
     const [isGenerating, setIsGenerating] = useState(false);
@@ -185,10 +185,10 @@ def generated_strategy(data):
     """
     # Advanced signal generation...
     signals = pd.Series(0, index=data.index)
-    
+
     # Your AI logic here
     # ...
-    
+
     return signals`);
         }, 1500);
     };

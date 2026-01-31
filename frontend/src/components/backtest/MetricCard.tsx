@@ -1,7 +1,7 @@
 'use client'
 
 import React from "react";
-import {Activity, AlertCircle, TrendingUp} from "lucide-react";
+import {Activity, AlertCircle, Award, List, TrendingDown, TrendingUp} from "lucide-react";
 
 const MetricCard = ({ title, value, trend, color }: any) => {
     const themes: any = {
@@ -13,7 +13,10 @@ const MetricCard = ({ title, value, trend, color }: any) => {
 
     const icons: any = {
         emerald: TrendingUp,
-        red: AlertCircle,
+        red: TrendingDown,
+        amber: Award,
+        slate: List,
+        orange: AlertCircle,
         blue: Activity,
         violet: Activity
     };

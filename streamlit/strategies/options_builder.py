@@ -258,7 +258,7 @@ def create_preset_strategy(
     if strategy_type == OptionsStrategy.COVERED_CALL:
         # Long 100 shares + Short 1 OTM call
         strike = kwargs.get("strike", round(current_price * 1.05, 2))
-        builder.add_leg(OptionType.STOCK, 0, None, 100) # Underlying leg
+        builder.add_leg(OptionType.STOCK, 0, None, 100)  # Underlying leg
         builder.add_leg(OptionType.CALL, strike, expiration, -1)
 
     elif strategy_type == OptionsStrategy.CASH_SECURED_PUT:
@@ -323,8 +323,8 @@ def create_preset_strategy(
         # Sell Near-term, Buy Long-term (Same Strike)
         strike = kwargs.get("strike", round(current_price, 2))
         opt_type = kwargs.get("option_type", OptionType.CALL)
-        builder.add_leg(opt_type, strike, expiration, -1) # Short near
-        builder.add_leg(opt_type, strike, expiration_long, 1) # Long far
+        builder.add_leg(opt_type, strike, expiration, -1)  # Short near
+        builder.add_leg(opt_type, strike, expiration_long, 1)  # Long far
 
     elif strategy_type == OptionsStrategy.DIAGONAL_SPREAD:
         # Sell Near OTM, Buy Far ITM/ATM

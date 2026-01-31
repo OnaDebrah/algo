@@ -7,7 +7,7 @@ import logging
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
-from typing import Dict, List, Tuple
+from typing import Dict, List
 
 import numpy as np
 import pandas as pd
@@ -83,13 +83,13 @@ class BlackScholesCalculator:
 
     @staticmethod
     def calculate_option_price(
-            S: float,  # Current stock price
-            K: float,  # Strike price
-            T: float,  # Time to expiration (years)
-            r: float,  # Risk-free rate
-            sigma: float,  # Volatility
-            option_type: OptionType,
-            q: float = 0.0,  # Dividend yield
+        S: float,  # Current stock price
+        K: float,  # Strike price
+        T: float,  # Time to expiration (years)
+        r: float,  # Risk-free rate
+        sigma: float,  # Volatility
+        option_type: OptionType,
+        q: float = 0.0,  # Dividend yield
     ) -> float:
         """Calculate option price using Black-Scholes"""
 
@@ -100,7 +100,7 @@ class BlackScholesCalculator:
             else:
                 return max(K - S, 0)
 
-        d1 = (np.log(S / K) + (r - q + 0.5 * sigma ** 2) * T) / (sigma * np.sqrt(T))
+        d1 = (np.log(S / K) + (r - q + 0.5 * sigma**2) * T) / (sigma * np.sqrt(T))
         d2 = d1 - sigma * np.sqrt(T)
 
         if option_type == OptionType.CALL:
@@ -112,20 +112,20 @@ class BlackScholesCalculator:
 
     @staticmethod
     def calculate_greeks(
-            S: float,
-            K: float,
-            T: float,
-            r: float,
-            sigma: float,
-            option_type: OptionType,
-            q: float = 0.0,
+        S: float,
+        K: float,
+        T: float,
+        r: float,
+        sigma: float,
+        option_type: OptionType,
+        q: float = 0.0,
     ) -> Greeks:
         """Calculate option Greeks"""
 
         if T <= 0:
             return Greeks(delta=0, gamma=0, theta=0, vega=0, rho=0)
 
-        d1 = (np.log(S / K) + (r - q + 0.5 * sigma ** 2) * T) / (sigma * np.sqrt(T))
+        d1 = (np.log(S / K) + (r - q + 0.5 * sigma**2) * T) / (sigma * np.sqrt(T))
         d2 = d1 - sigma * np.sqrt(T)
 
         # Delta
@@ -187,25 +187,17 @@ class OptionsChain:
         """
         try:
             # Get all available expiration dates
-            if not hasattr(self.ticker, 'options') or len(self.ticker.options) == 0:
+            if not hasattr(self.ticker, "options") or len(self.ticker.options) == 0:
                 raise ValueError(f"No options available for {self.symbol}")
 
             # If no expiration specified, return metadata only
             if expiration is None:
-                return {
-                    'expiration_dates': list(self.ticker.options),
-                    'calls': pd.DataFrame(),
-                    'puts': pd.DataFrame()
-                }
+                return {"expiration_dates": list(self.ticker.options), "calls": pd.DataFrame(), "puts": pd.DataFrame()}
 
             # Get options for specific expiration
             opt = self.ticker.option_chain(expiration)
 
-            return {
-                'calls': opt.calls,
-                'puts': opt.puts,
-                'expiration_dates': list(self.ticker.options)
-            }
+            return {"calls": opt.calls, "puts": opt.puts, "expiration_dates": list(self.ticker.options)}
 
         except Exception as e:
             logger.error(f"Error fetching options chain: {str(e)}")
@@ -342,7 +334,7 @@ def get_strategy_description(strategy: OptionsStrategy) -> Dict[str, str]:
             "max_loss": "Unlimited (on the short side if price exceeds strikes)",
             "best_for": "Aggressive directional traders; potential zero-cost entry",
             "breakeven": "Short strike + width of spread (for call ratio)",
-        }
+        },
     }
 
     return descriptions.get(strategy, {})

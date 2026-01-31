@@ -7,21 +7,19 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Dict, List, Type
 
-from backend.app.strategies import KAMAStrategy, MultiTimeframeKAMAStrategy
+from backend.app.strategies import BaseStrategy, KAMAStrategy, MACDStrategy, MLStrategy, MultiTimeframeKAMAStrategy
 from backend.app.strategies.adpative_trend_ff_strategy import AdaptiveTrendFollowingStrategy
-from backend.app.strategies import BaseStrategy
 from backend.app.strategies.bb_mean_reversion import BollingerMeanReversionStrategy
 from backend.app.strategies.cs_momentum_strategy import CrossSectionalMomentumStrategy
 from backend.app.strategies.donchain_strategy import DonchianATRStrategy, DonchianChannelStrategy, FilteredDonchianStrategy
 from backend.app.strategies.kalman_filter_strategy import KalmanFilterStrategy
 from backend.app.strategies.lstm_strategy import LSTMStrategy
-from backend.app.strategies import MACDStrategy
-from backend.app.strategies import MLStrategy
 from backend.app.strategies.options_strategies import OptionsStrategy
 from backend.app.strategies.pairs_trading_strategy import PairsTradingStrategy
 from backend.app.strategies.parabolic_sar import ParabolicSARStrategy
 from backend.app.strategies.rsi_strategy import RSIStrategy
 from backend.app.strategies.sma_crossover import SMACrossoverStrategy
+from backend.app.strategies.stat_arb.sector_neutral import SectorNeutralStrategy
 
 # Statistical Arbitrage
 # from backend.app.strategies import SectorNeutralStrategy
@@ -32,7 +30,6 @@ from backend.app.strategies.volatility.variance_risk_premium import VarianceRisk
 # Volatility strategies
 from backend.app.strategies.volatility.volatility_breakout import VolatilityBreakoutStrategy
 from backend.app.strategies.volatility.volatility_targeting import VolatilityTargetingStrategy
-from backend.app.strategies.stat_arb.sector_neutral import SectorNeutralStrategy
 
 
 class StrategyCategory(Enum):

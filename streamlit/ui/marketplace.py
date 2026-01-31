@@ -3,8 +3,8 @@ Strategy Marketplace
 """
 
 import pandas as pd
-import streamlit as st
 
+import streamlit as st
 from streamlit.core.marketplace import StrategyListing, StrategyMarketplace, StrategyReview
 from streamlit.strategies.strategy_catalog import get_catalog
 

@@ -5,8 +5,8 @@ Connects UI with OptionsBacktestEngine
 
 import pandas as pd
 import plotly.graph_objects as go
-import streamlit as st
 
+import streamlit as st
 from streamlit.core import fetch_stock_data
 from streamlit.core.database import DatabaseManager
 from streamlit.core.options_engine import backtest_options_strategy

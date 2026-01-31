@@ -297,16 +297,31 @@ export interface BacktestHistoryItem {
     period: string;
     interval: string;
     initial_capital: number;
+
+    // Results (Optional/Null based on Backend)
     total_return_pct: number | null;
     sharpe_ratio: number | null;
     max_drawdown: number | null;
     win_rate: number | null;
     total_trades: number | null;
     final_equity: number | null;
+
+    // These need to match the Backend's List[Type] | None
+    equity_curve?: EquityCurvePoint[] | null;
+    trades?: Trade[] | null;
+
+    // Metadata
     status: string;
     error_message: string | null;
     created_at: string | null;
     completed_at: string | null;
+}
+
+export interface BacktestHistoryResponse {
+    items: BacktestHistoryItem[];
+    total: number;
+    limit: number;
+    offset: number;
 }
 
 // ==================== PORTFOLIO ====================

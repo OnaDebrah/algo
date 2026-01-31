@@ -126,7 +126,10 @@ class TradingEngine:
             self.trades.append(trade_data)
             self.db.save_trade(trade_data)
 
-            logger.info(f"SELL: {self.position['quantity']} {symbol} @ ${slipped_price:.2f} " f"(P&L: ${profit:.2f}, {profit_pct:.2f}%, Comm: ${commission:.2f})")
+            logger.info(
+                f"SELL: {self.position['quantity']} {symbol} @ ${slipped_price:.2f} "
+                f"(P&L: ${profit:.2f}, {profit_pct:.2f}%, Comm: ${commission:.2f})"
+            )
 
             self.position = None
 

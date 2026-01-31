@@ -32,13 +32,13 @@ class OptionsStrategyBuilder:
         self.current_price = self.chain.get_current_price()
 
     def add_leg(
-            self,
-            option_type: OptionType,
-            strike: float,
-            expiry: datetime,
-            quantity: int,
-            premium: Optional[float] = None,
-            volatility: Optional[float] = None,
+        self,
+        option_type: OptionType,
+        strike: float,
+        expiry: datetime,
+        quantity: int,
+        premium: Optional[float] = None,
+        volatility: Optional[float] = None,
     ):
         """Add an option leg to the strategy"""
 
@@ -195,9 +195,9 @@ class OptionsStrategyBuilder:
         return max_loss, condition
 
     def calculate_probability_of_profit(
-            self,
-            volatility: Optional[float] = None,
-            days_to_expiration: Optional[int] = None,
+        self,
+        volatility: Optional[float] = None,
+        days_to_expiration: Optional[int] = None,
     ) -> float:
         """
         Calculate probability of profit at expiration
@@ -230,8 +230,7 @@ class OptionsStrategyBuilder:
 
         # Sample many prices
         num_samples = 10000
-        prices = self.current_price * np.exp(
-            (self.risk_free_rate - 0.5 * volatility ** 2) * T + volatility * np.sqrt(T) * np.random.randn(num_samples))
+        prices = self.current_price * np.exp((self.risk_free_rate - 0.5 * volatility**2) * T + volatility * np.sqrt(T) * np.random.randn(num_samples))
 
         payoffs = self.calculate_payoff(prices)
         total_prob = np.sum(payoffs > 0) / num_samples
@@ -240,11 +239,11 @@ class OptionsStrategyBuilder:
 
 
 def create_preset_strategy(
-        strategy_type: OptionsStrategy,
-        symbol: str,
-        current_price: float,
-        expiration: datetime,
-        **kwargs,
+    strategy_type: OptionsStrategy,
+    symbol: str,
+    current_price: float,
+    expiration: datetime,
+    **kwargs,
 ) -> OptionsStrategyBuilder:
     """
     Create a preset options strategy matching the frontend templates.
