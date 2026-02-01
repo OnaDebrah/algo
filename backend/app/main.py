@@ -28,7 +28,7 @@ from backend.app.api.routes import (
     websocket,
 )
 from backend.app.config import settings
-from backend.app.database import create_tables
+from backend.app.database import init_db
 from backend.app.init_data import init_default_data
 
 
@@ -36,7 +36,7 @@ from backend.app.init_data import init_default_data
 async def lifespan(app: FastAPI):
     """Startup and shutdown events"""
     # Startup
-    await create_tables()
+    await init_db()
     await init_default_data()
     yield
     # Shutdown (cleanup if needed)

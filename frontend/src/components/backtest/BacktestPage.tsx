@@ -141,9 +141,9 @@ const BacktestPage = () => {
                         winning_trades: result.winning_trades,
                         losing_trades: result.losing_trades,
                         avg_profit: result.avg_profit,
-                        win_rate: result.win_rate * 100,
+                        win_rate: result.win_rate,
                         sharpe_ratio: result.sharpe_ratio,
-                        max_drawdown: result.max_drawdown * 100,
+                        max_drawdown: result.max_drawdown,
                         total_trades: result.total_trades,
                         final_equity: result.final_equity,
                         avg_win: result.avg_win,
@@ -243,9 +243,9 @@ const BacktestPage = () => {
                         winning_trades: result.winning_trades,
                         losing_trades: result.losing_trades,
                         avg_profit: result.avg_profit,
-                        win_rate: result.win_rate * 100, // API probably returns 0-1
+                        win_rate: result.win_rate,
                         sharpe_ratio: result.sharpe_ratio,
-                        max_drawdown: result.max_drawdown * 100, // percent
+                        max_drawdown: result.max_drawdown,
                         total_trades: result.total_trades,
                         final_equity: result.final_equity,
                         avg_win: result.avg_win,

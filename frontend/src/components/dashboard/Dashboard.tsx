@@ -35,7 +35,7 @@ import {formatCurrency, formatPercent, toPrecision} from "@/utils/formatters";
 
 import {useEffect, useState} from "react";
 import {analytics, backtest, portfolio, strategy} from "@/utils/api";
-import {BacktestHistoryItem, Portfolio, PortfolioTrade, StrategyInfo} from "@/types/all_types";
+import {BacktestHistoryItem, EquityCurvePoint, Portfolio, PortfolioTrade, StrategyInfo} from "@/types/all_types";
 
 interface PerformanceMetrics {
     total_return: number;
@@ -191,10 +191,11 @@ const Dashboard = () => {
                         }
 
                         if (perfRes.equity_curve && perfRes.equity_curve.length > 0) {
-                            const curve = perfRes.equity_curve.map((p: any) => ({
-                                date: new Date(p.timestamp).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }),
-                                value: p.equity,
-                                cash: p.cash || 0
+                            const curve = perfRes.equity_curve.map((p: EquityCurvePoint) => ({
+                                timestamp: new Date(p.timestamp).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }),
+                                equity: p.equity,
+                                cash: p.cash,
+                                drawdown: p.drawdown || 0
                             }));
                             setEquityData(curve);
                         }

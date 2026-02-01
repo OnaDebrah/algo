@@ -30,3 +30,7 @@ sqlalchemy
 pydantic
 statsmodels
 fastapi
+
+asyncpg>=0.22.0
+
+psycopg2>=2.0.10
