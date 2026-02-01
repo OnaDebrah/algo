@@ -39,6 +39,12 @@ export const formatTimeZone: (input: string) => string = (input: string) => {
     )
 };
 
+export const formatCSVCell = (val: any) => {
+    if (val === null || val === undefined) return '""';
+    const formatted = val.toString().replace(/"/g, '""'); // Escape existing quotes
+    return `"${formatted}"`;
+};
+
 /**
  * Calculates a strategy rating from 0-100
  * @param monthlyReturn - Expected monthly return as a decimal (e.g., 0.02 for 2%)

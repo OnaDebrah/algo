@@ -15,7 +15,7 @@ import {Activity, Target, TrendingDown, TrendingUp} from 'lucide-react';
 import MetricCard from "@/components/backtest/MetricCard";
 import BenchmarkComparison from "@/components/backtest/BenchmarkComparison";
 import {formatCurrency, formatDate, formatPercent, toPrecision} from "@/utils/formatters";
-import {BacktestResult, SymbolStats, Trade} from "@/types/all_types";
+import {BacktestResult, EquityCurvePoint, SymbolStats, Trade} from "@/types/all_types";
 
 const MultiBacktestResults = ({results}: { results: BacktestResult }) => {
     const [tradeFilter, setTradeFilter] = useState('all');
@@ -48,7 +48,6 @@ const MultiBacktestResults = ({results}: { results: BacktestResult }) => {
                                 </div>
                                 <div>
                                     <p className="font-semibold text-slate-200">{symbol}</p>
-                                    <p className="text-xs text-slate-500 font-medium">{stats.strategy}</p>
                                 </div>
                             </div>
                             <div className="flex items-center space-x-8">
@@ -84,11 +83,11 @@ const MultiBacktestResults = ({results}: { results: BacktestResult }) => {
                 </div>
                 <ResponsiveContainer width="100%" height={320}>
                     <ComposedChart data={(() => {
-                        const strategyData = results.equity_curve;
+                        const strategyData = results.equity_curve || [];
                         const benchmarkData = results.benchmark?.equity_curve || [];
 
-                        const merged = strategyData.map((point: any) => {
-                            const benchmarkPoint = benchmarkData.find((bp: any) => {
+                        const merged = strategyData.map((point: EquityCurvePoint) => {
+                            const benchmarkPoint = benchmarkData.find((bp: EquityCurvePoint) => {
                                 return bp.timestamp === point.timestamp;
                             });
 
@@ -122,7 +121,7 @@ const MultiBacktestResults = ({results}: { results: BacktestResult }) => {
                                 borderRadius: '12px',
                                 padding: '12px'
                             }}
-                            formatter={(value: any, name: string) => {
+                            formatter={(value: number | undefined, name: string | undefined) => {
                                 if (name === 'strategy_equity') return [formatCurrency(Number(value || 0)), 'Strategy'];
                                 if (name === 'benchmark_equity') return [formatCurrency(Number(value || 0)), 'Benchmark'];
                                 return [formatCurrency(Number(value || 0)), name];

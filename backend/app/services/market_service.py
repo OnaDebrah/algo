@@ -11,13 +11,18 @@ Comprehensive market data service with:
 """
 
 import asyncio
+import json
 import logging
 import time
 from datetime import datetime
 from enum import Enum
 from typing import Any, Dict, List, Optional
 
+import psycopg2
 import yfinance as yf
+from psycopg2.extras import RealDictCursor
+
+from config import DATABASE_PATH
 
 logger = logging.getLogger(__name__)
 
@@ -52,12 +57,10 @@ class MarketDataCache:
     def _init_db_cache(self):
         """Initialize database cache table"""
         try:
-            import sqlite3
-
             from config import DATABASE_PATH
 
-            conn = sqlite3.connect(DATABASE_PATH)
-            cursor = conn.cursor()
+            conn = psycopg2.connect(DATABASE_PATH)
+            cursor = conn.cursor(cursor_factory=RealDictCursor)
 
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS market_data_cache (
@@ -79,7 +82,9 @@ class MarketDataCache:
 
             conn.commit()
             conn.close()
+
             logger.info("Database cache initialized")
+
         except Exception as e:
             logger.warning(f"Database cache initialization failed: {e}. Using memory-only cache.")
             self.use_db = False
@@ -105,12 +110,11 @@ class MarketDataCache:
         if self.use_db:
             try:
                 import json
-                import sqlite3
 
                 from config import DATABASE_PATH
 
-                conn = sqlite3.connect(DATABASE_PATH)
-                cursor = conn.cursor()
+                conn = psycopg2.connect(DATABASE_PATH)
+                cursor = conn.cursor(cursor_factory=RealDictCursor)
 
                 cursor.execute(
                     """
@@ -170,11 +174,6 @@ class MarketDataCache:
         # Set in database for persistence (with longer TTL for certain data types)
         if self.use_db:
             try:
-                import json
-                import sqlite3
-
-                from config import DATABASE_PATH
-
                 # Determine TTL based on data type
                 if ttl_override:
                     ttl = ttl_override
@@ -191,8 +190,8 @@ class MarketDataCache:
 
                 expires_at = current_time + ttl
 
-                conn = sqlite3.connect(DATABASE_PATH)
-                cursor = conn.cursor()
+                conn = psycopg2.connect(DATABASE_PATH)
+                cursor = conn.cursor(cursor_factory=RealDictCursor)
 
                 cursor.execute(
                     """
@@ -228,12 +227,8 @@ class MarketDataCache:
         # Clear database cache
         if self.use_db:
             try:
-                import sqlite3
-
-                from config import DATABASE_PATH
-
-                conn = sqlite3.connect(DATABASE_PATH)
-                cursor = conn.cursor()
+                conn = psycopg2.connect(DATABASE_PATH)
+                cursor = conn.cursor(cursor_factory=RealDictCursor)
 
                 if data_type:
                     cursor.execute("DELETE FROM market_data_cache WHERE data_type = ?", (data_type,))
@@ -251,12 +246,8 @@ class MarketDataCache:
         """Remove expired entries from database"""
         if self.use_db:
             try:
-                import sqlite3
-
-                from config import DATABASE_PATH
-
-                conn = sqlite3.connect(DATABASE_PATH)
-                cursor = conn.cursor()
+                conn = psycopg2.connect(DATABASE_PATH)
+                cursor = conn.cursor(cursor_factory=RealDictCursor)
 
                 cursor.execute("DELETE FROM market_data_cache WHERE expires_at < ?", (time.time(),))
                 deleted = cursor.rowcount
@@ -275,12 +266,8 @@ class MarketDataCache:
 
         if self.use_db:
             try:
-                import sqlite3
-
-                from config import DATABASE_PATH
-
-                conn = sqlite3.connect(DATABASE_PATH)
-                cursor = conn.cursor()
+                conn = psycopg2.connect(DATABASE_PATH)
+                cursor = conn.cursor(cursor_factory=RealDictCursor)
 
                 cursor.execute("SELECT COUNT(*), SUM(access_count) FROM market_data_cache WHERE expires_at > ?", (time.time(),))
                 row = cursor.fetchone()
@@ -310,7 +297,7 @@ class MarketDataCache:
 
 class MarketService:
     """
-    Enhanced market data service
+    Market data service
 
     Features:
     - Multiple data source support (Yahoo Finance default)

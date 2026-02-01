@@ -1,9 +1,9 @@
+import logging
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 
 from backend.app.api.deps import get_current_active_user
-from backend.app.config import settings
 from backend.app.core.marketplace import BacktestResults, StrategyListing as CoreListing, StrategyMarketplace
 from backend.app.models import User
 from backend.app.schemas.marketplace import (
@@ -13,10 +13,19 @@ from backend.app.schemas.marketplace import (
     StrategyPublishRequest,
 )
 
+logger = logging.getLogger(__name__)
+
 router = APIRouter(prefix="/marketplace", tags=["Marketplace"])
 
-# Initialize marketplace (singleton pattern)
-marketplace = StrategyMarketplace(db_path=settings.DATABASE_PATH)
+_marketplace: Optional[StrategyMarketplace] = None
+
+
+def get_marketplace() -> StrategyMarketplace:
+    """Get or initialize the marketplace instance (Lazy Initialization)"""
+    global _marketplace
+    if _marketplace is None:
+        _marketplace = StrategyMarketplace()
+    return _marketplace
 
 
 def convert_core_to_schema(core_listing) -> StrategyListingSchema:
@@ -95,6 +104,7 @@ async def get_strategies(
     sort_by: str = Query("sharpe_ratio"),
     limit: int = Query(50),
     current_user: User = Depends(get_current_active_user),
+    marketplace: StrategyMarketplace = Depends(get_marketplace),
 ):
     """Browse marketplace strategies"""
     core_listings = marketplace.browse_strategies(
@@ -111,7 +121,9 @@ async def get_strategies(
 
 
 @router.get("/{strategy_id}", response_model=StrategyListingDetailedSchema)
-async def get_strategy_details(strategy_id: int, current_user: User = Depends(get_current_active_user)):
+async def get_strategy_details(
+    strategy_id: int, current_user: User = Depends(get_current_active_user), marketplace: StrategyMarketplace = Depends(get_marketplace)
+):
     """Get detailed information about a specific strategy including backtest results"""
 
     core_listings = marketplace.browse_strategies(limit=100)
@@ -156,61 +168,44 @@ async def get_strategy_details(strategy_id: int, current_user: User = Depends(ge
 
 
 @router.post("/{strategy_id}/favorite")
-async def favorite_strategy(strategy_id: int, current_user: User = Depends(get_current_active_user)):
+async def favorite_strategy(
+    strategy_id: int, current_user: User = Depends(get_current_active_user), marketplace: StrategyMarketplace = Depends(get_marketplace)
+):
     """Add a strategy to user's favorites"""
-    try:
-        import sqlite3
-
-        conn = sqlite3.connect(settings.DATABASE_PATH)
-        cursor = conn.cursor()
-        cursor.execute("INSERT OR IGNORE INTO strategy_favorites (strategy_id, user_id) VALUES (?, ?)", (strategy_id, current_user.id))
-        conn.commit()
-        conn.close()
-        return {"status": "success"}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    success = marketplace.toggle_favorite(strategy_id, current_user.id, favorite=True)
+    if not success:
+        raise HTTPException(status_code=500, detail="Failed to favorite strategy")
+    return {"status": "success"}
 
 
 @router.delete("/{strategy_id}/favorite")
-async def unfavorite_strategy(strategy_id: int, current_user: User = Depends(get_current_active_user)):
+async def unfavorite_strategy(
+    strategy_id: int, current_user: User = Depends(get_current_active_user), marketplace: StrategyMarketplace = Depends(get_marketplace)
+):
     """Remove a strategy from user's favorites"""
-    try:
-        import sqlite3
-
-        conn = sqlite3.connect(settings.DATABASE_PATH)
-        cursor = conn.cursor()
-        cursor.execute("DELETE FROM strategy_favorites WHERE strategy_id = ? AND user_id = ?", (strategy_id, current_user.id))
-        conn.commit()
-        conn.close()
-        return {"status": "success"}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    success = marketplace.toggle_favorite(strategy_id, current_user.id, favorite=False)
+    if not success:
+        raise HTTPException(status_code=500, detail="Failed to unfavorite strategy")
+    return {"status": "success"}
 
 
 @router.post("/{strategy_id}/download")
-async def record_download(strategy_id: int, current_user: User = Depends(get_current_active_user)):
+async def record_download(
+    strategy_id: int, current_user: User = Depends(get_current_active_user), marketplace: StrategyMarketplace = Depends(get_marketplace)
+):
     """Record a strategy download and increment download count"""
-    try:
-        import sqlite3
-
-        conn = sqlite3.connect(settings.DATABASE_PATH)
-        cursor = conn.cursor()
-
-        # 1. Record download
-        cursor.execute("INSERT INTO strategy_downloads (strategy_id, user_id) VALUES (?, ?)", (strategy_id, current_user.id))
-
-        # 2. Increment download count in main table
-        cursor.execute("UPDATE marketplace_strategies SET downloads = downloads + 1 WHERE id = ?", (strategy_id,))
-
-        conn.commit()
-        conn.close()
-        return {"status": "success"}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    success = marketplace.record_download(strategy_id, current_user.id)
+    if not success:
+        raise HTTPException(status_code=500, detail="Failed to record download")
+    return {"status": "success"}
 
 
 @router.post("/publish", status_code=status.HTTP_201_CREATED)
-async def publish_strategy(request: StrategyPublishRequest, current_user: User = Depends(get_current_active_user)):
+async def publish_strategy(
+    request: StrategyPublishRequest,
+    current_user: User = Depends(get_current_active_user),
+    marketplace: StrategyMarketplace = Depends(get_marketplace),
+):
     """Publish a new strategy to the marketplace"""
     try:
         # 1. Fetch existing backtest results if backtest_id is provided
@@ -227,7 +222,7 @@ async def publish_strategy(request: StrategyPublishRequest, current_user: User =
             name=request.name,
             description=request.description,
             creator_id=current_user.id,
-            creator_name=current_user.full_name or "Unknown",
+            creator_name=current_user.username or "Unknown",
             strategy_type="Custom",
             category=request.category,
             complexity=request.complexity,
@@ -242,5 +237,7 @@ async def publish_strategy(request: StrategyPublishRequest, current_user: User =
         strategy_id = marketplace.publish_strategy_with_backtest(listing)
 
         return {"id": strategy_id, "status": "published"}
+
     except Exception as e:
+        logger.error(f"Failed to publish strategy: {e}")
         raise HTTPException(status_code=500, detail=str(e))

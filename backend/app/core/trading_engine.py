@@ -93,7 +93,7 @@ class TradingEngine:
                 }
 
                 self.trades.append(trade_data)
-                # self.db.save_trade(trade_data)
+                self.db.save_trade(trade_data)
 
                 logger.info(f"BUY: {quantity} {symbol} @ ${slipped_price:.2f} " f"(Cost: ${total_cost:.2f}, Comm: ${commission:.2f})")
 
@@ -127,7 +127,7 @@ class TradingEngine:
             }
 
             self.trades.append(trade_data)
-            # self.db.save_trade(trade_data)
+            self.db.save_trade(trade_data)
 
             logger.info(
                 f"SELL: {self.position['quantity']} {symbol} @ ${slipped_price:.2f} "
