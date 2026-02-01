@@ -3,7 +3,7 @@ Market Data Service
 
 Comprehensive market data service with:
 - Yahoo Finance as default data source
-- Caching for performance
+- PostgreSQL caching for performance
 - Retry logic for reliability
 - Error handling and fallbacks
 - Support for multiple data sources (extensible for IB, Alpaca, etc.)
@@ -18,11 +18,10 @@ from datetime import datetime
 from enum import Enum
 from typing import Any, Dict, List, Optional
 
-import psycopg2
 import yfinance as yf
 from psycopg2.extras import RealDictCursor
 
-from config import DATABASE_PATH
+from backend.app.core import DatabaseManager
 
 logger = logging.getLogger(__name__)
 
@@ -45,49 +44,50 @@ class MarketDataCache:
     - Database: Persistent storage for historical and fundamental data (longer TTL)
     """
 
-    def __init__(self, ttl_seconds: int = 60, use_db: bool = True):
+    def __init__(self, ttl_seconds: int = 60, use_db: bool = True, db_manager: DatabaseManager = None):
         self.memory_cache: Dict[str, tuple[Any, float]] = {}
         self.memory_ttl = ttl_seconds
+        self.db = db_manager or DatabaseManager()
         self.use_db = use_db
 
-        # Initialize database cache table if enabled
         if self.use_db:
             self._init_db_cache()
 
     def _init_db_cache(self):
         """Initialize database cache table"""
+        conn = self.db.get_connection()
         try:
-            from config import DATABASE_PATH
-
-            conn = psycopg2.connect(DATABASE_PATH)
-            cursor = conn.cursor(cursor_factory=RealDictCursor)
+            cursor = conn.cursor()
 
             cursor.execute("""
-                CREATE TABLE IF NOT EXISTS market_data_cache (
-                    cache_key TEXT PRIMARY KEY,
-                    data_type TEXT NOT NULL,
-                    data_json TEXT NOT NULL,
-                    created_at REAL NOT NULL,
-                    expires_at REAL NOT NULL,
-                    access_count INTEGER DEFAULT 0,
-                    last_accessed REAL
-                )
-            """)
+                           CREATE TABLE IF NOT EXISTS market_data_cache (
+                                                                            cache_key TEXT PRIMARY KEY,
+                                                                            data_type TEXT NOT NULL,
+                                                                            data_json TEXT NOT NULL,
+                                                                            created_at DOUBLE PRECISION NOT NULL,
+                                                                            expires_at DOUBLE PRECISION NOT NULL,
+                                                                            access_count INTEGER DEFAULT 0,
+                                                                            last_accessed DOUBLE PRECISION
+                           )
+                           """)
 
             # Create index for faster expiration queries
             cursor.execute("""
-                CREATE INDEX IF NOT EXISTS idx_expires_at
-                ON market_data_cache(expires_at)
-            """)
+                           CREATE INDEX IF NOT EXISTS idx_market_cache_expires_at
+                               ON market_data_cache(expires_at)
+                           """)
 
             conn.commit()
-            conn.close()
 
             logger.info("Database cache initialized")
-
         except Exception as e:
+            conn.rollback()
             logger.warning(f"Database cache initialization failed: {e}. Using memory-only cache.")
             self.use_db = False
+            raise
+        finally:
+            cursor.close()
+            self.db.return_connection(conn)
 
     def get(self, key: str, data_type: str = "quote") -> Optional[Any]:
         """
@@ -108,36 +108,33 @@ class MarketDataCache:
 
         # Try database cache (persistent)
         if self.use_db:
+            conn = self.db.get_connection()
             try:
-                import json
-
-                from config import DATABASE_PATH
-
-                conn = psycopg2.connect(DATABASE_PATH)
                 cursor = conn.cursor(cursor_factory=RealDictCursor)
 
                 cursor.execute(
                     """
                     SELECT data_json, expires_at, access_count
                     FROM market_data_cache
-                    WHERE cache_key = ? AND expires_at > ?
-                """,
+                    WHERE cache_key = %s AND expires_at > %s
+                    """,
                     (key, time.time()),
                 )
 
                 row = cursor.fetchone()
 
                 if row:
-                    data_json, expires_at, access_count = row
+                    data_json = row["data_json"]
+                    access_count = row["access_count"]
                     value = json.loads(data_json)
 
                     # Update access statistics
                     cursor.execute(
                         """
                         UPDATE market_data_cache
-                        SET access_count = ?, last_accessed = ?
-                        WHERE cache_key = ?
-                    """,
+                        SET access_count = %s, last_accessed = %s
+                        WHERE cache_key = %s
+                        """,
                         (access_count + 1, time.time(), key),
                     )
 
@@ -150,9 +147,13 @@ class MarketDataCache:
                     logger.debug(f"Database cache hit: {key}")
                     return value
 
-                conn.close()
             except Exception as e:
-                logger.error(f"Database cache read error: {e}")
+                conn.rollback()
+                logger.error(f"Database cache read error: {e}. Using memory-only cache.")
+                raise
+            finally:
+                cursor.close()
+                self.db.return_connection(conn)
 
         return None
 
@@ -173,6 +174,7 @@ class MarketDataCache:
 
         # Set in database for persistence (with longer TTL for certain data types)
         if self.use_db:
+            conn = self.db.get_connection()
             try:
                 # Determine TTL based on data type
                 if ttl_override:
@@ -190,24 +192,35 @@ class MarketDataCache:
 
                 expires_at = current_time + ttl
 
-                conn = psycopg2.connect(DATABASE_PATH)
-                cursor = conn.cursor(cursor_factory=RealDictCursor)
+                cursor = conn.cursor()
 
                 cursor.execute(
                     """
-                    INSERT OR REPLACE INTO market_data_cache
+                    INSERT INTO market_data_cache
                     (cache_key, data_type, data_json, created_at, expires_at, access_count, last_accessed)
-                    VALUES (?, ?, ?, ?, ?, 0, ?)
-                """,
+                    VALUES (%s, %s, %s, %s, %s, 0, %s)
+                        ON CONFLICT (cache_key)
+                    DO UPDATE SET
+                        data_json = EXCLUDED.data_json,
+                                                   created_at = EXCLUDED.created_at,
+                                                   expires_at = EXCLUDED.expires_at,
+                                                   access_count = 0,
+                                                   last_accessed = EXCLUDED.last_accessed
+                    """,
                     (key, data_type, json.dumps(value), current_time, expires_at, current_time),
                 )
 
                 conn.commit()
-                conn.close()
 
                 logger.debug(f"Cached to database: {key} (TTL: {ttl}s)")
+
             except Exception as e:
-                logger.error(f"Database cache write error: {e}")
+                conn.rollback()
+                logger.error(f"Database cache write failed: {e}. Using memory-only cache.")
+                raise
+            finally:
+                cursor.close()
+                self.db.return_connection(conn)
 
     def clear(self, data_type: Optional[str] = None):
         """
@@ -226,71 +239,95 @@ class MarketDataCache:
 
         # Clear database cache
         if self.use_db:
+            conn = self.db.get_connection()
             try:
-                conn = psycopg2.connect(DATABASE_PATH)
-                cursor = conn.cursor(cursor_factory=RealDictCursor)
+                cursor = conn.cursor()
 
                 if data_type:
-                    cursor.execute("DELETE FROM market_data_cache WHERE data_type = ?", (data_type,))
+                    cursor.execute("DELETE FROM market_data_cache WHERE data_type = %s", (data_type,))
                 else:
                     cursor.execute("DELETE FROM market_data_cache")
 
                 conn.commit()
-                conn.close()
 
                 logger.info(f"Database cache cleared: {data_type or 'all'}")
+
             except Exception as e:
-                logger.error(f"Database cache clear error: {e}")
+                conn.rollback()
+                logger.error(f"Database cache clear error: {e}. ")
+                raise
+            finally:
+                cursor.close()
+                self.db.return_connection(conn)
 
     def cleanup_expired(self):
         """Remove expired entries from database"""
         if self.use_db:
+            conn = self.db.get_connection()
             try:
-                conn = psycopg2.connect(DATABASE_PATH)
-                cursor = conn.cursor(cursor_factory=RealDictCursor)
+                cursor = conn.cursor()
 
-                cursor.execute("DELETE FROM market_data_cache WHERE expires_at < ?", (time.time(),))
+                cursor.execute("DELETE FROM market_data_cache WHERE expires_at < %s", (time.time(),))
                 deleted = cursor.rowcount
 
                 conn.commit()
-                conn.close()
 
                 if deleted > 0:
                     logger.info(f"Cleaned up {deleted} expired cache entries")
+
             except Exception as e:
-                logger.error(f"Cache cleanup error: {e}")
+                conn.rollback()
+                logger.error(f"Cache cleanup error: {e}.")
+                raise
+            finally:
+                cursor.close()
+                self.db.return_connection(conn)
 
     def get_stats(self) -> Dict:
         """Get cache statistics"""
         stats = {"memory_entries": len(self.memory_cache), "database_enabled": self.use_db}
 
         if self.use_db:
+            conn = self.db.get_connection()
             try:
-                conn = psycopg2.connect(DATABASE_PATH)
                 cursor = conn.cursor(cursor_factory=RealDictCursor)
 
-                cursor.execute("SELECT COUNT(*), SUM(access_count) FROM market_data_cache WHERE expires_at > ?", (time.time(),))
+                cursor.execute(
+                    """
+                    SELECT COUNT(*) as count, COALESCE(SUM(access_count), 0) as total_accesses
+                    FROM market_data_cache
+                    WHERE expires_at > %s
+                    """,
+                    (time.time(),),
+                )
                 row = cursor.fetchone()
 
-                stats["database_entries"] = row[0] if row[0] else 0
-                stats["total_accesses"] = row[1] if row[1] else 0
+                stats["database_entries"] = row["count"] if row else 0
+                stats["total_accesses"] = row["total_accesses"] if row else 0
 
                 # Get breakdown by data type
                 cursor.execute(
                     """
-                    SELECT data_type, COUNT(*), AVG(access_count)
+                    SELECT data_type, COUNT(*) as count, AVG(access_count) as avg_accesses
                     FROM market_data_cache
-                    WHERE expires_at > ?
+                    WHERE expires_at > %s
                     GROUP BY data_type
-                """,
+                    """,
                     (time.time(),),
                 )
 
-                stats["by_type"] = {row[0]: {"count": row[1], "avg_accesses": row[2]} for row in cursor.fetchall()}
+                stats["by_type"] = {
+                    row["data_type"]: {"count": row["count"], "avg_accesses": float(row["avg_accesses"]) if row["avg_accesses"] else 0}
+                    for row in cursor.fetchall()
+                }
 
                 conn.close()
             except Exception as e:
-                logger.error(f"Error getting cache stats: {e}")
+                logger.error(f"Error getting cache stats: {e}.")
+                raise
+            finally:
+                cursor.close()
+                self.db.return_connection(conn)
 
         return stats
 
@@ -680,10 +717,18 @@ class MarketService:
     # UTILITY METHODS
     # ============================================================
 
-    def clear_cache(self):
-        """Clear all cached data"""
-        self.cache.clear()
-        logger.info("Market data cache cleared")
+    def clear_cache(self, data_type: Optional[str] = None):
+        """Clear cached data"""
+        self.cache.clear(data_type)
+        logger.info(f"Market data cache cleared: {data_type or 'all'}")
+
+    def cleanup_cache(self):
+        """Cleanup expired cache entries"""
+        self.cache.cleanup_expired()
+
+    def get_cache_stats(self) -> Dict:
+        """Get cache statistics"""
+        return self.cache.get_stats()
 
     async def validate_symbol(self, symbol: str) -> bool:
         """
