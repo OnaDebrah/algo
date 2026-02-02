@@ -143,7 +143,7 @@ const SingleAssetBacktest: React.FC<SingleAssetBacktestProps> = ({
                 rows.push([
                     t.symbol,
                     t.order_type,
-                    t.timestamp,
+                    t.executed_at,
                     t.quantity,
                     t.price.toFixed(2),
                     t.commission.toFixed(2),

@@ -137,7 +137,7 @@ export interface Trade {
     quantity: number;
     price: number;
     commission: number;
-    timestamp: string;
+    executed_at: string;
     strategy: string;
     profit: number | null;
     profit_pct: number | null;

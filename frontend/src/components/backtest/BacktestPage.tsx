@@ -160,7 +160,7 @@ const BacktestPage = () => {
                         benchmark: formattedBenchmark,
                         trades: (response.trades || []).map((trade: Trade) => ({
                             id: trade.id || Math.random(),
-                            timestamp: new Date(trade.timestamp).toLocaleString(),
+                            executed_at: formatDate(trade.executed_at),
                             symbol: trade.symbol,
                             order_type: trade.order_type,
                             strategy: trade.strategy,
@@ -272,7 +272,7 @@ const BacktestPage = () => {
 
                         trades: (response.trades || []).map((trade: Trade) => ({
                             id: trade.id || Math.random(),
-                            timestamp: new Date(trade.timestamp).toLocaleString(),
+                            executed_at: new Date(trade.executed_at).toLocaleString(),
                             symbol: trade.symbol,
                             order_type: trade.order_type,
                             strategy: trade.strategy,
