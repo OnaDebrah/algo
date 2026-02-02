@@ -11,8 +11,8 @@ from backend.app.api.deps import get_current_active_user
 from backend.app.database import get_db
 from backend.app.models.user import User
 from backend.app.schemas.portfolio import Portfolio, PortfolioCreate, PortfolioMetrics, PortfolioUpdate, Position, Trade
-from backend.app.services.portfolio_service import PortfolioService
 from backend.app.services.auth_service import AuthService
+from backend.app.services.portfolio_service import PortfolioService
 
 router = APIRouter(prefix="/portfolio", tags=["Portfolio"])
 
@@ -33,7 +33,7 @@ async def create_portfolio(
     """Create new portfolio"""
     await AuthService.track_usage(db, current_user.id, "create_portfolios", {"portfolio_name": portfolio_data.name})
     service = PortfolioService(db)
-    portfolio = service.create_portfolio(current_user.id, portfolio_data)
+    portfolio = await service.create_portfolio(current_user.id, portfolio_data)
     return portfolio
 
 

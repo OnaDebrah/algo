@@ -4,7 +4,7 @@ import numpy as np
 import pandas as pd
 from pykalman import KalmanFilter
 
-from strategies import BaseStrategy
+from backend.app.strategies import BaseStrategy
 
 
 class KalmanFilterStrategy(BaseStrategy):

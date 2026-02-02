@@ -1,5 +1,7 @@
-from typing import List, Optional, Dict
+from typing import Dict, List, Optional
+
 from pydantic import BaseModel
+
 
 class BacktestResultsSchema(BaseModel):
     total_return: float
@@ -26,6 +28,7 @@ class BacktestResultsSchema(BaseModel):
     initial_capital: float
     symbols: List[str]
 
+
 class StrategyReviewSchema(BaseModel):
     id: Optional[int] = None
     strategy_id: int
@@ -35,6 +38,7 @@ class StrategyReviewSchema(BaseModel):
     review_text: str
     performance_achieved: Optional[Dict] = None
     created_at: str
+
 
 class StrategyListing(BaseModel):
     id: str | int
@@ -59,9 +63,11 @@ class StrategyListing(BaseModel):
     is_verified: bool
     publish_date: str
 
+
 class StrategyListingDetailed(StrategyListing):
     backtest_results: Optional[BacktestResultsSchema] = None
     reviews_list: List[StrategyReviewSchema] = []
+
 
 class StrategyPublishRequest(BaseModel):
     name: str
@@ -72,6 +78,7 @@ class StrategyPublishRequest(BaseModel):
     is_public: bool = True
     tags: List[str] = []
     backtest_id: Optional[int] = None  # Link to an existing backtest
+
 
 class ReviewCreateRequest(BaseModel):
     rating: int

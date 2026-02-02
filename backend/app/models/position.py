@@ -11,8 +11,9 @@ class Position(Base):
     id = Column(Integer, primary_key=True, index=True)
     portfolio_id = Column(Integer, ForeignKey("portfolios.id"), nullable=False)
     symbol = Column(String, nullable=False)
+    side = Column(String, nullable=False)  # Added to match raw SQL side
     quantity = Column(Float, nullable=False)
-    avg_entry_price = Column(Float, nullable=False)
+    entry_price = Column(Float, nullable=False)  # Renamed from avg_entry_price
     current_price = Column(Float, nullable=True)
     unrealized_pnl = Column(Float, nullable=True)
     unrealized_pnl_pct = Column(Float, nullable=True)
@@ -27,12 +28,13 @@ class Position(Base):
             "id": self.id,
             "portfolio_id": self.portfolio_id,
             "symbol": self.symbol,
+            "side": self.side,
             "quantity": self.quantity,
-            "avg_entry_price": self.avg_entry_price,
+            "entry_price": self.entry_price,
             "current_price": self.current_price,
             "unrealized_pnl": self.unrealized_pnl,
             "unrealized_pnl_pct": self.unrealized_pnl_pct,
-            "market_value": self.quantity * (self.current_price or self.avg_entry_price),
+            "market_value": self.quantity * (self.current_price or self.entry_price),
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "updated_at": self.updated_at.isoformat() if self.updated_at else None,
         }

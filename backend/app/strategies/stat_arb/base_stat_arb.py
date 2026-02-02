@@ -13,7 +13,7 @@ import pandas as pd
 from sklearn.decomposition import PCA
 from statsmodels.tsa.vector_ar.vecm import coint_johansen
 
-from strategies import BaseStrategy
+from backend.app.strategies import BaseStrategy
 
 warnings.filterwarnings("ignore")
 
@@ -805,81 +805,3 @@ class RiskParityStatArb(StatisticalArbitrageStrategy):
         # In production, calculate risk contributions
         # For now, use inverse volatility weighting
         return weights / np.sum(np.abs(weights))
-
-
-# ============================================================================
-# EXAMPLE USAGE
-# ============================================================================
-
-if __name__ == "__main__":
-    # Create sample data
-    np.random.seed(42)
-    dates = pd.date_range("2020-01-01", periods=500, freq="D")
-
-    # Simulate correlated assets
-    n_assets = 10
-    base_returns = np.random.randn(500)
-
-    asset_returns = []
-    for i in range(n_assets):
-        # Create correlated returns
-        correlation = 0.3 + 0.6 * i / n_assets
-        asset_return = correlation * base_returns + np.sqrt(1 - correlation**2) * np.random.randn(500)
-        asset_return = asset_return * 0.01  # Scale to 1% daily vol
-
-        # Add some mean reversion
-        if i % 3 == 0:
-            asset_return = -0.1 * asset_return + 0.9 * asset_return
-
-        asset_returns.append(100 * np.exp(np.cumsum(asset_return)))
-
-    # Create price DataFrame
-    prices = pd.DataFrame(
-        np.column_stack(asset_returns),
-        index=dates,
-        columns=[f"ASSET_{i}" for i in range(n_assets)],
-    )
-
-    print("=== Statistical Arbitrage Strategy Backtest ===")
-
-    # Initialize strategy
-    statarb = StatisticalArbitrageStrategy(
-        universe=[f"ASSET_{i}" for i in range(n_assets)],
-        basket_size=4,
-        lookback_period=252,
-        entry_threshold=2.0,
-        exit_threshold=0.5,
-        stop_loss_threshold=3.0,
-        method="cointegration",
-        rebalancing_freq="monthly",
-    )
-
-    # Run backtest
-    results = statarb.run_backtest(prices, initial_capital=1000000)
-
-    print("\nPerformance Metrics:")
-    for metric, value in statarb.performance.items():
-        print(f"  {metric}: {value:.4f}")
-
-    print(f"\nActive Baskets: {len(statarb.active_baskets)}")
-
-    # Example with PCA method
-    print("\n=== PCA-Based Statistical Arbitrage ===")
-
-    pca_statarab = StatisticalArbitrageStrategy(
-        universe=[f"ASSET_{i}" for i in range(n_assets)],
-        basket_size=5,
-        method="pca",
-        n_components=3,
-    )
-
-    # Example with Kalman filter
-    print("\n=== Kalman Filter Statistical Arbitrage ===")
-
-    kalman_statarab = StatisticalArbitrageStrategy(
-        universe=[f"ASSET_{i}" for i in range(n_assets)],
-        basket_size=3,
-        method="kalman",
-        kf_transition_cov=1e-4,
-        kf_observation_cov=1e-3,
-    )

@@ -49,8 +49,11 @@ class Trade(BaseModel):
     quantity: int
     price: float
     commission: float
-    timestamp: str
+    executed_at: str
     strategy: str
+    total_value: float
+    side: Optional[str] = None
+    notes: Optional[str] = None
     profit: Optional[float] = None
     profit_pct: Optional[float] = None
 
@@ -60,6 +63,7 @@ class BacktestResponse(BaseModel):
     equity_curve: List[EquityCurvePoint]
     trades: List[Trade]
     price_data: Optional[List[Dict]] = None
+    benchmark: Optional[Dict] = None
 
 
 # Multi-asset backtest
@@ -99,7 +103,7 @@ class MultiAssetBacktestResponse(BaseModel):
     equity_curve: List[EquityCurvePoint]
     trades: List[Trade]
     price_data: Optional[List[Dict]] = None
-
+    benchmark: Optional[Dict] = None
 
 
 # Options backtest
@@ -145,6 +149,8 @@ class BacktestHistoryItem(BaseModel):
     win_rate: Optional[float] = None
     total_trades: Optional[int] = None
     final_equity: Optional[float] = None
+    equity_curve: Optional[List[EquityCurvePoint]] = None
+    trades: Optional[List[Trade]] = None
 
     # Metadata
     status: str

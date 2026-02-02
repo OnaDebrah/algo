@@ -83,6 +83,23 @@ export interface SingleBacktestRequest {
     slippage_rate?: number;
 }
 
+export interface ComparisonInfo {
+    outperformance: number;
+    alpha: number;
+    sharpe_ratio_diff: number;
+    max_drawdown_diff: number;
+    strategy_return: number;
+    benchmark_return: number;
+    strategy_sharpe: number;
+    benchmark_sharpe: number;
+}
+
+export interface BenchmarkInfo {
+    symbol: string;
+    comparison: ComparisonInfo;
+    equity_curve: EquityCurvePoint[];
+}
+
 export interface BacktestResult {
     total_return: number;
     total_return_pct: number;
@@ -100,6 +117,7 @@ export interface BacktestResult {
     initial_capital: number;
     num_symbols?: number;
     equity_curve?: EquityCurvePoint[];
+    benchmark?: BenchmarkInfo;
     trades?: Trade[];
     price_data?: Record<string, any>[] | null;
     symbol_stats: Record<string, SymbolStats>
@@ -119,7 +137,7 @@ export interface Trade {
     quantity: number;
     price: number;
     commission: number;
-    timestamp: string;
+    executed_at: string;
     strategy: string;
     profit: number | null;
     profit_pct: number | null;
@@ -130,6 +148,7 @@ export interface SingleBacktestResponse {
     equity_curve: EquityCurvePoint[];
     trades: Trade[];
     price_data: Record<string, any>[] | null;
+    benchmark: BenchmarkInfo | null;
 }
 
 export interface SingleAssetConfig {
@@ -221,6 +240,8 @@ export interface MultiAssetBacktestResponse {
     equity_curve: EquityCurvePoint[];
     trades: Trade[];
     price_data: Record<string, any>[] | null;
+    benchmark: BenchmarkInfo | null;
+
 }
 
 // ==================== OPTIONS BACKTEST ====================
@@ -276,16 +297,31 @@ export interface BacktestHistoryItem {
     period: string;
     interval: string;
     initial_capital: number;
+
+    // Results (Optional/Null based on Backend)
     total_return_pct: number | null;
     sharpe_ratio: number | null;
     max_drawdown: number | null;
     win_rate: number | null;
     total_trades: number | null;
     final_equity: number | null;
+
+    // These need to match the Backend's List[Type] | None
+    equity_curve?: EquityCurvePoint[] | null;
+    trades?: Trade[] | null;
+
+    // Metadata
     status: string;
     error_message: string | null;
     created_at: string | null;
     completed_at: string | null;
+}
+
+export interface BacktestHistoryResponse {
+    items: BacktestHistoryItem[];
+    total: number;
+    limit: number;
+    offset: number;
 }
 
 // ==================== PORTFOLIO ====================

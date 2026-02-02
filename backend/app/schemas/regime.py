@@ -1,12 +1,15 @@
-from typing import List, Dict, Any, Optional
-from pydantic import BaseModel
 from datetime import datetime
+from typing import List, Optional
+
+from pydantic import BaseModel
+
 
 class RegimeMetrics(BaseModel):
     volatility: float
     trend_strength: float
     liquidity_score: float
     correlation_index: float
+
 
 class RegimeData(BaseModel):
     id: str
@@ -18,11 +21,13 @@ class RegimeData(BaseModel):
     metrics: RegimeMetrics
     # Could add related assets or strategy recommendations here
 
+
 class CurrentRegimeResponse(BaseModel):
     symbol: str
     current_regime: RegimeData
     historical_regimes: List[RegimeData]
     market_health_score: float
+
 
 class StrategyAllocation(BaseModel):
     trend_following: float
@@ -32,12 +37,14 @@ class StrategyAllocation(BaseModel):
     statistical_arbitrage: float
     cash: float
 
+
 class AllocationResponse(BaseModel):
     symbol: str
     current_regime: str
     confidence: float
     allocation: StrategyAllocation
     timestamp: str
+
 
 class RegimeStrengthResponse(BaseModel):
     symbol: str
@@ -48,6 +55,7 @@ class RegimeStrengthResponse(BaseModel):
     description: str
     timestamp: str
 
+
 class WarningResponse(BaseModel):
     symbol: str
     current_regime: str
@@ -57,10 +65,12 @@ class WarningResponse(BaseModel):
     recommendation: str  # maintain, increase_cash, increase_cash_significantly
     timestamp: str
 
+
 class TransitionProbability(BaseModel):
     from_regime: str
     to_regime: str
     probability: float
+
 
 class TransitionResponse(BaseModel):
     symbol: str
@@ -71,10 +81,12 @@ class TransitionResponse(BaseModel):
     likely_transitions: List[TransitionProbability]
     timestamp: str
 
+
 class FeatureImportance(BaseModel):
     feature: str
     importance: float
     current_value: float
+
 
 class FeaturesResponse(BaseModel):
     symbol: str

@@ -5,13 +5,18 @@ equity curves, trade history, and performance analytics.
 """
 
 import json
+import logging
 import pickle
-import sqlite3
 from dataclasses import asdict, dataclass
 from datetime import datetime
 from typing import Dict, List, Optional
 
 import pandas as pd
+from psycopg2.extras import RealDictCursor
+
+from backend.app.core.database import DatabaseManager
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -86,7 +91,7 @@ class BacktestResults:
         return asdict(self)
 
     @classmethod
-    def from_dict(cls, data: Dict) -> "SingleBacktestResults":
+    def from_dict(cls, data: Dict) -> "BacktestResults":
         """Create from dictionary"""
         return cls(**data)
 
@@ -152,126 +157,134 @@ class StrategyMarketplace:
     Marketplace with complete backtest storage
     """
 
-    def __init__(self, db_path: str = "trading_platform.db"):
-        self.db_path = db_path
+    def __init__(self, db_manager: DatabaseManager = None):
+        self.db = db_manager or DatabaseManager()
         self._init_database()
 
     def _init_database(self):
-        """Initialize enhanced database tables"""
-        conn = sqlite3.connect(self.db_path)
-        cursor = conn.cursor()
+        """Initialize database tables"""
+        conn = self.db.get_connection()
+        try:
+            cursor = conn.cursor(cursor_factory=RealDictCursor)
 
-        # Main strategy listings table (with quick access metrics)
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS marketplace_strategies (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                name TEXT NOT NULL,
-                description TEXT,
-                creator_id INTEGER NOT NULL,
-                creator_name TEXT NOT NULL,
-                strategy_type TEXT NOT NULL,
-                category TEXT NOT NULL,
-                complexity TEXT NOT NULL,
+            # Main strategy listings table (with quick access metrics)
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS marketplace_strategies (
+                    id SERIAL PRIMARY KEY,
+                    name TEXT NOT NULL,
+                    description TEXT,
+                    creator_id INTEGER NOT NULL,
+                    creator_name TEXT NOT NULL,
+                    strategy_type TEXT NOT NULL,
+                    category TEXT NOT NULL,
+                    complexity TEXT NOT NULL,
 
-                -- Strategy configuration
-                parameters TEXT NOT NULL,
+                    -- Strategy configuration
+                    parameters TEXT NOT NULL,
 
-                -- Quick access performance metrics (for filtering)
-                sharpe_ratio REAL DEFAULT 0.0,
-                total_return REAL DEFAULT 0.0,
-                max_drawdown REAL DEFAULT 0.0,
-                win_rate REAL DEFAULT 0.0,
-                num_trades INTEGER DEFAULT 0,
+                    -- Quick access performance metrics (for filtering)
+                    sharpe_ratio DOUBLE PRECISION DEFAULT 0.0,
+                    total_return DOUBLE PRECISION DEFAULT 0.0,
+                    max_drawdown DOUBLE PRECISION DEFAULT 0.0,
+                    win_rate DOUBLE PRECISION DEFAULT 0.0,
+                    num_trades INTEGER DEFAULT 0,
 
-                -- Marketplace
-                price REAL DEFAULT 0.0,
-                is_public BOOLEAN DEFAULT 1,
-                is_verified BOOLEAN DEFAULT 0,
-                version TEXT DEFAULT '1.0.0',
-                tags TEXT,
+                    -- Marketplace
+                    price DOUBLE PRECISION DEFAULT 0.0,
+                    is_public BOOLEAN DEFAULT TRUE,
+                    is_verified BOOLEAN DEFAULT FALSE,
+                    version TEXT DEFAULT '1.0.0',
+                    tags TEXT,
 
-                -- Social
-                downloads INTEGER DEFAULT 0,
-                rating REAL DEFAULT 0.0,
-                num_ratings INTEGER DEFAULT 0,
-                num_reviews INTEGER DEFAULT 0,
+                    -- Social
+                    downloads INTEGER DEFAULT 0,
+                    rating DOUBLE PRECISION DEFAULT 0.0,
+                    num_ratings INTEGER DEFAULT 0,
+                    num_reviews INTEGER DEFAULT 0,
 
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 
-                FOREIGN KEY (creator_id) REFERENCES users(id)
-            )
-        """)
+                    FOREIGN KEY (creator_id) REFERENCES users(id)
+                )
+            """)
 
-        # Backtest results table (stores complete backtest data)
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS strategy_backtests (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                strategy_id INTEGER NOT NULL,
-                version TEXT NOT NULL,
+            # Backtest results table (stores complete backtest data)
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS strategy_backtests (
+                    id SERIAL PRIMARY KEY,
+                    strategy_id INTEGER NOT NULL,
+                    version TEXT NOT NULL,
 
-                -- Complete backtest results (JSON)
-                backtest_data TEXT NOT NULL,  -- Serialized SingleBacktestResults
+                    -- Complete backtest results (JSON)
+                    backtest_data TEXT NOT NULL,  -- Serialized SingleBacktestResults
 
-                -- Time series data (can be large, stored separately)
-                equity_curve BLOB,  -- Pickled pandas DataFrame
-                trades_history BLOB,  -- Pickled pandas DataFrame
-                daily_returns BLOB,  -- Pickled pandas DataFrame
+                    -- Time series data (can be large, stored separately)
+                    equity_curve BYTEA,  -- Pickled pandas DataFrame
+                    trades_history BYTEA,  -- Pickled pandas DataFrame
+                    daily_returns BYTEA,  -- Pickled pandas DataFrame
 
-                -- Backtest metadata
-                start_date TEXT,
-                end_date TEXT,
-                initial_capital REAL,
-                symbols TEXT,  -- JSON array
+                    -- Backtest metadata
+                    start_date TEXT,
+                    end_date TEXT,
+                    initial_capital DOUBLE PRECISION,
+                    symbols TEXT,  -- JSON array
 
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 
-                FOREIGN KEY (strategy_id) REFERENCES marketplace_strategies(id)
-            )
-        """)
+                    FOREIGN KEY (strategy_id) REFERENCES marketplace_strategies(id)
+                )
+            """)
 
-        # Keep existing tables for reviews, downloads, favorites
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS strategy_reviews (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                strategy_id INTEGER NOT NULL,
-                user_id INTEGER NOT NULL,
-                username TEXT NOT NULL,
-                rating INTEGER NOT NULL CHECK(rating >= 1 AND rating <= 5),
-                review_text TEXT,
-                performance_achieved TEXT,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY (strategy_id) REFERENCES marketplace_strategies(id),
-                FOREIGN KEY (user_id) REFERENCES users(id),
-                UNIQUE(strategy_id, user_id)
-            )
-        """)
+            # Keep existing tables for reviews, downloads, favorites
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS strategy_reviews (
+                    id SERIAL PRIMARY KEY,
+                    strategy_id INTEGER NOT NULL,
+                    user_id INTEGER NOT NULL,
+                    username TEXT NOT NULL,
+                    rating INTEGER NOT NULL CHECK(rating >= 1 AND rating <= 5),
+                    review_text TEXT,
+                    performance_achieved TEXT,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY (strategy_id) REFERENCES marketplace_strategies(id),
+                    FOREIGN KEY (user_id) REFERENCES users(id),
+                    UNIQUE(strategy_id, user_id)
+                )
+            """)
 
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS strategy_downloads (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                strategy_id INTEGER NOT NULL,
-                user_id INTEGER NOT NULL,
-                downloaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY (strategy_id) REFERENCES marketplace_strategies(id),
-                FOREIGN KEY (user_id) REFERENCES users(id)
-            )
-        """)
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS strategy_downloads (
+                    id SERIAL PRIMARY KEY,
+                    strategy_id INTEGER NOT NULL,
+                    user_id INTEGER NOT NULL,
+                    downloaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY (strategy_id) REFERENCES marketplace_strategies(id),
+                    FOREIGN KEY (user_id) REFERENCES users(id)
+                )
+            """)
 
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS strategy_favorites (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                strategy_id INTEGER NOT NULL,
-                user_id INTEGER NOT NULL,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY (strategy_id) REFERENCES marketplace_strategies(id),
-                FOREIGN KEY (user_id) REFERENCES users(id),
-                UNIQUE(strategy_id, user_id)
-            )
-        """)
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS strategy_favorites (
+                    id SERIAL PRIMARY KEY,
+                    strategy_id INTEGER NOT NULL,
+                    user_id INTEGER NOT NULL,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY (strategy_id) REFERENCES marketplace_strategies(id),
+                    FOREIGN KEY (user_id) REFERENCES users(id),
+                    UNIQUE(strategy_id, user_id)
+                )
+            """)
 
-        conn.commit()
-        conn.close()
+            conn.commit()
+            logger.info("Marketplace data initialised successfully")
+        except Exception as e:
+            conn.rollback()
+            logger.error(f"Failed to initialise Marketplace: {e}")
+            raise
+        finally:
+            cursor.close()
+            self.db.return_connection(conn)
 
     # ============================================================
     # PUBLISHING WITH BACKTEST RESULTS
@@ -292,21 +305,22 @@ class StrategyMarketplace:
         Returns:
             Strategy ID
         """
-        conn = sqlite3.connect(self.db_path)
-        cursor = conn.cursor()
+        conn = self.db.get_connection()
+        cursor = conn.cursor(cursor_factory=RealDictCursor)
 
         try:
             # 1. Insert strategy listing with quick-access metrics
             cursor.execute(
                 """
-                           INSERT INTO marketplace_strategies (name, description, creator_id, creator_name,
-                                                                  strategy_type,
-                                                                  category, complexity, parameters,
-                                                                  sharpe_ratio, total_return, max_drawdown, win_rate,
-                                                                  num_trades,
-                                                                  price, is_public, version, tags)
-                           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                           """,
+                INSERT INTO marketplace_strategies (name, description, creator_id, creator_name,
+                                                      strategy_type,
+                                                      category, complexity, parameters,
+                                                      sharpe_ratio, total_return, max_drawdown, win_rate,
+                                                      num_trades,
+                                                      price, is_public, version, tags)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                RETURNING id
+                """,
                 (
                     listing.name,
                     listing.description,
@@ -328,7 +342,7 @@ class StrategyMarketplace:
                 ),
             )
 
-            strategy_id = cursor.lastrowid
+            strategy_id = cursor.fetchone()["id"]
 
             # 2. Store complete backtest results
             backtest_data = json.dumps(listing.backtest_results.to_dict())
@@ -340,11 +354,11 @@ class StrategyMarketplace:
 
             cursor.execute(
                 """
-                           INSERT INTO strategy_backtests (strategy_id, version, backtest_data,
-                                                           equity_curve, trades_history, daily_returns,
-                                                           start_date, end_date, initial_capital, symbols)
-                           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                           """,
+                INSERT INTO strategy_backtests (strategy_id, version, backtest_data,
+                                                equity_curve, trades_history, daily_returns,
+                                                start_date, end_date, initial_capital, symbols)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                """,
                 (
                     strategy_id,
                     listing.version,
@@ -364,10 +378,11 @@ class StrategyMarketplace:
 
         except Exception as e:
             conn.rollback()
-            print(f"Failed to publish strategy: {e}")
+            logger.error(f"Failed to publish strategy: {e}")
             raise
         finally:
-            conn.close()
+            cursor.close()
+            self.db.return_connection(conn)
 
     def get_strategy_backtest(self, strategy_id: int) -> Optional[Dict]:
         """
@@ -380,22 +395,22 @@ class StrategyMarketplace:
                 - trades: pandas DataFrame
                 - daily_returns: pandas DataFrame
         """
-        conn = sqlite3.connect(self.db_path)
-        conn.row_factory = sqlite3.Row
-        cursor = conn.cursor()
+        conn = self.db.get_connection()
+        cursor = conn.cursor(cursor_factory=RealDictCursor)
 
         cursor.execute(
             """
-                       SELECT *
-                       FROM strategy_backtests
-                       WHERE strategy_id = ?
-                       ORDER BY created_at DESC LIMIT 1
-                       """,
+            SELECT *
+            FROM strategy_backtests
+            WHERE strategy_id = %s
+            ORDER BY created_at DESC LIMIT 1
+            """,
             (strategy_id,),
         )
 
         row = cursor.fetchone()
-        conn.close()
+        cursor.close()
+        self.db.return_connection(conn)
 
         if not row:
             return None
@@ -431,39 +446,38 @@ class StrategyMarketplace:
         """
         Browse strategies with performance-based filters
         """
-        conn = sqlite3.connect(self.db_path)
-        conn.row_factory = sqlite3.Row
-        cursor = conn.cursor()
+        conn = self.db.get_connection()
+        cursor = conn.cursor(cursor_factory=RealDictCursor)
 
-        query = "SELECT * FROM marketplace_strategies WHERE is_public = 1"
+        query = "SELECT * FROM marketplace_strategies WHERE is_public = TRUE"
         params = []
 
         if category:
-            query += " AND category = ?"
+            query += " AND category = %s"
             params.append(category)
 
         if complexity:
-            query += " AND complexity = ?"
+            query += " AND complexity = %s"
             params.append(complexity)
 
         if min_sharpe is not None:
-            query += " AND sharpe_ratio >= ?"
+            query += " AND sharpe_ratio >= %s"
             params.append(min_sharpe)
 
         if min_return is not None:
-            query += " AND total_return >= ?"
+            query += " AND total_return >= %s"
             params.append(min_return)
 
         if max_drawdown is not None:
-            query += " AND max_drawdown >= ?"  # Note: drawdown is negative
+            query += " AND max_drawdown >= %s"  # Note: drawdown is negative
             params.append(max_drawdown)
 
         if min_win_rate is not None:
-            query += " AND win_rate >= ?"
+            query += " AND win_rate >= %s"
             params.append(min_win_rate)
 
         if search_query:
-            query += " AND (name LIKE ? OR description LIKE ?)"
+            query += " AND (name ILIKE %s OR description ILIKE %s)"
             params.extend([f"%{search_query}%", f"%{search_query}%"])
 
         # Sorting options
@@ -475,12 +489,13 @@ class StrategyMarketplace:
             "created_at": "created_at DESC",
         }
         query += f" ORDER BY {sort_columns.get(sort_by, 'sharpe_ratio DESC')}"
-        query += " LIMIT ? OFFSET ?"
+        query += " LIMIT %s OFFSET %s"
         params.extend([limit, offset])
 
         cursor.execute(query, params)
         rows = cursor.fetchall()
-        conn.close()
+        cursor.close()
+        self.db.return_connection(conn)
 
         strategies = []
         for row in rows:
@@ -533,21 +548,21 @@ class StrategyMarketplace:
         comparison_data = []
 
         for strategy_id in strategy_ids:
-            conn = sqlite3.connect(self.db_path)
-            conn.row_factory = sqlite3.Row
-            cursor = conn.cursor()
+            conn = self.db.get_connection()
+            cursor = conn.cursor(cursor_factory=RealDictCursor)
 
             cursor.execute(
                 """
-                           SELECT *
-                           FROM marketplace_strategies
-                           WHERE id = ?
-                           """,
+                SELECT *
+                FROM marketplace_strategies
+                WHERE id = %s
+                """,
                 (strategy_id,),
             )
 
             row = cursor.fetchone()
-            conn.close()
+            cursor.close()
+            self.db.return_connection(conn)
 
             if row:
                 comparison_data.append(
@@ -603,6 +618,78 @@ class StrategyMarketplace:
             return pickle.dumps(backtest)
 
         return None
+
+    # ============================================================
+    # SOCIAL & INTERACTION
+    # ============================================================
+
+    def toggle_favorite(self, strategy_id: int, user_id: int, favorite: bool = True) -> bool:
+        """Add or remove a strategy from user's favorites"""
+        conn = self.db.get_connection()
+        try:
+            cursor = conn.cursor()
+            if favorite:
+                cursor.execute(
+                    """
+                    INSERT INTO strategy_favorites (strategy_id, user_id)
+                    VALUES (%s, %s)
+                    ON CONFLICT (strategy_id, user_id) DO NOTHING
+                    """,
+                    (strategy_id, user_id),
+                )
+            else:
+                cursor.execute(
+                    "DELETE FROM strategy_favorites WHERE strategy_id = %s AND user_id = %s",
+                    (strategy_id, user_id),
+                )
+            conn.commit()
+            return True
+        except Exception as e:
+            conn.rollback()
+            logger.error(f"Failed to toggle favorite: {e}")
+            return False
+        finally:
+            cursor.close()
+            self.db.return_connection(conn)
+
+    def is_favorite(self, strategy_id: int, user_id: int) -> bool:
+        """Check if a strategy is in user's favorites"""
+        conn = self.db.get_connection()
+        try:
+            cursor = conn.cursor()
+            cursor.execute(
+                "SELECT 1 FROM strategy_favorites WHERE strategy_id = %s AND user_id = %s",
+                (strategy_id, user_id),
+            )
+            return cursor.fetchone() is not None
+        finally:
+            cursor.close()
+            self.db.return_connection(conn)
+
+    def record_download(self, strategy_id: int, user_id: int) -> bool:
+        """Record a strategy download and increment download count"""
+        conn = self.db.get_connection()
+        try:
+            cursor = conn.cursor()
+            # Record the download
+            cursor.execute(
+                "INSERT INTO strategy_downloads (strategy_id, user_id) VALUES (%s, %s)",
+                (strategy_id, user_id),
+            )
+            # Increment the counter on the strategy
+            cursor.execute(
+                "UPDATE marketplace_strategies SET downloads = downloads + 1 WHERE id = %s",
+                (strategy_id,),
+            )
+            conn.commit()
+            return True
+        except Exception as e:
+            conn.rollback()
+            logger.error(f"Failed to record download: {e}")
+            return False
+        finally:
+            cursor.close()
+            self.db.return_connection(conn)
 
 
 # Helper function to convert backtest engine results to SingleBacktestResults

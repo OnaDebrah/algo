@@ -12,7 +12,7 @@ from typing import Dict, Optional, Tuple, Union
 import numpy as np
 import pandas as pd
 
-from strategies import BaseStrategy
+from backend.app.strategies import BaseStrategy
 
 warnings.filterwarnings("ignore")
 

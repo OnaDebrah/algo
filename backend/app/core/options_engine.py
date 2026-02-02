@@ -10,10 +10,10 @@ from typing import Dict, List
 import numpy as np
 import pandas as pd
 
-from strategies.options_builder import (
+from backend.app.strategies.options_builder import OptionsStrategyBuilder, create_preset_strategy
+from backend.app.strategies.options_strategies import (
     BlackScholesCalculator,
     OptionsStrategy,
-    OptionsStrategyBuilder,
     OptionType,
 )
 
@@ -186,9 +186,6 @@ class OptionsBacktestEngine:
 
         days_to_exp = entry_rules.get("days_to_expiration", 30)
         expiration = date + timedelta(days=days_to_exp)
-
-        # Build strategy
-        from strategies.options_builder import create_preset_strategy
 
         builder = OptionsStrategyBuilder(symbol, self.risk_free_rate)
         builder.current_price = price

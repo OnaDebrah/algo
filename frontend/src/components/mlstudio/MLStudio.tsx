@@ -78,10 +78,10 @@ const MLStudio = () => {
         try {
             const response = await mlstudio.getModels();
             if (response) {
-                // Map backend snake_case to frontend camelCase if needed, 
+                // Map backend snake_case to frontend camelCase if needed,
                 // but our api.ts defines camelCase for fields that come as snake_case from Pydantic
                 // The API needs to return matching keys or we need to map them here.
-                // Assuming Pydantic v2 or aliasing works, or we map manually. 
+                // Assuming Pydantic v2 or aliasing works, or we map manually.
                 // Let's assume manual mapping for safety given the previous schema.
                 const mappedModels = response.map((m) => ({
                     ...m,
