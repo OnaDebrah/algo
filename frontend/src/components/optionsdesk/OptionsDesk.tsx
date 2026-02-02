@@ -518,7 +518,7 @@ const OptionsDesk = () => {
                     symbol: selectedSymbol,
                     strategy: trade.strategy,
                     profit: trade.profit || 0,
-                    time: new Date(trade.timestamp).toLocaleDateString(),
+                    time: new Date(trade.executed_at).toLocaleDateString(),
                     status: (trade.profit || 0) >= 0 ? 'win' : 'loss'
                 }));
                 setRecentTrades(formattedTrades);

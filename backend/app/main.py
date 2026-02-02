@@ -35,7 +35,6 @@ from backend.app.init_data import init_default_data
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Startup and shutdown events"""
-    # Startup
     await init_db()
     await init_default_data()
     yield
