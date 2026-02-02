@@ -6,8 +6,8 @@ from typing import Dict
 import numpy as np
 import pandas as pd
 
-from strategies.volatility.dynamic_scaling import DynamicVolatilityScalingStrategy
-from strategies.volatility.volatility_targeting import VolatilityTargetingStrategy
+from backend.app.strategies.volatility.dynamic_scaling import DynamicVolatilityScalingStrategy
+from backend.app.strategies.volatility.volatility_targeting import VolatilityTargetingStrategy
 
 
 class VolatilityRiskManager:

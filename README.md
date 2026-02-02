@@ -186,7 +186,8 @@ Edit `config.py` to customize default settings:
 Example:
 
 ```python
-from strategies.base_strategy import BaseStrategy
+from streamlit.strategies import BaseStrategy
+
 
 class MyStrategy(BaseStrategy):
     def __init__(self, param1, param2):

@@ -14,13 +14,13 @@ class Settings(BaseSettings):
     VERSION: str = "1.0.0"
     ENVIRONMENT: str = os.getenv("ENVIRONMENT", "development")
 
-    # Security
+    # Security - JWT
     JWT_SECRET_KEY: str = os.getenv("JWT_SECRET_KEY", "b4b9dec99638d32897d5b2705755cba147659e02675d4615011951ce24f6aff1")
     JWT_ALGORITHM: str = "HS256"
     JWT_EXPIRATION_MINUTES: int = 60 * 24 * 7  # 7 days
 
-    # Security
-    SECRET_KEY: str = "09d25e094faa6ca2556c818166b7a9563b93f7099f6f0f4caa6cf63b88e8d3e7"
+    # Security - General
+    SECRET_KEY: str = os.getenv("SECRET_KEY", "09d25e094faa6ca2556c818166b7a9563b93f7099f6f0f4caa6cf63b88e8d3e7")
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 10080  # 7 days
 
@@ -31,25 +31,47 @@ class Settings(BaseSettings):
         "http://127.0.0.1:3000",
     ]
 
-    # Database
-    DATABASE_URL: str = "sqlite+aiosqlite:///./trading_platform.db"
+    # Database Configuration
+    # PostgreSQL (Primary - for production and development)
+    POSTGRES_USER: str = os.getenv("POSTGRES_USER", "trading_user")
+    POSTGRES_PASSWORD: str = os.getenv("POSTGRES_PASSWORD", "secure_password_here")
+    POSTGRES_HOST: str = os.getenv("POSTGRES_HOST", "localhost")
+    POSTGRES_PORT: str = os.getenv("POSTGRES_PORT", "5432")
+    POSTGRES_DB: str = os.getenv("POSTGRES_DB", "trading_platform")
 
-    # For async PostgreSQL in production:
-    # DATABASE_URL: str = "postgresql+asyncpg://user:password@localhost/trading_platform"
+    @property
+    def DATABASE_URL(self) -> str:
+        """
+        Construct database URL based on environment
+        """
+        # Allow override via environment variable
+        if os.getenv("DATABASE_URL"):
+            return os.getenv("DATABASE_URL")
 
+        # Use PostgreSQL by default
+        return f"postgresql+asyncpg://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}" f"@{self.POSTGRES_HOST}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}"
+
+    # SQLite paths (for legacy/testing)
     DATABASE_PATH: str = os.getenv("DATABASE_PATH", "trading_platform.db")
     AUTH_DB_PATH: str = os.getenv("AUTH_DB_PATH", "auth.db")
+
+    # Database Connection Pool Settings
+    DB_POOL_SIZE: int = int(os.getenv("DB_POOL_SIZE", "20"))
+    DB_MAX_OVERFLOW: int = int(os.getenv("DB_MAX_OVERFLOW", "10"))
+    DB_POOL_RECYCLE: int = int(os.getenv("DB_POOL_RECYCLE", "3600"))  # 1 hour
+    DB_POOL_PRE_PING: bool = os.getenv("DB_POOL_PRE_PING", "true").lower() == "true"
+    DB_ECHO: bool = os.getenv("DB_ECHO", "false").lower() == "true"  # SQL logging
 
     # API Keys
     ANTHROPIC_API_KEY: str = os.getenv("ANTHROPIC_API_KEY", "")
 
     # Trading Defaults
-    DEFAULT_INITIAL_CAPITAL: float = 100000
-    DEFAULT_COMMISSION_RATE: float = 0.001
-    DEFAULT_SLIPPAGE_RATE: float = 0.0005
+    DEFAULT_INITIAL_CAPITAL: float = float(os.getenv("DEFAULT_INITIAL_CAPITAL", "100000"))
+    DEFAULT_COMMISSION_RATE: float = float(os.getenv("DEFAULT_COMMISSION_RATE", "0.001"))
+    DEFAULT_SLIPPAGE_RATE: float = float(os.getenv("DEFAULT_SLIPPAGE_RATE", "0.0005"))
 
     # Rate Limiting
-    RATE_LIMIT_PER_MINUTE: int = 60
+    RATE_LIMIT_PER_MINUTE: int = int(os.getenv("RATE_LIMIT_PER_MINUTE", "60"))
 
     # Alerts (SMTP)
     SMTP_SERVER: str = os.getenv("SMTP_SERVER", "smtp.gmail.com")
@@ -69,10 +91,34 @@ class Settings(BaseSettings):
 
     # Redis (for WebSocket/caching)
     REDIS_URL: str = os.getenv("REDIS_URL", "redis://localhost:6379")
+    REDIS_ENABLED: bool = os.getenv("REDIS_ENABLED", "false").lower() == "true"
+
+    # Logging
+    LOG_LEVEL: str = os.getenv("LOG_LEVEL", "INFO")
+    LOG_FILE: str = os.getenv("LOG_FILE", "app.log")
 
     class Config:
         case_sensitive = True
         env_file = ".env"
+        env_file_encoding = "utf-8"
 
 
 settings = Settings()
+
+
+# Validation on import
+def validate_settings():
+    """Validate critical settings on startup"""
+    if settings.ENVIRONMENT == "production":
+        if settings.JWT_SECRET_KEY == "b4b9dec99638d32897d5b2705755cba147659e02675d4615011951ce24f6aff1":
+            raise ValueError("Production environment must use custom JWT_SECRET_KEY")
+        if settings.SECRET_KEY == "09d25e094faa6ca2556c818166b7a9563b93f7099f6f0f4caa6cf63b88e8d3e7":
+            raise ValueError("Production environment must use custom SECRET_KEY")
+
+    # Ensure database URL is set
+    if not settings.DATABASE_URL:
+        raise ValueError("DATABASE_URL must be configured")
+
+
+# Run validation
+validate_settings()

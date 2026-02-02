@@ -15,7 +15,11 @@ class Trade(Base):
     quantity = Column(Float, nullable=False)
     price = Column(Float, nullable=False)
     commission = Column(Float, default=0)
+    slippage = Column(Float, default=0)
+    profit = Column(Float, nullable=True)
+    profit_pct = Column(Float, nullable=True)
     total_value = Column(Float, nullable=False)
+    side = Column(String, nullable=True)  # Added to match DatabaseManager side/order_type
     strategy = Column(String, nullable=True)
     notes = Column(String, nullable=True)
     executed_at = Column(DateTime(timezone=True), server_default=func.now())

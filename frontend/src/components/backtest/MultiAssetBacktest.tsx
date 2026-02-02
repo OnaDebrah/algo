@@ -34,12 +34,16 @@ import {
     Star,
     Target,
     X,
-    Zap
+    Zap,
+    FolderOpen
 } from "lucide-react";
-import React, {useMemo, useState} from "react";
+import React, { useMemo, useState } from "react";
 import StrategyParameterForm from "@/components/backtest/StrategyParameterForm";
 import MultiBacktestResults from "@/components/backtest/MultiBacktestResults";
-import {BacktestResult, MultiAssetConfig, Strategy} from "@/types/all_types";
+import RiskAnalysisModal from "@/components/backtest/RiskAnalysisModal";
+import LoadConfigModal from "@/components/backtest/LoadConfigModal";
+import { BacktestResult, MultiAssetConfig, Strategy, PortfolioCreate } from "@/types/all_types";
+import { portfolio } from "@/utils/api";
 
 interface MultiAssetBacktestProps {
     config: MultiAssetConfig;
@@ -53,15 +57,15 @@ interface MultiAssetBacktestProps {
 }
 
 const MultiAssetBacktest: React.FC<MultiAssetBacktestProps> = ({
-                                                                   config,
-                                                                   setConfig,
-                                                                   strategies,
-                                                                   runBacktest,
-                                                                   isRunning,
-                                                                   results,
-                                                                   addSymbol,
-                                                                   removeSymbol
-                                                               }: MultiAssetBacktestProps) => {
+    config,
+    setConfig,
+    strategies,
+    runBacktest,
+    isRunning,
+    results,
+    addSymbol,
+    removeSymbol
+}: MultiAssetBacktestProps) => {
     const [activeCategory, setActiveCategory] = useState('All');
     const [showAdvanced, setShowAdvanced] = useState(false);
     const [hasRunBacktest, setHasRunBacktest] = useState(false);
@@ -69,16 +73,19 @@ const MultiAssetBacktest: React.FC<MultiAssetBacktestProps> = ({
     const [showParameters, setShowParameters] = useState(true);
     const [allocationMode, setAllocationMode] = useState<'equal' | 'manual' | 'optimized'>('equal');
     const [searchQuery, setSearchQuery] = useState('');
+    const [showRiskAnalysis, setShowRiskAnalysis] = useState(false);
+    const [isSaving, setIsSaving] = useState(false);
+    const [showLoadModal, setShowLoadModal] = useState(false);
 
     // Find the currently active strategy
     const selectedStrategy = useMemo(() =>
-            strategies.find((s) => s.id === config.strategy),
+        strategies.find((s) => s.id === config.strategy),
         [config.strategy, strategies]
     );
 
     // Get unique categories
     const categories = useMemo(() =>
-            ['All', ...Array.from(new Set(strategies.map((s) => s.category)))],
+        ['All', ...Array.from(new Set(strategies.map((s) => s.category)))],
         [strategies]
     );
 
@@ -104,7 +111,7 @@ const MultiAssetBacktest: React.FC<MultiAssetBacktestProps> = ({
     const handleParamChange = (key: string, val: any) => {
         setConfig({
             ...config,
-            params: {...(config.params || {}), [key]: val}
+            params: { ...(config.params || {}), [key]: val }
         });
     };
 
@@ -113,16 +120,140 @@ const MultiAssetBacktest: React.FC<MultiAssetBacktestProps> = ({
         setHasRunBacktest(true);
     };
 
+    const handleExportResults = () => {
+        console.log('Export Results clicked');
+        if (!results) {
+            console.error('No results to export');
+            return;
+        }
+
+        try {
+            console.log('Generating CSV for results:', results);
+            const rows: (string | number)[][] = [];
+
+            // 1. Portfolio Summary
+            rows.push(['PORTFOLIO SUMMARY']);
+            rows.push(['Metric', 'Value']);
+            rows.push(['Total Return', `${((results.total_return || 0) * 100).toFixed(2)}%`]);
+            rows.push(['Sharpe Ratio', (results.sharpe_ratio || 0).toFixed(2)]);
+            rows.push(['Max Drawdown', `${((results.max_drawdown || 0) * 100).toFixed(2)}%`]);
+            rows.push(['Win Rate', `${((results.win_rate || 0)).toFixed(2)}%`]);
+            rows.push(['Profit Factor', (results.profit_factor || 0).toFixed(2)]);
+            rows.push(['Total Trades', results.total_trades || 0]);
+            rows.push(['Final Equity', (results.final_equity || 0).toFixed(2)]);
+            rows.push([]);
+
+            // 2. Asset Performance Breakdown
+            rows.push(['ASSET PERFORMANCE']);
+            rows.push(['Symbol', 'Strategy', 'Total Return', 'Win Rate', 'Trades', 'Avg Profit', 'Loss Rate']);
+
+            if (results.symbol_stats) {
+                Object.entries(results.symbol_stats).forEach(([symbol, stats]) => {
+                    const totalTrades = stats.total_trades || 0;
+                    const losingTrades = stats.losing_trades || 0;
+                    const lossRate = totalTrades > 0 ? (losingTrades / totalTrades) * 100 : 0;
+
+                    rows.push([
+                        symbol || 'Unknown',
+                        'Multi Asset',
+                        `${((stats.total_return || 0) * 100).toFixed(2)}%`,
+                        `${(stats.win_rate || 0).toFixed(2)}%`,
+                        totalTrades,
+                        (stats.avg_profit || 0).toFixed(2),
+                        lossRate.toFixed(2) + '%'
+                    ]);
+                });
+            } else {
+                console.warn('No symbol_stats found in results');
+            }
+            rows.push([]);
+
+            // 3. Trade Ledger
+            rows.push(['TRADE LEDGER']);
+            rows.push(['ID', 'Symbol', 'Side', 'Date', 'Qty', 'Price', 'Commission', 'Profit', 'Status']);
+
+            if (results.trades && Array.isArray(results.trades)) {
+                results.trades.forEach(t => {
+                    rows.push([
+                        t.id || '',
+                        t.symbol || '',
+                        t.order_type || '',
+                        t.timestamp || '',
+                        t.quantity || 0,
+                        t.price || 0,
+                        t.commission || 0,
+                        typeof t.profit === 'number' ? t.profit.toFixed(2) : '',
+                        typeof t.profit === 'number' ? 'Closed' : 'Open'
+                    ]);
+                });
+            }
+
+            // Convert to CSV using Blob
+            const csvContent = rows.map(e => e.join(",")).join("\n");
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+
+            const link = document.createElement("a");
+            link.setAttribute("href", url);
+            const filename = `multi_asset_backtest_${new Date().toISOString().slice(0, 10)}.csv`;
+            link.setAttribute("download", filename);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+
+            // Clean up
+            setTimeout(() => URL.revokeObjectURL(url), 100);
+
+            console.log('Export complete');
+        } catch (error) {
+            console.error('Error exporting results:', error);
+            alert('Failed to export results. See console for details.');
+        }
+    };
+
+    const handleSavePortfolio = async () => {
+        try {
+            setIsSaving(true);
+            const portfolioName = `Backtest Allocation ${new Date().toLocaleDateString()}`;
+
+            // We store the configuration JSON in the description field
+            // This is a workaround to persist the backtest config
+            const description = JSON.stringify({
+                strategy: config.strategy,
+                symbols: config.symbols,
+                allocations: config.allocations,
+                params: config.params,
+                period: config.period,
+                interval: config.interval
+            });
+
+            const data: PortfolioCreate = {
+                name: portfolioName,
+                initial_capital: config.initialCapital,
+                description: description
+            };
+
+            await portfolio.create(data);
+
+            alert('Portfolio Configuration Saved Successfully!');
+        } catch (error) {
+            console.error('Failed to save portfolio:', error);
+            alert('Failed to save portfolio. Please try again.');
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
     // Asset suggestions
     const assetSuggestions = [
-        {symbol: 'AAPL', name: 'Apple Inc.', sector: 'Technology', color: 'from-gray-500 to-slate-500'},
-        {symbol: 'MSFT', name: 'Microsoft', sector: 'Technology', color: 'from-blue-500 to-cyan-500'},
-        {symbol: 'GOOGL', name: 'Alphabet', sector: 'Technology', color: 'from-red-500 to-orange-500'},
-        {symbol: 'AMZN', name: 'Amazon', sector: 'Consumer', color: 'from-amber-500 to-yellow-500'},
-        {symbol: 'TSLA', name: 'Tesla', sector: 'Automotive', color: 'from-emerald-500 to-green-500'},
-        {symbol: 'NVDA', name: 'NVIDIA', sector: 'Semiconductors', color: 'from-green-500 to-emerald-500'},
-        {symbol: 'JPM', name: 'JPMorgan', sector: 'Financial', color: 'from-blue-500 to-indigo-500'},
-        {symbol: 'BTC-USD', name: 'Bitcoin', sector: 'Crypto', color: 'from-orange-500 to-amber-500'},
+        { symbol: 'AAPL', name: 'Apple Inc.', sector: 'Technology', color: 'from-gray-500 to-slate-500' },
+        { symbol: 'MSFT', name: 'Microsoft', sector: 'Technology', color: 'from-blue-500 to-cyan-500' },
+        { symbol: 'GOOGL', name: 'Alphabet', sector: 'Technology', color: 'from-red-500 to-orange-500' },
+        { symbol: 'AMZN', name: 'Amazon', sector: 'Consumer', color: 'from-amber-500 to-yellow-500' },
+        { symbol: 'TSLA', name: 'Tesla', sector: 'Automotive', color: 'from-emerald-500 to-green-500' },
+        { symbol: 'NVDA', name: 'NVIDIA', sector: 'Semiconductors', color: 'from-green-500 to-emerald-500' },
+        { symbol: 'JPM', name: 'JPMorgan', sector: 'Financial', color: 'from-blue-500 to-indigo-500' },
+        { symbol: 'BTC-USD', name: 'Bitcoin', sector: 'Crypto', color: 'from-orange-500 to-amber-500' },
     ];
 
     return (
@@ -133,7 +264,7 @@ const MultiAssetBacktest: React.FC<MultiAssetBacktestProps> = ({
                 <div className="flex items-start gap-4">
                     <div
                         className="p-3 bg-gradient-to-br from-violet-500/20 to-purple-500/20 rounded-2xl border border-violet-500/30 shadow-xl shadow-violet-500/10">
-                        <BarChart3 className="text-violet-400" size={28} strokeWidth={2}/>
+                        <BarChart3 className="text-violet-400" size={28} strokeWidth={2} />
                     </div>
                     <div>
                         <h3 className="text-2xl font-bold text-slate-100 tracking-tight">
@@ -151,15 +282,15 @@ const MultiAssetBacktest: React.FC<MultiAssetBacktestProps> = ({
                         className="group relative overflow-hidden flex items-center space-x-3 px-7 py-3.5 bg-gradient-to-r from-violet-600 via-purple-600 to-fuchsia-600 hover:from-violet-500 hover:via-purple-500 hover:to-fuchsia-500 disabled:from-slate-700 disabled:via-slate-700 disabled:to-slate-700 disabled:cursor-not-allowed rounded-xl font-bold transition-all shadow-xl shadow-violet-500/30 disabled:shadow-none text-white"
                     >
                         <div
-                            className="absolute inset-0 bg-gradient-to-r from-white/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"/>
+                            className="absolute inset-0 bg-gradient-to-r from-white/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
                         {isRunning ? (
                             <>
-                                <RefreshCw size={20} className="animate-spin relative z-10" strokeWidth={2.5}/>
+                                <RefreshCw size={20} className="animate-spin relative z-10" strokeWidth={2.5} />
                                 <span className="relative z-10">Processing...</span>
                             </>
                         ) : (
                             <>
-                                <Play size={20} strokeWidth={2.5} className="relative z-10"/>
+                                <Play size={20} strokeWidth={2.5} className="relative z-10" />
                                 <span className="relative z-10">Run Backtest</span>
                             </>
                         )}
@@ -176,7 +307,7 @@ const MultiAssetBacktest: React.FC<MultiAssetBacktestProps> = ({
                         <div className="flex justify-between items-center mb-4">
                             <div className="flex items-center gap-3">
                                 <div className="p-2 bg-violet-500/20 rounded-lg border border-violet-500/30">
-                                    <Database className="text-violet-400" size={20} strokeWidth={2}/>
+                                    <Database className="text-violet-400" size={20} strokeWidth={2} />
                                 </div>
                                 <div>
                                     <h4 className="text-sm font-bold text-slate-300">Portfolio Assets</h4>
@@ -188,16 +319,16 @@ const MultiAssetBacktest: React.FC<MultiAssetBacktestProps> = ({
                             <div className="flex gap-2">
                                 {config.symbols.length > 0 && (
                                     <button
-                                        onClick={() => setConfig({...config, symbols: []})}
+                                        onClick={() => setConfig({ ...config, symbols: [] })}
                                         className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-red-400 hover:text-red-300 transition-colors bg-red-500/10 rounded-lg border border-red-500/20"
                                     >
-                                        <X size={14}/>
+                                        <X size={14} />
                                         <span>Clear All</span>
                                     </button>
                                 )}
                                 <button
                                     className="p-2 hover:bg-slate-800 rounded-lg transition-colors text-slate-500 hover:text-violet-400">
-                                    <HelpCircle size={18}/>
+                                    <HelpCircle size={18} />
                                 </button>
                             </div>
                         </div>
@@ -227,8 +358,8 @@ const MultiAssetBacktest: React.FC<MultiAssetBacktestProps> = ({
                                     className="group relative overflow-hidden px-6 py-3.5 bg-gradient-to-r from-slate-800/60 to-slate-900/60 border border-slate-700/50 hover:border-slate-600/50 rounded-xl font-semibold text-sm transition-all text-slate-200 flex items-center space-x-2"
                                 >
                                     <div
-                                        className="absolute inset-0 bg-gradient-to-r from-violet-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"/>
-                                    <PlusCircle size={18} strokeWidth={2} className="relative z-10"/>
+                                        className="absolute inset-0 bg-gradient-to-r from-violet-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                                    <PlusCircle size={18} strokeWidth={2} className="relative z-10" />
                                     <span className="relative z-10">Add Asset</span>
                                 </button>
                             </div>
@@ -248,7 +379,7 @@ const MultiAssetBacktest: React.FC<MultiAssetBacktestProps> = ({
                                         className="group relative overflow-hidden px-3 py-2 bg-gradient-to-br from-slate-800/50 to-slate-900/50 border border-slate-700/50 hover:border-violet-500/50 rounded-lg transition-all"
                                     >
                                         <div
-                                            className={`absolute inset-0 bg-gradient-to-br ${asset.color} opacity-0 group-hover:opacity-10 transition-opacity`}/>
+                                            className={`absolute inset-0 bg-gradient-to-br ${asset.color} opacity-0 group-hover:opacity-10 transition-opacity`} />
                                         <div className="relative flex items-center gap-2">
                                             <div
                                                 className="w-6 h-6 rounded bg-gradient-to-br from-slate-700 to-slate-800 flex items-center justify-center">
@@ -277,7 +408,7 @@ const MultiAssetBacktest: React.FC<MultiAssetBacktestProps> = ({
                                                 className="group relative overflow-hidden flex items-center space-x-3 pl-4 pr-3 py-3 bg-gradient-to-br from-slate-800/50 to-slate-900/50 border border-slate-700/50 hover:border-violet-500/50 rounded-xl transition-all shadow-lg"
                                             >
                                                 <div
-                                                    className={`absolute inset-0 bg-gradient-to-br ${suggestion?.color || 'from-violet-500/20 to-purple-500/20'} opacity-5 group-hover:opacity-10`}/>
+                                                    className={`absolute inset-0 bg-gradient-to-br ${suggestion?.color || 'from-violet-500/20 to-purple-500/20'} opacity-5 group-hover:opacity-10`} />
                                                 <div className="relative flex items-center space-x-3">
                                                     <div
                                                         className="w-10 h-10 rounded-lg bg-gradient-to-br from-slate-700 to-slate-800 border border-slate-600/50 flex items-center justify-center">
@@ -294,7 +425,7 @@ const MultiAssetBacktest: React.FC<MultiAssetBacktestProps> = ({
                                                         onClick={() => removeSymbol(symbol)}
                                                         className="p-1.5 text-slate-500 hover:text-red-400 transition-colors rounded-lg hover:bg-red-500/10"
                                                     >
-                                                        <X size={16} strokeWidth={2.5}/>
+                                                        <X size={16} strokeWidth={2.5} />
                                                     </button>
                                                 </div>
                                             </div>
@@ -305,11 +436,11 @@ const MultiAssetBacktest: React.FC<MultiAssetBacktestProps> = ({
                                 <div className="w-full flex flex-col items-center justify-center py-8">
                                     <div
                                         className="w-16 h-16 rounded-full bg-gradient-to-br from-slate-800 to-slate-900 border-2 border-dashed border-slate-700/50 flex items-center justify-center mb-4">
-                                        <PlusCircle size={28} className="text-slate-700" strokeWidth={1.5}/>
+                                        <PlusCircle size={28} className="text-slate-700" strokeWidth={1.5} />
                                     </div>
                                     <p className="text-sm font-semibold text-slate-600">No assets selected</p>
                                     <p className="text-xs text-slate-700 text-center mt-1 max-w-md">
-                                        Add at least 2 symbols to configure your portfolio. <br/>
+                                        Add at least 2 symbols to configure your portfolio. <br />
                                         Use suggestions above or type custom tickers.
                                     </p>
                                 </div>
@@ -321,7 +452,7 @@ const MultiAssetBacktest: React.FC<MultiAssetBacktestProps> = ({
                             <div className="mt-6 pt-6 border-t border-slate-700/50">
                                 <div className="flex justify-between items-center mb-4">
                                     <h5 className="text-sm font-bold text-slate-300 flex items-center gap-2">
-                                        <PieChart size={16} className="text-violet-400"/>
+                                        <PieChart size={16} className="text-violet-400" />
                                         Portfolio Allocation
                                     </h5>
                                     <div className="flex bg-slate-800/60 p-1 rounded-lg border border-slate-700/50">
@@ -332,7 +463,7 @@ const MultiAssetBacktest: React.FC<MultiAssetBacktestProps> = ({
                                                 className={`px-3 py-1.5 rounded-md text-xs font-bold uppercase transition-all ${allocationMode === mode
                                                     ? 'bg-gradient-to-r from-violet-600 to-purple-600 text-white'
                                                     : 'text-slate-500 hover:text-slate-300'
-                                                }`}
+                                                    }`}
                                             >
                                                 {mode}
                                             </button>
@@ -402,7 +533,7 @@ const MultiAssetBacktest: React.FC<MultiAssetBacktestProps> = ({
                             className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
                             <div className="flex items-center gap-3">
                                 <div className="p-2 bg-purple-500/20 rounded-lg border border-purple-500/30">
-                                    <Layers className="text-purple-400" size={20} strokeWidth={2}/>
+                                    <Layers className="text-purple-400" size={20} strokeWidth={2} />
                                 </div>
                                 <div>
                                     <h4 className="text-sm font-bold text-slate-300">Strategy Library</h4>
@@ -429,7 +560,7 @@ const MultiAssetBacktest: React.FC<MultiAssetBacktestProps> = ({
                                 </div>
                                 {/* Category Filter */}
                                 <div className="flex items-center space-x-2">
-                                    <Filter size={14} className="text-slate-600"/>
+                                    <Filter size={14} className="text-slate-600" />
                                     <select
                                         value={activeCategory}
                                         onChange={(e) => setActiveCategory(e.target.value)}
@@ -447,16 +578,16 @@ const MultiAssetBacktest: React.FC<MultiAssetBacktestProps> = ({
                                     <button
                                         onClick={() => setViewMode('grid')}
                                         className={`px-3 py-2 transition-all ${viewMode === 'grid' ? 'bg-slate-800 text-slate-200' : 'text-slate-500 hover:text-slate-300'
-                                        }`}
+                                            }`}
                                     >
-                                        <Grid size={16}/>
+                                        <Grid size={16} />
                                     </button>
                                     <button
                                         onClick={() => setViewMode('list')}
                                         className={`px-3 py-2 transition-all ${viewMode === 'list' ? 'bg-slate-800 text-slate-200' : 'text-slate-500 hover:text-slate-300'
-                                        }`}
+                                            }`}
                                     >
-                                        <List size={16}/>
+                                        <List size={16} />
                                     </button>
                                 </div>
                             </div>
@@ -464,7 +595,7 @@ const MultiAssetBacktest: React.FC<MultiAssetBacktestProps> = ({
 
                         {/* Strategy Grid/List */}
                         <div className={`
-                            ${viewMode === 'grid' ? 'grid grid-cols-2 md:grid-cols-3 gap-3' : 'space-y-2'} 
+                            ${viewMode === 'grid' ? 'grid grid-cols-2 md:grid-cols-3 gap-3' : 'space-y-2'}
                             max-h-[400px] overflow-y-auto pr-2 custom-scrollbar
                         `}>
                             {filteredStrategies.map((strat) => {
@@ -482,11 +613,11 @@ const MultiAssetBacktest: React.FC<MultiAssetBacktestProps> = ({
                                         className={`group relative overflow-hidden p-4 rounded-xl border transition-all text-left ${isSelected
                                             ? 'border-violet-500 bg-gradient-to-br from-violet-500/10 to-purple-500/10 shadow-xl shadow-violet-500/20'
                                             : 'border-slate-700/50 bg-slate-800/40 hover:border-slate-600/50 hover:bg-slate-800/60'
-                                        }`}
+                                            }`}
                                     >
                                         {isSelected && (
                                             <div
-                                                className="absolute inset-0 bg-gradient-to-br from-violet-500/5 to-purple-500/5"/>
+                                                className="absolute inset-0 bg-gradient-to-br from-violet-500/5 to-purple-500/5" />
                                         )}
                                         <div className="relative">
                                             <div className="flex items-center justify-between mb-2">
@@ -494,13 +625,13 @@ const MultiAssetBacktest: React.FC<MultiAssetBacktestProps> = ({
                                                     className={`text-[9px] font-bold uppercase tracking-wider px-2 py-1 rounded ${isSelected
                                                         ? 'bg-violet-500/20 text-violet-300 border border-violet-500/30'
                                                         : 'bg-slate-700/50 text-slate-400'
-                                                    }`}>
+                                                        }`}>
                                                     {strat.category}
                                                 </span>
                                                 {isSelected && (
                                                     <div
                                                         className="w-6 h-6 rounded-full bg-gradient-to-br from-violet-500 to-purple-500 flex items-center justify-center">
-                                                        <Check size={12} className="text-white" strokeWidth={3}/>
+                                                        <Check size={12} className="text-white" strokeWidth={3} />
                                                     </div>
                                                 )}
                                             </div>
@@ -515,11 +646,11 @@ const MultiAssetBacktest: React.FC<MultiAssetBacktestProps> = ({
                                                         : strat.complexity === 'Intermediate'
                                                             ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
                                                             : 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
-                                                    }`}>
+                                                        }`}>
                                                     {strat.complexity}
                                                 </span>
                                                 <div className="flex items-center gap-1 text-amber-400">
-                                                    <Star size={10} className="fill-current"/>
+                                                    <Star size={10} className="fill-current" />
                                                     <span className="text-xs font-bold">{strat.drawdown || 4.5}</span>
                                                 </div>
                                             </div>
@@ -537,7 +668,7 @@ const MultiAssetBacktest: React.FC<MultiAssetBacktestProps> = ({
                             <div className="flex items-center gap-3 mb-6">
                                 <div
                                     className="p-2 bg-gradient-to-br from-purple-500/20 to-violet-500/20 rounded-lg border border-purple-500/30">
-                                    <Sliders className="text-purple-400" size={20} strokeWidth={2}/>
+                                    <Sliders className="text-purple-400" size={20} strokeWidth={2} />
                                 </div>
                                 <h4 className="text-sm font-bold text-slate-300">Backtest Configuration</h4>
                             </div>
@@ -546,12 +677,12 @@ const MultiAssetBacktest: React.FC<MultiAssetBacktestProps> = ({
                                 <div className="space-y-3">
                                     <label
                                         className="text-xs font-bold text-slate-400 tracking-wide flex items-center gap-2">
-                                        <Calendar size={14} className="text-violet-400"/>
+                                        <Calendar size={14} className="text-violet-400" />
                                         Time Period
                                     </label>
                                     <select
                                         value={config.period}
-                                        onChange={(e) => setConfig({...config, period: e.target.value})}
+                                        onChange={(e) => setConfig({ ...config, period: e.target.value })}
                                         className="w-full px-4 py-3.5 bg-slate-800/50 border border-slate-700/50 rounded-xl focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20 outline-none text-sm text-slate-200"
                                     >
                                         <option value="1mo">1 Month</option>
@@ -565,12 +696,12 @@ const MultiAssetBacktest: React.FC<MultiAssetBacktestProps> = ({
                                 <div className="space-y-3">
                                     <label
                                         className="text-xs font-bold text-slate-400 tracking-wide flex items-center gap-2">
-                                        <Activity size={14} className="text-violet-400"/>
+                                        <Activity size={14} className="text-violet-400" />
                                         Data Interval
                                     </label>
                                     <select
                                         value={config.interval}
-                                        onChange={(e) => setConfig({...config, interval: e.target.value})}
+                                        onChange={(e) => setConfig({ ...config, interval: e.target.value })}
                                         className="w-full px-4 py-3.5 bg-slate-800/50 border border-slate-700/50 rounded-xl focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20 outline-none text-sm text-slate-200"
                                     >
                                         <option value="1h">1 Hour</option>
@@ -586,28 +717,28 @@ const MultiAssetBacktest: React.FC<MultiAssetBacktestProps> = ({
                                 <div className="flex justify-between items-center">
                                     <div className="flex items-center gap-2">
                                         <div className="p-1.5 bg-violet-500/20 rounded border border-violet-500/30">
-                                            <Cpu size={14} className="text-violet-400"/>
+                                            <Cpu size={14} className="text-violet-400" />
                                         </div>
                                         <label className="text-xs font-bold text-slate-400 tracking-wide">Strategy
                                             Assignment</label>
                                     </div>
                                     <div className="flex bg-slate-800/60 p-1 rounded-xl border border-slate-700/50">
                                         {[
-                                            {id: 'same', label: 'Same Strategy', icon: Copy},
-                                            {id: 'different', label: 'Different Per Asset', icon: Layers},
-                                            {id: 'portfolio', label: 'Portfolio Strategy', icon: PieChart}
+                                            { id: 'same', label: 'Same Strategy', icon: Copy },
+                                            { id: 'different', label: 'Different Per Asset', icon: Layers },
+                                            { id: 'portfolio', label: 'Portfolio Strategy', icon: PieChart }
                                         ].map((mode) => {
                                             const Icon = mode.icon;
                                             return (
                                                 <button
                                                     key={mode.id}
-                                                    onClick={() => setConfig({...config, strategyMode: mode.id as "same" | "different" | "portfolio"})}
+                                                    onClick={() => setConfig({ ...config, strategyMode: mode.id as "same" | "different" | "portfolio" })}
                                                     className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold uppercase transition-all ${config.strategyMode === mode.id
                                                         ? 'bg-gradient-to-r from-violet-600 to-purple-600 text-white shadow-lg'
                                                         : 'text-slate-500 hover:text-slate-300 hover:bg-slate-800'
-                                                    }`}
+                                                        }`}
                                                 >
-                                                    <Icon size={12}/>
+                                                    <Icon size={12} />
                                                     <span>{mode.label}</span>
                                                 </button>
                                             );
@@ -628,7 +759,7 @@ const MultiAssetBacktest: React.FC<MultiAssetBacktestProps> = ({
                                         <div className="divide-y divide-slate-700/50">
                                             {config.symbols.map((symbol: string, index: number) => (
                                                 <div key={symbol}
-                                                     className="p-4 hover:bg-slate-800/20 transition-colors">
+                                                    className="p-4 hover:bg-slate-800/20 transition-colors">
                                                     <div className="flex items-center justify-between">
                                                         <div className="flex items-center gap-3">
                                                             <div
@@ -668,7 +799,7 @@ const MultiAssetBacktest: React.FC<MultiAssetBacktestProps> = ({
                                     <div
                                         className="p-4 bg-gradient-to-br from-violet-500/5 to-purple-500/5 border border-violet-500/20 rounded-xl">
                                         <div className="flex items-center gap-3">
-                                            <Copy size={16} className="text-violet-400"/>
+                                            <Copy size={16} className="text-violet-400" />
                                             <div>
                                                 <p className="text-xs font-bold text-violet-400">Same Strategy Mode</p>
                                                 <p className="text-xs text-slate-400 mt-1">
@@ -700,7 +831,7 @@ const MultiAssetBacktest: React.FC<MultiAssetBacktestProps> = ({
                                         <div className="space-y-3">
                                             <label
                                                 className="text-xs font-bold text-slate-400 tracking-wide flex items-center gap-2">
-                                                <DollarSign size={14} className="text-emerald-400"/>
+                                                <DollarSign size={14} className="text-emerald-400" />
                                                 Initial Capital
                                             </label>
                                             <div className="relative">
@@ -722,7 +853,7 @@ const MultiAssetBacktest: React.FC<MultiAssetBacktestProps> = ({
                                         <div className="space-y-3">
                                             <label
                                                 className="text-xs font-bold text-slate-400 tracking-wide flex items-center gap-2">
-                                                <Target size={14} className="text-amber-400"/>
+                                                <Target size={14} className="text-amber-400" />
                                                 Max Position %
                                             </label>
                                             <input
@@ -740,12 +871,12 @@ const MultiAssetBacktest: React.FC<MultiAssetBacktestProps> = ({
                                         <div className="space-y-3">
                                             <label
                                                 className="text-xs font-bold text-slate-400 tracking-wide flex items-center gap-2">
-                                                <Shield size={14} className="text-blue-400"/>
+                                                <Shield size={14} className="text-blue-400" />
                                                 Risk Level
                                             </label>
                                             <select
                                                 value={config.riskLevel || 'medium'}
-                                                onChange={(e) => setConfig({...config, riskLevel: e.target.value})}
+                                                onChange={(e) => setConfig({ ...config, riskLevel: e.target.value })}
                                                 className="w-full px-4 py-3.5 bg-slate-800/50 border border-slate-700/50 rounded-xl focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20 outline-none text-sm text-slate-200"
                                             >
                                                 <option value="low">Conservative</option>
@@ -768,19 +899,19 @@ const MultiAssetBacktest: React.FC<MultiAssetBacktestProps> = ({
                             <div
                                 className="bg-gradient-to-br from-violet-900/40 via-purple-900/40 to-slate-900/90 backdrop-blur-xl border border-violet-500/30 rounded-2xl p-6 shadow-2xl relative overflow-hidden">
                                 <div
-                                    className="absolute inset-0 bg-gradient-to-br from-violet-500/5 via-transparent to-purple-500/5"/>
+                                    className="absolute inset-0 bg-gradient-to-br from-violet-500/5 via-transparent to-purple-500/5" />
                                 <div className="relative">
                                     <div className="flex items-center justify-between mb-4">
                                         <div className="flex items-center gap-2">
                                             <div
                                                 className="p-1.5 bg-gradient-to-br from-violet-500/30 to-purple-500/30 rounded border border-violet-500/50">
-                                                <Zap size={16} className="text-violet-300" strokeWidth={2}/>
+                                                <Zap size={16} className="text-violet-300" strokeWidth={2} />
                                             </div>
                                             <h4 className="text-xs font-bold text-violet-400 uppercase tracking-wider">Strategy
                                                 Intelligence</h4>
                                         </div>
                                         <div className="flex items-center gap-1">
-                                            <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"/>
+                                            <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
                                             <span className="text-[10px] text-emerald-400 font-bold">LIVE</span>
                                         </div>
                                     </div>
@@ -802,7 +933,7 @@ const MultiAssetBacktest: React.FC<MultiAssetBacktestProps> = ({
                                                 : selectedStrategy.complexity === 'Intermediate'
                                                     ? 'text-amber-400'
                                                     : 'text-emerald-400'
-                                            }`}>
+                                                }`}>
                                                 {selectedStrategy.complexity}
                                             </p>
                                         </div>
@@ -811,7 +942,7 @@ const MultiAssetBacktest: React.FC<MultiAssetBacktestProps> = ({
                                     {selectedStrategy.best_for && selectedStrategy.best_for.length > 0 && (
                                         <div className="mb-6">
                                             <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3 flex items-center gap-2">
-                                                <Target size={14} className="text-violet-400"/>
+                                                <Target size={14} className="text-violet-400" />
                                                 Optimal Market Conditions
                                             </p>
                                             <div className="flex flex-wrap gap-2">
@@ -853,7 +984,7 @@ const MultiAssetBacktest: React.FC<MultiAssetBacktestProps> = ({
                                 className="h-[400px] flex flex-col items-center justify-center p-12 border-2 border-dashed border-slate-700/50 rounded-2xl bg-gradient-to-br from-slate-900/30 to-slate-800/30 backdrop-blur-sm">
                                 <div
                                     className="w-20 h-20 rounded-full bg-gradient-to-br from-slate-800 to-slate-900 border-2 border-dashed border-slate-700/50 flex items-center justify-center mb-6">
-                                    <Info size={32} className="text-slate-700" strokeWidth={1.5}/>
+                                    <Info size={32} className="text-slate-700" strokeWidth={1.5} />
                                 </div>
                                 <p className="text-sm font-bold text-slate-600 text-center">Select a Strategy</p>
                                 <p className="text-xs text-slate-700 text-center mt-2 max-w-[200px]">
@@ -871,7 +1002,7 @@ const MultiAssetBacktest: React.FC<MultiAssetBacktestProps> = ({
                                 <div className="flex items-center justify-between mb-6">
                                     <div className="flex items-center gap-3">
                                         <div className="p-1.5 bg-purple-500/20 rounded border border-purple-500/30">
-                                            <Settings size={16} className="text-purple-400" strokeWidth={2}/>
+                                            <Settings size={16} className="text-purple-400" strokeWidth={2} />
                                         </div>
                                         <div>
                                             <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Strategy
@@ -886,13 +1017,13 @@ const MultiAssetBacktest: React.FC<MultiAssetBacktestProps> = ({
                                             onClick={() => setShowParameters(!showParameters)}
                                             className="p-2 hover:bg-slate-800 rounded-lg transition-colors text-slate-500 hover:text-violet-400"
                                         >
-                                            {showParameters ? <Eye size={16}/> : <EyeOff size={16}/>}
+                                            {showParameters ? <Eye size={16} /> : <EyeOff size={16} />}
                                         </button>
                                         <button
-                                            onClick={() => setConfig({...config, params: selectedStrategy?.parameters})}
+                                            onClick={() => setConfig({ ...config, params: selectedStrategy?.parameters })}
                                             className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-slate-500 hover:text-violet-400 transition-colors bg-slate-800/50 rounded-lg border border-slate-700/50"
                                         >
-                                            <RefreshCw size={12} strokeWidth={2.5}/>
+                                            <RefreshCw size={12} strokeWidth={2.5} />
                                             <span>Reset</span>
                                         </button>
                                     </div>
@@ -909,12 +1040,12 @@ const MultiAssetBacktest: React.FC<MultiAssetBacktestProps> = ({
                                         <div className="mt-8 pt-6 border-t border-slate-700/50">
                                             <div className="flex items-center justify-between">
                                                 <div className="flex items-center gap-2">
-                                                    <div className="w-2 h-2 rounded-full bg-emerald-500"/>
+                                                    <div className="w-2 h-2 rounded-full bg-emerald-500" />
                                                     <span
                                                         className="text-xs font-bold text-slate-500 uppercase tracking-wider">Validated</span>
                                                 </div>
                                                 <div className="flex items-center gap-1 text-xs text-slate-600">
-                                                    <Lock size={12}/>
+                                                    <Lock size={12} />
                                                     <span>Safe to run</span>
                                                 </div>
                                             </div>
@@ -931,43 +1062,69 @@ const MultiAssetBacktest: React.FC<MultiAssetBacktestProps> = ({
                                 Actions</h4>
                             <div className="space-y-3">
                                 <button
-                                    className="w-full flex items-center justify-between p-3 bg-slate-800/40 hover:bg-slate-800/60 border border-slate-700/50 rounded-xl transition-all group">
+                                    onClick={handleSavePortfolio}
+                                    disabled={isSaving}
+                                    className="w-full flex items-center justify-between p-3 bg-slate-800/40 hover:bg-slate-800/60 border border-slate-700/50 rounded-xl transition-all group disabled:opacity-50">
                                     <div className="flex items-center gap-3">
                                         <div className="p-2 bg-emerald-500/20 rounded-lg border border-emerald-500/30">
-                                            <Save size={16} className="text-emerald-400"/>
+                                            {isSaving ? (
+                                                <RefreshCw size={16} className="text-emerald-400 animate-spin" />
+                                            ) : (
+                                                <Save size={16} className="text-emerald-400" />
+                                            )}
                                         </div>
                                         <div className="text-left">
-                                            <p className="text-sm font-bold text-slate-200">Save Portfolio</p>
+                                            <p className="text-sm font-bold text-slate-200">
+                                                {isSaving ? 'Saving...' : 'Save Portfolio'}
+                                            </p>
                                             <p className="text-xs text-slate-500">Store current configuration</p>
                                         </div>
                                     </div>
-                                    <ChevronRight size={16} className="text-slate-500 group-hover:text-violet-400"/>
+                                    <ChevronRight size={16} className="text-slate-500 group-hover:text-violet-400" />
                                 </button>
                                 <button
+                                    onClick={() => setShowLoadModal(true)}
                                     className="w-full flex items-center justify-between p-3 bg-slate-800/40 hover:bg-slate-800/60 border border-slate-700/50 rounded-xl transition-all group">
                                     <div className="flex items-center gap-3">
-                                        <div className="p-2 bg-blue-500/20 rounded-lg border border-blue-500/30">
-                                            <Download size={16} className="text-blue-400"/>
+                                        <div className="p-2 bg-violet-500/20 rounded-lg border border-violet-500/30">
+                                            <FolderOpen size={16} className="text-violet-400" />
                                         </div>
                                         <div className="text-left">
-                                            <p className="text-sm font-bold text-slate-200">Export Config</p>
-                                            <p className="text-xs text-slate-500">Download JSON file</p>
+                                            <p className="text-sm font-bold text-slate-200">Load Config</p>
+                                            <p className="text-xs text-slate-500">Restore a saved setup</p>
                                         </div>
                                     </div>
-                                    <ChevronRight size={16} className="text-slate-500 group-hover:text-violet-400"/>
+                                    <ChevronRight size={16} className="text-slate-500 group-hover:text-violet-400" />
                                 </button>
                                 <button
-                                    className="w-full flex items-center justify-between p-3 bg-slate-800/40 hover:bg-slate-800/60 border border-slate-700/50 rounded-xl transition-all group">
+                                    onClick={handleExportResults}
+                                    disabled={!results}
+                                    className="w-full flex items-center justify-between p-3 bg-slate-800/40 hover:bg-slate-800/60 border border-slate-700/50 rounded-xl transition-all group disabled:opacity-50 disabled:cursor-not-allowed">
+                                    <div className="flex items-center gap-3">
+                                        <div className="p-2 bg-blue-500/20 rounded-lg border border-blue-500/30">
+                                            <Download size={16} className="text-blue-400" />
+                                        </div>
+                                        <div className="text-left">
+                                            <p className="text-sm font-bold text-slate-200">Export Results</p>
+                                            <p className="text-xs text-slate-500">Download CSV report</p>
+                                        </div>
+                                    </div>
+                                    <ChevronRight size={16} className="text-slate-500 group-hover:text-violet-400" />
+                                </button>
+                                <button
+                                    onClick={() => setShowRiskAnalysis(true)}
+                                    disabled={!results}
+                                    className="w-full flex items-center justify-between p-3 bg-slate-800/40 hover:bg-slate-800/60 border border-slate-700/50 rounded-xl transition-all group disabled:opacity-50 disabled:cursor-not-allowed">
                                     <div className="flex items-center gap-3">
                                         <div className="p-2 bg-amber-500/20 rounded-lg border border-amber-500/30">
-                                            <AlertCircle size={16} className="text-amber-400"/>
+                                            <AlertCircle size={16} className="text-amber-400" />
                                         </div>
                                         <div className="text-left">
                                             <p className="text-sm font-bold text-slate-200">Risk Analysis</p>
                                             <p className="text-xs text-slate-500">Run risk assessment</p>
                                         </div>
                                     </div>
-                                    <ChevronRight size={16} className="text-slate-500 group-hover:text-violet-400"/>
+                                    <ChevronRight size={16} className="text-slate-500 group-hover:text-violet-400" />
                                 </button>
                             </div>
                         </div>
@@ -978,8 +1135,34 @@ const MultiAssetBacktest: React.FC<MultiAssetBacktestProps> = ({
             {/* Results Section - Only show after backtest has been run */}
             {hasRunBacktest && results && (
                 <div className="pt-6 border-t border-slate-800/80 animate-in fade-in">
-                    <MultiBacktestResults results={results}/>
+                    <MultiBacktestResults results={results} />
                 </div>
+            )}
+
+            {/* Risk Analysis Modal */}
+            {showRiskAnalysis && results && (
+                <RiskAnalysisModal
+                    results={results}
+                    onClose={() => setShowRiskAnalysis(false)}
+                />
+            )}
+
+            {showLoadModal && (
+                <LoadConfigModal
+                    mode="multi"
+                    onClose={() => setShowLoadModal(false)}
+                    onSelect={(savedConfig: any) => {
+                        setConfig({
+                            ...config,
+                            strategy: savedConfig.strategy || config.strategy,
+                            symbols: savedConfig.symbols || config.symbols,
+                            allocations: savedConfig.allocations || config.allocations,
+                            params: savedConfig.params || config.params,
+                            period: savedConfig.period || config.period,
+                            interval: savedConfig.interval || config.interval,
+                        });
+                    }}
+                />
             )}
         </div>
     );

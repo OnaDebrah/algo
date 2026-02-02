@@ -184,8 +184,8 @@ export const backtest = {
     getHistory: (params?: {
         limit?: number;
         offset?: number;
-        backtest_type?: string;
-        status?: string;
+        backtest_type?: 'single' | 'multi' | 'options';
+        status?: 'pending' | 'running' | 'completed' | 'failed';
         symbol?: string;
     }) => client.get<BacktestHistoryItem[]>('/backtest/history', {params}),
 
@@ -304,8 +304,9 @@ export interface AnalyticsPeriod {
 }
 
 export const analytics = {
-    getPerformance: (portfolio_id: number, params: AnalyticsPeriod) =>
-        client.get<Record<string, any>>(`/analytics/performance/${portfolio_id}`, {params}),
+    getPerformance: async (portfolio_id: number, params: AnalyticsPeriod) => {
+        return client.get<Record<string, any>>(`/analytics/performance/${portfolio_id}`, {params})
+    },
 
     getReturnsAnalysis: (portfolio_id: number) =>
         client.get<Record<string, unknown>>(`/analytics/returns/${portfolio_id}`),

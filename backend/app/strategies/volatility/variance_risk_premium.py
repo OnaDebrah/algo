@@ -3,7 +3,7 @@ from typing import Dict, List, Union
 import numpy as np
 import pandas as pd
 
-from strategies.volatility.base_volatility import BaseVolatilityStrategy
+from backend.app.strategies.volatility.base_volatility import BaseVolatilityStrategy
 
 
 class VarianceRiskPremiumStrategy(BaseVolatilityStrategy):

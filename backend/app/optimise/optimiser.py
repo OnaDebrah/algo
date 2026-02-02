@@ -34,7 +34,7 @@ class PortfolioOptimizer:
 
     def fetch_data(self) -> pd.DataFrame:
         """Fetch historical data for all symbols"""
-        from core.data_fetcher import fetch_stock_data
+        from backend.app.core import fetch_stock_data
 
         prices = pd.DataFrame()
 
@@ -432,7 +432,7 @@ class PortfolioBacktest:
         Returns:
             Backtest results
         """
-        from core.data_fetcher import fetch_stock_data
+        from streamlit.core import fetch_stock_data
 
         # Fetch data for all symbols
         prices = pd.DataFrame()

@@ -2,7 +2,7 @@
 AI Advisor schemas
 """
 
-from typing import List, Tuple, Dict, Any
+from typing import Any, Dict, List
 
 from pydantic import BaseModel
 
@@ -15,6 +15,7 @@ class UserProfile(BaseModel):
     time_commitment: str
     capital: float
     market_preference: str
+
 
 class GuideRequest(BaseModel):
     goal: str

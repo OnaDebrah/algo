@@ -1,17 +1,19 @@
 """Initialize default data"""
+
 import logging
 
 from sqlalchemy import select
 
-from backend.app.database import AsyncSessionLocal
+from backend.app.database import DatabaseSession
 from backend.app.models.user import User
 from backend.app.utils.security import get_password_hash
+
 logger = logging.getLogger(__name__)
 
 
 async def init_default_data():
     """Create default admin user"""
-    async with AsyncSessionLocal() as db:
+    async with DatabaseSession() as db:
         try:
             # Check if admin exists
             result = await db.execute(select(User).filter(User.email == "admin@example.com"))
@@ -24,7 +26,7 @@ async def init_default_data():
                     username="Admin User",
                     is_active=True,
                     is_superuser=True,
-                    tier="ENTERPRISE"
+                    tier="ENTERPRISE",
                 )
                 db.add(user)
                 await db.commit()

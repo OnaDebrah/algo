@@ -4,7 +4,7 @@ import numpy as np
 import pandas as pd
 from statsmodels.tsa.vector_ar.vecm import coint_johansen
 
-from strategies.stat_arb.base_stat_arb import StatisticalArbitrageStrategy
+from backend.app.strategies.stat_arb.base_stat_arb import StatisticalArbitrageStrategy
 
 # ============================================================================
 # SPECIALIZED STATARB VARIATIONS

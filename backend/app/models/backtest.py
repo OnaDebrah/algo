@@ -33,6 +33,10 @@ class BacktestRun(Base):
     total_trades = Column(Integer)
     final_equity = Column(Float)
 
+    # Results Data (Stored as JSON)
+    equity_curve = Column(JSON, nullable=True)
+    trades_json = Column(JSON, nullable=True)
+
     # Metadata
     status = Column(String, default="pending")  # pending, running, completed, failed
     error_message = Column(String, nullable=True)

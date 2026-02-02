@@ -55,7 +55,7 @@ Thumbs.db
 # Data
 data/*.csv
 data/*.json
-!data/.gitkeep
+!streamlit/data/.gitkeep
 
 # Tests
 .pytest_cache/

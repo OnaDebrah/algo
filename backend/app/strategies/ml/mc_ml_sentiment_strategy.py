@@ -18,7 +18,7 @@ import requests
 import tweepy
 from nltk.sentiment.vader import SentimentIntensityAnalyzer
 
-from strategies.base_strategy import BaseStrategy
+from backend.app.strategies import BaseStrategy
 
 # ML imports
 try:
