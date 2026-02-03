@@ -293,6 +293,8 @@ class MultiAssetEngine:
                     "executed_at": (timestamp.isoformat() if isinstance(timestamp, datetime) else str(timestamp)),
                     "strategy": strategy_name,
                     "notes": f"Pairs short: {metadata.get('z_score', 'N/A')}" if metadata else None,
+                    "profit": None,
+                    "profit_pct": None,
                 }
 
                 self.trades.append(trade_data)

@@ -7,8 +7,10 @@ from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import desc, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from statsmodels.tsa.stattools import coint
 
 from backend.app.api.deps import check_permission, get_current_active_user, get_db
+from backend.app.core import fetch_stock_data
 from backend.app.core.permissions import Permission
 from backend.app.models import BacktestRun
 from backend.app.models.user import User
@@ -20,9 +22,13 @@ from backend.app.schemas.backtest import (
     MultiAssetBacktestResponse,
     OptionsBacktestRequest,
     OptionsBacktestResponse,
+    PairsValidationRequest,
+    PairsValidationResponse,
 )
 from backend.app.services.auth_service import AuthService
 from backend.app.services.backtest_service import BacktestService
+from backend.app.services.market_service import get_market_service
+from backend.app.utils.helpers import pairs
 
 router = APIRouter(prefix="/backtest", tags=["Backtest"])
 
@@ -282,3 +288,89 @@ async def get_backtest_stats(current_user: User = Depends(get_current_active_use
             "total_trades": int(metrics[4]) if metrics[4] else 0,
         },
     }
+
+
+@router.post("/validated", response_model=PairsValidationResponse)
+async def validate_pairs(request: PairsValidationRequest):
+    """
+    Validate a pairs trading pair
+
+    Checks:
+    1. Sector matching
+    2. Historical correlation
+    3. Cointegration (Engle-Granger test)
+    """
+    try:
+        # Fetch historical data
+        asset1 = fetch_stock_data(request.asset_1, period=request.period, interval=request.interval)
+        asset2 = fetch_stock_data(request.asset_2, period=request.period, interval=request.interval)
+
+        if asset1.empty or asset2.empty:
+            raise HTTPException(status_code=400, detail="Could not fetch data for one or both symbols")
+        # Align data
+        common_dates = asset1.index.intersection(asset2.index)
+        if len(common_dates) < 30:
+            raise HTTPException(status_code=400, detail="Insufficient common data points")
+
+        prices_1 = asset1.loc[common_dates, "Close"]
+        prices_2 = asset2.loc[common_dates, "Close"]
+
+        # Get sectors
+        service = get_market_service()
+        sector_1 = await service.get_sector(request.asset_1)
+        sector_2 = await service.get_sector(request.asset_2)
+
+        # Calculate correlation
+        correlation: float = prices_1.corr(prices_2)
+
+        # Cointegration test (Engle-Granger)
+        coint_stat, coint_pvalue, _ = coint(prices_1, prices_2)
+
+        # Validation logic
+        warnings = []
+        errors = []
+
+        # Check sector
+        if sector_1 != sector_2:
+            warnings.append(f"Different sectors: {sector_1} vs {sector_2}")
+
+        # Check correlation
+        if correlation < 0.5:
+            errors.append(f"Very low correlation: {correlation:.3f} (< 0.5)")
+        elif correlation < 0.7:
+            warnings.append(f"Moderate correlation: {correlation:.3f} (recommended > 0.7)")
+
+        # Check cointegration
+        if coint_pvalue > 0.1:
+            errors.append(f"Not cointegrated: p-value {coint_pvalue:.4f} (> 0.1)")
+        elif coint_pvalue > 0.05:
+            warnings.append(f"Weak cointegration: p-value {coint_pvalue:.4f} (recommended < 0.05)")
+
+        is_valid = len(errors) == 0
+
+        return PairsValidationResponse(
+            asset_1=request.asset_1,
+            asset_2=request.asset_2,
+            sector_1=sector_1,
+            sector_2=sector_2,
+            correlation=float(correlation),
+            cointegration_pvalue=float(coint_pvalue),
+            cointegration_statistic=float(coint_stat),
+            is_valid=is_valid,
+            warnings=warnings,
+            errors=errors,
+            lookback_days=len(common_dates),
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Validation failed: {str(e)}")
+
+
+@router.get("/suggested")
+async def get_suggested_pairs():
+    """
+    Get list of pre-validated pairs
+    """
+    return {"pairs": pairs}
