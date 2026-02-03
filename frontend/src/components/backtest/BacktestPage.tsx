@@ -17,9 +17,14 @@ import {
 import { backtest, strategy as strategyApi } from "@/utils/api";
 import { formatDate } from "@/utils/formatters";
 
+const isPairsStrategy = (strategyKey: string): boolean => {
+    const pairsStrategies = ['kalman_filter', 'pairs_trading', 'cointegration'];
+    return pairsStrategies.includes(strategyKey);
+};
+
 const BacktestPage = () => {
     const [backtestMode, setBacktestMode] = useState('single');
-    const [strategiesList, setStrategiesList] = useState<Strategy[]>(strategies); // Initialize with static then fetch
+    const [strategiesList, setStrategiesList] = useState<Strategy[]>(strategies);
 
     useEffect(() => {
         const fetchStrategies: () => Promise<void> = async () => {
@@ -29,10 +34,7 @@ const BacktestPage = () => {
                     const mapped = response.map((s: StrategyInfo) => ({
                         ...s,
                         id: s.key,
-                        complexity: 'Intermediate' as const,
-                        // Convert parameters array to object format for StrategyParameterForm
-                        // API returns: [{name: "short_window", default: 10}, ...]
-                        // Form expects: {short_window: 10, ...}
+                        complexity: s.complexity as Strategy["complexity"],
                         parameters: Array.isArray(s.parameters)
                             ? s.parameters.reduce((acc: Record<string, any>, p: any) => {
                                 acc[p.name] = p.default;
@@ -74,11 +76,10 @@ const BacktestPage = () => {
         initialCapital: 1000,
         maxPositionPct: 20,
         riskLevel: 'Intermediate'
-
     });
+
     const [results, setResults] = useState<BacktestResult | null>(null);
     const [isRunning, setIsRunning] = useState(false);
-
 
     const addSymbol = () => {
         const symbol = multiConfig.symbolInput.trim().toUpperCase();
@@ -128,7 +129,6 @@ const BacktestPage = () => {
 
                     const formattedBenchmark = response.benchmark ? {
                         ...response.benchmark,
-                        // We MUST format the benchmark's internal curve to match the strategy's curve
                         equity_curve: response.benchmark.equity_curve.map((bp: EquityCurvePoint) => ({
                             ...bp,
                             timestamp: formatDate(bp.timestamp)
@@ -176,43 +176,77 @@ const BacktestPage = () => {
                     });
                 }
             } else {
-                // Multi-asset backtest
-                // Build strategy_configs based on mode
+
+                const isPairs = isPairsStrategy(multiConfig.strategy);
+
                 let strategyConfigs: Record<string, any> = {};
 
-                if (multiConfig.strategyMode === 'same') {
-                    // Apply same strategy to all symbols
-                    strategyConfigs = multiConfig.symbols.reduce((acc, sym: string) => ({
-                        ...acc,
-                        [sym]: {
-                            strategy_key: multiConfig.strategy,
-                            parameters: typeof multiConfig.params === 'object' && !Array.isArray(multiConfig.params)
-                                ? multiConfig.params
-                                : {}
+                if (isPairs) {
+                    console.log('🔬 Pairs Trading Mode Detected');
+
+                    const asset1 = multiConfig.params.asset_1 || multiConfig.symbols[0];
+                    const asset2 = multiConfig.params.asset_2 || multiConfig.symbols[1];
+
+                    if (multiConfig.symbols.length !== 2 ||
+                        !multiConfig.symbols.includes(asset1) ||
+                        !multiConfig.symbols.includes(asset2)) {
+                        console.warn('Adjusting symbols to match pair:', asset1, asset2);
+                        setMultiConfig(prev => ({
+                            ...prev,
+                            symbols: [asset1, asset2]
+                        }));
+                    }
+
+                    const pairsConfig = {
+                        strategy_key: multiConfig.strategy,
+                        parameters: {
+                            ...multiConfig.params,
+                            asset_1: asset1,
+                            asset_2: asset2
                         }
-                    }), {});
-                } else if (multiConfig.strategyMode === 'different') {
-                    // Use different strategies per symbol (from multiConfig.strategies)
-                    strategyConfigs = multiConfig.symbols.reduce((acc, sym: string) => ({
-                        ...acc,
-                        [sym]: {
-                            strategy_key: multiConfig.strategies[sym] || multiConfig.strategy,
-                            parameters: typeof multiConfig.params === 'object' && !Array.isArray(multiConfig.params)
-                                ? multiConfig.params
-                                : {}
-                        }
-                    }), {});
+                    };
+
+                    strategyConfigs = {
+                        [asset1]: pairsConfig,
+                        [asset2]: pairsConfig
+                    };
+
+                    console.log('📋 Pairs Strategy Config:', strategyConfigs);
+
                 } else {
-                    // Portfolio mode - use default strategy for all
-                    strategyConfigs = multiConfig.symbols.reduce((acc, sym: string) => ({
-                        ...acc,
-                        [sym]: {
-                            strategy_key: multiConfig.strategy,
-                            parameters: typeof multiConfig.params === 'object' && !Array.isArray(multiConfig.params)
-                                ? multiConfig.params
-                                : {}
-                        }
-                    }), {});
+                    if (multiConfig.strategyMode === 'same') {
+                        strategyConfigs = multiConfig.symbols.reduce((acc, sym: string) => ({
+                            ...acc,
+                            [sym]: {
+                                strategy_key: multiConfig.strategy,
+                                parameters: typeof multiConfig.params === 'object' && !Array.isArray(multiConfig.params)
+                                    ? multiConfig.params
+                                    : {}
+                            }
+                        }), {});
+                    } else if (multiConfig.strategyMode === 'different') {
+                        // Use different strategies per symbol
+                        strategyConfigs = multiConfig.symbols.reduce((acc, sym: string) => ({
+                            ...acc,
+                            [sym]: {
+                                strategy_key: multiConfig.strategies[sym] || multiConfig.strategy,
+                                parameters: typeof multiConfig.params === 'object' && !Array.isArray(multiConfig.params)
+                                    ? multiConfig.params
+                                    : {}
+                            }
+                        }), {});
+                    } else {
+                        // Portfolio mode
+                        strategyConfigs = multiConfig.symbols.reduce((acc, sym: string) => ({
+                            ...acc,
+                            [sym]: {
+                                strategy_key: multiConfig.strategy,
+                                parameters: typeof multiConfig.params === 'object' && !Array.isArray(multiConfig.params)
+                                    ? multiConfig.params
+                                    : {}
+                            }
+                        }), {});
+                    }
                 }
 
                 const request: any = {
@@ -229,7 +263,7 @@ const BacktestPage = () => {
                     request.custom_allocations = multiConfig.allocations;
                 }
 
-                console.log('Running multi-asset backtest with:', request);
+                console.log('🚀 Running multi-asset backtest with:', request);
 
                 const response = await backtest.runMulti(request);
 
@@ -291,7 +325,6 @@ const BacktestPage = () => {
             }
         } catch (error) {
             console.error("Backtest failed", error);
-            // Optionally set error state or notification
         } finally {
             setIsRunning(false);
         }
@@ -304,29 +337,31 @@ const BacktestPage = () => {
                     <h2 className="text-3xl font-bold text-slate-100 tracking-tight">
                         Backtesting <span className="text-slate-400 font-normal">Laboratory</span>
                     </h2>
-                    <p className="text-slate-400 text-sm mt-1 font-medium">Historical strategy validation and
-                        performance analysis</p>
+                    <p className="text-slate-400 text-sm mt-1 font-medium">
+                        Historical strategy validation and performance analysis
+                    </p>
                 </div>
 
                 <div className="flex items-center space-x-4">
-                    <div
-                        className="flex items-center space-x-1 bg-slate-800/60 border border-slate-700/50 rounded-xl p-1">
+                    <div className="flex items-center space-x-1 bg-slate-800/60 border border-slate-700/50 rounded-xl p-1">
                         <button
                             onClick={() => setBacktestMode('single')}
-                            className={`px-5 py-2.5 rounded-lg text-sm font-semibold transition-all ${backtestMode === 'single'
-                                ? 'bg-gradient-to-r from-violet-600 to-fuchsia-600 text-white shadow-lg'
-                                : 'text-slate-400 hover:text-slate-200'
-                                }`}
+                            className={`px-5 py-2.5 rounded-lg text-sm font-semibold transition-all ${
+                                backtestMode === 'single'
+                                    ? 'bg-gradient-to-r from-violet-600 to-fuchsia-600 text-white shadow-lg'
+                                    : 'text-slate-400 hover:text-slate-200'
+                            }`}
                         >
                             <BarChart3 size={16} className="inline mr-2" strokeWidth={2} />
                             Single Asset
                         </button>
                         <button
                             onClick={() => setBacktestMode('multi')}
-                            className={`px-5 py-2.5 rounded-lg text-sm font-semibold transition-all ${backtestMode === 'multi'
-                                ? 'bg-gradient-to-r from-violet-600 to-fuchsia-600 text-white shadow-lg'
-                                : 'text-slate-400 hover:text-slate-200'
-                                }`}
+                            className={`px-5 py-2.5 rounded-lg text-sm font-semibold transition-all ${
+                                backtestMode === 'multi'
+                                    ? 'bg-gradient-to-r from-violet-600 to-fuchsia-600 text-white shadow-lg'
+                                    : 'text-slate-400 hover:text-slate-200'
+                            }`}
                         >
                             <TrendingUp size={16} className="inline mr-2" strokeWidth={2} />
                             Multi-Asset
