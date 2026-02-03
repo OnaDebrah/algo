@@ -45,6 +45,7 @@ import LoadConfigModal from "@/components/backtest/LoadConfigModal";
 import { BacktestResult, MultiAssetConfig, Strategy, PortfolioCreate } from "@/types/all_types";
 import { portfolio } from "@/utils/api";
 import KalmanFilterParameters from "@/components/backtest/KalmanFilterParameters";
+import {assetSuggestions} from "@/utils/suggestions";
 
 interface MultiAssetBacktestProps {
     config: MultiAssetConfig;
@@ -247,17 +248,6 @@ const MultiAssetBacktest: React.FC<MultiAssetBacktestProps> = ({
         const pairsStrategies = ['kalman_filter', 'pairs_trading', 'cointegration'];
         return pairsStrategies.includes(config.strategy);
     }, [config.strategy]);
-
-    const assetSuggestions = [
-        { symbol: 'AAPL', name: 'Apple Inc.', sector: 'Technology', color: 'from-gray-500 to-slate-500' },
-        { symbol: 'MSFT', name: 'Microsoft', sector: 'Technology', color: 'from-blue-500 to-cyan-500' },
-        { symbol: 'GOOGL', name: 'Alphabet', sector: 'Technology', color: 'from-red-500 to-orange-500' },
-        { symbol: 'AMZN', name: 'Amazon', sector: 'Consumer', color: 'from-amber-500 to-yellow-500' },
-        { symbol: 'TSLA', name: 'Tesla', sector: 'Automotive', color: 'from-emerald-500 to-green-500' },
-        { symbol: 'NVDA', name: 'NVIDIA', sector: 'Semiconductors', color: 'from-green-500 to-emerald-500' },
-        { symbol: 'JPM', name: 'JPMorgan', sector: 'Financial', color: 'from-blue-500 to-indigo-500' },
-        { symbol: 'BTC-USD', name: 'Bitcoin', sector: 'Crypto', color: 'from-orange-500 to-amber-500' },
-    ];
 
     return (
         <div className="space-y-6">

@@ -244,6 +244,27 @@ export interface MultiAssetBacktestResponse {
 
 }
 
+export interface PairsValidationRequest {
+    asset_1: string;
+    asset_2: string;
+    period: string;
+    interval: string;
+}
+
+export interface PairsValidationResponse {
+    asset_1: string;
+    asset_2: string;
+    sector_1: string;
+    sector_2: string;
+    correlation: number;
+    cointegration_pvalue: number;
+    cointegration_statistic: number;
+    is_valid: boolean;
+    warnings: string[];
+    errors: string[];
+    lookback_days: number;
+}
+
 // ==================== OPTIONS BACKTEST ====================
 
 export interface OptionsBacktestRequest {

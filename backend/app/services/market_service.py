@@ -21,7 +21,8 @@ from typing import Any, Dict, List, Optional
 import yfinance as yf
 from psycopg2.extras import RealDictCursor
 
-from backend.app.core import DatabaseManager
+from backend.app.core.database import DatabaseManager
+from backend.app.utils.helpers import SECTOR_MAP
 
 logger = logging.getLogger(__name__)
 
@@ -764,6 +765,19 @@ class MarketService:
             }
         except Exception:
             return {"is_open": False, "last_update": datetime.now().isoformat(), "market": "US"}
+
+    async def get_sector(self, symbol: str) -> str:
+        """Get sector for a symbol"""
+        # First check our map
+        if symbol in SECTOR_MAP:
+            return SECTOR_MAP[symbol]
+
+        try:
+            ticker = yf.Ticker(symbol)
+            info = ticker.info
+            return info.get("sector", "Unknown")
+        except Exception:
+            return "Unknown"
 
 
 # Singleton instance for easy import
