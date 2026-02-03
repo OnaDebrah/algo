@@ -1,11 +1,12 @@
 """
 Multi-Asset Backtesting Engine
 Backtest strategies across multiple symbols simultaneously
+Enhanced to support pairs trading strategies like Kalman Filter
 """
 
 import logging
 from datetime import datetime
-from typing import Dict, List
+from typing import Dict, List, Optional, Union
 
 import pandas as pd
 
@@ -20,29 +21,53 @@ logger = logging.getLogger(__name__)
 
 
 class MultiAssetEngine:
-    """Engine for backtesting across multiple assets"""
+    """
+    Engine for backtesting across multiple assets
+
+    Supports two modes:
+    1. Independent strategies: Each symbol has its own strategy
+    2. Pairs trading: One strategy operates on a pair of symbols
+    """
 
     def __init__(
         self,
-        strategies: Dict[str, BaseStrategy],  # {symbol: strategy}
+        strategies: Union[Dict[str, BaseStrategy], BaseStrategy],  # {symbol: strategy} OR single pairs strategy
         initial_capital: float = 100000,
         risk_manager: RiskManager = None,
         db: DatabaseManager = None,
         allocation_method: str = "equal",  # equal, optimized, custom
         commission_rate: float = 0.05,
         slippage_rate: float = 0.03,
+        pairs_mode: bool = False,  # NEW: Enable pairs trading mode
+        pair_symbols: Optional[List[str]] = None,  # NEW: Symbols for pairs trading
     ):
         """
         Initialize multi-asset backtesting engine
 
         Args:
-            strategies: Dictionary mapping symbols to strategies
+            strategies: Dictionary mapping symbols to strategies OR single pairs strategy
             initial_capital: Starting capital
             risk_manager: Risk manager instance
             db: Database manager
             allocation_method: How to allocate capital across assets
+            pairs_mode: If True, strategy operates on multiple symbols as a pair
+            pair_symbols: List of symbols for pairs trading (e.g., ['AAPL', 'MSFT'])
         """
-        self.strategies = strategies
+        self.pairs_mode = pairs_mode
+        self.pair_symbols = pair_symbols or []
+
+        # Handle strategies based on mode
+        if pairs_mode:
+            # Single strategy for all symbols (pairs trading)
+            self.pairs_strategy = strategies if isinstance(strategies, BaseStrategy) else None
+            self.strategies = {}
+            if not self.pairs_strategy:
+                raise ValueError("In pairs_mode, strategies must be a single BaseStrategy instance")
+        else:
+            # Independent strategies per symbol
+            self.strategies = strategies if isinstance(strategies, dict) else {}
+            self.pairs_strategy = None
+
         self.initial_capital = initial_capital
         self.cash = initial_capital
         self.positions = {}  # {symbol: position_dict}
@@ -60,14 +85,20 @@ class MultiAssetEngine:
 
     def _calculate_allocations(self):
         """Calculate capital allocation for each symbol"""
-        num_symbols = len(self.strategies)
-
-        if self.allocation_method == "equal":
-            # Equal allocation
-            self.allocations = {symbol: 1.0 / num_symbols for symbol in self.strategies.keys()}
+        if self.pairs_mode:
+            # In pairs mode, allocate capital across the pair
+            num_symbols = len(self.pair_symbols)
+            if num_symbols > 0:
+                self.allocations = {symbol: 1.0 / num_symbols for symbol in self.pair_symbols}
+            else:
+                self.allocations = {}
         else:
-            # Default to equal if other methods not implemented
-            self.allocations = {symbol: 1.0 / num_symbols for symbol in self.strategies.keys()}
+            # Independent mode
+            num_symbols = len(self.strategies)
+            if self.allocation_method == "equal":
+                self.allocations = {symbol: 1.0 / num_symbols for symbol in self.strategies.keys()}
+            else:
+                self.allocations = {symbol: 1.0 / num_symbols for symbol in self.strategies.keys()}
 
         logger.info(f"Capital allocations: {self.allocations}")
 
@@ -80,7 +111,9 @@ class MultiAssetEngine:
             period: Time period
             interval: Data interval
         """
-        logger.info(f"Starting multi-asset backtest: {len(symbols)} symbols, " f"period: {period}, interval: {interval}")
+        logger.info(
+            f"Starting {'pairs' if self.pairs_mode else 'multi-asset'} backtest: " f"{len(symbols)} symbols, period: {period}, interval: {interval}"
+        )
 
         # Fetch data for all symbols
         data_dict = {}
@@ -102,26 +135,247 @@ class MultiAssetEngine:
         for i in range(len(aligned_data["dates"])):
             timestamp = aligned_data["dates"][i]
 
-            # Process each symbol
-            for symbol in aligned_data["symbols"]:
-                if symbol not in self.strategies:
-                    continue
-
-                # Get data up to current point
-                symbol_data = aligned_data["data"][symbol].iloc[: i + 1]
-                current_price = symbol_data["Close"].iloc[-1]
-
-                # Generate signal
-                strategy = self.strategies[symbol]
-                signal = strategy.generate_signal(symbol_data)
-
-                # Execute trade
-                self._execute_trade(symbol, signal, current_price, timestamp, strategy.name)
+            if self.pairs_mode:
+                # PAIRS TRADING MODE
+                self._process_pairs_trading(aligned_data, i, timestamp)
+            else:
+                # INDEPENDENT STRATEGIES MODE
+                self._process_independent_strategies(aligned_data, i, timestamp)
 
             # Calculate portfolio equity
             self._update_equity(timestamp, aligned_data, i)
 
         logger.info(f"Backtest complete: {len(self.trades)} trades, " f"Final equity: ${self.equity_curve[-1]['equity']:,.2f}")
+
+    def _process_pairs_trading(self, aligned_data: Dict, index: int, timestamp):
+        """Process pairs trading strategy (e.g., Kalman Filter)"""
+        if not self.pairs_strategy:
+            return
+
+        # Build dataframe with all pair symbols
+        pair_data = {}
+        for symbol in self.pair_symbols:
+            if symbol in aligned_data["data"]:
+                symbol_data = aligned_data["data"][symbol].iloc[: index + 1]
+                # Use 'Close' price as the main column
+                pair_data[symbol] = symbol_data["Close"]
+
+        if len(pair_data) < len(self.pair_symbols):
+            logger.warning(f"Missing data for some symbols in pair at index {index}")
+            return
+
+        # Create combined DataFrame for the pair
+        combined_df = pd.DataFrame(pair_data)
+
+        # Generate signal from pairs strategy
+        signal_info = self.pairs_strategy.generate_signal(combined_df)
+
+        if not signal_info:
+            return
+
+        signal = signal_info.get("signal", 0)
+        position_size = signal_info.get("position_size", 1.0)
+        metadata = signal_info.get("metadata", {})
+
+        # For Kalman Filter, the signal indicates:
+        # +1: Long asset_1, Short asset_2
+        # -1: Short asset_1, Long asset_2
+        # 0: No position or exit
+
+        if signal != 0:
+            # Execute trades on both assets
+            asset_1 = self.pair_symbols[0]
+            asset_2 = self.pair_symbols[1]
+
+            price_1 = aligned_data["data"][asset_1]["Close"].iloc[index]
+            price_2 = aligned_data["data"][asset_2]["Close"].iloc[index]
+
+            # Get hedge ratio from metadata if available
+            hedge_ratio = metadata.get("hedge_ratio", 1.0)
+
+            if signal == 1:
+                # Long asset_1, Short asset_2
+                self._execute_pairs_trade(asset_1, 1, price_1, timestamp, self.pairs_strategy.name, position_size, metadata)
+                self._execute_pairs_trade(asset_2, -1, price_2, timestamp, self.pairs_strategy.name, position_size * hedge_ratio, metadata)
+            elif signal == -1:
+                # Short asset_1, Long asset_2
+                self._execute_pairs_trade(asset_1, -1, price_1, timestamp, self.pairs_strategy.name, position_size, metadata)
+                self._execute_pairs_trade(asset_2, 1, price_2, timestamp, self.pairs_strategy.name, position_size * hedge_ratio, metadata)
+
+    def _execute_pairs_trade(
+        self, symbol: str, signal: int, current_price: float, timestamp, strategy_name: str, position_size: float = 1.0, metadata: dict = None
+    ):
+        """Execute trade for pairs trading (supports both long and short)"""
+
+        symbol_allocation = self.allocations.get(symbol, 0.5)  # Default 50% if not set
+        available_capital = self.cash * symbol_allocation * position_size
+
+        # BUY (or cover short)
+        if signal == 1:
+            if symbol in self.positions and self.positions[symbol].get("is_short", False):
+                # Cover existing short position
+                self._close_pairs_position(symbol, current_price, timestamp, strategy_name)
+            elif symbol not in self.positions:
+                # Open new long position
+                execution_price = current_price * (1 + self.slippage_rate)
+                quantity = self.risk_manager.calculate_position_size(available_capital, execution_price)
+
+                trade_value = quantity * execution_price
+                commission = trade_value * self.commission_rate
+                total_cost = trade_value + commission
+
+                if total_cost <= self.cash:
+                    self.cash -= total_cost
+                    self.positions[symbol] = {
+                        "symbol": symbol,
+                        "quantity": quantity,
+                        "entry_price": execution_price,
+                        "entry_time": timestamp,
+                        "strategy": strategy_name,
+                        "entry_commission": commission,
+                        "is_short": False,
+                        "metadata": metadata or {},
+                    }
+
+                    trade_data = {
+                        "symbol": symbol,
+                        "order_type": "BUY",
+                        "quantity": quantity,
+                        "price": execution_price,
+                        "commission": commission,
+                        "slippage_impact": execution_price - current_price,
+                        "total_value": trade_value + commission,
+                        "side": "BUY",
+                        "executed_at": (timestamp.isoformat() if isinstance(timestamp, datetime) else str(timestamp)),
+                        "strategy": strategy_name,
+                        "notes": f"Pairs trade: {metadata.get('z_score', 'N/A')}" if metadata else None,
+                    }
+
+                    self.trades.append(trade_data)
+                    logger.debug(f"BUY: {quantity} {symbol} @ ${execution_price:.2f}")
+
+        # SELL (or open short)
+        elif signal == -1:
+            if symbol in self.positions and not self.positions[symbol].get("is_short", False):
+                # Close existing long position
+                self._close_pairs_position(symbol, current_price, timestamp, strategy_name)
+            elif symbol not in self.positions:
+                # Open new short position (for pairs trading)
+                execution_price = current_price * (1 - self.slippage_rate)
+                quantity = self.risk_manager.calculate_position_size(available_capital, execution_price)
+
+                # For short, we receive cash (minus commission)
+                trade_value = quantity * execution_price
+                commission = trade_value * self.commission_rate
+                net_proceeds = trade_value - commission
+
+                self.cash += net_proceeds
+
+                self.positions[symbol] = {
+                    "symbol": symbol,
+                    "quantity": quantity,
+                    "entry_price": execution_price,
+                    "entry_time": timestamp,
+                    "strategy": strategy_name,
+                    "entry_commission": commission,
+                    "is_short": True,
+                    "metadata": metadata or {},
+                }
+
+                trade_data = {
+                    "symbol": symbol,
+                    "order_type": "SHORT",
+                    "quantity": quantity,
+                    "price": execution_price,
+                    "commission": commission,
+                    "total_value": trade_value,
+                    "side": "SHORT",
+                    "executed_at": (timestamp.isoformat() if isinstance(timestamp, datetime) else str(timestamp)),
+                    "strategy": strategy_name,
+                    "notes": f"Pairs short: {metadata.get('z_score', 'N/A')}" if metadata else None,
+                }
+
+                self.trades.append(trade_data)
+                logger.debug(f"SHORT: {quantity} {symbol} @ ${execution_price:.2f}")
+
+    def _close_pairs_position(self, symbol: str, current_price: float, timestamp, strategy_name: str):
+        """Close a pairs trading position (long or short)"""
+        if symbol not in self.positions:
+            return
+
+        position = self.positions[symbol]
+        is_short = position.get("is_short", False)
+
+        if is_short:
+            # Cover short: Buy back at current price
+            execution_price = current_price * (1 + self.slippage_rate)
+            trade_value = position["quantity"] * execution_price
+            commission = trade_value * self.commission_rate
+            total_cost = trade_value + commission
+
+            self.cash -= total_cost
+
+            # P&L calculation for short
+            profit = (position["quantity"] * position["entry_price"]) - trade_value - position["entry_commission"] - commission
+            profit_pct = (profit / (position["quantity"] * position["entry_price"])) * 100
+
+            order_type = "COVER"
+        else:
+            # Close long: Sell at current price
+            execution_price = current_price * (1 - self.slippage_rate)
+            trade_value = position["quantity"] * execution_price
+            commission = trade_value * self.commission_rate
+            net_proceeds = trade_value - commission
+
+            self.cash += net_proceeds
+
+            # P&L calculation for long
+            total_commissions = position["entry_commission"] + commission
+            profit = trade_value - (position["quantity"] * position["entry_price"]) - total_commissions
+            profit_pct = (profit / (position["quantity"] * position["entry_price"])) * 100
+
+            order_type = "SELL"
+
+        trade_data = {
+            "symbol": symbol,
+            "order_type": order_type,
+            "quantity": position["quantity"],
+            "price": execution_price,
+            "commission": commission,
+            "total_value": trade_value,
+            "side": order_type,
+            "executed_at": (timestamp.isoformat() if isinstance(timestamp, datetime) else str(timestamp)),
+            "strategy": strategy_name,
+            "profit": profit,
+            "profit_pct": profit_pct,
+        }
+
+        self.trades.append(trade_data)
+        logger.debug(f"{order_type}: {position['quantity']} {symbol} @ ${execution_price:.2f} (P&L: ${profit:.2f})")
+
+        del self.positions[symbol]
+
+    def _process_independent_strategies(self, aligned_data: Dict, index: int, timestamp):
+        """Process independent strategies (original behavior)"""
+        for symbol in aligned_data["symbols"]:
+            if symbol not in self.strategies:
+                continue
+
+            # Get data up to current point
+            symbol_data = aligned_data["data"][symbol].iloc[: index + 1]
+            current_price = symbol_data["Close"].iloc[-1]
+
+            # Generate signal
+            strategy = self.strategies[symbol]
+            signal_info = strategy.generate_signal(symbol_data)
+
+            from backend.app.strategies.base_strategy import normalize_signal
+
+            normalized = normalize_signal(signal_info)
+            signal = normalized["signal"]
+
+            # Execute trade
+            self._execute_trade(symbol, signal, current_price, timestamp, strategy.name)
 
     def _align_data(self, data_dict: Dict[str, pd.DataFrame]) -> Dict:
         """Align data across all symbols to common timestamps"""
@@ -154,19 +408,16 @@ class MultiAssetEngine:
         timestamp,
         strategy_name: str,
     ):
-        """Execute trade with commission and slippage"""
+        """Execute trade with commission and slippage (original implementation)"""
 
         symbol_allocation = self.allocations.get(symbol, 0)
         available_capital = self.cash * symbol_allocation
 
         # --- BUY SIGNAL ---
         if signal == 1 and symbol not in self.positions:
-            # Apply Slippage (Paying more than current_price)
             execution_price = current_price * (1 + self.slippage_rate)
-
             quantity = self.risk_manager.calculate_position_size(available_capital, execution_price)
 
-            # Calculate Costs
             trade_value = quantity * execution_price
             commission = trade_value * self.commission_rate
             total_cost = trade_value + commission
@@ -176,7 +427,7 @@ class MultiAssetEngine:
                 self.positions[symbol] = {
                     "symbol": symbol,
                     "quantity": quantity,
-                    "entry_price": execution_price,  # We track the "penalized" price
+                    "entry_price": execution_price,
                     "entry_time": timestamp,
                     "strategy": strategy_name,
                     "entry_commission": commission,
@@ -196,25 +447,18 @@ class MultiAssetEngine:
                 }
 
                 self.trades.append(trade_data)
-                # self.db.save_trade(trade_data)
                 logger.debug(f"BUY: {quantity} {symbol} @ ${execution_price:.2f} (Comm: ${commission:.2f})")
 
         # --- SELL SIGNAL ---
         elif signal == -1 and symbol in self.positions:
             position = self.positions[symbol]
-
-            # Apply Slippage (Receiving less than current_price)
             execution_price = current_price * (1 - self.slippage_rate)
 
-            # Calculate Costs
             trade_value = position["quantity"] * execution_price
             commission = trade_value * self.commission_rate
-
-            # Net Cash Received
             net_proceeds = trade_value - commission
             self.cash += net_proceeds
 
-            # Calculate P&L (Total commission includes entry + exit)
             total_commissions = position.get("entry_commission", 0) + commission
             profit = (trade_value - (position["quantity"] * position["entry_price"])) - total_commissions
             profit_pct = (profit / (position["quantity"] * position["entry_price"])) * 100
@@ -235,8 +479,6 @@ class MultiAssetEngine:
             }
 
             self.trades.append(trade_data)
-            # self.db.save_trade(trade_data)
-
             logger.debug(
                 f"SELL: {position['quantity']} {symbol} @ ${execution_price:.2f} " f"(Net P&L: ${profit:.2f}, Fees: ${total_commissions:.2f})"
             )
@@ -250,8 +492,17 @@ class MultiAssetEngine:
 
         # Add value of all positions
         for symbol, position in self.positions.items():
-            current_price = aligned_data["data"][symbol]["Close"].iloc[index]
-            equity += position["quantity"] * current_price
+            if symbol in aligned_data["data"]:
+                current_price = aligned_data["data"][symbol]["Close"].iloc[index]
+
+                if position.get("is_short", False):
+                    # For short positions, calculate unrealized P&L
+                    # Short P&L = entry_value - current_value
+                    unrealized_pnl = (position["entry_price"] - current_price) * position["quantity"]
+                    equity += unrealized_pnl
+                else:
+                    # For long positions
+                    equity += position["quantity"] * current_price
 
         self.equity_curve.append(
             {
@@ -268,9 +519,12 @@ class MultiAssetEngine:
         symbol_stats = self._calculate_symbol_stats()
 
         metrics = calculate_performance_metrics(self.trades, self.equity_curve, self.initial_capital)
+
+        num_symbols = len(self.pair_symbols) if self.pairs_mode else len(self.strategies)
+
         return MultiAssetBacktestResult(
             **metrics,
-            num_symbols=len(self.strategies),
+            num_symbols=num_symbols,
             symbol_stats=symbol_stats,
         )
 
@@ -279,10 +533,11 @@ class MultiAssetEngine:
 
         stats = {}
 
-        # Check if we have any trades
+        # Determine which symbols to track
+        symbols_to_track = self.pair_symbols if self.pairs_mode else list(self.strategies.keys())
+
         if not self.trades:
-            # Return empty stats for all symbols
-            for symbol in self.strategies.keys():
+            for symbol in symbols_to_track:
                 stats[symbol] = {
                     "total_trades": 0,
                     "winning_trades": 0,
@@ -295,11 +550,9 @@ class MultiAssetEngine:
 
         trades_df = pd.DataFrame(self.trades)
 
-        # Safety check: ensure required columns exist
         if "symbol" not in trades_df.columns:
             logger.warning("No 'symbol' column in trades DataFrame")
-            # Return empty stats for all symbols
-            for symbol in self.strategies.keys():
+            for symbol in symbols_to_track:
                 stats[symbol] = {
                     "total_trades": 0,
                     "winning_trades": 0,
@@ -310,10 +563,9 @@ class MultiAssetEngine:
                 }
             return stats
 
-        for symbol in self.strategies.keys():
+        for symbol in symbols_to_track:
             symbol_trades = trades_df[trades_df["symbol"] == symbol]
 
-            # Check if profit column exists before filtering
             if "profit" in symbol_trades.columns:
                 completed = symbol_trades[symbol_trades["profit"].notna()]
             else:

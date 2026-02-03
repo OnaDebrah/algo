@@ -44,6 +44,7 @@ import RiskAnalysisModal from "@/components/backtest/RiskAnalysisModal";
 import LoadConfigModal from "@/components/backtest/LoadConfigModal";
 import { BacktestResult, MultiAssetConfig, Strategy, PortfolioCreate } from "@/types/all_types";
 import { portfolio } from "@/utils/api";
+import KalmanFilterParameters from "@/components/backtest/KalmanFilterParameters";
 
 interface MultiAssetBacktestProps {
     config: MultiAssetConfig;
@@ -77,7 +78,6 @@ const MultiAssetBacktest: React.FC<MultiAssetBacktestProps> = ({
     const [isSaving, setIsSaving] = useState(false);
     const [showLoadModal, setShowLoadModal] = useState(false);
 
-    // Find the currently active strategy
     const selectedStrategy = useMemo(() =>
         strategies.find((s) => s.id === config.strategy),
         [config.strategy, strategies]
@@ -131,7 +131,6 @@ const MultiAssetBacktest: React.FC<MultiAssetBacktestProps> = ({
             console.log('Generating CSV for results:', results);
             const rows: (string | number)[][] = [];
 
-            // 1. Portfolio Summary
             rows.push(['PORTFOLIO SUMMARY']);
             rows.push(['Metric', 'Value']);
             rows.push(['Total Return', `${((results.total_return || 0) * 100).toFixed(2)}%`]);
@@ -178,7 +177,7 @@ const MultiAssetBacktest: React.FC<MultiAssetBacktestProps> = ({
                         t.id || '',
                         t.symbol || '',
                         t.order_type || '',
-                        t.timestamp || '',
+                        t.executed_at || '',
                         t.quantity || 0,
                         t.price || 0,
                         t.commission || 0,
@@ -244,7 +243,11 @@ const MultiAssetBacktest: React.FC<MultiAssetBacktestProps> = ({
         }
     };
 
-    // Asset suggestions
+    const isPairsStrategy = useMemo(() => {
+        const pairsStrategies = ['kalman_filter', 'pairs_trading', 'cointegration'];
+        return pairsStrategies.includes(config.strategy);
+    }, [config.strategy]);
+
     const assetSuggestions = [
         { symbol: 'AAPL', name: 'Apple Inc.', sector: 'Technology', color: 'from-gray-500 to-slate-500' },
         { symbol: 'MSFT', name: 'Microsoft', sector: 'Technology', color: 'from-blue-500 to-cyan-500' },
@@ -1030,12 +1033,19 @@ const MultiAssetBacktest: React.FC<MultiAssetBacktestProps> = ({
                                 </div>
 
                                 {showParameters && (
-                                    <div className="animate-in fade-in">
-                                        <StrategyParameterForm
-                                            params={selectedStrategy.parameters}
-                                            values={config.params || {}}
-                                            onChange={handleParamChange}
-                                        />
+                                    <div key={selectedStrategy.id} className="animate-in fade-in slide-in-from-top-2 duration-300">
+                                        {isPairsStrategy ? (
+                                            <KalmanFilterParameters
+                                                config={config}
+                                                setConfig={setConfig}
+                                            />
+                                        ) : (
+                                            <StrategyParameterForm
+                                                params={selectedStrategy.parameters}
+                                                values={config.params || {}}
+                                                onChange={handleParamChange}
+                                            />
+                                        )}
 
                                         <div className="mt-8 pt-6 border-t border-slate-700/50">
                                             <div className="flex items-center justify-between">
