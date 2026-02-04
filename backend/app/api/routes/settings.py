@@ -2,9 +2,11 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
 from backend.app.api.deps import get_current_active_user, get_db
+from backend.app.database import AsyncSessionLocal
 from backend.app.models.user import User
 from backend.app.models.user_settings import UserSettings as UserSettingsModel
 from backend.app.schemas.settings import BacktestSettings, GeneralSettings, SettingsUpdate, UserSettings
+from backend.app.services.execution_manager import get_execution_manager
 
 router = APIRouter(prefix="/settings", tags=["Settings"])
 
@@ -78,3 +80,21 @@ async def reset_user_settings(current_user: User = Depends(get_current_active_us
     # Create new default settings
     settings = get_or_create_settings(db, current_user.id)
     return model_to_schema(settings)
+
+
+@router.post("/admin/strategies/{strategy_id}/restart")
+async def admin_restart_strategy(strategy_id: int):
+    """
+    Admin endpoint to manually restart a strategy
+
+    Useful for debugging or recovery
+    """
+    manager = get_execution_manager(AsyncSessionLocal)
+
+    # Stop if running
+    await manager.stop_strategy(strategy_id)
+
+    # Start again
+    success = await manager.deploy_strategy(strategy_id)
+
+    return {"strategy_id": strategy_id, "action": "restart", "success": success}

@@ -5,26 +5,22 @@ Executes trading strategies in real-time with broker integration
 
 import asyncio
 import logging
-from datetime import datetime, timedelta
-from typing import Dict, Any, Optional, List
-from decimal import Decimal
+from datetime import datetime
+from typing import Any, Dict, Optional
 
 from sqlalchemy.orm import Session
-from sqlalchemy import select
 
-from backend.app.models.live import (
-    LiveStrategy, LiveTrade, LiveEquitySnapshot,
-    StrategyStatus, TradeSide, TradeStatus
-)
+from backend.app.models.live import LiveEquitySnapshot, LiveStrategy, LiveTrade, StrategyStatus, TradeSide, TradeStatus
 from backend.app.strategies.base_strategy import BaseStrategy
 from backend.app.strategies.strategy_catalog import get_catalog
-from backend.app.websockets.live_websocket import ws_manager
+from backend.app.websockets.manager import ws_manager
 
 logger = logging.getLogger(__name__)
 
 
 class Position:
     """Represents an open position"""
+
     def __init__(self, symbol: str, quantity: float, entry_price: float, side: str):
         self.symbol = symbol
         self.quantity = quantity
@@ -37,7 +33,7 @@ class Position:
         """Update current price and calculate unrealized P&L"""
         self.current_price = current_price
 
-        if self.side == 'LONG':
+        if self.side == "LONG":
             self.unrealized_pnl = (current_price - self.entry_price) * self.quantity
         else:  # SHORT
             self.unrealized_pnl = (self.entry_price - current_price) * self.quantity
@@ -61,10 +57,10 @@ class StrategyExecutor:
     """
 
     def __init__(
-            self,
-            strategy_id: int,
-            db_session: Session,
-            broker_client: Any  # BrokerClient interface
+        self,
+        strategy_id: int,
+        db_session: Session,
+        broker_client: Any,  # BrokerClient interface
     ):
         self.strategy_id = strategy_id
         self.db = db_session
@@ -87,9 +83,7 @@ class StrategyExecutor:
 
     def _load_strategy(self):
         """Load strategy from database"""
-        self.strategy = self.db.query(LiveStrategy).filter(
-            LiveStrategy.id == self.strategy_id
-        ).first()
+        self.strategy = self.db.query(LiveStrategy).filter(LiveStrategy.id == self.strategy_id).first()
 
         if not self.strategy:
             raise ValueError(f"Strategy {self.strategy_id} not found")
@@ -101,10 +95,7 @@ class StrategyExecutor:
 
         # Create strategy instance
         catalog = get_catalog()
-        self.strategy_instance = catalog.create_strategy(
-            self.strategy.strategy_key,
-            **self.strategy.parameters
-        )
+        self.strategy_instance = catalog.create_strategy(self.strategy.strategy_key, **self.strategy.parameters)
 
         logger.info(f"Loaded strategy {self.strategy_id}: {self.strategy.name}")
 
@@ -205,9 +196,9 @@ class StrategyExecutor:
 
         # Normalize signal (handle both int and dict returns)
         if isinstance(signal, dict):
-            signal_value = signal.get('signal', 0)
-            position_size = signal.get('position_size', 1.0)
-            metadata = signal.get('metadata', {})
+            signal_value = signal.get("signal", 0)
+            position_size = signal.get("position_size", 1.0)
+            metadata = signal.get("metadata", {})
         else:
             signal_value = signal
             position_size = 1.0
@@ -219,15 +210,10 @@ class StrategyExecutor:
 
         # 5. Check risk limits (circuit breakers)
         risk_check = await self._check_risk_limits()
-        if not risk_check['passed']:
+        if not risk_check["passed"]:
             logger.warning(f"Risk limit breach: {risk_check['reason']}")
             await self.pause()
-            await ws_manager.broadcast_status_change(
-                self.strategy_id,
-                'running',
-                'paused',
-                f"Risk limit: {risk_check['reason']}"
-            )
+            await ws_manager.broadcast_status_change(self.strategy_id, "running", "paused", f"Risk limit: {risk_check['reason']}")
             return
 
         # 6. Calculate and save equity snapshot
@@ -263,16 +249,10 @@ class StrategyExecutor:
         """Update all positions with current market prices"""
         for symbol, position in self.positions.items():
             if symbol in market_data:
-                current_price = market_data[symbol]['close'][-1]
+                current_price = market_data[symbol]["close"][-1]
                 position.update_price(current_price)
 
-    async def _execute_signal(
-            self,
-            signal: int,
-            position_size: float,
-            metadata: Dict[str, Any],
-            market_data: Dict[str, Any]
-    ):
+    async def _execute_signal(self, signal: int, position_size: float, metadata: Dict[str, Any], market_data: Dict[str, Any]):
         """
         Execute trading signal
 
@@ -282,7 +262,7 @@ class StrategyExecutor:
         - 0: Hold (no action)
         """
         symbol = self.strategy.symbols[0]  # Primary symbol
-        current_price = market_data[symbol]['close'][-1]
+        current_price = market_data[symbol]["close"][-1]
 
         # Check if we already have a position
         has_position = symbol in self.positions
@@ -299,13 +279,7 @@ class StrategyExecutor:
                 if self._is_shorting_enabled():
                     await self._open_short_position(symbol, current_price, position_size, metadata)
 
-    async def _open_long_position(
-            self,
-            symbol: str,
-            price: float,
-            position_size: float,
-            metadata: Dict[str, Any]
-    ):
+    async def _open_long_position(self, symbol: str, price: float, position_size: float, metadata: Dict[str, Any]):
         """Open a long position"""
 
         # Calculate position size
@@ -322,28 +296,18 @@ class StrategyExecutor:
             return
 
         # Place order with broker
-        order = await self.broker.place_order(
-            symbol=symbol,
-            side='buy',
-            quantity=quantity,
-            order_type='market'
-        )
+        order = await self.broker.place_order(symbol=symbol, side="buy", quantity=quantity, order_type="market")
 
-        if not order or order.get('status') == 'rejected':
+        if not order or order.get("status") == "rejected":
             logger.error(f"Order rejected for {symbol}")
             return
 
         # Update cash
         commission = quantity * price * 0.001  # 0.1% commission
-        self.cash -= (total_cost + commission)
+        self.cash -= total_cost + commission
 
         # Create position
-        position = Position(
-            symbol=symbol,
-            quantity=quantity,
-            entry_price=price,
-            side='LONG'
-        )
+        position = Position(symbol=symbol, quantity=quantity, entry_price=price, side="LONG")
         self.positions[symbol] = position
 
         # Save trade to database
@@ -353,11 +317,11 @@ class StrategyExecutor:
             side=TradeSide.BUY,
             quantity=quantity,
             entry_price=price,
-            order_id=order.get('order_id'),
+            order_id=order.get("order_id"),
             status=TradeStatus.OPEN,
             commission=commission,
             opened_at=datetime.utcnow(),
-            strategy_signal=metadata
+            strategy_signal=metadata,
         )
 
         self.db.add(trade)
@@ -372,24 +336,12 @@ class StrategyExecutor:
 
         # Broadcast trade execution
         await ws_manager.broadcast_trade_executed(
-            self.strategy_id,
-            {
-                'symbol': symbol,
-                'side': 'BUY',
-                'quantity': quantity,
-                'price': price,
-                'timestamp': datetime.utcnow().isoformat()
-            }
+            self.strategy_id, {"symbol": symbol, "side": "BUY", "quantity": quantity, "price": price, "timestamp": datetime.utcnow().isoformat()}
         )
 
         logger.info(f"Opened LONG position: {symbol} {quantity} @ ${price:.2f}")
 
-    async def _close_position(
-            self,
-            symbol: str,
-            price: float,
-            metadata: Dict[str, Any]
-    ):
+    async def _close_position(self, symbol: str, price: float, metadata: Dict[str, Any]):
         """Close an open position"""
 
         if symbol not in self.positions:
@@ -399,19 +351,14 @@ class StrategyExecutor:
         position = self.positions[symbol]
 
         # Place sell order
-        order = await self.broker.place_order(
-            symbol=symbol,
-            side='sell',
-            quantity=position.quantity,
-            order_type='market'
-        )
+        order = await self.broker.place_order(symbol=symbol, side="sell", quantity=position.quantity, order_type="market")
 
-        if not order or order.get('status') == 'rejected':
+        if not order or order.get("status") == "rejected":
             logger.error(f"Close order rejected for {symbol}")
             return
 
         # Calculate P&L
-        if position.side == 'LONG':
+        if position.side == "LONG":
             profit = (price - position.entry_price) * position.quantity
         else:  # SHORT
             profit = (position.entry_price - price) * position.quantity
@@ -420,14 +367,14 @@ class StrategyExecutor:
         net_profit = profit - commission
 
         # Update cash
-        self.cash += (position.quantity * price - commission)
+        self.cash += position.quantity * price - commission
 
         # Find and update trade in database
-        trade = self.db.query(LiveTrade).filter(
-            LiveTrade.strategy_id == self.strategy_id,
-            LiveTrade.symbol == symbol,
-            LiveTrade.status == TradeStatus.OPEN
-        ).first()
+        trade = (
+            self.db.query(LiveTrade)
+            .filter(LiveTrade.strategy_id == self.strategy_id, LiveTrade.symbol == symbol, LiveTrade.status == TradeStatus.OPEN)
+            .first()
+        )
 
         if trade:
             trade.exit_price = price
@@ -455,24 +402,18 @@ class StrategyExecutor:
         await ws_manager.broadcast_trade_executed(
             self.strategy_id,
             {
-                'symbol': symbol,
-                'side': 'SELL',
-                'quantity': position.quantity,
-                'price': price,
-                'profit': net_profit,
-                'timestamp': datetime.utcnow().isoformat()
-            }
+                "symbol": symbol,
+                "side": "SELL",
+                "quantity": position.quantity,
+                "price": price,
+                "profit": net_profit,
+                "timestamp": datetime.utcnow().isoformat(),
+            },
         )
 
         logger.info(f"Closed position: {symbol} P&L: ${net_profit:.2f}")
 
-    async def _open_short_position(
-            self,
-            symbol: str,
-            price: float,
-            position_size: float,
-            metadata: Dict[str, Any]
-    ):
+    async def _open_short_position(self, symbol: str, price: float, position_size: float, metadata: Dict[str, Any]):
         """Open a short position"""
         # Similar to _open_long_position but for shorting
         # Implementation depends on broker support
@@ -492,15 +433,10 @@ class StrategyExecutor:
         # Close each position
         for symbol in list(self.positions.keys()):
             if symbol in market_data:
-                current_price = market_data[symbol]['close'][-1]
+                current_price = market_data[symbol]["close"][-1]
                 await self._close_position(symbol, current_price, {})
 
-    def _calculate_position_size(
-            self,
-            symbol: str,
-            price: float,
-            position_size_pct: float
-    ) -> float:
+    def _calculate_position_size(self, symbol: str, price: float, position_size_pct: float) -> float:
         """
         Calculate position size based on:
         - Available cash
@@ -545,30 +481,21 @@ class StrategyExecutor:
         if self.strategy.daily_loss_limit:
             daily_pnl = equity - self.daily_start_equity
             if daily_pnl < -float(self.strategy.daily_loss_limit):
-                return {
-                    'passed': False,
-                    'reason': f"Daily loss limit exceeded: ${abs(daily_pnl):.2f}"
-                }
+                return {"passed": False, "reason": f"Daily loss limit exceeded: ${abs(daily_pnl):.2f}"}
 
         # 2. Max drawdown limit
         if equity < self.peak_equity:
             drawdown_pct = ((self.peak_equity - equity) / self.peak_equity) * 100
 
             if drawdown_pct > float(self.strategy.max_drawdown_limit or 20.0):
-                return {
-                    'passed': False,
-                    'reason': f"Max drawdown exceeded: {drawdown_pct:.2f}%"
-                }
+                return {"passed": False, "reason": f"Max drawdown exceeded: {drawdown_pct:.2f}%"}
 
         # 3. Too many trades in one day
         if self.trades_today > 50:
-            return {
-                'passed': False,
-                'reason': f"Excessive trading: {self.trades_today} trades today"
-            }
+            return {"passed": False, "reason": f"Excessive trading: {self.trades_today} trades today"}
 
         # All checks passed
-        return {'passed': True, 'reason': ''}
+        return {"passed": True, "reason": ""}
 
     async def _save_equity_snapshot(self):
         """Save current equity snapshot to database and broadcast"""
@@ -595,7 +522,7 @@ class StrategyExecutor:
             positions_value=positions_value,
             daily_pnl=daily_pnl,
             total_pnl=total_pnl,
-            drawdown_pct=drawdown_pct
+            drawdown_pct=drawdown_pct,
         )
 
         self.db.add(snapshot)
@@ -615,7 +542,7 @@ class StrategyExecutor:
             positions_value=positions_value,
             daily_pnl=daily_pnl,
             total_pnl=total_pnl,
-            drawdown_pct=drawdown_pct
+            drawdown_pct=drawdown_pct,
         )
 
     async def _update_metrics(self):
@@ -624,10 +551,7 @@ class StrategyExecutor:
 
         # Update return
         self.strategy.total_return = equity - float(self.strategy.initial_capital)
-        self.strategy.total_return_pct = (
-                (equity - float(self.strategy.initial_capital)) /
-                float(self.strategy.initial_capital) * 100
-        )
+        self.strategy.total_return_pct = (equity - float(self.strategy.initial_capital)) / float(self.strategy.initial_capital) * 100
 
         # Update max drawdown
         if equity < self.peak_equity:
@@ -648,4 +572,4 @@ class StrategyExecutor:
     def _is_shorting_enabled(self) -> bool:
         """Check if short selling is enabled for this strategy"""
         # Can be a strategy parameter
-        return self.strategy.parameters.get('allow_shorting', False)
+        return self.strategy.parameters.get("allow_shorting", False)

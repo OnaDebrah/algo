@@ -1,7 +1,7 @@
 from enum import Enum
 from typing import Optional
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class BrokerType(str, Enum):
@@ -55,3 +55,40 @@ class ConnectRequest(BaseModel):
     broker: BrokerType
     api_key: Optional[str] = None
     api_secret: Optional[str] = None
+
+
+class EquityPoint(BaseModel):
+    """Equity curve point"""
+
+    timestamp: str
+    equity: float
+    cash: float
+    daily_pnl: float
+
+    class Config:
+        orm_mode = True
+
+
+class TradeResponse(BaseModel):
+    """Trade information"""
+
+    id: int
+    symbol: str
+    side: str
+    quantity: float
+    entry_price: Optional[float]
+    exit_price: Optional[float]
+    status: str
+    profit: Optional[float]
+    profit_pct: Optional[float]
+    opened_at: str
+    closed_at: Optional[str]
+
+    class Config:
+        orm_mode = True
+
+
+class ControlRequest(BaseModel):
+    """Control strategy execution"""
+
+    action: str = Field(..., description="'start', 'pause', 'stop', 'restart'")

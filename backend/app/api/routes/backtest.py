@@ -2,6 +2,7 @@
 Backtest routes
 """
 
+import asyncio
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -302,8 +303,8 @@ async def validate_pairs(request: PairsValidationRequest):
     """
     try:
         # Fetch historical data
-        asset1 = fetch_stock_data(request.asset_1, period=request.period, interval=request.interval)
-        asset2 = fetch_stock_data(request.asset_2, period=request.period, interval=request.interval)
+        asset1 = await asyncio.to_thread(fetch_stock_data, request.asset_1, period=request.period, interval=request.interval)
+        asset2 = await asyncio.to_thread(fetch_stock_data, request.asset_2, period=request.period, interval=request.interval)
 
         if asset1.empty or asset2.empty:
             raise HTTPException(status_code=400, detail="Could not fetch data for one or both symbols")
@@ -324,7 +325,7 @@ async def validate_pairs(request: PairsValidationRequest):
         correlation: float = prices_1.corr(prices_2)
 
         # Cointegration test (Engle-Granger)
-        coint_stat, coint_pvalue, _ = coint(prices_1, prices_2)
+        coint_stat, coint_pvalue, _ = await asyncio.to_thread(coint, prices_1, prices_2)
 
         # Validation logic
         warnings = []

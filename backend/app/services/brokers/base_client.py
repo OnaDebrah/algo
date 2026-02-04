@@ -1,8 +1,9 @@
 import logging
 from abc import ABC, abstractmethod
-from typing import Dict, Any, Optional, List
+from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
+
 
 class BrokerClient(ABC):
     """
@@ -40,11 +41,7 @@ class BrokerClient(ABC):
         pass
 
     @abstractmethod
-    async def get_latest_bars(
-            self,
-            symbol: str,
-            limit: int = 100
-    ) -> Optional[Dict[str, List[float]]]:
+    async def get_latest_bars(self, symbol: str, limit: int = 100) -> Optional[Dict[str, List[float]]]:
         """
         Get latest price bars
 
@@ -61,12 +58,7 @@ class BrokerClient(ABC):
 
     @abstractmethod
     async def place_order(
-            self,
-            symbol: str,
-            side: str,
-            quantity: float,
-            order_type: str = 'market',
-            limit_price: Optional[float] = None
+        self, symbol: str, side: str, quantity: float, order_type: str = "market", limit_price: Optional[float] = None
     ) -> Optional[Dict[str, Any]]:
         """
         Place an order

@@ -2,13 +2,14 @@
 Broker Client Interface and Implementations
 Supports: Alpaca, Paper Trading, and extensible for other brokers
 """
-import logging
-from typing import Dict, Any, Optional, List
 
-from brokers.base_client import BrokerClient
-from brokers.paper_client import PaperTradingClient
+import logging
+from typing import Any, Dict, List, Optional
+
+from backend.app.services.brokers.base_client import BrokerClient
 
 logger = logging.getLogger(__name__)
+
 
 class AlpacaClient(BrokerClient):
     """
@@ -26,20 +27,15 @@ class AlpacaClient(BrokerClient):
         try:
             import alpaca_trade_api as tradeapi
 
-            api_key = credentials.get('api_key')
-            api_secret = credentials.get('api_secret')
-            base_url = credentials.get('base_url', 'https://paper-api.alpaca.markets')
+            api_key = credentials.get("api_key")
+            api_secret = credentials.get("api_secret")
+            base_url = credentials.get("base_url", "https://paper-api.alpaca.markets")
 
             if not api_key or not api_secret:
                 logger.error("Missing Alpaca credentials")
                 return False
 
-            self.api = tradeapi.REST(
-                api_key,
-                api_secret,
-                base_url,
-                api_version='v2'
-            )
+            self.api = tradeapi.REST(api_key, api_secret, base_url, api_version="v2")
 
             # Test connection
             account = self.api.get_account()
@@ -74,41 +70,31 @@ class AlpacaClient(BrokerClient):
         try:
             account = self.api.get_account()
             return {
-                'cash': float(account.cash),
-                'equity': float(account.equity),
-                'buying_power': float(account.buying_power),
-                'portfolio_value': float(account.portfolio_value)
+                "cash": float(account.cash),
+                "equity": float(account.equity),
+                "buying_power": float(account.buying_power),
+                "portfolio_value": float(account.portfolio_value),
             }
         except Exception as e:
             logger.error(f"Error getting account info: {e}")
             return {}
 
-    async def get_latest_bars(
-            self,
-            symbol: str,
-            limit: int = 100
-    ) -> Optional[Dict[str, List[float]]]:
+    async def get_latest_bars(self, symbol: str, limit: int = 100) -> Optional[Dict[str, List[float]]]:
         """Get latest price bars from Alpaca"""
         try:
-            from datetime import datetime, timedelta
-
             # Get bars
-            bars = self.api.get_bars(
-                symbol,
-                '1Min',
-                limit=limit
-            ).df
+            bars = self.api.get_bars(symbol, "1Min", limit=limit).df
 
             if bars.empty:
                 return None
 
             return {
-                'open': bars['open'].tolist(),
-                'high': bars['high'].tolist(),
-                'low': bars['low'].tolist(),
-                'close': bars['close'].tolist(),
-                'volume': bars['volume'].tolist(),
-                'timestamp': bars.index.tolist()
+                "open": bars["open"].tolist(),
+                "high": bars["high"].tolist(),
+                "low": bars["low"].tolist(),
+                "close": bars["close"].tolist(),
+                "volume": bars["volume"].tolist(),
+                "timestamp": bars.index.tolist(),
             }
 
         except Exception as e:
@@ -116,12 +102,7 @@ class AlpacaClient(BrokerClient):
             return None
 
     async def place_order(
-            self,
-            symbol: str,
-            side: str,
-            quantity: float,
-            order_type: str = 'market',
-            limit_price: Optional[float] = None
+        self, symbol: str, side: str, quantity: float, order_type: str = "market", limit_price: Optional[float] = None
     ) -> Optional[Dict[str, Any]]:
         """Place order with Alpaca"""
         try:
@@ -130,24 +111,20 @@ class AlpacaClient(BrokerClient):
                 qty=int(quantity),
                 side=side,
                 type=order_type,
-                time_in_force='day',
-                limit_price=limit_price if order_type == 'limit' else None
+                time_in_force="day",
+                limit_price=limit_price if order_type == "limit" else None,
             )
 
             return {
-                'order_id': order.id,
-                'status': order.status,
-                'filled_price': float(order.filled_avg_price) if order.filled_avg_price else None,
-                'filled_quantity': float(order.filled_qty) if order.filled_qty else 0
+                "order_id": order.id,
+                "status": order.status,
+                "filled_price": float(order.filled_avg_price) if order.filled_avg_price else None,
+                "filled_quantity": float(order.filled_qty) if order.filled_qty else 0,
             }
 
         except Exception as e:
             logger.error(f"Error placing order: {e}")
-            return {
-                'order_id': None,
-                'status': 'rejected',
-                'error': str(e)
-            }
+            return {"order_id": None, "status": "rejected", "error": str(e)}
 
     async def cancel_order(self, order_id: str) -> bool:
         """Cancel order"""
@@ -165,12 +142,12 @@ class AlpacaClient(BrokerClient):
 
             return [
                 {
-                    'symbol': pos.symbol,
-                    'quantity': float(pos.qty),
-                    'entry_price': float(pos.avg_entry_price),
-                    'current_price': float(pos.current_price),
-                    'market_value': float(pos.market_value),
-                    'unrealized_pnl': float(pos.unrealized_pl)
+                    "symbol": pos.symbol,
+                    "quantity": float(pos.qty),
+                    "entry_price": float(pos.avg_entry_price),
+                    "current_price": float(pos.current_price),
+                    "market_value": float(pos.market_value),
+                    "unrealized_pnl": float(pos.unrealized_pl),
                 }
                 for pos in positions
             ]

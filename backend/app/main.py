@@ -1,5 +1,6 @@
 """Main FastAPI application"""
 
+import logging
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
@@ -28,17 +29,40 @@ from backend.app.api.routes import (
     websocket,
 )
 from backend.app.config import settings
-from backend.app.database import init_db
+from backend.app.database import AsyncSessionLocal, init_db
 from backend.app.init_data import init_default_data
+from backend.app.services.execution_manager import get_execution_manager, start_execution_manager, stop_execution_manager
+
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+
+logger = logging.getLogger(__name__)
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Startup and shutdown events"""
-    await init_db()
-    await init_default_data()
+    try:
+        await init_db()
+        await init_default_data()
+
+        await start_execution_manager(AsyncSessionLocal)
+
+        manager = get_execution_manager(AsyncSessionLocal)
+
+        logger.info(f"Execution Manager started with {manager.get_executor_count()} strategies")
+        logger.info("Platform ready for trading!")
+
+    except Exception as e:
+        logger.error(f"Error during startup: {e}")
+        raise
     yield
-    # Shutdown (cleanup if needed)
+
+    logger.info("SHUTTING DOWN TRADING PLATFORM")
+    try:
+        await stop_execution_manager()
+        logger.info("All strategies stopped cleanly")
+    except Exception as e:
+        logger.error(f"Error during shutdown: {e}")
 
 
 app = FastAPI(
