@@ -97,6 +97,12 @@ class Settings(BaseSettings):
     LOG_LEVEL: str = os.getenv("LOG_LEVEL", "INFO")
     LOG_FILE: str = os.getenv("LOG_FILE", "app.log")
 
+    # Brokers
+    ALPACA_PAPER_BASE_URL: str = os.getenv("ALPACA_PAPER_BASE_URL", "https://paper-api.alpaca.markets")
+    ALPACA_BASE_URL: str = os.getenv("ALPACA_BASE_URL", "https://api.alpaca.markets")
+    ALPACA_API_KEY: str = os.getenv("ALPACA_API_KEY", "")
+    ALPACA_SECRET: str = os.getenv("ALPACA_SECRET", "")
+
     class Config:
         case_sensitive = True
         env_file = ".env"
