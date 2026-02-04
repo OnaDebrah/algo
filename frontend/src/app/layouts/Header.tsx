@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import { ChevronRight, Clock, Globe, Shield, TrendingUp } from "lucide-react";
-import { formatCurrency } from "@/utils/formatters";
+import {formatCurrency, toPrecision} from "@/utils/formatters";
 import { api } from "@/utils/api";
 import { QuoteData, User } from "@/types/all_types";
 
@@ -65,10 +65,10 @@ const Header = ({ user, currentPage, serverStatus = false, onLogout }: HeaderPro
 
     // Prepare display data
     const displayData: MarketDisplayData[] = marketData.length > 0
-        ? marketData.map(q => ({
+        ? marketData.map((q: QuoteData) => ({
             symbol: q.symbol,
             price: formatCurrency(q.price),
-            change: `${q.changePercent >= 0 ? '+' : ''}${q.changePercent.toFixed(2)}%`,
+            change: `${q.changePercent >= 0 ? '+' : ''}${toPrecision(q.changePercent)}%`,
             up: q.changePercent >= 0
         }))
         : loading

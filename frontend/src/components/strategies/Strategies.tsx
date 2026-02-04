@@ -259,7 +259,7 @@ export const strategies: Strategy[] = [
         name: 'Kalman Filter Pairs Strategy',
         category: 'Adaptive Strategies',
         description: 'Statistical arbitrage using Kalman Filtering to dynamically estimate the hedge ratio.',
-        complexity: 'Institutional',
+        complexity: 'Advanced',
         time_horizon: 'Intraday to Medium-term',
         best_for: ["Pairs Trading", "Statistical Arbitrage", "Mean Reversion"],
         parameters: { entry_z: 2.0, exit_z: 0.5, transitory_std: 0.01, observation_std: 0.1, decay_factor: 0.99, min_obs: 20 }

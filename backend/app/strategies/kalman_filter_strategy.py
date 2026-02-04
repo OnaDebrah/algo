@@ -199,7 +199,11 @@ class KalmanFilterStrategy(BaseStrategy):
 
         # Get Kalman uncertainty
         if self.state_covs is not None:
-            hedge_ratio_variance = self.state_covs[0, 0, -1]
+            if self.state_covs.ndim == 3:
+                hedge_ratio_variance = self.state_covs[-1, 0, 0]
+            else:
+                hedge_ratio_variance = self.state_covs[0, 0]
+
             confidence = 1 / (1 + np.sqrt(hedge_ratio_variance))
         else:
             confidence = 0.5
