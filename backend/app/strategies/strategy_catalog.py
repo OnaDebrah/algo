@@ -930,16 +930,28 @@ class StrategyCatalog:
             "kalman_filter": StrategyInfo(
                 name="Kalman Filter Pairs Strategy",
                 class_type=KalmanFilterStrategy,
-                category=StrategyCategory.ADAPTIVE,
+                category=StrategyCategory.PAIRS_TRADING,
                 description="Statistical arbitrage using Kalman Filtering to dynamically estimate the hedge ratio between two assets.",
-                complexity="Institutional",
+                complexity="Advanced",
                 time_horizon="Intraday to Medium-term",
                 best_for=[
                     "Pairs Trading",
                     "Statistical Arbitrage",
                     "Mean Reversion in Cointegrated Assets",
+                    "Cointegrated assets",
+                    "Market-neutral portfolios",
                 ],
                 parameters={
+                    "asset_1": {
+                        "default": "AAPL",
+                        "range": None,
+                        "description": "First asset in the pair",
+                    },
+                    "asset_2": {
+                        "default": "MSFT",
+                        "range": None,
+                        "description": "Second asset in the pair",
+                    },
                     "entry_z": {
                         "default": 2.0,
                         "range": (1.0, 4.0),
@@ -949,6 +961,11 @@ class StrategyCatalog:
                         "default": 0.5,
                         "range": (0.0, 1.0),
                         "description": "Z-score threshold for mean reversion exit",
+                    },
+                    "stop_loss_z": {
+                        "default": 3.0,
+                        "range": (2.0, 5.0),
+                        "description": "Z-score threshold for stop loss",
                     },
                     "transitory_std": {
                         "default": 0.01,
@@ -974,12 +991,14 @@ class StrategyCatalog:
                 pros=[
                     "Dynamic hedge ratio (Beta) updates instantly",
                     "Superior to rolling OLS for non-stationary spreads",
-                    "Mathematically optimal signal-to-noise separation",
+                    "Mathematically optimal Bayesian estimation",
+                    "Confidence-weighted position sizing",
                 ],
                 cons=[
                     "Highly sensitive to transitory_std parameter",
                     "Risk of 'over-adapting' to market noise",
                     "Requires cointegrated asset pairs to be effective",
+                    "More complex than simple pairs trading",
                 ],
             ),
             # ============================================================

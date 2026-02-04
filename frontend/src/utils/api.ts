@@ -90,7 +90,7 @@ import {
     SettingsUpdate,
 
     // HTTP Error
-    HTTPValidationError, RegimeData, RegimeHistoryResponse
+    HTTPValidationError, RegimeData, RegimeHistoryResponse, PairsValidationRequest, PairsValidationResponse
 } from '@/types/all_types';
 import {
     BaseOptimizationRequest, BlackLittermanRequest, BlackLittermanResponse,
@@ -177,7 +177,14 @@ export const backtest = {
         return client.post<MultiAssetBacktestResponse>('/backtest/multi', request);
     },
 
-    // Options backtest
+    runValidateKalman: async (request: PairsValidationRequest): Promise<PairsValidationResponse> => {
+        return client.post<PairsValidationResponse>('/backtest/validated', request);
+    },
+
+    getSuggestion: async (request: PairsValidationRequest): Promise<PairsValidationResponse> => {
+        return client.post<PairsValidationResponse>('/backtest/suggested', request);
+    },
+
     runOptions: (request: OptionsBacktestRequest) =>
         client.post<OptionsBacktestResponse>('/backtest/options', request),
 

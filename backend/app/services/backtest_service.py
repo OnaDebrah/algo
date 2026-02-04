@@ -1,5 +1,5 @@
 """
-Enhanced Backtest service with database integration
+Enhanced Backtest service with pairs trading support
 """
 
 import asyncio
@@ -49,7 +49,14 @@ class BacktestService:
         self.db = db  # For BacktestRun model (SQLAlchemy async)
 
     async def create_backtest_run(
-        self, user_id: int, backtest_type: str, symbols: List[str], strategy_config: dict, period: str, interval: str, initial_capital: float
+        self,
+        user_id: int,
+        backtest_type: str,
+        symbols: List[str],
+        strategy_config: dict,
+        period: str,
+        interval: str,
+        initial_capital: float,
     ) -> BacktestRun:
         """Create a new backtest run in database"""
         if not self.db:
@@ -110,9 +117,6 @@ class BacktestService:
         await self.db.refresh(backtest_run)
 
         logger.info(f"Updated backtest {backtest_id} - Status: {status}")
-        if results:
-            logger.info(f"  Equity curve points: {len(results.get('equity_curve', []))}")
-            logger.info(f"  Trades: {len(results.get('trades', []))}")
 
     async def run_single_backtest(self, request: BacktestRequest, user_id: int) -> BacktestResponse:
         """Run single asset backtest"""
@@ -130,8 +134,6 @@ class BacktestService:
                     interval=request.interval,
                     initial_capital=request.initial_capital,
                 )
-
-                # Update status to running
                 await self.update_backtest_status(backtest_run.id, "running")
 
             # Fetch data
@@ -207,9 +209,6 @@ class BacktestService:
                 update_data = metrics.copy()
                 update_data["equity_curve"] = [p.model_dump() for p in equity_curve]
                 update_data["trades"] = [t.model_dump() for t in trades]
-
-                # Note: Trades are already saved by TradingEngine via db_manager
-                # We just update the BacktestRun record here
                 await self.update_backtest_status(backtest_run.id, "completed", update_data)
 
             return BacktestResponse(result=result, equity_curve=equity_curve, trades=trades, price_data=engine.trades, benchmark=benchmark)
@@ -221,7 +220,7 @@ class BacktestService:
             raise ValueError(f"Backtest failed: {str(e)}")
 
     async def run_multi_asset_backtest(self, request: MultiAssetBacktestRequest, user_id: int) -> MultiAssetBacktestResponse:
-        """Run multi-asset backtest"""
+        """Run multi-asset backtest (supports both independent and pairs trading)"""
         backtest_run = None
 
         try:
@@ -242,29 +241,19 @@ class BacktestService:
                     interval=request.interval,
                     initial_capital=request.initial_capital,
                 )
-
                 await self.update_backtest_status(backtest_run.id, "running")
 
-            # Create strategies for each symbol
-            strategies = {}
-            for symbol, config in request.strategy_configs.items():
-                strategy = self.catalog.create_strategy(config.strategy_key, **config.parameters)
-                strategies[symbol] = strategy
+            # Detect if this is a pairs trading strategy
+            is_pairs_strategy = self._is_pairs_strategy(request.strategy_configs)
 
-            # Create engine
-            engine = MultiAssetEngine(
-                strategies=strategies,
-                initial_capital=request.initial_capital,
-                risk_manager=self.risk_manager,
-                db=self.db_manager,
-                allocation_method=request.allocation_method,
-                commission_rate=request.commission_rate,
-                slippage_rate=request.slippage_rate,
-            )
-
-            # Override allocations if custom
-            if request.custom_allocations:
-                engine.allocations = request.custom_allocations
+            if is_pairs_strategy:
+                # PAIRS TRADING MODE (e.g., Kalman Filter)
+                logger.info("Running pairs trading backtest")
+                engine = await self._create_pairs_engine(request)
+            else:
+                # INDEPENDENT STRATEGIES MODE
+                logger.info("Running independent strategies backtest")
+                engine = await self._create_independent_engine(request)
 
             # Run backtest
             await asyncio.to_thread(engine.run_backtest, request.symbols, request.period, request.interval)
@@ -332,7 +321,6 @@ class BacktestService:
                 update_data = results.model_dump()
                 update_data["equity_curve"] = [p.model_dump() for p in equity_curve]
                 update_data["trades"] = [t.model_dump() for t in trades]
-
                 await self.update_backtest_status(backtest_run.id, "completed", update_data)
 
             return MultiAssetBacktestResponse(result=results, equity_curve=equity_curve, trades=trades, price_data=engine.trades, benchmark=benchmark)
@@ -342,3 +330,88 @@ class BacktestService:
             if backtest_run:
                 await self.update_backtest_status(backtest_run.id, "failed", error_message=str(e))
             raise ValueError(f"Multi-asset backtest failed: {str(e)}")
+
+    def _is_pairs_strategy(self, strategy_configs: dict) -> bool:
+        """
+        Detect if this is a pairs trading strategy
+
+        A pairs strategy typically:
+        1. Has exactly 2 symbols
+        2. Uses the same strategy for both (Kalman Filter, etc.)
+        3. Strategy has pairs-specific parameters like asset_1, asset_2
+        """
+        if len(strategy_configs) != 2:
+            return False
+
+        # Get all strategies
+        strategies = list(strategy_configs.values())
+
+        # Check if all use the same strategy key
+        strategy_keys = [s.strategy_key for s in strategies]
+        if len(set(strategy_keys)) != 1:
+            return False
+
+        # Check for pairs-specific parameters
+        first_strategy = strategies[0]
+        params = first_strategy.parameters
+
+        # Kalman Filter has asset_1 and asset_2 parameters
+        if "asset_1" in params and "asset_2" in params:
+            return True
+
+        return False
+
+    async def _create_pairs_engine(self, request: MultiAssetBacktestRequest) -> MultiAssetEngine:
+        """Create engine for pairs trading"""
+
+        # Get the first strategy config (they should all be the same)
+        first_config = list(request.strategy_configs.values())[0]
+
+        # Create the pairs strategy
+        pairs_strategy = self.catalog.create_strategy(first_config.strategy_key, **first_config.parameters)
+
+        # Create engine in pairs mode
+        engine = MultiAssetEngine(
+            strategies=pairs_strategy,  # Single strategy for the pair
+            initial_capital=request.initial_capital,
+            risk_manager=self.risk_manager,
+            db=self.db_manager,
+            allocation_method=request.allocation_method,
+            commission_rate=request.commission_rate,
+            slippage_rate=request.slippage_rate,
+            pairs_mode=True,  # Enable pairs trading mode
+            pair_symbols=request.symbols,  # The pair symbols
+        )
+
+        # Override allocations if custom
+        if request.custom_allocations:
+            engine.allocations = request.custom_allocations
+
+        return engine
+
+    async def _create_independent_engine(self, request: MultiAssetBacktestRequest) -> MultiAssetEngine:
+        """Create engine for independent strategies (original behavior)"""
+
+        # Create strategies for each symbol
+        strategies = {}
+        for symbol, config in request.strategy_configs.items():
+            strategy = self.catalog.create_strategy(config.strategy_key, **config.parameters)
+            strategies[symbol] = strategy
+
+        # Create engine in independent mode
+        engine = MultiAssetEngine(
+            strategies=strategies,
+            initial_capital=request.initial_capital,
+            risk_manager=self.risk_manager,
+            db=self.db_manager,
+            allocation_method=request.allocation_method,
+            commission_rate=request.commission_rate,
+            slippage_rate=request.slippage_rate,
+            pairs_mode=False,  # Independent mode
+        )
+
+        # Override allocations if custom
+        if request.custom_allocations:
+            engine.allocations = request.custom_allocations
+
+        return engine

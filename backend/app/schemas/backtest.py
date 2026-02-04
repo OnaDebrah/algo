@@ -160,3 +160,24 @@ class BacktestHistoryItem(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+class PairsValidationRequest(BaseModel):
+    asset_1: str
+    asset_2: str
+    period: str = "1y"
+    interval: str = "1d"
+
+
+class PairsValidationResponse(BaseModel):
+    asset_1: str
+    asset_2: str
+    sector_1: str
+    sector_2: str
+    correlation: float
+    cointegration_pvalue: float
+    cointegration_statistic: float
+    is_valid: bool
+    warnings: list[str]
+    errors: list[str]
+    lookback_days: int
