@@ -94,7 +94,7 @@ async def get_orders():
     return state["orders"]
 
 
-@router.post("/deploy", status_code=status.HTTP_201_CREATED)
+@router.post("/strategy/deploy", status_code=status.HTTP_201_CREATED)
 async def deploy_strategy(request: DeployStrategyRequest, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
     """
     Deploy a strategy to live or paper trading
@@ -114,7 +114,7 @@ async def deploy_strategy(request: DeployStrategyRequest, db: Session = Depends(
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Backtest {request.backtest_id} not found")
 
     # Create LiveStrategy
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
 
     live_strategy = LiveStrategy(
         user_id=current_user.id,
@@ -168,7 +168,7 @@ async def deploy_strategy(request: DeployStrategyRequest, db: Session = Depends(
     }
 
 
-@router.get("/", response_model=List[StrategyResponse])
+@router.get("/strategy", response_model=List[StrategyResponse])
 async def list_strategies(
     status: Optional[str] = None, mode: Optional[str] = None, db: Session = Depends(get_db), current_user=Depends(get_current_user)
 ):
@@ -212,7 +212,7 @@ async def list_strategies(
     ]
 
 
-@router.get("/{strategy_id}", response_model=StrategyDetailsResponse)
+@router.get("/strategy/{strategy_id}", response_model=StrategyDetailsResponse)
 async def get_strategy_details(strategy_id: int, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
     """
     Get complete details for a strategy including equity curve and trades
@@ -278,7 +278,7 @@ async def get_strategy_details(strategy_id: int, db: Session = Depends(get_db), 
     )
 
 
-@router.post("/{strategy_id}/control")
+@router.post("/strategy/{strategy_id}/control")
 async def control_strategy(strategy_id: int, request: ControlRequest, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
     """
     Control strategy execution
@@ -324,7 +324,7 @@ async def control_strategy(strategy_id: int, request: ControlRequest, db: Sessio
     }
 
 
-@router.put("/{strategy_id}")
+@router.put("/strategy/{strategy_id}")
 async def update_strategy(
     strategy_id: int,
     parameters: Optional[Dict[str, Any]] = None,
@@ -367,12 +367,12 @@ async def update_strategy(
     return {
         "strategy_id": strategy_id,
         "version": strategy.version,
-        "updated_at": datetime.utcnow().isoformat(),
+        "updated_at": datetime.now(timezone.utc).isoformat(),
         "message": "Strategy updated successfully",
     }
 
 
-@router.delete("/{strategy_id}")
+@router.delete("/strategy/{strategy_id}")
 async def delete_strategy(strategy_id: int, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
     """
     Delete a strategy (soft delete - sets status to stopped)

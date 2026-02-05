@@ -1,33 +1,26 @@
 import MetricCard from "@/components/backtest/MetricCard";
 import {
     Activity,
+    AlertTriangle,
     ArrowDownRight,
     ArrowUpRight,
     Award,
-    BarChart3,
     Calendar,
-    Clock,
     Download,
+    Eye,
     History,
     List,
+    PlayCircle,
     RefreshCw,
+    Search,
     Sparkles,
     Target,
     TrendingDown,
-    TrendingUp,
-    TrendingUp as TrendingUpIcon,
-    ChevronRight,
-    Filter,
-    Search,
-    Eye,
-    PlayCircle,
-    AlertTriangle
+    TrendingUp
 } from "lucide-react";
 import {
     Area,
     AreaChart,
-    Bar,
-    BarChart,
     CartesianGrid,
     Cell,
     ComposedChart,
@@ -41,9 +34,9 @@ import {
 } from "recharts";
 import {formatCurrency, formatPercent, toPrecision} from "@/utils/formatters";
 
-import {useEffect, useState, useMemo} from "react";
+import {useEffect, useMemo, useState} from "react";
 import {analytics, backtest, portfolio, strategy} from "@/utils/api";
-import {BacktestHistoryItem, EquityCurvePoint, Portfolio, PortfolioTrade, StrategyInfo} from "@/types/all_types";
+import {BacktestHistoryItem, Portfolio, StrategyInfo} from "@/types/all_types";
 import RiskAnalysisModal from "@/components/backtest/RiskAnalysisModal";
 
 interface PerformanceMetrics {

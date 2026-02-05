@@ -10,4 +10,4 @@ router = APIRouter(tags=["Health"])
 async def health_check():
     manager = get_execution_manager(AsyncSessionLocal)
 
-    return {"status": "healthy", "active_strategies": manager.get_executor_count(), "executor_status": manager.get_executor_status()}
+    return {"status": "ok", "active_strategies": manager.get_executor_count(), "executor_status": manager.get_executor_status()}
