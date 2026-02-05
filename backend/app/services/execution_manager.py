@@ -7,6 +7,8 @@ import asyncio
 import logging
 from typing import Dict, Optional
 
+from sqlalchemy import select
+
 from backend.app.config import settings
 from backend.app.models.live import LiveStrategy, StrategyStatus
 from backend.app.services.brokers.broker import BrokerClient, BrokerFactory
@@ -236,8 +238,10 @@ class ExecutionManager:
         db = self.db_session_factory()
 
         try:
-            # Get all strategies with status = RUNNING
-            strategies = db.query(LiveStrategy).filter(LiveStrategy.status == StrategyStatus.RUNNING).all()
+            stmt = select(LiveStrategy).where(LiveStrategy.status == StrategyStatus.RUNNING)
+
+            result = await db.execute(stmt)
+            strategies = result.scalars().all()
 
             logger.info(f"Found {len(strategies)} running strategies in database")
 
@@ -249,7 +253,7 @@ class ExecutionManager:
             logger.error(f"Error loading running strategies: {e}")
 
         finally:
-            db.close()
+            await db.close()
 
     async def _monitor_strategies(self):
         """

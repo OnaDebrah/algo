@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from backend.app.api.deps import get_current_active_user, get_db
@@ -13,7 +14,10 @@ router = APIRouter(prefix="/settings", tags=["Settings"])
 
 def get_or_create_settings(db: Session, user_id: int) -> UserSettingsModel:
     """Get existing settings or create default ones"""
-    settings = db.query(UserSettingsModel).filter(UserSettingsModel.user_id == user_id).first()
+    stmt = select(UserSettingsModel).where(UserSettingsModel.user_id == user_id)
+
+    result = db.execute(stmt)
+    settings = result.scalars().first()
 
     if not settings:
         # Create default settings
@@ -50,14 +54,12 @@ async def update_user_settings(settings_update: SettingsUpdate, current_user: Us
     """Update user settings"""
     settings = get_or_create_settings(db, current_user.id)
 
-    # Update backtest settings
     if settings_update.backtest:
         settings.data_source = settings_update.backtest.data_source
         settings.slippage = settings_update.backtest.slippage
         settings.commission = settings_update.backtest.commission
         settings.initial_capital = settings_update.backtest.initial_capital
 
-    # Update general settings
     if settings_update.general:
         settings.theme = settings_update.general.theme
         settings.notifications = settings_update.general.notifications
@@ -73,11 +75,10 @@ async def update_user_settings(settings_update: SettingsUpdate, current_user: Us
 @router.post("/reset", response_model=UserSettings)
 async def reset_user_settings(current_user: User = Depends(get_current_active_user), db: Session = Depends(get_db)):
     """Reset settings to default"""
-    # Delete existing settings
+
     db.query(UserSettingsModel).filter(UserSettingsModel.user_id == current_user.id).delete()
     db.commit()
 
-    # Create new default settings
     settings = get_or_create_settings(db, current_user.id)
     return model_to_schema(settings)
 
