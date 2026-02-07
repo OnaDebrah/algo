@@ -4,7 +4,7 @@ Limit orders, stop-loss orders, trailing stops, OCO, etc.
 """
 
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Any, Dict, Optional
 
@@ -119,7 +119,7 @@ class Order:
         self.filled_quantity = 0.0
         self.average_fill_price: Optional[float] = None
 
-        self.created_at = datetime.utcnow()
+        self.created_at = datetime.now(timezone.utc)
         self.submitted_at: Optional[datetime] = None
         self.filled_at: Optional[datetime] = None
         self.cancelled_at: Optional[datetime] = None

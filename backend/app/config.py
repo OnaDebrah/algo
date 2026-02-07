@@ -103,6 +103,11 @@ class Settings(BaseSettings):
     ALPACA_API_KEY: str = os.getenv("ALPACA_API_KEY", "")
     ALPACA_SECRET: str = os.getenv("ALPACA_SECRET", "")
 
+    IB_PAPER_PORT: int = int(os.getenv("IB_PAPER_PORT", "7497"))
+    IB_LIVE_PORT: int = int(os.getenv("IB_LIVE_PORT", "7496"))
+    IB_HOST: str = os.getenv("IB_HOST", "127.0.0.1")
+    IB_CLIENT_ID: int = int(os.getenv("IB_CLIENT_ID", "1"))
+
     class Config:
         case_sensitive = True
         env_file = ".env"

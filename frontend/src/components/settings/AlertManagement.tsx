@@ -56,7 +56,6 @@ export default function AlertManagement() {
         setSaving(true);
         try {
             const response = await alerts.updatePreferences(preferences);
-
             if (response) {
                 alert('Preferences saved successfully');
             }

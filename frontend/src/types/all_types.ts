@@ -797,9 +797,11 @@ export interface Alert {
 // ==================== LIVE TRADING ====================
 
 export enum BrokerType {
-    PAPER_TRADING = "Paper Trading",
-    ALPACA = "Alpaca Markets",
-    INTERACTIVE_BROKERS = "Interactive Brokers"
+    PAPER = 'paper',
+    ALPACA_PAPER = 'alpaca_paper',
+    ALPACA_LIVE = 'alpaca_live',
+    IB_PAPER = 'ib_paper',
+    IB_LIVE = 'ib_live'
 }
 
 export enum EngineStatus {
@@ -854,7 +856,7 @@ export interface LiveStrategy {
     name: string;
     strategy_key: string;
     symbols: string[];
-    status: 'running' | 'paused' | 'stopped' | 'error';
+    status: 'RUNNING' | 'PAUSED' | 'STOPPED' | 'ERROR';
     deployment_mode: 'paper' | 'live';
     current_equity: number;
     initial_capital: number;
@@ -1313,13 +1315,17 @@ export interface BacktestConfig {
 
 // ==================== DEPLOYMENT ==================
 export interface BacktestResultToDeploy {
-    id: number;
+    id: string;
     strategy: string;
     symbols: string[];
     total_return_pct: number;
+    win_rate?: number;
     sharpe_ratio: number;
     max_drawdown: number;
     total_trades: number;
+    initial_capital?: number;
+    period?: string;
+    interval?: string;
     parameters: Record<string, any>;
 }
 
@@ -1350,6 +1356,7 @@ export interface DeploymentConfig {
     broker?: string;
     notes?: string;
 }
+
 // ==================== SETTINGS ====================
 
 export interface BacktestSettings {

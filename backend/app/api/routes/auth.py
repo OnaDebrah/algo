@@ -2,7 +2,7 @@
 Authentication routes
 """
 
-from datetime import datetime
+from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
@@ -28,7 +28,6 @@ async def register(user_data: UserCreate, db: AsyncSession = Depends(get_db)):
     if existing_user:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Username or email already registered")
 
-    # Create user
     hashed_password = get_password_hash(user_data.password)
     new_user = User(username=user_data.username, email=user_data.email, hashed_password=hashed_password, tier="FREE")
 
@@ -36,11 +35,9 @@ async def register(user_data: UserCreate, db: AsyncSession = Depends(get_db)):
     await db.commit()
     await db.refresh(new_user)
 
-    # Generate tokens
     access_token = create_access_token(data={"sub": str(new_user.id)})
     refresh_token = create_access_token(data={"sub": str(new_user.id), "refresh": True})
 
-    # Track usage
     await AuthService.track_usage(db, new_user.id, "register", {"tier": new_user.tier})
 
     return LoginResponse(user=UserSchema.from_orm(new_user), access_token=access_token, refresh_token=refresh_token, token_type="bearer")
@@ -64,17 +61,15 @@ async def login(credentials: UserLogin, db: AsyncSession = Depends(get_db)):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Inactive user")
 
     # Update last login
-    user.last_login = datetime.utcnow()
+    user.last_login = datetime.now(timezone.utc)
     await db.commit()
 
-    # Generate tokens
     access_token = create_access_token(data={"sub": str(user.id)})
     refresh_token = create_access_token(data={"sub": str(user.id), "refresh": True})
 
-    # Track usage
     await AuthService.track_usage(db, user.id, "login")
 
-    return LoginResponse(user=UserSchema.from_orm(user), access_token=access_token, refresh_token=refresh_token, token_type="bearer")
+    return LoginResponse(user=UserSchema.model_validate(user), access_token=access_token, refresh_token=refresh_token, token_type="bearer")
 
 
 @router.post("/logout")
@@ -86,4 +81,4 @@ async def logout():
 @router.get("/me", response_model=UserSchema)
 async def get_me(current_user: User = Depends(get_current_active_user)):
     """Get current user info"""
-    return UserSchema.from_orm(current_user)
+    return UserSchema.model_validate(current_user)

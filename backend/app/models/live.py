@@ -3,11 +3,12 @@ Live Trading Database Models
 SQLAlchemy models for live strategy deployment and monitoring
 """
 
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
+from typing import Optional
 
 from sqlalchemy import ARRAY, JSON, Boolean, Column, DateTime, Enum as SQLEnum, Float, ForeignKey, Integer, String, Text
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from backend.app.database import Base
 
@@ -78,13 +79,12 @@ class LiveStrategy(Base):
     backtest_max_drawdown = Column(Float, nullable=True)
 
     # Timestamps
-    created_at = Column(DateTime, default=datetime.utcnow)
-    deployed_at = Column(DateTime, nullable=True)
-    started_at = Column(DateTime, nullable=True)
-    stopped_at = Column(DateTime, nullable=True)
-    last_trade_at = Column(DateTime, nullable=True)
-    last_equity_update = Column(DateTime, nullable=True)
-
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+    deployed_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    started_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    stopped_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    last_trade_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    last_equity_update: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
     # Metadata
     broker = Column(String(50), nullable=True)  # 'alpaca', 'ib', 'paper'
     version = Column(Integer, default=1)  # Strategy version
@@ -148,7 +148,7 @@ class LiveEquitySnapshot(Base):
     id = Column(Integer, primary_key=True, index=True)
     strategy_id = Column(Integer, ForeignKey("live_strategies.id"), nullable=False)
 
-    timestamp = Column(DateTime, nullable=False, index=True)
+    timestamp: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
     equity = Column(Float, nullable=False)
     cash = Column(Float, nullable=False)
     positions_value = Column(Float, default=0.0)
@@ -221,7 +221,7 @@ class LiveTrade(Base):
     total_fees = Column(Float, default=0.0)
 
     # Timestamps
-    opened_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    opened_at = Column(DateTime, nullable=False, default=datetime.now(timezone.utc))
     closed_at = Column(DateTime, nullable=True)
 
     # Metadata
@@ -297,8 +297,8 @@ class StrategyMarketplace(Base):
     status = Column(String(20), default="active")  # 'active', 'deprecated'
 
     # Timestamps
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=datetime.now(timezone.utc))
+    updated_at = Column(DateTime, default=datetime.now(timezone.utc), onupdate=datetime.now(timezone.utc))
 
     def __repr__(self):
         return f"<StrategyMarketplace(id={self.id}, name='{self.name}', rating={self.rating})>"

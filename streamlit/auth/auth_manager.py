@@ -5,7 +5,7 @@ Authentication and authorization system
 import hashlib
 import secrets
 import sqlite3
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from enum import Enum
 from typing import Dict, List, Optional
 
@@ -205,9 +205,9 @@ class AuthManager:
             return {"success": False, "message": f"Page failed: {str(e)}"}
 
     def _create_session(self, user_id: int, cursor) -> str:
-        payload = {"user_id": user_id, "exp": datetime.utcnow() + timedelta(days=7), "iat": datetime.utcnow()}
+        payload = {"user_id": user_id, "exp": datetime.now(timezone.utc) + timedelta(days=7), "iat": datetime.now(timezone.utc)}
         token = jwt.encode(payload, self.secret_key, algorithm="HS256")
-        expires_at = datetime.utcnow() + timedelta(days=7)
+        expires_at = datetime.now(timezone.utc) + timedelta(days=7)
         cursor.execute("INSERT INTO sessions (user_id, token, expires_at) VALUES (?, ?, ?)", (user_id, token, expires_at))
         return token
 

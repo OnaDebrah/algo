@@ -5,9 +5,10 @@
 
 'use client'
 
-import React, {useState} from 'react';
-import {Activity, AlertTriangle, Bell, CheckCircle, DollarSign, Info, Settings, Shield, X} from 'lucide-react';
-import {BacktestResultToDeploy, DeploymentConfig} from "@/types/all_types";
+import React, { useState } from 'react';
+import { Activity, AlertTriangle, Bell, CheckCircle, DollarSign, Info, Settings, Shield, X } from 'lucide-react';
+import { BacktestResultToDeploy, DeploymentConfig } from "@/types/all_types";
+import { formatPercent, toPrecision } from "@/utils/formatters";
 
 
 interface DeploymentModalProps {
@@ -17,13 +18,13 @@ interface DeploymentModalProps {
 }
 
 export default function DeploymentModal({
-                                                    backtest,
-                                                    onClose,
-                                                    onDeploy
-                                                }: DeploymentModalProps) {
+    backtest,
+    onClose,
+    onDeploy
+}: DeploymentModalProps) {
     const [config, setConfig] = useState<DeploymentConfig>({
         source: backtest ? 'backtest' : 'custom',
-        backtest_id: backtest?.id,
+        backtest_id: backtest?.id ? parseInt(backtest.id, 10) : undefined,
         name: backtest ? `${backtest.strategy} - ${backtest.symbols.join(', ')}` : '',
         strategy_key: backtest?.strategy || '',
         parameters: backtest?.parameters || {},
@@ -53,7 +54,13 @@ export default function DeploymentModal({
 
         setIsDeploying(true);
         try {
-            await onDeploy(config);
+            // Ensure backtest_id is clean
+            const finalConfig = { ...config };
+            if (finalConfig.source !== 'backtest' || !finalConfig.backtest_id || isNaN(finalConfig.backtest_id)) {
+                delete finalConfig.backtest_id;
+            }
+
+            await onDeploy(finalConfig);
         } finally {
             setIsDeploying(false);
         }
@@ -95,11 +102,10 @@ export default function DeploymentModal({
                         <button
                             key={tab.id}
                             onClick={() => setActiveTab(tab.id as any)}
-                            className={`px-6 py-3 font-semibold text-sm flex items-center gap-2 border-b-2 transition-colors ${
-                                activeTab === tab.id
-                                    ? 'border-violet-500 text-violet-400'
-                                    : 'border-transparent text-slate-400 hover:text-slate-300'
-                            }`}
+                            className={`px-6 py-3 font-semibold text-sm flex items-center gap-2 border-b-2 transition-colors ${activeTab === tab.id
+                                ? 'border-violet-500 text-violet-400'
+                                : 'border-transparent text-slate-400 hover:text-slate-300'
+                                }`}
                         >
                             <tab.icon size={16} />
                             {tab.label}
@@ -117,15 +123,15 @@ export default function DeploymentModal({
                             <div className="grid grid-cols-4 gap-4 text-sm">
                                 <div>
                                     <span className="text-slate-500">Return:</span>
-                                    <span className="text-emerald-400 font-bold ml-2">+{backtest.total_return_pct}%</span>
+                                    <span className="text-emerald-400 font-bold ml-2">+{formatPercent(backtest.total_return_pct)}</span>
                                 </div>
                                 <div>
                                     <span className="text-slate-500">Sharpe:</span>
-                                    <span className="text-slate-200 font-bold ml-2">{backtest.sharpe_ratio}</span>
+                                    <span className="text-slate-200 font-bold ml-2">{toPrecision(backtest.sharpe_ratio)}</span>
                                 </div>
                                 <div>
                                     <span className="text-slate-500">Max DD:</span>
-                                    <span className="text-red-400 font-bold ml-2">{backtest.max_drawdown}%</span>
+                                    <span className="text-red-400 font-bold ml-2">{formatPercent(backtest.max_drawdown)}</span>
                                 </div>
                                 <div>
                                     <span className="text-slate-500">Trades:</span>
@@ -154,11 +160,10 @@ export default function DeploymentModal({
                                 <div className="grid grid-cols-2 gap-4">
                                     <button
                                         onClick={() => setConfig({ ...config, deployment_mode: 'paper' })}
-                                        className={`p-4 rounded-xl border-2 transition-all ${
-                                            config.deployment_mode === 'paper'
-                                                ? 'border-blue-500 bg-blue-500/10'
-                                                : 'border-slate-700 bg-slate-800 hover:border-slate-600'
-                                        }`}
+                                        className={`p-4 rounded-xl border-2 transition-all ${config.deployment_mode === 'paper'
+                                            ? 'border-blue-500 bg-blue-500/10'
+                                            : 'border-slate-700 bg-slate-800 hover:border-slate-600'
+                                            }`}
                                     >
                                         <div className="text-left">
                                             <div className="font-bold text-slate-200">📋 Paper Trading</div>
@@ -170,11 +175,10 @@ export default function DeploymentModal({
 
                                     <button
                                         onClick={() => setConfig({ ...config, deployment_mode: 'live' })}
-                                        className={`p-4 rounded-xl border-2 transition-all ${
-                                            config.deployment_mode === 'live'
-                                                ? 'border-violet-500 bg-violet-500/10'
-                                                : 'border-slate-700 bg-slate-800 hover:border-slate-600'
-                                        }`}
+                                        className={`p-4 rounded-xl border-2 transition-all ${config.deployment_mode === 'live'
+                                            ? 'border-violet-500 bg-violet-500/10'
+                                            : 'border-slate-700 bg-slate-800 hover:border-slate-600'
+                                            }`}
                                     >
                                         <div className="text-left">
                                             <div className="font-bold text-slate-200">🚀 Live Trading</div>
@@ -422,31 +426,29 @@ export default function DeploymentModal({
                     </div>
 
                     {/* Risk Warning */}
-                    {config.deployment_mode === 'live' && (
-                        <div className="p-4 bg-amber-500/10 border border-amber-500/30 rounded-xl">
-                            <div className="flex items-start gap-3">
-                                <AlertTriangle className="text-amber-400 flex-shrink-0 mt-0.5" size={20} />
-                                <div className="flex-1">
-                                    <div className="font-bold text-amber-400 mb-1">⚠️ RISK WARNING</div>
-                                    <p className="text-sm text-slate-300 mb-3">
-                                        Live trading involves real capital risk. Past performance does not guarantee future results.
-                                        Monitor your positions actively and ensure risk limits are appropriate.
-                                    </p>
-                                    <label className="flex items-start gap-2 cursor-pointer">
-                                        <input
-                                            type="checkbox"
-                                            checked={agreedToRisk}
-                                            onChange={(e) => setAgreedToRisk(e.target.checked)}
-                                            className="mt-1"
-                                        />
-                                        <span className="text-sm text-slate-300">
-                      I understand the risks and have reviewed all settings
-                    </span>
-                                    </label>
-                                </div>
+                    <div className="p-4 bg-amber-500/10 border border-amber-500/30 rounded-xl">
+                        <div className="flex items-start gap-3">
+                            <AlertTriangle className="text-amber-400 flex-shrink-0 mt-0.5" size={20} />
+                            <div className="flex-1">
+                                <div className="font-bold text-amber-400 mb-1">⚠️ RISK WARNING</div>
+                                <p className="text-sm text-slate-300 mb-3">
+                                    Trading involves capital risk. Past performance does not guarantee future results.
+                                    Monitor your positions actively and ensure risk limits are appropriate.
+                                </p>
+                                <label className="flex items-start gap-2 cursor-pointer">
+                                    <input
+                                        type="checkbox"
+                                        checked={agreedToRisk}
+                                        onChange={(e) => setAgreedToRisk(e.target.checked)}
+                                        className="mt-1"
+                                    />
+                                    <span className="text-sm text-slate-300">
+                                        I understand the risks and have reviewed all settings
+                                    </span>
+                                </label>
                             </div>
                         </div>
-                    )}
+                    </div>
 
                     {/* Action Buttons */}
                     <div className="flex items-center justify-between">

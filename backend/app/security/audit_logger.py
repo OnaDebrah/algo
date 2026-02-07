@@ -1,7 +1,7 @@
 import hashlib
 import json
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
 from security.audit_type import AuditEventType
@@ -41,7 +41,7 @@ class AuditLogger:
         Returns:
             event_id: Unique event ID
         """
-        timestamp = datetime.utcnow()
+        timestamp = datetime.now(timezone.utc)
 
         # Create event record
         event = {
