@@ -100,7 +100,7 @@ class LiveStrategyWebSocketManager:
         message = {
             "type": "equity_update",
             "strategy_id": strategy_id,
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "data": {
                 "equity": equity,
                 "cash": cash,
@@ -194,7 +194,7 @@ async def equity_snapshot_background_task(db_session_maker):
 
                         snapshot = LiveEquitySnapshot(
                             strategy_id=strategy.id,
-                            timestamp=datetime.utcnow(),
+                            timestamp=datetime.now(timezone.utc),
                             equity=equity_data["equity"],
                             cash=equity_data["cash"],
                             positions_value=equity_data["positions_value"],
@@ -209,7 +209,7 @@ async def equity_snapshot_background_task(db_session_maker):
                         # Update strategy
                         strategy.current_equity = equity_data["equity"]
                         strategy.daily_pnl = equity_data["daily_pnl"]
-                        strategy.last_equity_update = datetime.utcnow()
+                        strategy.last_equity_update = datetime.now(timezone.utc)
                         db.commit()
 
                         # Broadcast to WebSocket clients

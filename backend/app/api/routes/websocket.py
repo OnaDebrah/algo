@@ -5,7 +5,7 @@ WebSocket routes for real-time updates
 import asyncio
 import json
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict, Set
 
 import yfinance as yf
@@ -232,7 +232,7 @@ async def strategy_websocket(websocket: WebSocket, strategy_id: int, db: Session
 
                 # Handle ping
                 if data == "ping":
-                    await websocket.send_json({"type": "pong", "timestamp": datetime.utcnow().isoformat()})
+                    await websocket.send_json({"type": "pong", "timestamp": datetime.now(timezone.utc).isoformat()})
 
             except WebSocketDisconnect:
                 break

@@ -191,7 +191,7 @@ class OrderManager:
                 order.status = OrderStatus.FILLED
                 order.filled_quantity = order.quantity
                 order.average_fill_price = result.get("filled_price")
-                order.filled_at = datetime.utcnow()
+                order.filled_at = datetime.now(timezone.utc)
 
                 # Remove from pending
                 if order.id in self.pending_orders:
@@ -213,7 +213,7 @@ class OrderManager:
         order.status = OrderStatus.FILLED
         order.filled_quantity = order.quantity
         order.average_fill_price = min(fill_price, order.limit_price) if order.side == OrderSide.BUY else max(fill_price, order.limit_price)
-        order.filled_at = datetime.utcnow()
+        order.filled_at = datetime.now(timezone.utc)
 
         # Remove from pending
         if order.id in self.pending_orders:

@@ -1,31 +1,30 @@
 import React, {useEffect, useState} from "react";
 import {
-    Bell,
     Check,
     Copy,
     CreditCard,
-    Database,
     Globe,
     Info,
-    Key,
     Landmark,
     Loader2,
     Percent,
     RefreshCw,
     Save,
     ShieldCheck,
-    TrendingDown,
-    User
+    TrendingDown
 } from "lucide-react";
 import {settings} from "@/utils/api";
 import {UserSettings} from "@/types/all_types";
+import AlertManagement from "@/components/settings/AlertManagement";
+import {tabs} from "@/components/settings/Tabs";
+import {dataProviders} from "@/components/settings/DataProviders";
+
 
 const SettingsPage = () => {
     const [activeTab, setActiveTab] = useState('profile');
     const [isLoading, setIsLoading] = useState(true);
     const [isSaving, setIsSaving] = useState(false);
 
-    // State for settings
     const [userSettings, setUserSettings] = useState<UserSettings | null>(null);
     const [dataSource, setDataSource] = useState('yahoo');
     const [slippage, setSlippage] = useState(0.001);
@@ -71,21 +70,6 @@ const SettingsPage = () => {
         }
     };
 
-    const tabs = [
-        { id: 'profile', label: 'Profile', icon: User },
-        { id: 'data', label: 'Data Connections', icon: Database },
-        { id: 'security', label: 'Security & API', icon: Key },
-        { id: 'notifications', label: 'Notifications', icon: Bell },
-        { id: 'billing', label: 'Billing', icon: CreditCard },
-    ];
-
-    const dataProviders = [
-        { id: 'yahoo', name: 'Yahoo Finance', type: 'Public', status: 'Available', color: 'text-blue-400' },
-        { id: 'alpaca', name: 'Alpaca Markets', type: 'Brokerage', status: 'Connected', color: 'text-yellow-500' },
-        { id: 'ibkr', name: 'Interactive Brokers', type: 'Institutional', status: 'Setup Required', color: 'text-red-500' },
-        { id: 'polygon', name: 'Polygon.io', type: 'Premium Feed', status: 'Available', color: 'text-purple-400' }
-    ];
-
     if (isLoading) {
         return (
             <div className="flex items-center justify-center h-96">
@@ -121,8 +105,8 @@ const SettingsPage = () => {
                             key={tab.id}
                             onClick={() => setActiveTab(tab.id)}
                             className={`w-full flex items-center space-x-3 px-4 py-3 rounded-xl transition-all ${activeTab === tab.id
-                                    ? 'bg-slate-800/70 text-slate-100 border border-slate-700/50'
-                                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/40'
+                                ? 'bg-slate-800/70 text-slate-100 border border-slate-700/50'
+                                : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/40'
                                 }`}
                         >
                             <tab.icon size={18} className={activeTab === tab.id ? 'text-violet-400' : ''} strokeWidth={2} />
@@ -231,8 +215,8 @@ const SettingsPage = () => {
                                                 key={provider.id}
                                                 onClick={() => setDataSource(provider.id)}
                                                 className={`p-4 rounded-xl border-2 cursor-pointer transition-all relative overflow-hidden group ${dataSource === provider.id
-                                                        ? 'border-violet-500 bg-violet-500/5'
-                                                        : 'border-slate-700/50 bg-slate-800/30 hover:border-slate-600'
+                                                    ? 'border-violet-500 bg-violet-500/5'
+                                                    : 'border-slate-700/50 bg-slate-800/30 hover:border-slate-600'
                                                     }`}
                                             >
                                                 <div className="flex justify-between items-start mb-2 relative z-10">
@@ -321,26 +305,7 @@ const SettingsPage = () => {
                         )}
 
                         {activeTab === 'notifications' && (
-                            <div className="p-8 space-y-4">
-                                {[
-                                    { label: 'Trade Executions', desc: 'Get notified when orders are filled', default: true },
-                                    { label: 'Margin Alerts', desc: 'Critical alerts for account health', default: true },
-                                    { label: 'Market Regime Changes', desc: 'Notifications when market conditions shift', default: false },
-                                    { label: 'Strategy Performance', desc: 'Weekly performance summaries', default: true }
-                                ].map((item, idx) => (
-                                    <div key={idx} className="flex items-center justify-between p-4 bg-slate-800/40 border border-slate-700/50 rounded-xl hover:bg-slate-800/60 transition-all">
-                                        <div>
-                                            <p className="text-sm font-semibold text-slate-200">{item.label}</p>
-                                            <p className="text-xs text-slate-500 mt-0.5">{item.desc}</p>
-                                        </div>
-                                        <input
-                                            type="checkbox"
-                                            defaultChecked={item.default}
-                                            className="w-5 h-5 accent-violet-600 rounded cursor-pointer"
-                                        />
-                                    </div>
-                                ))}
-                            </div>
+                            <AlertManagement />
                         )}
 
                         {activeTab === 'billing' && (

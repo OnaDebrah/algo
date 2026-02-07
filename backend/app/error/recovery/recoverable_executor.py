@@ -1,6 +1,6 @@
 import asyncio
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Dict, Optional
 
 from error.recovery.error_recovery_manager import ErrorRecoveryManager, RecoveryAction
@@ -119,13 +119,13 @@ class RecoverableExecutor:
         if not self.last_checkpoint:
             return True
 
-        elapsed = (datetime.utcnow() - self.last_checkpoint).total_seconds()
+        elapsed = (datetime.now(timezone.utc) - self.last_checkpoint).total_seconds()
         return elapsed >= self.checkpoint_interval
 
     async def _create_checkpoint(self):
         """Create state checkpoint"""
         state = await self._capture_state()
         await self.state_mgr.save_state(self.strategy_id, state)
-        self.last_checkpoint = datetime.utcnow()
+        self.last_checkpoint = datetime.now(timezone.utc)
 
         logger.debug(f"Checkpoint created for strategy {self.strategy_id}")

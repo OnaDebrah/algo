@@ -1,7 +1,9 @@
 export enum BrokerType {
-    PAPER_TRADING = "Paper Trading",
-    ALPACA = "Alpaca Markets",
-    INTERACTIVE_BROKERS = "Interactive Brokers"
+    PAPER = 'paper',
+    ALPACA_PAPER = 'alpaca_paper',
+    ALPACA_LIVE = 'alpaca_live',
+    IB_PAPER = 'ib_paper',
+    IB_LIVE = 'ib_live'
 }
 
 export enum EngineStatus {
@@ -30,9 +32,16 @@ export enum OrderStatus {
 
 export interface ConnectRequest {
     broker: BrokerType;
-    api_key: string | null;
-    api_secret: string | null;
+    api_key?: string;
+    api_secret?: string;
+    account_id?: string;
+    host?: string;
+    port?: number;
+    client_id?: number;
+    initial_capital?: number;
+    credentials?: Record<string, any>;
 }
+
 
 export interface ExecutionOrder {
     id: string;
@@ -56,7 +65,7 @@ export interface LiveStrategy {
     name: string;
     strategy_key: string;
     symbols: string[];
-    status: 'running' | 'paused' | 'stopped' | 'error';
+    status: 'RUNNING' | 'PAUSED' | 'STOPPED' | 'ERROR';
     deployment_mode: 'paper' | 'live';
     current_equity: number;
     initial_capital: number;
@@ -144,6 +153,8 @@ export interface PortfolioMetrics {
 export interface StrategyDetailsResponse {
     strategy: LiveStrategy;
     equity_curve: LiveEquityPoint[];
+    current_equity: number;
+    initial_capital: number;
     trades: LiveTrade[];
     backtest_comparison: {
         backtest_return_pct: number;

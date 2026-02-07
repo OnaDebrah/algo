@@ -1,7 +1,7 @@
 import json
 import logging
 import pickle
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, Optional
 
@@ -38,7 +38,7 @@ class StateManager:
         - Internal state variables
         """
         # Add metadata
-        state_snapshot = {"strategy_id": strategy_id, "timestamp": datetime.utcnow().isoformat(), "version": 1, "state": state}
+        state_snapshot = {"strategy_id": strategy_id, "timestamp": datetime.now(timezone.utc).isoformat(), "version": 1, "state": state}
 
         # Save to disk (both JSON and pickle for redundancy)
         state_file = self.state_dir / f"strategy_{strategy_id}.json"
@@ -124,7 +124,7 @@ class StateManager:
             logger.warning(f"No state to checkpoint for strategy {strategy_id}")
             return
 
-        timestamp = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
+        timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
         checkpoint_file = self.state_dir / f"strategy_{strategy_id}_checkpoint_{label}_{timestamp}.pkl"
 
         try:

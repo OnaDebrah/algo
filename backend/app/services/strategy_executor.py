@@ -5,7 +5,7 @@ Executes trading strategies in real-time with broker integration
 
 import asyncio
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Dict, Optional
 
 from sqlalchemy.orm import Session
@@ -106,7 +106,7 @@ class StrategyExecutor:
 
         # Update status in DB
         self.strategy.status = StrategyStatus.RUNNING
-        self.strategy.started_at = datetime.utcnow()
+        self.strategy.started_at = datetime.now(timezone.utc)
         self.db.commit()
 
         # Main execution loop
@@ -122,7 +122,7 @@ class StrategyExecutor:
 
         # Update status in DB
         self.strategy.status = StrategyStatus.STOPPED
-        self.strategy.stopped_at = datetime.utcnow()
+        self.strategy.stopped_at = datetime.now(timezone.utc)
         self.db.commit()
 
     async def pause(self):
@@ -320,7 +320,7 @@ class StrategyExecutor:
             order_id=order.get("order_id"),
             status=TradeStatus.OPEN,
             commission=commission,
-            opened_at=datetime.utcnow(),
+            opened_at=datetime.now(timezone.utc),
             strategy_signal=metadata,
         )
 
@@ -331,12 +331,13 @@ class StrategyExecutor:
         self.strategy.total_trades += 1
         self.strategy.daily_trades += 1
         self.trades_today += 1
-        self.strategy.last_trade_at = datetime.utcnow()
+        self.strategy.last_trade_at = datetime.now(timezone.utc)
         self.db.commit()
 
         # Broadcast trade execution
         await ws_manager.broadcast_trade_executed(
-            self.strategy_id, {"symbol": symbol, "side": "BUY", "quantity": quantity, "price": price, "timestamp": datetime.utcnow().isoformat()}
+            self.strategy_id,
+            {"symbol": symbol, "side": "BUY", "quantity": quantity, "price": price, "timestamp": datetime.now(timezone.utc).isoformat()},
         )
 
         logger.info(f"Opened LONG position: {symbol} {quantity} @ ${price:.2f}")
@@ -378,7 +379,7 @@ class StrategyExecutor:
 
         if trade:
             trade.exit_price = price
-            trade.closed_at = datetime.utcnow()
+            trade.closed_at = datetime.now(timezone.utc)
             trade.status = TradeStatus.CLOSED
             trade.profit = net_profit
             trade.profit_pct = (profit / (position.entry_price * position.quantity)) * 100
@@ -407,7 +408,7 @@ class StrategyExecutor:
                 "quantity": position.quantity,
                 "price": price,
                 "profit": net_profit,
-                "timestamp": datetime.utcnow().isoformat(),
+                "timestamp": datetime.now(timezone.utc).isoformat(),
             },
         )
 
@@ -516,7 +517,7 @@ class StrategyExecutor:
         # Save to database
         snapshot = LiveEquitySnapshot(
             strategy_id=self.strategy_id,
-            timestamp=datetime.utcnow(),
+            timestamp=datetime.now(timezone.utc),
             equity=equity,
             cash=self.cash,
             positions_value=positions_value,
@@ -531,7 +532,7 @@ class StrategyExecutor:
         # Update strategy
         self.strategy.current_equity = equity
         self.strategy.daily_pnl = daily_pnl
-        self.strategy.last_equity_update = datetime.utcnow()
+        self.strategy.last_equity_update = datetime.now(timezone.utc)
         self.db.commit()
 
         # Broadcast to WebSocket clients

@@ -1,9 +1,8 @@
 import logging
 from typing import Any, Dict
 
-from schemas.alert import AlertChannel, AlertLevel
-
-from alerts.alert_manager_ import AlertManager
+from backend.app.alerts.alert_manager import AlertManager
+from backend.app.schemas.alert import AlertChannel, AlertLevel
 
 logger = logging.getLogger(__name__)
 

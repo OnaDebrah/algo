@@ -5,7 +5,7 @@ Graceful error handling, state persistence, crash recovery
 
 import asyncio
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Any, Dict, List
 
@@ -72,7 +72,7 @@ class ErrorRecoveryManager:
 
         # Log error
         error_record = {
-            "timestamp": datetime.utcnow(),
+            "timestamp": datetime.now(timezone.utc),
             "error": str(error),
             "type": type(error).__name__,
             "severity": severity.value,

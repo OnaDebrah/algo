@@ -91,7 +91,7 @@ import {
 
     // HTTP Error
     HTTPValidationError, RegimeData, RegimeHistoryResponse, PairsValidationRequest, PairsValidationResponse,
-    LiveOrderPlacement, LiveOrderUpdate, MarketplaceFilterParams, AlertPreferences, Alert
+    LiveOrderPlacement, LiveOrderUpdate, MarketplaceFilterParams, AlertPreferences, Alert, DeploymentConfig
 } from '@/types/all_types';
 import {
     BaseOptimizationRequest, BlackLittermanRequest, BlackLittermanResponse,
@@ -421,8 +421,8 @@ export const live = {
     getStatus: () =>
         client.get<LiveStatus>('/live/status'),
 
-    connect: (data: ConnectRequest) =>
-        client.post<LiveStatus>('/live/connect', data),
+    connect: (request: ConnectRequest) =>
+        client.post<LiveStatus>('/live/connect', request),
 
     disconnect: () =>
         client.post<LiveStatus>('/live/disconnect'),
@@ -445,13 +445,14 @@ export const live = {
     modifyOrder: (id: string, updates: LiveOrderUpdate) =>
         client.put<ExecutionOrder>(`/live/order/${id}`, updates),
 
-    list: (params?: { status?: string; mode?: string }) =>
-        client.get<LiveStrategy[]>('/live/strategy', { params }),
+    list: async (params?: { status?: string; mode?: string }): Promise<LiveStrategy[]> => {
+        return client.get<LiveStrategy[]>('/live/strategy', { params })
+    },
 
     getDetails: (id: number) =>
         client.get<StrategyDetailsResponse>(`/live/strategy/${id}`),
 
-    control: (id: number, action: 'start' | 'pause' | 'stop' | 'restart') =>
+    controlStrategy: (id: number, action: 'start' | 'pause' | 'stop' | 'restart') =>
         client.post<ControlResponse>(`/live/strategy/${id}/control`, { action }),
 
     update: (id: number, data: Partial<StrategyUpdateRequest>) =>
@@ -459,6 +460,9 @@ export const live = {
 
     delete: (id: number) =>
         client.delete<{ strategy_id: number; message: string }>(`/live/strategy/${id}`),
+
+    deploy: (config: DeploymentConfig) =>
+        client.post<{ strategy_id: number; message: string }>(`/live/strategy/deploy`, config),
 };
 
 // ==================== MARKETPLACE ====================

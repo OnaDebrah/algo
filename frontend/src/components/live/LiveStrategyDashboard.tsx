@@ -166,7 +166,7 @@ export default function LiveStrategyDashboard() {
 
     const controlStrategy = async (strategyId: number, action: 'start' | 'pause' | 'stop') => {
         try {
-            await live.control(strategyId, action);
+            await live.controlStrategy(strategyId, action);
             await loadStrategies();
             showNotification('Success', `Strategy ${action}ed`);
         } catch (error) {
