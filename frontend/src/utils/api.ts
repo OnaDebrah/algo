@@ -106,8 +106,12 @@ import {
 
     // HTTP Error
     HTTPValidationError, RegimeData, RegimeHistoryResponse, PairsValidationRequest, PairsValidationResponse,
+<<<<<<< HEAD
     LiveOrderPlacement, LiveOrderUpdate, MarketplaceFilterParams, AlertPreferences, Alert, DeploymentConfig,
     BrokerConnectionResponse, MLModelStatusRequest, ModelPrediction, BrokerSettings, WFARequest, WFAResponse
+=======
+    LiveOrderPlacement, LiveOrderUpdate, MarketplaceFilterParams, AlertPreferences, Alert, DeploymentConfig
+>>>>>>> 1d0cda0 (strategy deploy)
 } from '@/types/all_types';
 import {
     BaseOptimizationRequest, BlackLittermanRequest, BlackLittermanResponse,
@@ -497,6 +501,7 @@ export const live = {
 
     deploy: (config: DeploymentConfig) =>
         client.post<{ strategy_id: number; message: string }>(`/live/strategy/deploy`, config),
+<<<<<<< HEAD
 
     autoConnect: () =>
         client.post<{ status: string; broker?: string; message: string }>('/live/auto-connect'),
@@ -512,6 +517,8 @@ export const social = {
 
     logActivity: (content: string, type: string = "MANUAL") =>
         client.post<{ status: string }>('/social/activity/log', null, { params: { content, activity_type: type } }),
+=======
+>>>>>>> 1d0cda0 (strategy deploy)
 };
 
 // ==================== MARKETPLACE ====================

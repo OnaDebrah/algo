@@ -388,6 +388,7 @@ const MLStudio = () => {
 
     return (
         <div className="space-y-8 animate-in fade-in duration-700">
+<<<<<<< HEAD
             {/* Header with Tabs */}
             <div>
                 <div className="flex items-center justify-between mb-6">
@@ -413,6 +414,18 @@ const MLStudio = () => {
                             Cloud Training
                         </button>
                     </div>
+=======
+            {/* Header */}
+            <div className="flex items-center justify-between">
+                <div>
+                    <h1 className="text-2xl font-bold text-slate-100 flex items-center gap-3">
+                        <div className="p-2 bg-gradient-to-br from-fuchsia-500/20 to-violet-500/20 rounded-xl">
+                            <Cpu className="text-fuchsia-400" size={24} />
+                        </div>
+                        ML Strategy Studio
+                    </h1>
+                    <p className="text-slate-500 text-sm mt-1">Build, train, and deploy machine learning models for algorithmic trading</p>
+>>>>>>> 1d0cda0 (strategy deploy)
                 </div>
 
                 {/* Navigation Tabs */}
@@ -426,6 +439,7 @@ const MLStudio = () => {
                             Train Models
                         </div>
                     </button>
+<<<<<<< HEAD
                     <button
                         onClick={() => setActiveTab('builder')}
                         className={`px-6 py-3 text-sm font-medium border-b-2 transition-all ${activeTab === 'builder' ? 'border-fuchsia-500 text-fuchsia-400' : 'border-transparent text-slate-500 hover:text-slate-300'}`}
@@ -459,6 +473,11 @@ const MLStudio = () => {
                                 {deployedModels.length}
                             </span>
                         </div>
+=======
+                    <button className="px-4 py-2 bg-gradient-to-r from-fuchsia-600 to-violet-600 hover:from-fuchsia-500 hover:to-violet-500 rounded-lg text-white text-sm font-medium flex items-center gap-2 transition-all shadow-lg shadow-fuchsia-600/20">
+                        <Cloud size={16} />
+                        Cloud Training
+>>>>>>> 1d0cda0 (strategy deploy)
                     </button>
                 </div>
             </div>
@@ -695,8 +714,165 @@ const MLStudio = () => {
                                         ))}
                                     </div>
                                 </div>
+<<<<<<< HEAD
+=======
+
+                                <div className="space-y-2">
+                                    <label className="text-xs font-medium text-slate-400 flex items-center gap-2">
+                                        <Clock size={12} />
+                                        Training Period
+                                    </label>
+                                    <div className="flex gap-2">
+                                        {(['1M', '3M', '6M', '1Y', '5Y'] as const).map((period) => (
+                                            <button
+                                                key={period}
+                                                onClick={() => setConfig({ ...config, training_period: period })}
+                                                className={`px-3 py-2 rounded-lg text-xs transition-all ${config.training_period === period
+                                                    ? 'bg-fuchsia-500 text-white'
+                                                    : 'bg-slate-800 text-slate-400 hover:bg-slate-700'
+                                                    }`}
+                                            >
+                                                {period}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Advanced Configuration */}
+                            <div className="space-y-4">
+                                <div className="space-y-2">
+                                    <label className="text-xs font-medium text-slate-400 flex items-center gap-2">
+                                        <PieChart size={12} />
+                                        Test Set Size: {config.test_size}%
+                                    </label>
+                                    <input
+                                        type="range"
+                                        min="10"
+                                        max="40"
+                                        step="5"
+                                        value={config.test_size}
+                                        onChange={(e) => setConfig({ ...config, test_size: parseInt(e.target.value) })}
+                                        className="w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-fuchsia-500"
+                                    />
+                                    <div className="flex justify-between text-[10px] text-slate-500">
+                                        <span>10%</span>
+                                        <span>25%</span>
+                                        <span>40%</span>
+                                    </div>
+                                </div>
+
+                                {config.model_type === 'LSTM' && (
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div className="space-y-2">
+                                            <label className="text-xs font-medium text-slate-400">Epochs</label>
+                                            <input
+                                                type="number"
+                                                min="1"
+                                                max="500"
+                                                value={config.epochs}
+                                                onChange={(e) => setConfig({ ...config, epochs: parseInt(e.target.value) })}
+                                                className="w-full bg-slate-950/70 border border-slate-800 rounded-xl py-2 px-3 text-sm text-slate-100 focus:border-fuchsia-500 outline-none"
+                                            />
+                                        </div>
+                                        <div className="space-y-2">
+                                            <label className="text-xs font-medium text-slate-400">Batch Size</label>
+                                            <select
+                                                value={config.batch_size}
+                                                onChange={(e) => setConfig({ ...config, batch_size: parseInt(e.target.value) })}
+                                                className="w-full bg-slate-950/70 border border-slate-800 rounded-xl py-2 px-3 text-sm text-slate-300 focus:border-fuchsia-500 outline-none"
+                                            >
+                                                <option value="16">16</option>
+                                                <option value="32">32</option>
+                                                <option value="64">64</option>
+                                                <option value="128">128</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {showAdvanced && (
+                                    <div className="space-y-3 animate-in slide-in-from-top-2">
+                                        <div className="space-y-2">
+                                            <label className="text-xs font-medium text-slate-400">Learning Rate</label>
+                                            <input
+                                                type="range"
+                                                min="0.0001"
+                                                max="0.01"
+                                                step="0.0001"
+                                                value={config.learning_rate}
+                                                onChange={(e) => setConfig({ ...config, learning_rate: parseFloat(e.target.value) })}
+                                                className="w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-fuchsia-500"
+                                            />
+                                            <div className="text-xs text-slate-500 text-center">{config.learning_rate.toFixed(4)}</div>
+                                        </div>
+
+                                        <div className="flex items-center gap-3">
+                                            <label className="flex items-center gap-2 text-xs text-slate-400">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={config.use_feature_engineering}
+                                                    onChange={(e) => setConfig({ ...config, use_feature_engineering: e.target.checked })}
+                                                    className="rounded accent-fuchsia-500"
+                                                />
+                                                Feature Engineering
+                                            </label>
+                                            <label className="flex items-center gap-2 text-xs text-slate-400">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={config.use_cross_validation}
+                                                    onChange={(e) => setConfig({ ...config, use_cross_validation: e.target.checked })}
+                                                    className="rounded accent-fuchsia-500"
+                                                />
+                                                5-Fold CV
+                                            </label>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+
+                        {/* Feature Engineering Options */}
+                        {config.use_feature_engineering && (
+                            <div className="mt-6 p-4 bg-slate-950/50 border border-slate-800 rounded-xl">
+                                <div className="flex items-center gap-2 mb-3">
+                                    <Filter className="text-violet-500" size={14} />
+                                    <span className="text-xs font-medium text-slate-400">Feature Engineering Pipeline</span>
+                                </div>
+                                <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
+                                    {featureOptions.map((feat) => (
+                                        <div key={feat.id} className="p-2 bg-slate-900/50 rounded-lg border border-slate-800">
+                                            <div className="text-[10px] font-medium text-fuchsia-400">{feat.label}</div>
+                                            <div className="text-[9px] text-slate-500 mt-1">{feat.description}</div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Training Button */}
+                        <button
+                            onClick={handleTrain}
+                            disabled={isTraining || !config.symbol}
+                            className={`w-full mt-6 py-4 rounded-xl font-bold transition-all flex items-center justify-center gap-3 ${isTraining
+                                    ? 'bg-slate-800 text-slate-400'
+                                    : 'bg-gradient-to-r from-violet-600 to-violet-600 hover:from-violet-500 hover:to-violet-500 text-white shadow-xl shadow-fuchsia-600/20'
+                                }`}
+                        >
+                            {isTraining ? (
+                                <>
+                                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                                    <span>Training... {trainingProgress.toFixed(0)}%</span>
+                                </>
+                            ) : (
+                                <>
+                                    <Play size={18} />
+                                    <span>Launch Training Session</span>
+                                </>
+>>>>>>> 1d0cda0 (strategy deploy)
                             )}
 
+<<<<<<< HEAD
                             {/* Training Button */}
                             <button
                                 onClick={handleTrain}
@@ -735,6 +911,16 @@ const MLStudio = () => {
                                         <span>Model Training</span>
                                         <span>Validation</span>
                                     </div>
+=======
+                        {/* Training Progress Bar */}
+                        {isTraining && (
+                            <div className="mt-4">
+                                <div className="h-2 bg-slate-800 rounded-full overflow-hidden">
+                                    <div
+                                        className="h-full bg-gradient-to-r from-fuchsia-500 to-violet-500 transition-all duration-300"
+                                        style={{ width: `${trainingProgress}%` }}
+                                    />
+>>>>>>> 1d0cda0 (strategy deploy)
                                 </div>
                             )}
                         </div>
@@ -832,9 +1018,19 @@ const MLStudio = () => {
                             <div className="w-12 h-12 bg-fuchsia-500/10 rounded-xl flex items-center justify-center">
                                 <Target className="text-fuchsia-400" size={24} />
                             </div>
+<<<<<<< HEAD
                             <div>
                                 <h4 className="text-sm font-bold text-white uppercase tracking-wider">Strategy Ready for Backtesting</h4>
                                 <p className="text-xs text-slate-500">Your visual logic will be converted to the &quot;Visual Strategy Builder&quot; engine automatically.</p>
+=======
+                            <div className="p-3 bg-slate-900/30 rounded-lg">
+                                <p className="text-[10px] font-medium text-violet-400 uppercase mb-1">Data Requirements</p>
+                                <p className="text-xs text-slate-300">Minimum 500 data points. Multi-year datasets recommended for robust models.</p>
+                            </div>
+                            <div className="p-3 bg-slate-900/30 rounded-lg">
+                                <p className="text-[10px] font-medium text-blue-400 uppercase mb-1">Performance Metrics</p>
+                                <p className="text-xs text-slate-300">Models evaluated on accuracy, F1-score, precision, recall, and overfitting score.</p>
+>>>>>>> 1d0cda0 (strategy deploy)
                             </div>
                         </div>
                         <button
@@ -958,8 +1154,12 @@ const MLStudio = () => {
                                     Deploy Strategy
                                 </button>
                             )}
+<<<<<<< HEAD
                             <button
                                 className="px-4 py-2 bg-gradient-to-r from-fuchsia-600 to-violet-600 hover:from-fuchsia-500 hover:to-violet-500 rounded-lg text-white text-sm font-medium flex items-center gap-2 transition-all shadow-lg shadow-fuchsia-600/20">
+=======
+                            <button className="px-4 py-2 bg-gradient-to-r from-fuchsia-600 to-violet-600 hover:from-fuchsia-500 hover:to-violet-500 rounded-lg text-white text-sm font-medium flex items-center gap-2 transition-all shadow-lg shadow-fuchsia-600/20">
+>>>>>>> 1d0cda0 (strategy deploy)
                                 <Maximize2 size={16} />
                                 Compare Models
                             </button>
@@ -981,8 +1181,12 @@ const MLStudio = () => {
                             className="bg-gradient-to-br from-slate-900/40 to-slate-950/40 border border-slate-800/50 p-5 rounded-2xl">
                             <p className="text-xs font-medium text-slate-500 mb-2">Test Accuracy</p>
                             <div className="flex items-end gap-2">
+<<<<<<< HEAD
                                 <span
                                     className="text-2xl font-bold text-violet-400">{(selectedModel.test_accuracy * 100).toFixed(1)}%</span>
+=======
+                                <span className="text-2xl font-bold text-violet-400">{(selectedModel.test_accuracy * 100).toFixed(1)}%</span>
+>>>>>>> 1d0cda0 (strategy deploy)
                                 <span className="text-xs text-slate-500 mb-1">±1.8%</span>
                             </div>
                         </div>

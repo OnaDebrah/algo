@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 """
 Enhanced User Settings API
 Includes broker configuration and data source preferences for live trading
@@ -24,6 +25,16 @@ from ...schemas.settings import (
     UserSettings,
 )
 from ...services.brokers.ib_client import IBClient
+=======
+from fastapi import APIRouter, Depends
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from backend.app.api.deps import get_current_active_user, get_db
+from backend.app.models.user import User
+from backend.app.models.user_settings import UserSettings as UserSettingsModel
+from backend.app.schemas.settings import BacktestSettings, GeneralSettings, SettingsUpdate, UserSettings
+>>>>>>> 1d0cda0 (strategy deploy)
 
 router = APIRouter(prefix="/settings", tags=["Settings"])
 
@@ -34,6 +45,7 @@ async def get_or_create_settings(db: AsyncSession, user_id: int) -> UserSettings
     result = await db.execute(stmt)
     user_settings = result.scalars().first()
 
+<<<<<<< HEAD
     if not user_settings:
         user_settings = UserSettingsModel(
             user_id=user_id,
@@ -64,6 +76,18 @@ async def get_or_create_settings(db: AsyncSession, user_id: int) -> UserSettings
         await db.refresh(user_settings)
 
     return user_settings
+=======
+    result = await db.execute(stmt)
+    settings = result.scalars().first()
+
+    if not settings:
+        settings = UserSettingsModel(user_id=user_id)
+        db.add(settings)
+        await db.commit()
+        await db.refresh(settings)
+
+    return settings
+>>>>>>> 1d0cda0 (strategy deploy)
 
 
 def model_to_schema(model: UserSettingsModel) -> UserSettings:
@@ -110,7 +134,11 @@ async def update_user_settings(
     settings_update: SettingsUpdate, current_user: User = Depends(get_current_active_user), db: AsyncSession = Depends(get_db)
 ):
     """Update user settings"""
+<<<<<<< HEAD
     user_settings = await get_or_create_settings(db, current_user.id)
+=======
+    settings = await get_or_create_settings(db, current_user.id)
+>>>>>>> 1d0cda0 (strategy deploy)
 
     # Update backtest settings
     if settings_update.backtest:
@@ -166,7 +194,11 @@ async def update_user_settings(
             user_settings.refresh_interval = settings_update.general.refresh_interval
 
     await db.commit()
+<<<<<<< HEAD
     await db.refresh(user_settings)
+=======
+    await db.refresh(settings)
+>>>>>>> 1d0cda0 (strategy deploy)
 
     return model_to_schema(user_settings)
 
@@ -175,6 +207,7 @@ async def update_user_settings(
 async def reset_user_settings(current_user: User = Depends(get_current_active_user), db: AsyncSession = Depends(get_db)):
     """Reset settings to default"""
     stmt = select(UserSettingsModel).where(UserSettingsModel.user_id == current_user.id)
+<<<<<<< HEAD
     result = await db.execute(stmt)
 
     settings = result.scalars().first()
@@ -289,3 +322,14 @@ async def test_broker_connection(current_user: User = Depends(get_current_active
 
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Failed to connect to broker: {str(e)}")
+=======
+
+    result = await db.execute(stmt)
+    for user in result.scalars():
+        await db.delete(user)
+
+    await db.commit()
+
+    settings = await get_or_create_settings(db, current_user.id)
+    return model_to_schema(settings)
+>>>>>>> 1d0cda0 (strategy deploy)

@@ -120,6 +120,7 @@ async def login(credentials: UserLogin, db: AsyncSession = Depends(get_db)):
 
     await AuthService.track_usage(db, user.id, "login")
 
+<<<<<<< HEAD
     # Build JSON body (tokens still included for backward compat / API clients)
     body = LoginResponse(
         user=UserSchema.model_validate(user),
@@ -130,6 +131,9 @@ async def login(credentials: UserLogin, db: AsyncSession = Depends(get_db)):
     response = JSONResponse(content=body.model_dump(mode="json"))
     _set_auth_cookies(response, access_token, refresh_token)
     return response
+=======
+    return LoginResponse(user=UserSchema.model_validate(user), access_token=access_token, refresh_token=refresh_token, token_type="bearer")
+>>>>>>> 1d0cda0 (strategy deploy)
 
 
 @router.post("/logout")
