@@ -1,10 +1,21 @@
 from datetime import datetime
 from typing import Dict, List, Optional
 
+<<<<<<< HEAD
 from ..schemas.alert import AlertCategory, AlertChannel, AlertLevel
 
 
 class AlertPreferences:
+=======
+from backend.app.schemas.alert import AlertChannel, AlertLevel
+
+logger = logging.getLogger(__name__)
+
+
+class AlertPreferences:
+    """User alert preferences with support for multiple channels"""
+
+>>>>>>> 1d0cda0 (strategy deploy)
     def __init__(
         self,
         email: Optional[str] = None,
@@ -13,6 +24,7 @@ class AlertPreferences:
         sms_enabled: bool = False,
         push_enabled: bool = False,
         webhook_enabled: bool = False,
+<<<<<<< HEAD
         slack_enabled: bool = False,
         discord_enabled: bool = False,
         slack_webhook: Optional[str] = None,
@@ -31,6 +43,12 @@ class AlertPreferences:
         quiet_hours_start: Optional[int] = None,  # Hour (0-23)
         quiet_hours_end: Optional[int] = None,
         quiet_hours_priority: AlertLevel = AlertLevel.CRITICAL,  # Only these levels during quiet hours
+=======
+        min_level_email: AlertLevel = AlertLevel.INFO,
+        min_level_sms: AlertLevel = AlertLevel.ERROR,
+        min_level_push: AlertLevel = AlertLevel.WARNING,
+        min_level_webhook: AlertLevel = AlertLevel.WARNING,
+>>>>>>> 1d0cda0 (strategy deploy)
         webhook_url: Optional[str] = None,
     ):
         self.email = email
@@ -39,15 +57,22 @@ class AlertPreferences:
         self.sms_enabled = sms_enabled
         self.push_enabled = push_enabled
         self.webhook_enabled = webhook_enabled
+<<<<<<< HEAD
         self.slack_enabled = slack_enabled
         self.discord_enabled = discord_enabled
         self.slack_webhook = slack_webhook
         self.discord_webhook = discord_webhook
 
+=======
+>>>>>>> 1d0cda0 (strategy deploy)
         self.min_level_email = min_level_email
         self.min_level_sms = min_level_sms
         self.min_level_push = min_level_push
         self.min_level_webhook = min_level_webhook
+<<<<<<< HEAD
+=======
+        self.webhook_url = webhook_url
+>>>>>>> 1d0cda0 (strategy deploy)
 
         self.crash_notifications = crash_notifications
         self.bubble_notifications = bubble_notifications
@@ -141,6 +166,7 @@ class AlertPreferences:
                 channels.append(AlertChannel.SMS)
 
         if self.push_enabled:
+<<<<<<< HEAD
             if self._meets_threshold(level, self.min_level_push):
                 channels.append(AlertChannel.PUSH)
 
@@ -154,6 +180,15 @@ class AlertPreferences:
         if self.discord_enabled and self.discord_webhook:
             channels.append(AlertChannel.DISCORD)
 
+=======
+            if level_priority[level] >= level_priority[self.min_level_push]:
+                channels.append(AlertChannel.PUSH)
+
+        if self.webhook_enabled and self.webhook_url:
+            if level_priority[level] >= level_priority[self.min_level_webhook]:
+                channels.append(AlertChannel.WEBHOOK)
+
+>>>>>>> 1d0cda0 (strategy deploy)
         return channels
 
     def _meets_threshold(self, level: AlertLevel, min_level: AlertLevel) -> bool:

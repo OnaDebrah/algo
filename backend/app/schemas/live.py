@@ -77,7 +77,11 @@ class ConnectRequest(BaseModel):
     credentials: Optional[Dict[str, Any]] = Field(default=None, description="Additional credentials or overrides")
 
     class Config:
+<<<<<<< HEAD
         json_schema_extra = {
+=======
+        schema_extra = {
+>>>>>>> 1d0cda0 (strategy deploy)
             "example": {"broker": "alpaca_paper", "api_key": "PK123456789", "api_secret": "secret123"},
             "examples": {
                 "alpaca_paper": {
