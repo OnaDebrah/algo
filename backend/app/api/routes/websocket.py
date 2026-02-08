@@ -4,13 +4,21 @@ WebSocket routes for real-time updates
 
 import asyncio
 import json
-from datetime import datetime
+import logging
+from datetime import datetime, timezone
 from typing import Dict, Set
 
 import yfinance as yf
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect
+from fastapi import APIRouter, Depends, WebSocket, WebSocketDisconnect, status as http_status
+from sqlalchemy.orm import Session
 
+from backend.app.database import get_db
+from backend.app.models.live import LiveStrategy
 from backend.app.utils.security import decode_access_token
+from backend.app.websockets.manager import ws_manager
+
+logger = logging.getLogger(__name__)
+
 
 router = APIRouter(prefix="/websocket", tags=["WebSocket"])
 
@@ -77,9 +85,6 @@ class ConnectionManager:
                 self.user_connections[user_id].discard(connection)
 
 
-manager = ConnectionManager()
-
-
 async def get_current_user_ws(token: str):
     """Get current user from WebSocket token"""
     try:
@@ -88,7 +93,8 @@ async def get_current_user_ws(token: str):
         if user_id is None:
             return None
         return int(user_id)
-    except Exception:
+    except Exception as e:
+        logger.error(f"User not found: {e}")
         return None
 
 
@@ -97,14 +103,14 @@ async def websocket_market_data(websocket: WebSocket, symbol: str, token: str = 
     """WebSocket endpoint for real-time market data"""
     user_id = await get_current_user_ws(token) if token else 0
 
-    await manager.connect(websocket, user_id, f"market:{symbol}")
+    await ws_manager.connect(websocket, user_id, f"market:{symbol}")
 
     try:
         # Send initial data
         ticker = yf.Ticker(symbol)
         info = ticker.info
 
-        await manager.send_personal_message(
+        await ws_manager.send_personal_message(
             {
                 "type": "initial_data",
                 "symbol": symbol,
@@ -139,10 +145,10 @@ async def websocket_market_data(websocket: WebSocket, symbol: str, token: str = 
                 },
             }
 
-            await manager.broadcast_to_channel(message, f"market:{symbol}")
+            await ws_manager.broadcast_to_channel(message, f"market:{symbol}")
 
     except WebSocketDisconnect:
-        manager.disconnect(websocket, user_id, f"market:{symbol}")
+        ws_manager.disconnect(websocket, user_id, f"market:{symbol}")
 
 
 @router.websocket("/ws/portfolio/{portfolio_id}")
@@ -150,7 +156,7 @@ async def websocket_portfolio_updates(websocket: WebSocket, portfolio_id: int, t
     """WebSocket endpoint for portfolio updates"""
     user_id = await get_current_user_ws(token) if token else 0
 
-    await manager.connect(websocket, user_id, f"portfolio:{portfolio_id}")
+    await ws_manager.connect(websocket, user_id, f"portfolio:{portfolio_id}")
 
     try:
         while True:
@@ -159,10 +165,10 @@ async def websocket_portfolio_updates(websocket: WebSocket, portfolio_id: int, t
             message = json.loads(data)
 
             # Echo back or process
-            await manager.send_personal_message({"type": "portfolio_update", "portfolio_id": portfolio_id, "data": message}, websocket)
+            await ws_manager.send_personal_message({"type": "portfolio_update", "portfolio_id": portfolio_id, "data": message}, websocket)
 
     except WebSocketDisconnect:
-        manager.disconnect(websocket, user_id, f"portfolio:{portfolio_id}")
+        ws_manager.disconnect(websocket, user_id, f"portfolio:{portfolio_id}")
 
 
 @router.websocket("/ws/backtest/{run_id}")
@@ -170,7 +176,7 @@ async def websocket_backtest_progress(websocket: WebSocket, run_id: int, token: 
     """WebSocket endpoint for backtest progress updates"""
     user_id = await get_current_user_ws(token) if token else 0
 
-    await manager.connect(websocket, user_id, f"backtest:{run_id}")
+    await ws_manager.connect(websocket, user_id, f"backtest:{run_id}")
 
     try:
         while True:
@@ -178,7 +184,7 @@ async def websocket_backtest_progress(websocket: WebSocket, run_id: int, token: 
             await asyncio.sleep(1)
 
             # Send progress update
-            await manager.send_personal_message(
+            await ws_manager.send_personal_message(
                 {
                     "type": "backtest_progress",
                     "run_id": run_id,
@@ -189,20 +195,66 @@ async def websocket_backtest_progress(websocket: WebSocket, run_id: int, token: 
             )
 
     except WebSocketDisconnect:
-        manager.disconnect(websocket, user_id, f"backtest:{run_id}")
+        ws_manager.disconnect(websocket, user_id, f"backtest:{run_id}")
+
+
+@router.websocket("/strategy/{strategy_id}")
+async def strategy_websocket(websocket: WebSocket, strategy_id: int, db: Session = Depends(get_db)):
+    """
+    WebSocket endpoint for real-time strategy updates
+
+    Connect via: ws://localhost:8000/ws/strategy/{strategy_id}
+
+    Message types:
+    - equity_update: Real-time equity snapshots
+    - trade_executed: Trade execution notifications
+    - status_change: Strategy status changes
+    - error: Error notifications
+    """
+    # Note: WebSocket authentication is tricky with Depends
+    # For production, implement token-based auth
+
+    # Verify strategy exists (basic security)
+    strategy = db.query(LiveStrategy).filter(LiveStrategy.id == strategy_id).first()
+    if not strategy:
+        await websocket.close(code=http_status.WS_1008_POLICY_VIOLATION)
+        return
+
+    # Connect WebSocket
+    await ws_manager.connect(websocket, strategy_id, strategy.user_id)
+
+    try:
+        # Keep connection alive
+        while True:
+            # Wait for messages from client (ping/pong)
+            try:
+                data = await websocket.receive_text()
+
+                # Handle ping
+                if data == "ping":
+                    await websocket.send_json({"type": "pong", "timestamp": datetime.now(timezone.utc).isoformat()})
+
+            except WebSocketDisconnect:
+                break
+            except Exception as e:
+                logger.error(f"WebSocket error: {e}")
+                break
+
+    finally:
+        ws_manager.disconnect(websocket, strategy_id)
 
 
 # Helper function to send updates from services
 async def notify_backtest_progress(run_id: int, user_id: int, progress: int, status: str):
     """Send backtest progress update to connected clients"""
-    await manager.send_to_user(
+    await ws_manager.send_to_user(
         {"type": "backtest_progress", "run_id": run_id, "progress": progress, "status": status, "timestamp": datetime.now().isoformat()}, user_id
     )
 
 
 async def notify_portfolio_update(portfolio_id: int, user_id: int, update_data: dict):
     """Send portfolio update to connected clients"""
-    await manager.broadcast_to_channel(
+    await ws_manager.broadcast_to_channel(
         {"type": "portfolio_update", "portfolio_id": portfolio_id, "data": update_data, "timestamp": datetime.now().isoformat()},
         f"portfolio:{portfolio_id}",
     )

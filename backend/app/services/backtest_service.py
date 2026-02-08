@@ -244,7 +244,7 @@ class BacktestService:
                 await self.update_backtest_status(backtest_run.id, "running")
 
             # Detect if this is a pairs trading strategy
-            is_pairs_strategy = self._is_pairs_strategy(request.strategy_configs)
+            is_pairs_strategy = self._is_pairs_strategy(request.strategy_configs, request.symbols)
 
             if is_pairs_strategy:
                 # PAIRS TRADING MODE (e.g., Kalman Filter)
@@ -331,59 +331,79 @@ class BacktestService:
                 await self.update_backtest_status(backtest_run.id, "failed", error_message=str(e))
             raise ValueError(f"Multi-asset backtest failed: {str(e)}")
 
-    def _is_pairs_strategy(self, strategy_configs: dict) -> bool:
+    def _is_pairs_strategy(self, strategy_configs: dict, symbols: List[str] = None) -> bool:
         """
         Detect if this is a pairs trading strategy
 
         A pairs strategy typically:
-        1. Has exactly 2 symbols
-        2. Uses the same strategy for both (Kalman Filter, etc.)
-        3. Strategy has pairs-specific parameters like asset_1, asset_2
+        1. Has exactly 2 symbols (either in strategy_configs or provided symbols list)
+        2. Uses the same strategy for both
+        3. Strategy has pairs-specific parameters or key
         """
-        if len(strategy_configs) != 2:
+        # A pair must involve exactly 2 symbols
+        num_symbols = len(symbols) if symbols else len(strategy_configs)
+        if num_symbols != 2:
+            logger.debug(f"Not a pairs strategy: expected 2 symbols, got {num_symbols}")
             return False
 
-        # Get all strategies
-        strategies = list(strategy_configs.values())
+        # Get all strategy configs
+        configs = list(strategy_configs.values())
+        if not configs:
+            return False
 
-        # Check if all use the same strategy key
-        strategy_keys = [s.strategy_key for s in strategies]
+        # Check if all use the same strategy key (if multiple provided)
+        strategy_keys = [s.strategy_key for s in configs]
         if len(set(strategy_keys)) != 1:
+            logger.debug(f"Not a pairs strategy: different strategy keys {strategy_keys}")
             return False
 
-        # Check for pairs-specific parameters
-        first_strategy = strategies[0]
-        params = first_strategy.parameters
+        # Check for known pairs strategy keys or parameters
+        strategy_key = strategy_keys[0]
+        if strategy_key in ["kalman_filter", "pairs_trading"]:
+            logger.info(f"Detected pairs strategy by key: {strategy_key}")
+            return True
 
-        # Kalman Filter has asset_1 and asset_2 parameters
+        # Fallback to parameter check
+        params = configs[0].parameters
         if "asset_1" in params and "asset_2" in params:
+            logger.info(f"Detected pairs strategy by parameters: {strategy_key}")
             return True
 
         return False
 
     async def _create_pairs_engine(self, request: MultiAssetBacktestRequest) -> MultiAssetEngine:
-        """Create engine for pairs trading"""
+        """Create engine for pairs trading with correct asset mapping"""
 
-        # Get the first strategy config (they should all be the same)
+        # Get the first strategy config
         first_config = list(request.strategy_configs.values())[0]
+        params = first_config.parameters.copy()
 
-        # Create the pairs strategy
-        pairs_strategy = self.catalog.create_strategy(first_config.strategy_key, **first_config.parameters)
+        # Ensure asset_1 and asset_2 in params match the symbols in the request
+        # if they were not explicitly provided or if we want to force alignment
+        symbols = request.symbols
+        if len(symbols) == 2:
+            # Update params to match selected symbols if they are generic or missing
+            # This handles cases where the user selects symbols in UI that differ from strategy defaults
+            params["asset_1"] = symbols[0]
+            params["asset_2"] = symbols[1]
+            logger.info(f"Mapping pairs assets: {symbols[0]} and {symbols[1]}")
+
+        # Create the pairs strategy with updated params
+        pairs_strategy = self.catalog.create_strategy(first_config.strategy_key, **params)
 
         # Create engine in pairs mode
         engine = MultiAssetEngine(
-            strategies=pairs_strategy,  # Single strategy for the pair
+            strategies=pairs_strategy,
             initial_capital=request.initial_capital,
             risk_manager=self.risk_manager,
             db=self.db_manager,
             allocation_method=request.allocation_method,
             commission_rate=request.commission_rate,
             slippage_rate=request.slippage_rate,
-            pairs_mode=True,  # Enable pairs trading mode
-            pair_symbols=request.symbols,  # The pair symbols
+            pairs_mode=True,
+            pair_symbols=symbols,
         )
 
-        # Override allocations if custom
         if request.custom_allocations:
             engine.allocations = request.custom_allocations
 

@@ -1,3 +1,4 @@
+import logging
 from typing import Dict, Tuple
 
 import numpy as np
@@ -5,6 +6,8 @@ import pandas as pd
 from pykalman import KalmanFilter
 
 from backend.app.strategies import BaseStrategy
+
+logger = logging.getLogger(__name__)
 
 
 class KalmanFilterStrategy(BaseStrategy):
@@ -185,8 +188,25 @@ class KalmanFilterStrategy(BaseStrategy):
                 "metadata": {"reason": "insufficient_data"},
             }
 
-        prices_1 = data[asset_1]
-        prices_2 = data[asset_2]
+        # Robust data access: handle both multi-asset and single-asset DataFrames
+        if asset_1 in data.columns and asset_2 in data.columns:
+            prices_1 = data[asset_1]
+            prices_2 = data[asset_2]
+        elif "Close" in data.columns:
+            # Running in independent mode or single symbol context
+            # Fallback to 'Close' but warned this strategy needs two assets
+            logger.warning(f"Strategy {self.name} received single-asset data but expects {asset_1} and {asset_2}")
+            return {
+                "signal": 0,
+                "position_size": 0,
+                "metadata": {"reason": f"Strategy expects two symbols ({asset_1}, {asset_2}) but received single asset data"},
+            }
+        else:
+            return {
+                "signal": 0,
+                "position_size": 0,
+                "metadata": {"reason": f"Missing symbol columns: {asset_1}, {asset_2}"},
+            }
 
         # Calculate spread with Kalman-filtered hedge ratio
         spread_series, hedge_ratios = self._calculate_spread_history(prices_1, prices_2)

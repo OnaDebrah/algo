@@ -1,170 +1,274 @@
-"""
-Alert management system for email and SMS notifications
-"""
-
+import asyncio
 import logging
-from datetime import datetime
-from typing import Dict
+from datetime import datetime, timezone
+from typing import Any, Dict, List, Optional
+
+from backend.app.alerts.alert_preferences import AlertPreferences
+from backend.app.alerts.email_provider import EmailProvider
+from backend.app.alerts.sms_provider import SMSProvider
+from backend.app.schemas.alert import Alert, AlertChannel, AlertLevel
 
 logger = logging.getLogger(__name__)
 
 
 class AlertManager:
-    """Manage trading alerts via email/SMS"""
+    """
+    Manages alerts across all channels
 
-    def __init__(self, email_config: Dict = None, sms_config: Dict = None):
+    Features:
+    - Email notifications
+    - SMS notifications
+    - Rate limiting
+    - Alert history
+    - User preferences
+
+    USAGE:
+        email = EmailProvider(
+        smtp_host="smtp.gmail.com",
+        smtp_port=587,
+        username="your_email@gmail.com",
+        password="your_app_password",
+        from_email="your_email@gmail.com"
+    )
+
+    # Configure SMS (Twilio)
+    sms = SMSProvider(
+        provider="twilio",
+        account_sid="your_twilio_sid",
+        auth_token="your_twilio_token",
+        from_number="+1234567890"
+    )
+
+    # Create alert manager
+    alert_mgr = AlertManager(email, sms)
+
+    # Set user preferences
+    alert_mgr.user_preferences[1] = AlertPreferences(
+        email="user@example.com",
+        phone="+1234567890",
+        email_enabled=True,
+        sms_enabled=True,
+        min_level_sms=AlertLevel.ERROR
+    )
+
+    # Start manager
+    asyncio.run(alert_mgr.start())
+
+    # Send test alert
+    asyncio.run(alert_mgr.send_alert(
+        user_id=1,
+        level=AlertLevel.WARNING,
+        title="Test Alert",
+        message="This is a test alert from the trading platform"
+    ))
+    """
+
+    def __init__(self, email_provider: Optional[EmailProvider] = None, sms_provider: Optional[SMSProvider] = None):
+        self.email_provider = email_provider
+        self.sms_provider = sms_provider
+
+        self.alert_queue: asyncio.Queue = asyncio.Queue()
+
+        self.alert_history: List[Alert] = []
+
+        self.rate_limits: Dict[int, Dict[AlertLevel, datetime]] = {}
+
+        self.user_preferences: Dict[int, "AlertPreferences"] = {}
+
+        self.worker_task: Optional[asyncio.Task] = None
+
+    async def start(self):
+        """Start alert worker"""
+        logger.info("Starting alert manager")
+        self.worker_task = asyncio.create_task(self._process_alerts())
+
+    async def stop(self):
+        """Stop alert worker"""
+        logger.info("Stopping alert manager")
+        if self.worker_task:
+            self.worker_task.cancel()
+
+    async def send_alert(
+        self,
+        user_id: int,
+        level: AlertLevel,
+        title: str,
+        message: str,
+        strategy_id: Optional[int] = None,
+        metadata: Optional[Dict[str, Any]] = None,
+        channels: Optional[List[AlertChannel]] = None,
+    ) -> bool:
         """
-        Initialize alert manager
+        Queue an alert for sending
 
         Args:
-            email_config: Email configuration dictionary
-            sms_config: SMS configuration dictionary
-        """
-        self.email_config = email_config or {}
-        self.sms_config = sms_config or {}
+            user_id: User to notify
+            level: Alert severity
+            title: Alert title
+            message: Alert message
+            strategy_id: Optional strategy ID
+            metadata: Optional metadata
+            channels: Channels to use (default: user preferences)
 
-    def send_email_alert(self, subject: str, message: str):
+        Returns:
+            bool: Whether alert was queued
         """
-        Send email alert
+        if self._is_rate_limited(user_id, level):
+            logger.warning(f"Alert rate limited for user {user_id}, level {level}")
+            return False
 
-        Args:
-            subject: Email subject
-            message: Email message body
-        """
-        if not self.email_config.get("enabled"):
-            logger.info(f"Email Alert (disabled): {subject} - {message}")
-            return
+        alert = Alert(level, title, message, strategy_id, metadata)
 
+        prefs = self.user_preferences.get(user_id)
+        if not prefs:
+            prefs = AlertPreferences.default()
+
+        if not channels:
+            channels = prefs.get_channels_for_level(level)
+
+        await self.alert_queue.put((user_id, alert, channels, prefs))
+
+        self._update_rate_limit(user_id, level)
+
+        return True
+
+    async def _process_alerts(self):
+        """Background worker to process alert queue"""
+        while True:
+            try:
+                # Get next alert
+                user_id, alert, channels, prefs = await self.alert_queue.get()
+
+                for channel in channels:
+                    await self._send_via_channel(user_id, alert, channel, prefs)
+
+                alert.sent_at = datetime.now(timezone.utc)
+                alert.channels_sent = channels
+
+                self.alert_history.append(alert)
+
+                if len(self.alert_history) > 1000:
+                    self.alert_history = self.alert_history[-1000:]
+
+            except asyncio.CancelledError:
+                break
+            except Exception as e:
+                logger.error(f"Error processing alert: {e}")
+
+    async def _send_via_channel(self, user_id: int, alert: Alert, channel: AlertChannel, prefs: "AlertPreferences"):
+        """Send alert via specific channel"""
         try:
-            import smtplib
-            from email.mime.multipart import MIMEMultipart
-            from email.mime.text import MIMEText
+            if channel == AlertChannel.EMAIL:
+                await self._send_email(user_id, alert, prefs)
 
-            msg = MIMEMultipart()
-            msg["From"] = self.email_config["from_email"]
-            msg["To"] = self.email_config["to_email"]
-            msg["Subject"] = subject
+            elif channel == AlertChannel.SMS:
+                await self._send_sms(user_id, alert, prefs)
 
-            msg.attach(MIMEText(message, "plain"))
+            elif channel == AlertChannel.PUSH:
+                await self._send_push(user_id, alert, prefs)
 
-            server = smtplib.SMTP(self.email_config["smtp_server"], self.email_config["smtp_port"])
-            server.starttls()
-            server.login(self.email_config["from_email"], self.email_config["password"])
-
-            server.send_message(msg)
-            server.quit()
-
-            logger.info(f"Email sent: {subject}")
+            elif channel == AlertChannel.WEBHOOK:
+                await self._send_webhook(user_id, alert, prefs)
 
         except Exception as e:
-            logger.error(f"Failed to send email: {e}")
+            logger.error(f"Failed to send alert via {channel}: {e}")
 
-    def send_sms_alert(self, message: str):
-        """
-        Send SMS alert via Twilio
-
-        Args:
-            message: SMS message body
-        """
-        if not self.sms_config.get("enabled"):
-            logger.info(f"SMS Alert (disabled): {message}")
+    async def _send_email(self, user_id: int, alert: Alert, prefs: "AlertPreferences"):
+        """Send email alert"""
+        if not self.email_provider or not prefs.email:
             return
 
-        try:
-            from twilio.rest import Client
+        # Format email
+        subject = f"[{alert.level.value.upper()}] {alert.title}"
 
-            client = Client(self.sms_config["account_sid"], self.sms_config["auth_token"])
+        body = f"""
+        <html>
+        <body>
+            <h2>{alert.title}</h2>
+            <p><strong>Level:</strong> {alert.level.value.upper()}</p>
+            <p><strong>Time:</strong> {alert.created_at.strftime('%Y-%m-%d %H:%M:%S UTC')}</p>
+            {f'<p><strong>Strategy ID:</strong> {alert.strategy_id}</p>' if alert.strategy_id else ''}
+            <hr>
+            <p>{alert.message}</p>
 
-            message_obj = client.messages.create(
-                body=message,
-                from_=self.sms_config["from_number"],
-                to=self.sms_config["to_number"],
-            )
-
-            logger.info(f"SMS sent: {message_obj.sid}")
-
-        except ImportError:
-            logger.error("Twilio package not installed. Install with: pip install twilio")
-        except Exception as e:
-            logger.error(f"Failed to send SMS: {e}")
-
-    def alert_trade_executed(self, trade_data: Dict):
+            {self._format_metadata_html(alert.metadata) if alert.metadata else ''}
+        </body>
+        </html>
         """
-        Send alert when trade is executed
 
-        Args:
-            trade_data: Trade information dictionary
-        """
-        message = f"Trade Executed: {trade_data['order_type']} " f"{trade_data['quantity']} {trade_data['symbol']} " f"@ ${trade_data['price']:.2f}"
+        await self.email_provider.send_email(to_email=prefs.email, subject=subject, body=body, html=True)
 
-        self.send_email_alert("Trade Executed", message)
-        self.send_sms_alert(message)
-        logger.info(message)
+    async def _send_sms(self, user_id: int, alert: Alert, prefs: "AlertPreferences"):
+        """Send SMS alert"""
+        if not self.sms_provider or not prefs.phone:
+            return
 
-    def alert_position_closed(self, trade_data: Dict):
-        """
-        Send alert when position is closed
+        # Format SMS (keep it short)
+        message = f"[{alert.level.value.upper()}] {alert.title}: {alert.message[:100]}"
 
-        Args:
-            trade_data: Trade information with profit/loss
-        """
-        profit = trade_data.get("profit", 0)
-        profit_pct = trade_data.get("profit_pct", 0)
+        await self.sms_provider.send_sms(to_number=prefs.phone, message=message)
 
-        message = f"Position Closed: {trade_data['symbol']} " f"P&L: ${profit:.2f} ({profit_pct:.2f}%)"
+    async def _send_push(self, user_id: int, alert: Alert, prefs: "AlertPreferences"):
+        """Send push notification (placeholder)"""
+        logger.info(f"Push notification: {alert.title}")
+        # Implement with Firebase, OneSignal, etc.
 
-        self.send_email_alert("Position Closed", message)
-        self.send_sms_alert(message)
-        logger.info(message)
+    async def _send_webhook(self, user_id: int, alert: Alert, prefs: "AlertPreferences"):
+        """Send webhook notification (placeholder)"""
+        logger.info(f"Webhook notification: {alert.title}")
+        # Implement HTTP POST to user's webhook URL
 
-    def alert_risk_event(self, event_type: str, details: str):
-        """
-        Send alert for risk management events
+    def _format_metadata_html(self, metadata: Dict[str, Any]) -> str:
+        """Format metadata as HTML table"""
+        if not metadata:
+            return ""
 
-        Args:
-            event_type: Type of risk event
-            details: Event details
-        """
-        message = f"Risk Alert - {event_type}: {details}"
+        rows = "".join([f"<tr><td><strong>{k}</strong></td><td>{v}</td></tr>" for k, v in metadata.items()])
 
-        self.send_email_alert(f"Risk Alert: {event_type}", message)
-        self.send_sms_alert(message)
-        logger.warning(message)
+        return f"<table border='1'>{rows}</table>"
 
-    def alert_system_error(self, error_msg: str):
-        """
-        Send alert for system errors
+    def _is_rate_limited(self, user_id: int, level: AlertLevel) -> bool:
+        """Check if user is rate limited for this alert level"""
+        if user_id not in self.rate_limits:
+            return False
 
-        Args:
-            error_msg: Error message
-        """
-        message = f"System Error: {error_msg}"
+        if level not in self.rate_limits[user_id]:
+            return False
 
-        self.send_email_alert("System Error", message)
-        self.send_sms_alert(message)
-        logger.error(message)
+        last_sent = self.rate_limits[user_id][level]
 
-    def check_options_alerts(self, position: dict):
-        """Check options-specific alerts"""
+        # Rate limits by level
+        limits = {
+            AlertLevel.INFO: 60,  # 1 per minute
+            AlertLevel.WARNING: 300,  # 1 per 5 minutes
+            AlertLevel.ERROR: 600,  # 1 per 10 minutes
+            AlertLevel.CRITICAL: 0,  # No limit
+        }
 
-        # DTE alerts
-        days_remaining = (position["expiration"] - datetime.now()).days
-        if days_remaining <= 7:
-            self.send_email_alert(
-                "DTE alerts",
-                f"⏰ {position['symbol']} expires in {days_remaining} days",
-            )
+        seconds_since = (datetime.now(timezone.utc) - last_sent).total_seconds()
+        return seconds_since < limits.get(level, 60)
 
-        # Greek alerts
-        if abs(position["delta"]) > 0.8:
-            self.send_email_alert(
-                "Greek alerts",
-                f"📊 {position['symbol']} delta: {position['delta']:.2f}",
-            )
+    def _update_rate_limit(self, user_id: int, level: AlertLevel):
+        """Update rate limit tracking"""
+        if user_id not in self.rate_limits:
+            self.rate_limits[user_id] = {}
 
-        # P&L alerts
-        if position["pnl_pct"] >= 0.5:
-            self.send_email_alert(
-                "PNL alerts",
-                f"🎯 {position['symbol']} profit target: {position['pnl_pct']:.1%}",
-            )
+        self.rate_limits[user_id][level] = datetime.now(timezone.utc)
+
+    def get_alert_history(
+        self, user_id: Optional[int] = None, strategy_id: Optional[int] = None, level: Optional[AlertLevel] = None, limit: int = 100
+    ) -> List[Alert]:
+        """Get alert history with filters"""
+        filtered = self.alert_history
+
+        if user_id:
+            # Would filter by user_id if we stored it
+            pass
+
+        if strategy_id:
+            filtered = [a for a in filtered if a.strategy_id == strategy_id]
+
+        if level:
+            filtered = [a for a in filtered if a.level == level]
+
+        return filtered[-limit:]

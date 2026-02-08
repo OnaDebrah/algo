@@ -97,8 +97,7 @@ const AppShell: React.FC<AppShellProps> = () => {
   // Health check
   const checkHealth = useCallback(async () => {
     try {
-      const healthData: {status: string, timestamp: string} = await api.health.check();
-      console.info(healthData.status)
+      const healthData = await api.health.check();
       setServerStatus(healthData.status === 'ok' || healthData.status === '1');
     } catch (error) {
       console.error("Health check failed:", error);
@@ -208,7 +207,8 @@ const AppShell: React.FC<AppShellProps> = () => {
           {!serverStatus && (
             <div className="fixed bottom-4 right-4 bg-red-500/10 border border-red-500/30 rounded-lg px-4 py-2 flex items-center gap-2">
               <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></div>
-              <span className="text-sm text-red-300">API Server Offline</span>
+              <span className="text-sm text-red-300">
+                API Server Offline</span>
             </div>
           )}
         </div>
