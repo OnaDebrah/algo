@@ -468,6 +468,7 @@ const BacktestPage = () => {
                                 return acc;
                             }, {})
                             : s.parameters,
+                        parameterMetadata: Array.isArray(s.parameters) ? s.parameters : [],
                         time_horizon: s.time_horizon,
                     }));
                     setStrategiesList(mapped);
@@ -787,22 +788,20 @@ const BacktestPage = () => {
                     <div className="flex items-center space-x-1 bg-slate-800/60 border border-slate-700/50 rounded-xl p-1">
                         <button
                             onClick={() => setBacktestMode('single')}
-                            className={`px-5 py-2.5 rounded-lg text-sm font-semibold transition-all ${
-                                backtestMode === 'single'
+                            className={`px-5 py-2.5 rounded-lg text-sm font-semibold transition-all ${backtestMode === 'single'
                                     ? 'bg-gradient-to-r from-violet-600 to-fuchsia-600 text-white shadow-lg'
                                     : 'text-slate-400 hover:text-slate-200'
-                            }`}
+                                }`}
                         >
                             <BarChart3 size={16} className="inline mr-2" strokeWidth={2} />
                             Single Asset
                         </button>
                         <button
                             onClick={() => setBacktestMode('multi')}
-                            className={`px-5 py-2.5 rounded-lg text-sm font-semibold transition-all ${
-                                backtestMode === 'multi'
+                            className={`px-5 py-2.5 rounded-lg text-sm font-semibold transition-all ${backtestMode === 'multi'
                                     ? 'bg-gradient-to-r from-violet-600 to-fuchsia-600 text-white shadow-lg'
                                     : 'text-slate-400 hover:text-slate-200'
-                            }`}
+                                }`}
                         >
                             <TrendingUp size={16} className="inline mr-2" strokeWidth={2} />
                             Multi-Asset

@@ -60,7 +60,11 @@ def calculate_performance_metrics(trades: List[Dict], equity_curve: List[Dict], 
     total_losses = abs(losing_trades["profit"].sum()) if len(losing_trades) > 0 else 1
     profit_factor = total_wins / total_losses if total_losses != 0 else 0
 
-    return {
+    # Calculate advanced risk metrics
+    risk_metrics = calculate_risk_metrics(trades, equity_curve)
+
+    # Base metrics
+    metrics = {
         "total_return": total_return,
         "total_return_pct": total_return,
         "win_rate": win_rate,
@@ -77,6 +81,11 @@ def calculate_performance_metrics(trades: List[Dict], equity_curve: List[Dict], 
         "final_equity": final_equity,
         "initial_capital": initial_capital,
     }
+
+    # Merge risk metrics
+    metrics.update(risk_metrics)
+
+    return metrics
 
 
 def calculate_risk_metrics(trades: List[Dict], equity_curve: List[Dict]) -> Dict:

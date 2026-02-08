@@ -51,6 +51,7 @@ def convert_core_to_schema(core_listing) -> StrategyListingSchema:
         cons=_generate_cons(core_listing),
         is_favorite=False,  # This should be checked against user favorites
         is_verified=core_listing.is_verified,
+        verification_badge=core_listing.verification_badge,
         publish_date=core_listing.created_at.strftime("%Y-%m-%d") if core_listing.created_at else "",
     )
 

@@ -47,3 +47,19 @@ class SMACrossoverStrategy(BaseStrategy):
             return -1
 
         return 0
+
+    def generate_signals_vectorized(self, data: pd.DataFrame) -> pd.Series:
+        """Vectorized version of SMA crossover signal generation"""
+        close = data["Close"]
+        sma_short = close.rolling(window=self.params["short_window"]).mean()
+        sma_long = close.rolling(window=self.params["long_window"]).mean()
+
+        signals = pd.Series(0, index=data.index)
+
+        # Bullish: crossing above
+        signals[(sma_short > sma_long) & (sma_short.shift(1) <= sma_long.shift(1))] = 1
+
+        # Bearish: crossing below
+        signals[(sma_short < sma_long) & (sma_short.shift(1) >= sma_long.shift(1))] = -1
+
+        return signals

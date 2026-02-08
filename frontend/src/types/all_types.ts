@@ -119,7 +119,16 @@ export interface BacktestResult {
     benchmark?: BenchmarkInfo;
     trades?: Trade[];
     price_data?: Record<string, any>[] | null;
-    symbol_stats: Record<string, SymbolStats>
+    symbol_stats: Record<string, SymbolStats>;
+
+    // Advanced metrics
+    sortino_ratio: number;
+    calmar_ratio: number;
+    var_95: number;
+    cvar_95: number;
+    volatility: number;
+    expectancy: number;
+    total_commission: number;
 }
 
 export interface EquityCurvePoint {
@@ -137,6 +146,7 @@ export interface Trade {
     price: number;
     commission: number;
     executed_at: string;
+    timestamp?: string; // Alias for backward compatibility
     strategy: string;
     profit: number | null;
     profit_pct: number | null;
@@ -184,6 +194,7 @@ export interface Strategy {
     name: string;
     category: string;
     parameters: Record<string, any>;
+    parameterMetadata?: StrategyParameter[];
     description: string;
     complexity: 'Beginner' | 'Intermediate' | 'Advanced' | 'Expert' | 'Institutional';
     time_horizon: string | null;
@@ -992,6 +1003,7 @@ export interface StrategyListing {
     cons: string[];
     is_favorite: boolean;
     is_verified: boolean;
+    verification_badge?: string;
     publish_date: string;
 }
 

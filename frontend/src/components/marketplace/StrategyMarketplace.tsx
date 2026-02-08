@@ -5,8 +5,8 @@
 
 'use client'
 
-import React, {useEffect, useState} from 'react';
-import {BarChart3, Search, Shield, Star, Users} from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { BarChart3, Search, Shield, Star, Users, Award, Trophy, Zap, AlertTriangle } from 'lucide-react';
 
 interface MarketplaceStrategy {
     id: number;
@@ -16,6 +16,7 @@ interface MarketplaceStrategy {
     category: string;
     creator_name: string;
     is_verified: boolean;
+    verification_badge?: string;
 
     // Performance
     avg_return_pct: number;
@@ -224,12 +225,30 @@ export default function StrategyMarketplace() {
                                     <h3 className="text-lg font-bold text-slate-100 group-hover:text-violet-400 transition-colors">
                                         {strategy.name}
                                     </h3>
-                                    <div className="flex items-center gap-2 mt-1">
+                                    <div className="flex items-center gap-2 mt-1 flex-wrap">
                                         <span className="text-xs text-slate-500">by {strategy.creator_name}</span>
                                         {strategy.is_verified && (
-                                            <div className="flex items-center gap-1 px-2 py-0.5 bg-emerald-500/20 rounded text-emerald-400 text-xs font-semibold">
-                                                <Shield size={12} />
+                                            <div className="flex items-center gap-1 px-2 py-0.5 bg-emerald-500/20 rounded text-emerald-400 text-[10px] font-black uppercase tracking-tight">
+                                                <Shield size={10} />
                                                 Verified
+                                            </div>
+                                        )}
+                                        {strategy.verification_badge === 'INSTITUTIONAL' && (
+                                            <div className="flex items-center gap-1 px-2 py-0.5 bg-violet-500/20 rounded text-violet-400 text-[10px] font-black uppercase tracking-tight border border-violet-500/30 shadow-[0_0_10px_rgba(139,92,246,0.3)]">
+                                                <Trophy size={10} />
+                                                Institutional
+                                            </div>
+                                        )}
+                                        {strategy.verification_badge === 'CONSISTENT' && (
+                                            <div className="flex items-center gap-1 px-2 py-0.5 bg-blue-500/20 rounded text-blue-400 text-[10px] font-black uppercase tracking-tight">
+                                                <Award size={10} />
+                                                Consistent
+                                            </div>
+                                        )}
+                                        {strategy.verification_badge === 'DRIFTING' && (
+                                            <div className="flex items-center gap-1 px-2 py-0.5 bg-amber-500/20 rounded text-amber-400 text-[10px] font-black uppercase tracking-tight">
+                                                <AlertTriangle size={10} />
+                                                Drifting
                                             </div>
                                         )}
                                     </div>
@@ -343,10 +362,10 @@ export default function StrategyMarketplace() {
 }
 
 function StrategyDetailsModal({
-                                  strategy,
-                                  onClose,
-                                  onDeploy
-                              }: {
+    strategy,
+    onClose,
+    onDeploy
+}: {
     strategy: MarketplaceStrategy;
     onClose: () => void;
     onDeploy: (strategy: MarketplaceStrategy) => void;
@@ -367,6 +386,12 @@ function StrategyDetailsModal({
                                     <div className="flex items-center gap-1 px-3 py-1 bg-emerald-500/20 rounded-lg text-emerald-400 text-sm font-semibold">
                                         <Shield size={16} />
                                         Verified
+                                    </div>
+                                )}
+                                {strategy.verification_badge === 'INSTITUTIONAL' && (
+                                    <div className="flex items-center gap-1 px-3 py-1 bg-violet-500/20 border border-violet-500/30 rounded-lg text-violet-400 text-sm font-bold shadow-[0_0_15px_rgba(139,92,246,0.2)]">
+                                        <Trophy size={16} />
+                                        Institutional Grade
                                     </div>
                                 )}
                             </div>
@@ -407,11 +432,10 @@ function StrategyDetailsModal({
                         <button
                             key={tab.id}
                             onClick={() => setActiveTab(tab.id as any)}
-                            className={`px-6 py-3 font-semibold text-sm border-b-2 transition-colors ${
-                                activeTab === tab.id
+                            className={`px-6 py-3 font-semibold text-sm border-b-2 transition-colors ${activeTab === tab.id
                                     ? 'border-violet-500 text-violet-400'
                                     : 'border-transparent text-slate-400 hover:text-slate-300'
-                            }`}
+                                }`}
                         >
                             {tab.label}
                         </button>

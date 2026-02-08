@@ -126,6 +126,7 @@ class StrategyListing:
     price: float = 0.0
     is_public: bool = True
     is_verified: bool = False  # Admin verified performance
+    verification_badge: Optional[str] = None  # 'INSTITUTIONAL', 'VERIFIED', etc.
     version: str = "1.0.0"
     tags: List[str] = None
 
@@ -193,6 +194,7 @@ class StrategyMarketplace:
                     price DOUBLE PRECISION DEFAULT 0.0,
                     is_public BOOLEAN DEFAULT TRUE,
                     is_verified BOOLEAN DEFAULT FALSE,
+                    verification_badge TEXT,
                     version TEXT DEFAULT '1.0.0',
                     tags TEXT,
 
@@ -317,8 +319,8 @@ class StrategyMarketplace:
                                                       category, complexity, parameters,
                                                       sharpe_ratio, total_return, max_drawdown, win_rate,
                                                       num_trades,
-                                                      price, is_public, version, tags)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                                                      price, is_public, is_verified, verification_badge, version, tags)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                 RETURNING id
                 """,
                 (
@@ -337,6 +339,8 @@ class StrategyMarketplace:
                     listing.backtest_results.num_trades,
                     listing.price,
                     listing.is_public,
+                    listing.is_verified,
+                    listing.verification_badge,
                     listing.version,
                     json.dumps(listing.tags),
                 ),
@@ -521,6 +525,7 @@ class StrategyMarketplace:
                 price=row["price"],
                 is_public=bool(row["is_public"]),
                 is_verified=bool(row["is_verified"]),
+                verification_badge=row["verification_badge"],
                 version=row["version"],
                 tags=json.loads(row["tags"]) if row["tags"] else [],
                 downloads=row["downloads"],

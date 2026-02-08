@@ -61,6 +61,7 @@ class StrategyListing(BaseModel):
     cons: List[str]
     is_favorite: bool
     is_verified: bool
+    verification_badge: Optional[str] = None
     publish_date: str
 
 
