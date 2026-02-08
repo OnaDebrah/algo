@@ -1,4 +1,3 @@
-// ==================== BASE TYPES ====================
 export type ScalarParam = string | number | boolean;
 
 export interface ValidationError {
@@ -775,12 +774,34 @@ export interface AlertTestResponse {
     sms_status: string;
 }
 
+export interface AlertPreferences {
+    email: string;
+    phone: string;
+    email_enabled: boolean;
+    sms_enabled: boolean;
+    min_level_email: 'info' | 'warning' | 'error' | 'critical';
+    min_level_sms: 'info' | 'warning' | 'error' | 'critical';
+}
+
+export interface Alert {
+    id: string;
+    level: 'info' | 'warning' | 'error' | 'critical';
+    title: string;
+    message: string;
+    strategy_id: number | null;
+    created_at: string;
+    sent_at?: string;
+    channels_sent: string[];
+}
+
 // ==================== LIVE TRADING ====================
 
 export enum BrokerType {
-    PAPER_TRADING = "Paper Trading",
-    ALPACA = "Alpaca Markets",
-    INTERACTIVE_BROKERS = "Interactive Brokers"
+    PAPER = 'paper',
+    ALPACA_PAPER = 'alpaca_paper',
+    ALPACA_LIVE = 'alpaca_live',
+    IB_PAPER = 'ib_paper',
+    IB_LIVE = 'ib_live'
 }
 
 export enum EngineStatus {
@@ -807,12 +828,6 @@ export enum OrderStatus {
     REJECTED = "REJECTED"
 }
 
-export interface ConnectRequest {
-    broker: BrokerType;
-    api_key: string | null;
-    api_secret: string | null;
-}
-
 export interface ExecutionOrder {
     id: string;
     symbol: string;
@@ -828,6 +843,93 @@ export interface LiveStatus {
     is_connected: boolean;
     engine_status: EngineStatus;
     active_broker: BrokerType;
+}
+
+export interface LiveStrategy {
+    id: number;
+    name: string;
+    strategy_key: string;
+    symbols: string[];
+    status: 'RUNNING' | 'PAUSED' | 'STOPPED' | 'ERROR';
+    deployment_mode: 'paper' | 'live';
+    current_equity: number;
+    initial_capital: number;
+    total_return: number;
+    total_return_pct: number;
+    total_trades: number;
+    winning_trades: number;
+    losing_trades: number;
+    sharpe_ratio: number | null;
+    max_drawdown: number;
+    daily_pnl: number;
+    deployed_at: string;
+    last_trade_at: string | null;
+    broker: string;
+}
+
+export interface LiveEquityPoint {
+    timestamp: string;
+    equity: number;
+    cash: number;
+    daily_pnl: number;
+    total_pnl: number;
+    drawdown_pct: number;
+}
+
+export interface LiveTrade {
+    id: number;
+    symbol: string;
+    side: 'BUY' | 'SELL';
+    quantity: number;
+    entry_price: number | null;
+    exit_price: number | null;
+    status: 'open' | 'closed';
+    profit: number | null;
+    profit_pct: number | null;
+    opened_at: string;
+    closed_at: string | null;
+}
+
+export interface LiveOrderPlacement {
+    symbol: string;
+    side: 'BUY' | 'SELL';
+    qty: number;
+    type: 'MARKET' | 'LIMIT' | 'STOP';
+    price?: number;
+    stop_price?: number;
+}
+
+export interface LiveOrderUpdate {
+    price?: number;
+    qty?: number;
+    stop_price?: number;
+}
+
+export interface StrategyPerformance {
+    id: number;
+    name: string;
+    status: string;
+    deployment_mode: string;
+    current_equity: number;
+    initial_capital: number;
+    total_return: number;
+    total_return_pct: number;
+    daily_pnl: number;
+    sharpe_ratio: number | null;
+    max_drawdown: number;
+    total_trades: number;
+    win_rate: number;
+}
+
+export interface PortfolioMetrics {
+    total_equity: number;
+    total_invested: number;
+    total_pnl: number;
+    total_pnl_pct: number;
+    active_strategies: number;
+    total_strategies: number;
+    best_performer: StrategyPerformance | null;
+    worst_performer: StrategyPerformance | null;
 }
 
 // ==================== MARKETPLACE ====================
@@ -907,6 +1009,17 @@ export interface StrategyPublishRequest {
     is_public?: boolean;
     tags?: string[];
     backtest_id?: number | null;
+}
+
+export interface MarketplaceFilterParams {
+    category?: string;
+    complexity?: string;
+    min_sharpe?: number;
+    min_return?: number;
+    max_drawdown?: number;
+    search?: string;
+    sort_by?: string;
+    limit?: number;
 }
 
 // ==================== ML STUDIO ====================
@@ -1194,6 +1307,50 @@ export interface BacktestConfig {
     exit_rules: Record<string, any>;
 }
 
+// ==================== DEPLOYMENT ==================
+export interface BacktestResultToDeploy {
+    id: string;
+    strategy: string;
+    symbols: string[];
+    total_return_pct: number;
+    win_rate?: number;
+    sharpe_ratio: number;
+    max_drawdown: number;
+    total_trades: number;
+    initial_capital?: number;
+    period?: string;
+    interval?: string;
+    parameters: Record<string, any>;
+}
+
+export interface DeploymentConfig {
+    source: 'backtest' | 'marketplace' | 'custom';
+    backtest_id?: number;
+    name: string;
+    strategy_key: string;
+    parameters: Record<string, any>;
+    symbols: string[];
+    deployment_mode: 'paper' | 'live';
+    initial_capital: number;
+
+    // Risk Management
+    max_position_pct: number;
+    stop_loss_pct: number;
+    daily_loss_limit: number;
+
+    // Advanced Features
+    position_sizing_method?: 'fixed_percent' | 'kelly_criterion' | 'volatility_based' | 'atr_based';
+    position_sizing_params?: Record<string, any>;
+    enable_trailing_stop?: boolean;
+    trailing_stop_pct?: number;
+    enable_alerts?: boolean;
+    alert_email?: string;
+    alert_phone?: string;
+
+    broker?: string;
+    notes?: string;
+}
+
 // ==================== SETTINGS ====================
 
 export interface BacktestSettings {
@@ -1210,15 +1367,42 @@ export interface GeneralSettings {
     refresh_interval?: number;
 }
 
+export interface BrokerSettings {
+    broker_type: string;
+    api_key?: string;
+    api_secret?: string;
+    base_url?: string;
+    is_configured?: boolean;
+}
+
+export interface LiveTradingSettings {
+    data_source: string;
+    default_broker: string;
+    auto_connect: boolean;
+    broker?: BrokerSettings;
+}
+
 export interface UserSettings {
-    user_id: number | null;
+    user_id: number;
     backtest: BacktestSettings;
+    live_trading?: LiveTradingSettings;
     general: GeneralSettings;
 }
 
 export interface SettingsUpdate {
-    backtest?: BacktestSettings | null;
-    general?: GeneralSettings | null;
+    backtest?: Partial<BacktestSettings>;
+    live_trading?: Partial<LiveTradingSettings>;
+    general?: Partial<GeneralSettings>;
+}
+
+export interface BrokerConnectionResponse {
+    status: 'connected' | 'failed' | 'not_configured';
+    broker: string;
+    message?: string;
+    account_status?: string;
+    buying_power?: number;
+    equity?: number;
+    timestamp: string;
 }
 
 // ==================== API RESPONSE TYPES ====================

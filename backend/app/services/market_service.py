@@ -400,7 +400,7 @@ class MarketService:
             # Get fast info for real-time data
             try:
                 fast_info = ticker.fast_info
-                current_price = fast_info.get("last_price", info.get("currentPrice", 0))
+                current_price = fast_info.get("lastPrice", info.get("currentPrice", 0))
                 previous_close = fast_info.get("previous_close", info.get("previousClose", 0))
             except Exception:
                 current_price = info.get("currentPrice", 0)

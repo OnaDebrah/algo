@@ -46,7 +46,6 @@ import {
 
     // Live Trading
     LiveStatus,
-    ConnectRequest,
     ExecutionOrder,
 
     // Marketplace
@@ -90,7 +89,9 @@ import {
     SettingsUpdate,
 
     // HTTP Error
-    HTTPValidationError, RegimeData, RegimeHistoryResponse, PairsValidationRequest, PairsValidationResponse
+    HTTPValidationError, RegimeData, RegimeHistoryResponse, PairsValidationRequest, PairsValidationResponse,
+    LiveOrderPlacement, LiveOrderUpdate, MarketplaceFilterParams, AlertPreferences, Alert, DeploymentConfig,
+    BrokerConnectionResponse
 } from '@/types/all_types';
 import {
     BaseOptimizationRequest, BlackLittermanRequest, BlackLittermanResponse,
@@ -98,6 +99,13 @@ import {
     OptimiseBacktestResponse, OptimizationResponse,
     PortfolioBacktestRequest, SharpeOptimizationRequest, TargetReturnRequest
 } from "@/types/optimise";
+import {
+    ConnectRequest,
+    ControlResponse, LiveStrategy,
+    StrategyDetailsResponse,
+    StrategyUpdateRequest,
+    UpdateResponse
+} from "@/types/live";
 
 // Use environment variable or default to localhost
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
@@ -142,7 +150,6 @@ client.interceptors.response.use(
             }
         }
 
-        // Format error response
         if (error.response?.data) {
             return Promise.reject({
                 status: error.response.status,
@@ -395,30 +402,28 @@ export const alerts = {
 
     test: () =>
         client.get<AlertTestResponse>('/alerts/test'),
+
+    getPreferences: () =>
+        client.get<AlertPreferences>('/alerts/preferences'),
+
+    updatePreferences: (preferences: AlertPreferences) =>
+        client.put<{ success: boolean }>('/alerts/preferences', preferences),
+
+    getHistory: (limit: number = 10) =>
+        client.get<Alert[]>(`/alerts/history`, { params: { limit } }),
+
+    sendTest: (channel: 'email' | 'sms') =>
+        client.post<{ success: boolean }>(`/alerts/test`, { channel }),
 };
 
 // ==================== LIVE TRADING ====================
-export interface LiveOrderPlacement {
-    symbol: string;
-    side: 'BUY' | 'SELL';
-    qty: number;
-    type: 'MARKET' | 'LIMIT' | 'STOP';
-    price?: number;
-    stop_price?: number;
-}
-
-export interface LiveOrderUpdate {
-    price?: number;
-    qty?: number;
-    stop_price?: number;
-}
 
 export const live = {
     getStatus: () =>
         client.get<LiveStatus>('/live/status'),
 
-    connect: (data: ConnectRequest) =>
-        client.post<LiveStatus>('/live/connect', data),
+    connect: (request: ConnectRequest) =>
+        client.post<LiveStatus>('/live/connect', request),
 
     disconnect: () =>
         client.post<LiveStatus>('/live/disconnect'),
@@ -440,20 +445,32 @@ export const live = {
 
     modifyOrder: (id: string, updates: LiveOrderUpdate) =>
         client.put<ExecutionOrder>(`/live/order/${id}`, updates),
+
+    list: async (params?: { status?: string; mode?: string }): Promise<LiveStrategy[]> => {
+        return client.get<LiveStrategy[]>('/live/strategy', { params })
+    },
+
+    getDetails: (id: number) =>
+        client.get<StrategyDetailsResponse>(`/live/strategy/${id}`),
+
+    controlStrategy: (id: number, action: 'start' | 'pause' | 'stop' | 'restart') =>
+        client.post<ControlResponse>(`/live/strategy/${id}/control`, { action }),
+
+    update: (id: number, data: Partial<StrategyUpdateRequest>) =>
+        client.put<UpdateResponse>(`/live/strategy/${id}`, data),
+
+    delete: (id: number) =>
+        client.delete<{ strategy_id: number; message: string }>(`/live/strategy/${id}`),
+
+    deploy: (config: DeploymentConfig) =>
+        client.post<{ strategy_id: number; message: string }>(`/live/strategy/deploy`, config),
+
+    autoConnect: () =>
+        client.post<{ status: string; broker?: string; message: string }>('/live/auto-connect'),
+
 };
 
 // ==================== MARKETPLACE ====================
-export interface MarketplaceFilterParams {
-    category?: string;
-    complexity?: string;
-    min_sharpe?: number;
-    min_return?: number;
-    max_drawdown?: number;
-    search?: string;
-    sort_by?: string;
-    limit?: number;
-}
-
 export const marketplace = {
     browse: (params?: MarketplaceFilterParams) =>
         client.get<StrategyListing[]>('/marketplace/', {params}),
@@ -656,6 +673,13 @@ export const settings = {
 
     reset: () =>
         client.post<UserSettings>('/settings/reset'),
+
+    testBrokerConnection: () =>
+        client.post<BrokerConnectionResponse>('/settings/broker/test-connection'),
+
+    deleteBrokerCredentials: () =>
+        client.delete<{ message: string; timestamp: string }>('/settings/broker/credentials'),
+
 };
 
 // ==================== HEALTH & UTILITY ====================

@@ -233,7 +233,7 @@ const MLStudio = () => {
             <div className="flex items-center justify-between">
                 <div>
                     <h1 className="text-2xl font-bold text-slate-100 flex items-center gap-3">
-                        <div className="p-2 bg-gradient-to-br from-fuchsia-500/20 to-pink-500/20 rounded-xl">
+                        <div className="p-2 bg-gradient-to-br from-fuchsia-500/20 to-violet-500/20 rounded-xl">
                             <Cpu className="text-fuchsia-400" size={24} />
                         </div>
                         ML Strategy Studio
@@ -245,7 +245,7 @@ const MLStudio = () => {
                         <Upload size={16} />
                         Import Dataset
                     </button>
-                    <button className="px-4 py-2 bg-gradient-to-r from-fuchsia-600 to-pink-600 hover:from-fuchsia-500 hover:to-pink-500 rounded-lg text-white text-sm font-medium flex items-center gap-2 transition-all shadow-lg shadow-fuchsia-600/20">
+                    <button className="px-4 py-2 bg-gradient-to-r from-fuchsia-600 to-violet-600 hover:from-fuchsia-500 hover:to-violet-500 rounded-lg text-white text-sm font-medium flex items-center gap-2 transition-all shadow-lg shadow-fuchsia-600/20">
                         <Cloud size={16} />
                         Cloud Training
                     </button>
@@ -444,7 +444,7 @@ const MLStudio = () => {
                         {config.use_feature_engineering && (
                             <div className="mt-6 p-4 bg-slate-950/50 border border-slate-800 rounded-xl">
                                 <div className="flex items-center gap-2 mb-3">
-                                    <Filter className="text-fuchsia-500" size={14} />
+                                    <Filter className="text-violet-500" size={14} />
                                     <span className="text-xs font-medium text-slate-400">Feature Engineering Pipeline</span>
                                 </div>
                                 <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
@@ -464,7 +464,7 @@ const MLStudio = () => {
                             disabled={isTraining || !config.symbol}
                             className={`w-full mt-6 py-4 rounded-xl font-bold transition-all flex items-center justify-center gap-3 ${isTraining
                                     ? 'bg-slate-800 text-slate-400'
-                                    : 'bg-gradient-to-r from-fuchsia-600 to-pink-600 hover:from-fuchsia-500 hover:to-pink-500 text-white shadow-xl shadow-fuchsia-600/20'
+                                    : 'bg-gradient-to-r from-violet-600 to-violet-600 hover:from-violet-500 hover:to-violet-500 text-white shadow-xl shadow-fuchsia-600/20'
                                 }`}
                         >
                             {isTraining ? (
@@ -485,7 +485,7 @@ const MLStudio = () => {
                             <div className="mt-4">
                                 <div className="h-2 bg-slate-800 rounded-full overflow-hidden">
                                     <div
-                                        className="h-full bg-gradient-to-r from-fuchsia-500 to-pink-500 transition-all duration-300"
+                                        className="h-full bg-gradient-to-r from-fuchsia-500 to-violet-500 transition-all duration-300"
                                         style={{ width: `${trainingProgress}%` }}
                                     />
                                 </div>
@@ -514,7 +514,7 @@ const MLStudio = () => {
                                 <p className="text-xs text-slate-300">Price movement probability {config.threshold * 100}% over next 5 intervals</p>
                             </div>
                             <div className="p-3 bg-slate-900/30 rounded-lg">
-                                <p className="text-[10px] font-medium text-pink-400 uppercase mb-1">Data Requirements</p>
+                                <p className="text-[10px] font-medium text-violet-400 uppercase mb-1">Data Requirements</p>
                                 <p className="text-xs text-slate-300">Minimum 500 data points. Multi-year datasets recommended for robust models.</p>
                             </div>
                             <div className="p-3 bg-slate-900/30 rounded-lg">
@@ -588,7 +588,7 @@ const MLStudio = () => {
                                     Deploy Strategy
                                 </button>
                             )}
-                            <button className="px-4 py-2 bg-gradient-to-r from-fuchsia-600 to-pink-600 hover:from-fuchsia-500 hover:to-pink-500 rounded-lg text-white text-sm font-medium flex items-center gap-2 transition-all shadow-lg shadow-fuchsia-600/20">
+                            <button className="px-4 py-2 bg-gradient-to-r from-fuchsia-600 to-violet-600 hover:from-fuchsia-500 hover:to-violet-500 rounded-lg text-white text-sm font-medium flex items-center gap-2 transition-all shadow-lg shadow-fuchsia-600/20">
                                 <Maximize2 size={16} />
                                 Compare Models
                             </button>
@@ -607,7 +607,7 @@ const MLStudio = () => {
                         <div className="bg-gradient-to-br from-slate-900/40 to-slate-950/40 border border-slate-800/50 p-5 rounded-2xl">
                             <p className="text-xs font-medium text-slate-500 mb-2">Test Accuracy</p>
                             <div className="flex items-end gap-2">
-                                <span className="text-2xl font-bold text-pink-400">{(selectedModel.test_accuracy * 100).toFixed(1)}%</span>
+                                <span className="text-2xl font-bold text-violet-400">{(selectedModel.test_accuracy * 100).toFixed(1)}%</span>
                                 <span className="text-xs text-slate-500 mb-1">±1.8%</span>
                             </div>
                         </div>

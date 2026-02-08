@@ -113,7 +113,6 @@ async def reset_db() -> None:
         logger.warning("Database reset completed - all data deleted!")
 
 
-# Context manager for database operations
 class DatabaseSession:
     """
     Context manager for database sessions
@@ -139,7 +138,6 @@ class DatabaseSession:
         await self.session.close()
 
 
-# Utility functions for common database operations
 async def get_or_create(db: AsyncSession, model, defaults=None, **kwargs):
     """
     Get an instance or create it if it doesn't exist
