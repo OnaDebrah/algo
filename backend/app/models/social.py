@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
 
-from sqlalchemy import Column, DateTime, ForeignKey, Integer, String, Text, JSON
+from sqlalchemy import JSON, Column, DateTime, ForeignKey, Integer, String, Text
 
 from backend.app.database import Base
 

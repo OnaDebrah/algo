@@ -25,30 +25,69 @@ const BayesianOptimizerModal: React.FC<BayesianOptimizerModalProps> = ({ symbols
     useMemo(() => {
         const initialRanges: Record<string, any> = {};
 
+        // Helper to create safe range
+        const createRange = (val: number, meta?: any) => {
+            // Ensure val is a number, default to 0 if not
+            const safeVal = (typeof val === 'number' && !isNaN(val)) ? val : 0;
+
+            // Determine base bounds
+            let min = meta?.min ?? (safeVal * 0.5);
+            let max = meta?.max ?? (safeVal * 2.0);
+
+            // Sanitize min/max if they are null/undefined/NaN
+            if (min === null || min === undefined || isNaN(min)) min = safeVal * 0.5;
+            if (max === null || max === undefined || isNaN(max)) max = safeVal * 2.0;
+
+            // Handle negative numbers (swap logic if needed)
+            if (safeVal < 0) {
+                // For negative numbers, 2*safeVal is smaller than 0.5*safeVal
+                // e.g. -1 -> min: -0.5, max: -2.0 (WRONG) -> swap to min: -2.0, max: -0.5
+                const a = safeVal * 0.5;
+                const b = safeVal * 2.0;
+                min = meta?.min ?? Math.min(a, b);
+                max = meta?.max ?? Math.max(a, b);
+            } else if (safeVal === 0) {
+                // Handle zero case - default to small range around 0 if no metadata
+                min = meta?.min ?? -0.1;
+                max = meta?.max ?? 0.1;
+            }
+
+            // Final safety check to ensure min <= max
+            if (min > max) {
+                const temp = min;
+                min = max;
+                max = temp;
+            }
+
+            // Ensure distinct min/max for Optuna
+            if (min === max) {
+                max = min + (Math.abs(min) * 0.1 || 0.1);
+            }
+
+            return {
+                min,
+                max,
+                type: (meta?.type === 'int' || Number.isInteger(safeVal)) ? 'int' : 'float',
+                step: meta?.step ?? ((meta?.type === 'int' || Number.isInteger(safeVal)) ? 1 : (Math.abs(safeVal) * 0.1 || 0.1))
+            };
+        };
+
         // Try to get parameter definitions (with min/max/type)
         const paramDefinitions = strategy.parameterMetadata || (Array.isArray(strategy.parameters) ? strategy.parameters : []);
 
         if (paramDefinitions.length > 0) {
             paramDefinitions.forEach((param: any) => {
-                if (param.type === 'number' || param.type === 'int' || param.type === 'float') {
-                    initialRanges[param.name] = {
-                        min: param.min ?? (param.default * 0.5),
-                        max: param.max ?? (param.default * 2),
-                        type: param.type === 'int' ? 'int' : 'float',
-                        step: param.type === 'int' ? 1 : 0.1
-                    };
+                // Skip if not number compatible
+                if (['number', 'int', 'float'].includes(param.type)) {
+                    initialRanges[param.name] = createRange(param.default || 0, param);
                 }
             });
         } else if (typeof strategy.parameters === 'object' && strategy.parameters !== null) {
             // Fallback: If we only have parameter values, create default ranges
             Object.entries(strategy.parameters).forEach(([name, value]) => {
-                if (typeof value === 'number') {
-                    initialRanges[name] = {
-                        min: value * 0.5,
-                        max: value * 2,
-                        type: Number.isInteger(value) ? 'int' : 'float',
-                        step: Number.isInteger(value) ? 1 : 0.1
-                    };
+                // Explicitly check for valid number and not NaN
+                if (typeof value === 'number' && !isNaN(value)) {
+                    initialRanges[name] = createRange(value);
                 }
             });
         }

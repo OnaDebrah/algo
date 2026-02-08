@@ -46,7 +46,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/options", tags=["Options"])
 
 market_service = get_market_service()
-# Initialize options engine (singleton pattern)
+
 options_engine = OptionsBacktestEngine()
 
 
@@ -55,7 +55,6 @@ def fetch_real_option_chain(symbol: str) -> ChainResponse:
     try:
         ticker = yf.Ticker(symbol)
 
-        # Get current price
         hist = ticker.history(period="1d")
         if hist.empty:
             raise ValueError(f"No price data available for {symbol}")
@@ -67,7 +66,6 @@ def fetch_real_option_chain(symbol: str) -> ChainResponse:
         if not expirations:
             raise ValueError(f"No options data available for {symbol}")
 
-        # Get option chain for first few expirations
         expiration_dates = list(expirations[:5])  # First 5 expirations
 
         # Get calls and puts for the first expiration
@@ -109,11 +107,10 @@ def fetch_real_option_chain(symbol: str) -> ChainResponse:
                 }
             )
 
-        return ChainResponse(symbol=symbol, underlying_price=float(current_price), expiration_dates=expiration_dates, calls=calls, puts=puts)
+        return ChainResponse(symbol=symbol, current_price=float(current_price), expiration_dates=expiration_dates, calls=calls, puts=puts)
 
     except Exception as e:
-        # Fallback to mock data if real data fetch fails
-        print(f"Warning: Failed to fetch real option chain for {symbol}: {e}")
+        logger.error(f"Failed to fetch real option chain for {symbol}: {e}")
         return _generate_mock_chain(symbol, 150.0)
 
 

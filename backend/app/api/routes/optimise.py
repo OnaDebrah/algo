@@ -2,11 +2,9 @@
 FastAPI endpoints for Portfolio Optimization
 """
 
-import asyncio
 import logging
 from typing import Any, Hashable
 
-import optuna
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -14,7 +12,7 @@ from backend.app.api.deps import check_permission, get_db
 from backend.app.core.permissions import Permission
 from backend.app.models.user import User
 from backend.app.optimise import PortfolioBacktest, PortfolioOptimizer
-from backend.app.schemas.backtest import BacktestRequest as SingleBacktestRequest
+from backend.app.optimise.optimisation_runner import OptimizationRunner
 from backend.app.schemas.optimise import (
     BacktestRequest,
     BacktestResponse,
@@ -27,7 +25,6 @@ from backend.app.schemas.optimise import (
     TargetReturnRequest,
     TrialResult,
 )
-from backend.app.services.backtest_service import BacktestService
 
 router = APIRouter(prefix="/optimise", tags=["Optimise"])
 
@@ -234,67 +231,33 @@ async def bayesian_optimization(
 ):
     """
     Run Bayesian optimization on strategy parameters
+
+    This endpoint:
+    1. Creates an isolated database connection pool for optimization
+    2. Runs multiple backtest trials with different parameters
+    3. Uses Bayesian optimization (TPE) to find optimal parameters
+    4. Returns best parameters and all trial results
+
+    Note: This can take several minutes depending on n_trials
     """
     try:
-        service = BacktestService(db)
+        # Validate request
+        if request.n_trials < 1:
+            raise HTTPException(status_code=400, detail="n_trials must be at least 1")
 
-        def objective(trial):
-            # 1. Suggest parameters
-            params = {}
-            for name, r in request.param_ranges.items():
-                if r.type == "int":
-                    params[name] = trial.suggest_int(name, int(r.min), int(r.max), step=int(r.step) if r.step else 1)
-                else:
-                    params[name] = trial.suggest_float(name, r.min, r.max, step=r.step)
+        if request.n_trials > 200:
+            raise HTTPException(status_code=400, detail="n_trials cannot exceed 200 (performance limit)")
 
-            # 2. Run backtest (synchronously in thread)
-            # Check if we are running single or multi-asset
-            if len(request.tickers) == 1:
-                backtest_req = SingleBacktestRequest(
-                    symbol=request.tickers[0],
-                    strategy_key=request.strategy_key,
-                    parameters=params,
-                    period=request.period,
-                    interval=request.interval,
-                    initial_capital=request.initial_capital,
-                )
+        async with OptimizationRunner(request=request, user_id=current_user.id, max_workers=4) as runner:
+            study = await runner.run_optimization()
 
-                loop = asyncio.new_event_loop()
-                try:
-                    result = loop.run_until_complete(service.run_single_backtest(backtest_req, current_user.id))
-                    return getattr(result.result, request.metric, 0)
-                finally:
-                    loop.close()
-            else:
-                from backend.app.schemas.backtest import MultiAssetBacktestRequest, StrategyConfig
-
-                # Multi-asset optimization (assuming SAME strategy for all assets)
-                strategy_configs = {ticker: StrategyConfig(strategy_key=request.strategy_key, parameters=params) for ticker in request.tickers}
-
-                multi_req = MultiAssetBacktestRequest(
-                    symbols=request.tickers,
-                    strategy_configs=strategy_configs,
-                    allocation_method="equal",  # Default to equal for optimization
-                    period=request.period,
-                    interval=request.interval,
-                    initial_capital=request.initial_capital,
-                )
-
-                loop = asyncio.new_event_loop()
-                try:
-                    result = loop.run_until_complete(service.run_multi_asset_backtest(multi_req, current_user.id))
-                    return getattr(result.result, request.metric, 0)
-                finally:
-                    loop.close()
-
-        # Run optimization
-        study = optuna.create_study(direction="maximize")
-        await asyncio.to_thread(study.optimize, objective, n_trials=request.n_trials)
-
-        # Prepare response
         trials = []
         for t in study.trials:
-            trials.append(TrialResult(trial_id=t.number, params=t.params, value=t.value if t.value is not None else 0, status=str(t.state)))
+            if t.value is not None and t.value != float("-inf"):
+                trials.append(TrialResult(trial_id=t.number, params=t.params, value=t.value, status=str(t.state)))
+
+        if not trials:
+            raise HTTPException(status_code=500, detail="All optimization trials failed. Check strategy configuration.")
 
         return BayesianOptimizationResponse(
             best_params=study.best_params,
@@ -303,11 +266,12 @@ async def bayesian_optimization(
             tickers=request.tickers,
             strategy_key=request.strategy_key,
             metric=request.metric,
+            n_completed=len(trials),
+            n_failed=request.n_trials - len(trials),
         )
 
+    except HTTPException:
+        raise
     except Exception as e:
-        logger.error(f"Bayesian optimization failed: {e}")
-        import traceback
-
-        traceback.print_exc()
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.error(f"Bayesian optimization failed: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Optimization failed: {str(e)[:200]}")
