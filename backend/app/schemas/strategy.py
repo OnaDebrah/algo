@@ -65,6 +65,15 @@ class DeployStrategyRequest(BaseModel):
     notes: Optional[str] = None
 
 
+class UpdateStrategyRequest(BaseModel):
+    """Request to update strategy parameters"""
+
+    name: Optional[str] = None
+    parameters: Optional[Dict[str, Any]] = None
+    symbols: Optional[List[str]] = None
+    notes: Optional[str] = None
+
+
 class StrategyResponse(BaseModel):
     """Basic strategy response"""
 

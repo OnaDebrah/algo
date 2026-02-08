@@ -1,3 +1,5 @@
+'use client';
+
 import MetricCard from "@/components/backtest/MetricCard";
 import {
     Activity,
@@ -32,12 +34,16 @@ import {
     XAxis,
     YAxis
 } from "recharts";
-import {formatCurrency, formatPercent, toPrecision} from "@/utils/formatters";
 
-import {useEffect, useMemo, useState} from "react";
-import {analytics, backtest, portfolio, strategy} from "@/utils/api";
-import {BacktestHistoryItem, Portfolio, StrategyInfo} from "@/types/all_types";
+import { formatCurrency, formatPercent, toPrecision } from "@/utils/formatters";
+
+import { useEffect, useMemo, useState } from "react";
+import { analytics, backtest, portfolio, strategy } from "@/utils/api";
+import { BacktestHistoryItem, Portfolio, StrategyInfo } from "@/types/all_types";
 import RiskAnalysisModal from "@/components/backtest/RiskAnalysisModal";
+import SocialFeed from "@/components/dashboard/SocialFeed";
+import LightweightChart from "@/components/charts/LightweightChart";
+import { motion } from "framer-motion";
 
 interface PerformanceMetrics {
     total_return: number;
@@ -404,7 +410,7 @@ const Dashboard = () => {
                                     className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all ${selectedPeriod === period
                                         ? 'bg-violet-500 text-white shadow-lg shadow-violet-500/20'
                                         : 'text-slate-400 hover:text-slate-200'
-                                    }`}
+                                        }`}
                                 >
                                     {period}
                                 </button>
@@ -433,11 +439,16 @@ const Dashboard = () => {
             </div>
 
             {/* Main Content Grid */}
-            <div className="grid grid-cols-3 gap-6">
-                {/* Left Column: Backtest Library (1/3 width) */}
-                <div className="col-span-1 space-y-6">
+            <div className="grid grid-cols-12 gap-6">
+                {/* Left Column: Backtest Library (3/12 width) */}
+                <div className="col-span-12 lg:col-span-3 space-y-6">
                     {/* Search and Filter */}
-                    <div className="bg-gradient-to-br from-slate-900/90 to-slate-800/90 backdrop-blur-xl border border-slate-700/50 rounded-2xl p-4 shadow-xl">
+                    <motion.div
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.5 }}
+                        className="glass-panel rounded-2xl p-4"
+                    >
                         <div className="relative mb-3">
                             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={16} />
                             <input
@@ -456,16 +467,21 @@ const Dashboard = () => {
                                     className={`flex-1 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${filterType === type
                                         ? 'bg-violet-500 text-white'
                                         : 'bg-slate-800/60 text-slate-400 hover:text-slate-200'
-                                    }`}
+                                        }`}
                                 >
                                     {type.charAt(0).toUpperCase() + type.slice(1)}
                                 </button>
                             ))}
                         </div>
-                    </div>
+                    </motion.div>
 
                     {/* Backtest Library */}
-                    <div className="bg-gradient-to-br from-slate-900/90 to-slate-800/90 backdrop-blur-xl border border-slate-700/50 rounded-2xl shadow-xl overflow-hidden">
+                    <motion.div
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.5, delay: 0.1 }}
+                        className="glass-panel rounded-2xl overflow-hidden"
+                    >
                         <div className="p-4 border-b border-slate-700/50">
                             <div className="flex items-center gap-2">
                                 <History className="text-violet-400" size={20} />
@@ -481,14 +497,14 @@ const Dashboard = () => {
                                     className={`w-full text-left p-4 border-b border-slate-800/50 transition-all ${selectedBacktest?.id === bt.id
                                         ? 'bg-violet-500/20 border-l-4 border-l-violet-500'
                                         : 'hover:bg-slate-800/30'
-                                    }`}
+                                        }`}
                                 >
                                     <div className="flex items-start justify-between gap-2">
                                         <div className="flex-1 min-w-0">
                                             <p className="font-semibold text-slate-200 truncate">{bt.name || `Backtest #${bt.id}`}</p>
                                             <div className="flex items-center gap-2 mt-1">
                                                 <span className={`text-xs px-2 py-0.5 rounded ${bt.backtest_type === 'multi' ? 'bg-blue-500/20 text-blue-400' : 'bg-amber-500/20 text-amber-400'
-                                                }`}>
+                                                    }`}>
                                                     {bt.backtest_type}
                                                 </span>
                                                 <span className="text-xs text-slate-500">{bt.symbols.slice(0, 2).join(', ')}</span>
@@ -506,15 +522,21 @@ const Dashboard = () => {
                                 </button>
                             ))}
                         </div>
-                    </div>
+                    </motion.div>
                 </div>
 
-                {/* Right Column: Analytics (2/3 width) */}
-                <div className="col-span-2 space-y-6">
+                {/* Middle Column: Analytics (6/12 width) */}
+                <div className="col-span-12 lg:col-span-6 space-y-6">
                     {hasData ? (
                         <>
                             {/* Equity Curve */}
-                            <div className="bg-gradient-to-br from-slate-900/90 to-slate-800/90 backdrop-blur-xl border border-slate-700/50 rounded-2xl p-6 shadow-xl">
+                            <motion.div
+                                initial={{ opacity: 0, scale: 0.95 }}
+                                animate={{ opacity: 1, scale: 1 }}
+                                transition={{ duration: 0.5 }}
+                                className="glass-panel rounded-2xl p-6 relative overflow-hidden"
+                            >
+                                <div className="absolute top-0 right-0 w-64 h-64 bg-violet-500/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 pointer-events-none"></div>
                                 <div className="flex justify-between items-start mb-6">
                                     <div>
                                         <h3 className="text-xl font-semibold text-slate-100">Equity Curve</h3>
@@ -546,28 +568,30 @@ const Dashboard = () => {
                                         </button>
                                     </div>
                                 </div>
-                                <ResponsiveContainer width="100%" height={280}>
-                                    <ComposedChart data={equityData}>
-                                        <defs>
-                                            <linearGradient id="colorEquity" x1="0" y1="0" x2="0" y2="1">
-                                                <stop offset="5%" stopColor={hasIncrease ? "#10b981" : "#ef4444"} stopOpacity={0.3} />
-                                                <stop offset="95%" stopColor={hasIncrease ? "#10b981" : "#ef4444"} stopOpacity={0} />
-                                            </linearGradient>
-                                        </defs>
-                                        <CartesianGrid strokeDasharray="3 3" stroke="#334155" opacity={0.2} />
-                                        <XAxis dataKey="date" stroke="#64748b" style={{ fontSize: '11px' }} />
-                                        <YAxis stroke="#64748b" tickFormatter={(value) => formatCurrency(value)} style={{ fontSize: '11px' }} />
-                                        <Tooltip
-                                            contentStyle={{ backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '12px', padding: '12px' }}
-                                            formatter={(value: any) => [formatCurrency(value), 'Equity']}
-                                        />
-                                        <Area type="monotone" dataKey="value" stroke={hasIncrease ? "#10b981" : "#ef4444"} strokeWidth={3} fillOpacity={1} fill="url(#colorEquity)" />
-                                    </ComposedChart>
-                                </ResponsiveContainer>
-                            </div>
+                                <div className="h-[320px] w-full">
+                                    <LightweightChart
+                                        data={equityData.map(d => ({
+                                            time: d.timestamp,
+                                            value: d.value
+                                        }))}
+                                        type="area"
+                                        height={320}
+                                        colors={{
+                                            lineColor: hasIncrease ? '#10b981' : '#ef4444',
+                                            areaTopColor: hasIncrease ? 'rgba(16, 185, 129, 0.2)' : 'rgba(239, 68, 68, 0.2)',
+                                            areaBottomColor: 'rgba(0, 0, 0, 0)',
+                                        }}
+                                    />
+                                </div>
+                            </motion.div>
 
                             {/* Drawdown Chart */}
-                            <div className="bg-gradient-to-br from-slate-900/90 to-slate-800/90 backdrop-blur-xl border border-slate-700/50 rounded-2xl p-6 shadow-xl">
+                            <motion.div
+                                initial={{ opacity: 0, y: 20 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ duration: 0.5, delay: 0.2 }}
+                                className="glass-panel rounded-2xl p-6"
+                            >
                                 <div className="mb-6">
                                     <h3 className="text-xl font-semibold text-slate-100">Drawdown Analysis</h3>
                                     <p className="text-xs text-slate-500 mt-1">
@@ -592,10 +616,15 @@ const Dashboard = () => {
                                         <Area type="monotone" dataKey="drawdown" stroke="#ef4444" strokeWidth={2} fillOpacity={1} fill="url(#colorDrawdown)" />
                                     </AreaChart>
                                 </ResponsiveContainer>
-                            </div>
+                            </motion.div>
 
                             {/* Rolling Sharpe */}
-                            <div className="bg-gradient-to-br from-slate-900/90 to-slate-800/90 backdrop-blur-xl border border-slate-700/50 rounded-2xl p-6 shadow-xl">
+                            <motion.div
+                                initial={{ opacity: 0, y: 20 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ duration: 0.5, delay: 0.3 }}
+                                className="glass-panel rounded-2xl p-6"
+                            >
                                 <div className="mb-6">
                                     <h3 className="text-xl font-semibold text-slate-100">Rolling Sharpe Ratio (30-day)</h3>
                                     <p className="text-xs text-slate-500 mt-1">Annualized risk-adjusted return over time</p>
@@ -619,11 +648,16 @@ const Dashboard = () => {
                                         <Area type="monotone" dataKey="sharpe" stroke="#8b5cf6" strokeWidth={2} fillOpacity={1} fill="url(#colorSharpe)" />
                                     </ComposedChart>
                                 </ResponsiveContainer>
-                            </div>
+                            </motion.div>
 
                             {/* Monthly Returns */}
                             {monthlyReturns.length > 0 && (
-                                <div className="bg-gradient-to-br from-slate-900/90 to-slate-800/90 backdrop-blur-xl border border-slate-700/50 rounded-2xl p-6 shadow-xl">
+                                <motion.div
+                                    initial={{ opacity: 0, y: 20 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    transition={{ duration: 0.5, delay: 0.4 }}
+                                    className="glass-panel rounded-2xl p-6"
+                                >
                                     <div className="flex items-center gap-3 mb-6">
                                         <Calendar className="text-violet-400" size={24} />
                                         <div>
@@ -653,7 +687,6 @@ const Dashboard = () => {
                                             );
                                         })}
                                     </div>
-                                    {/* Monthly Stats */}
                                     <div className="grid grid-cols-4 gap-3 mt-4 pt-4 border-t border-slate-700/50">
                                         <div className="text-center">
                                             <p className="text-xs text-slate-500 mb-1">Best Month</p>
@@ -672,12 +705,17 @@ const Dashboard = () => {
                                             <p className="text-sm font-bold text-blue-400">{monthlyReturns.filter(m => m.return > 0).length}/{monthlyReturns.length}</p>
                                         </div>
                                     </div>
-                                </div>
+                                </motion.div>
                             )}
 
                             {/* Trade Distribution */}
                             {tradeDistribution.length > 0 && (
-                                <div className="bg-gradient-to-br from-slate-900/90 to-slate-800/90 backdrop-blur-xl border border-slate-700/50 rounded-2xl p-6 shadow-xl">
+                                <motion.div
+                                    initial={{ opacity: 0, y: 20 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    transition={{ duration: 0.5, delay: 0.5 }}
+                                    className="glass-panel rounded-2xl p-6"
+                                >
                                     <div className="mb-6">
                                         <h3 className="text-xl font-semibold text-slate-100">Trade Distribution</h3>
                                         <p className="text-sm text-slate-500 mt-1">Win/Loss breakdown</p>
@@ -710,16 +748,21 @@ const Dashboard = () => {
                                             </div>
                                         </div>
                                     </div>
-                                </div>
+                                </motion.div>
                             )}
                         </>
                     ) : (
-                        <div className="bg-gradient-to-br from-slate-900/90 to-slate-800/90 backdrop-blur-xl border border-slate-700/50 rounded-2xl p-12 shadow-xl text-center">
+                        <div className="glass-panel rounded-2xl p-12 text-center">
                             <Eye className="mx-auto text-slate-600 mb-4" size={48} />
                             <h3 className="text-xl font-semibold text-slate-300 mb-2">No Backtest Selected</h3>
                             <p className="text-slate-500">Select a backtest from the library to view detailed analytics</p>
                         </div>
                     )}
+                </div>
+
+                {/* Right Column: Social Feed (3/12 width) */}
+                <div className="col-span-12 lg:col-span-3 h-[calc(100vh-140px)] sticky top-24">
+                    <SocialFeed />
                 </div>
             </div>
 

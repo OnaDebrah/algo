@@ -15,7 +15,15 @@ from backend.app.api.deps import get_current_user
 from backend.app.api.routes.live.live_trading_state import LiveTradingState
 from backend.app.database import AsyncSessionLocal, get_db
 from backend.app.models.backtest import BacktestRun
-from backend.app.models.live import DeploymentMode, LiveEquitySnapshot, LiveStrategy, LiveTrade, StrategyStatus, TradeStatus
+from backend.app.models.live import (
+    DeploymentMode,
+    LiveEquitySnapshot,
+    LiveStrategy,
+    LiveStrategySnapshot,
+    LiveTrade,
+    StrategyStatus,
+    TradeStatus,
+)
 from backend.app.models.user_settings import UserSettings as UserSettingsModel
 from backend.app.schemas.live import (
     ConnectRequest,
@@ -26,7 +34,12 @@ from backend.app.schemas.live import (
     LiveStatus,
     TradeResponse,
 )
-from backend.app.schemas.strategy import DeployStrategyRequest, StrategyDetailsResponse, StrategyResponse
+from backend.app.schemas.strategy import (
+    DeployStrategyRequest,
+    StrategyDetailsResponse,
+    StrategyResponse,
+    UpdateStrategyRequest,
+)
 from backend.app.services.execution_manager import get_execution_manager
 
 logger = logging.getLogger(__name__)
@@ -628,3 +641,133 @@ async def delete_strategy(strategy_id: int, db: AsyncSession = Depends(get_db), 
     await db.commit()
 
     return {"strategy_id": strategy_id, "message": "Strategy deleted successfully"}
+
+
+@router.patch("/strategy/{strategy_id}", response_model=StrategyResponse)
+async def update_strategy(
+    strategy_id: int, request: UpdateStrategyRequest, db: AsyncSession = Depends(get_db), current_user=Depends(get_current_user)
+):
+    """
+    Update strategy parameters and create a versioned snapshot
+    """
+    stmt = select(LiveStrategy).where(LiveStrategy.id == strategy_id, LiveStrategy.user_id == current_user.id)
+    result = await db.execute(stmt)
+    strategy = result.scalars().first()
+
+    if not strategy:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Strategy {strategy_id} not found")
+
+    # Create snapshot of CURRENT state before updating
+    snapshot = LiveStrategySnapshot(
+        strategy_id=strategy.id,
+        version=strategy.version,
+        parameters=strategy.parameters,
+        notes=f"Snapshot before update at {datetime.now(timezone.utc).isoformat()}",
+    )
+    db.add(snapshot)
+
+    # Update strategy fields
+    if request.name:
+        strategy.name = request.name
+    if request.parameters:
+        strategy.parameters = request.parameters
+    if request.symbols:
+        strategy.symbols = request.symbols
+    if request.notes:
+        strategy.notes = request.notes
+
+    # Increment version
+    strategy.version += 1
+
+    await db.commit()
+    await db.refresh(strategy)
+
+    # If running, we might need to notify ExecutionManager to reload parameters
+    if strategy.status == StrategyStatus.RUNNING:
+        await execution_manager.deploy_strategy(strategy_id)
+
+    return StrategyResponse(
+        id=strategy.id,
+        name=strategy.name,
+        strategy_key=strategy.strategy_key,
+        symbols=strategy.symbols,
+        status=strategy.status.value,
+        deployment_mode=strategy.deployment_mode.value,
+        current_equity=strategy.current_equity or strategy.initial_capital,
+        total_return_pct=strategy.total_return_pct or 0.0,
+        total_trades=strategy.total_trades or 0,
+        deployed_at=strategy.deployed_at.isoformat() if strategy.deployed_at else None,
+    )
+
+
+@router.post("/strategy/{strategy_id}/rollback/{version_id}")
+async def rollback_strategy(strategy_id: int, version_id: int, db: AsyncSession = Depends(get_db), current_user=Depends(get_current_user)):
+    """
+    Rollback strategy parameters to a previous version
+    """
+    # Verify strategy ownership
+    stmt = select(LiveStrategy).where(LiveStrategy.id == strategy_id, LiveStrategy.user_id == current_user.id)
+    result = await db.execute(stmt)
+    strategy = result.scalars().first()
+
+    if not strategy:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Strategy {strategy_id} not found")
+
+    # Find the specific snapshot
+    stmt = select(LiveStrategySnapshot).where(LiveStrategySnapshot.strategy_id == strategy_id, LiveStrategySnapshot.id == version_id)
+    result = await db.execute(stmt)
+    snapshot = result.scalars().first()
+
+    if not snapshot:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Snapshot {version_id} not found for strategy {strategy_id}")
+
+    # Create a snapshot of the current state BEFORE rolling back
+    new_snapshot = LiveStrategySnapshot(
+        strategy_id=strategy.id,
+        version=strategy.version,
+        parameters=strategy.parameters,
+        notes=f"Snapshot before rollback to version {snapshot.version}",
+    )
+    db.add(new_snapshot)
+
+    # Revert parameters
+    strategy.parameters = snapshot.parameters
+    strategy.version += 1
+
+    await db.commit()
+
+    # If running, reload
+    if strategy.status == StrategyStatus.RUNNING:
+        await execution_manager.deploy_strategy(strategy_id)
+
+    return {"status": "success", "message": f"Rolled back to version {snapshot.version}", "current_version": strategy.version}
+
+
+@router.get("/strategy/{strategy_id}/versions", response_model=List[Dict[str, Any]])
+async def list_strategy_versions(strategy_id: int, db: AsyncSession = Depends(get_db), current_user=Depends(get_current_user)):
+    """
+    List all saved versions of a strategy
+    """
+    # Verify ownership
+    stmt = select(LiveStrategy).where(LiveStrategy.id == strategy_id, LiveStrategy.user_id == current_user.id)
+    result = await db.execute(stmt)
+    strategy = result.scalars().first()
+
+    if not strategy:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Strategy {strategy_id} not found")
+
+    # Get all snapshots
+    stmt = select(LiveStrategySnapshot).where(LiveStrategySnapshot.strategy_id == strategy_id).order_by(LiveStrategySnapshot.version.desc())
+    result = await db.execute(stmt)
+    snapshots = result.scalars().all()
+
+    return [
+        {
+            "id": s.id,
+            "version": s.version,
+            "parameters": s.parameters,
+            "created_at": s.created_at.isoformat(),
+            "notes": s.notes,
+        }
+        for s in snapshots
+    ]

@@ -34,6 +34,15 @@ class BacktestResult(BaseModel):
     final_equity: float
     initial_capital: float
 
+    # Advanced metrics
+    sortino_ratio: Optional[float] = 0.0
+    calmar_ratio: Optional[float] = 0.0
+    var_95: Optional[float] = 0.0
+    cvar_95: Optional[float] = 0.0
+    volatility: Optional[float] = 0.0
+    expectancy: Optional[float] = 0.0
+    total_commission: Optional[float] = 0.0
+
 
 class EquityCurvePoint(BaseModel):
     timestamp: str

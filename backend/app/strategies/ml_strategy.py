@@ -208,6 +208,28 @@ class MLStrategy(BaseStrategy):
 
         return int(prediction)
 
+    def generate_signals_vectorized(self, data: pd.DataFrame) -> pd.Series:
+        """Vectorized version of ML prediction"""
+        if not self.is_trained:
+            logger.warning(f"ML Model {self.name} not trained. Vectorized signals will be 0.")
+            return pd.Series(0, index=data.index)
+
+        df = self.prepare_features(data)
+        df_clean = df.dropna()
+
+        if len(df_clean) == 0:
+            return pd.Series(0, index=data.index)
+
+        X = df_clean[self.feature_cols].values
+        X_scaled = self.scaler.transform(X)
+
+        predictions = self.model.predict(X_scaled)
+
+        signals = pd.Series(0, index=data.index)
+        signals.loc[df_clean.index] = predictions
+
+        return signals
+
     def get_feature_importance(self) -> pd.DataFrame:
         """Get feature importance from trained model"""
         if not self.is_trained:

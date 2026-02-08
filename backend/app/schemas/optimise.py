@@ -1,4 +1,4 @@
-from typing import Dict, List
+from typing import Any, Dict, List, Optional
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -56,3 +56,37 @@ class BacktestResponse(BaseModel):
     sharpe_ratio: float
     max_drawdown: float
     final_value: float
+
+
+class ParamRange(BaseModel):
+    min: float
+    max: float
+    step: Optional[float] = None
+    type: str = Field("float", description="'int' or 'float'")
+
+
+class BayesianOptimizationRequest(BaseModel):
+    tickers: List[str] = Field(..., description="List of stock tickers")
+    strategy_key: str = Field(..., description="Strategy name")
+    param_ranges: Dict[str, ParamRange] = Field(..., description="Parameter bounds")
+    n_trials: int = Field(20, ge=5, le=100, description="Number of optimization trials")
+    period: str = Field("1y", description="Backtest period")
+    interval: str = Field("1d", description="Data interval")
+    initial_capital: float = Field(100000.0, ge=1000.0)
+    metric: str = Field("sharpe_ratio", description="Metric to maximize: 'sharpe_ratio', 'total_return', 'win_rate'")
+
+
+class TrialResult(BaseModel):
+    trial_id: int
+    params: Dict[str, Any]
+    value: float
+    status: str
+
+
+class BayesianOptimizationResponse(BaseModel):
+    best_params: Dict[str, Any]
+    best_value: float
+    trials: List[TrialResult]
+    tickers: List[str]
+    strategy_key: str
+    metric: str

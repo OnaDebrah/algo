@@ -106,6 +106,7 @@ import {
     StrategyUpdateRequest,
     UpdateResponse
 } from "@/types/live";
+import { ActivityResponse } from "@/types/social";
 
 // Use environment variable or default to localhost
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
@@ -171,7 +172,7 @@ export const auth = {
 
     // Token refresh (if implemented)
     refreshToken: (refreshToken: string) =>
-        client.post<{ access_token: string }>('/auth/refresh', {refresh_token: refreshToken}),
+        client.post<{ access_token: string }>('/auth/refresh', { refresh_token: refreshToken }),
 };
 
 // ==================== BACKTEST ====================
@@ -201,10 +202,10 @@ export const backtest = {
         backtest_type?: 'single' | 'multi' | 'options';
         status?: 'pending' | 'running' | 'completed' | 'failed';
         symbol?: string;
-    }) => client.get<BacktestHistoryItem[]>('/backtest/history', {params}),
+    }) => client.get<BacktestHistoryItem[]>('/backtest/history', { params }),
 
     getHistoryCount: (params?: { backtest_type?: string; status?: string }) =>
-        client.get<{ count: number }>('/backtest/history/count', {params}),
+        client.get<{ count: number }>('/backtest/history/count', { params }),
 
     getDetails: (backtest_id: number) =>
         client.get<BacktestHistoryItem>(`/backtest/history/${backtest_id}`),
@@ -213,10 +214,16 @@ export const backtest = {
         client.delete(`/backtest/history/${backtest_id}`),
 
     updateBacktestName: (backtest_id: number, name: string) =>
-        client.put(`/backtest/history/${backtest_id}/name`, null, {params: {name}}),
+        client.put(`/backtest/history/${backtest_id}/name`, null, { params: { name } }),
 
     getStatsSummary: () =>
         client.get<Record<string, unknown>>('/backtest/history/stats/summary'),
+
+    /**
+     * Run Bayesian optimization on strategy parameters
+     */
+    bayesian: (request: any) =>
+        client.post<any>('/optimise/bayesian', request),
 };
 
 // ==================== PORTFOLIO ====================
@@ -243,7 +250,7 @@ export const portfolio = {
         client.get<Position[]>(`/portfolio/${portfolio_id}/positions`),
 
     getTrades: (portfolio_id: number, params?: { limit?: number; offset?: number }) =>
-        client.get<PortfolioTrade[]>(`/portfolio/${portfolio_id}/trades`, {params}),
+        client.get<PortfolioTrade[]>(`/portfolio/${portfolio_id}/trades`, { params }),
 };
 
 // ==================== MARKET DATA ====================
@@ -266,25 +273,25 @@ export interface SearchParams {
 
 export const market = {
     getQuote: (symbol: string, use_cache: boolean = true) =>
-        client.get<QuoteData>(`/market/quote/${symbol}`, {params: {use_cache}}),
+        client.get<QuoteData>(`/market/quote/${symbol}`, { params: { use_cache } }),
 
     getQuotes: (symbols: string[], use_cache: boolean = true) =>
-        client.post<QuoteData[]>('/market/quotes', symbols, {params: {use_cache}}),
+        client.post<QuoteData[]>('/market/quotes', symbols, { params: { use_cache } }),
 
     getHistorical: (symbol: string, params?: HistoricalDataParams) =>
-        client.get<HistoricalDataPoint[]>(`/market/historical/${symbol}`, {params}),
+        client.get<HistoricalDataPoint[]>(`/market/historical/${symbol}`, { params }),
 
     getOptionChain: (symbol: string, expiration?: string) =>
-        client.get<OptionsChain>(`/market/options/${symbol}`, {params: {expiration}}),
+        client.get<OptionsChain>(`/market/options/${symbol}`, { params: { expiration } }),
 
     getFundamentals: (symbol: string) =>
         client.get<Record<string, unknown>>(`/market/fundamentals/${symbol}`),
 
     getNews: (symbol: string, params?: NewsParams) =>
-        client.get<Record<string, unknown>[]>(`/market/news/${symbol}`, {params}),
+        client.get<Record<string, unknown>[]>(`/market/news/${symbol}`, { params }),
 
     search: (query: string, limit: number = 10) =>
-        client.get<SearchResult[]>(`/market/search`, {params: {q: query, limit}}),
+        client.get<SearchResult[]>(`/market/search`, { params: { q: query, limit } }),
 
     validateSymbol: (symbol: string) =>
         client.get<{ valid: boolean; symbol: string; message?: string }>(`/market/validate/${symbol}`),
@@ -296,7 +303,7 @@ export const market = {
         client.get<Record<string, unknown>>(`/market/cache/stats`),
 
     clearCache: (data_type?: string) =>
-        client.post<{ success: boolean; message: string }>(`/market/cache/clear`, null, {params: {data_type}}),
+        client.post<{ success: boolean; message: string }>(`/market/cache/clear`, null, { params: { data_type } }),
 
     cleanupCache: () =>
         client.post<{ success: boolean; cleaned: number }>(`/market/cache/cleanup`),
@@ -319,7 +326,7 @@ export interface AnalyticsPeriod {
 
 export const analytics = {
     getPerformance: async (portfolio_id: number, params: AnalyticsPeriod) => {
-        return client.get<Record<string, any>>(`/analytics/performance/${portfolio_id}`, {params})
+        return client.get<Record<string, any>>(`/analytics/performance/${portfolio_id}`, { params })
     },
 
     getReturnsAnalysis: (portfolio_id: number) =>
@@ -339,35 +346,35 @@ export interface RegimeParams {
 
 export const regime = {
     detect: async (symbol: string, params?: RegimeParams): Promise<CurrentRegimeResponse> => {
-        return client.get<CurrentRegimeResponse>(`/regime/detect/${symbol}`, {params})
+        return client.get<CurrentRegimeResponse>(`/regime/detect/${symbol}`, { params })
     },
 
     getHistory: (symbol: string, params?: RegimeParams) =>
-        client.get<RegimeHistoryResponse>(`/regime/history/${symbol}`, {params}),
+        client.get<RegimeHistoryResponse>(`/regime/history/${symbol}`, { params }),
 
     getReport: (symbol: string, params?: RegimeParams) =>
-        client.get<Record<string, any>>(`/regime/report/${symbol}`, {params}),
+        client.get<Record<string, any>>(`/regime/report/${symbol}`, { params }),
 
     detectBatch: (symbols: string[], params?: RegimeParams) =>
-        client.post<CurrentRegimeResponse[]>(`/regime/batch`, symbols, {params}),
+        client.post<CurrentRegimeResponse[]>(`/regime/batch`, symbols, { params }),
 
     trainModel: (symbol: string, params?: RegimeParams) =>
-        client.post<{ success: boolean; model_id: string }>(`/regime/train/${symbol}`, null, {params}),
+        client.post<{ success: boolean; model_id: string }>(`/regime/train/${symbol}`, null, { params }),
 
     getWarning: (symbol: string, params?: RegimeParams) =>
-        client.get<Record<string, any>>(`/regime/warning/${symbol}`, {params}),
+        client.get<Record<string, any>>(`/regime/warning/${symbol}`, { params }),
 
     getAllocation: (symbol: string, params?: RegimeParams) =>
-        client.get<AllocationResponse>(`/regime/allocation/${symbol}`, {params}),
+        client.get<AllocationResponse>(`/regime/allocation/${symbol}`, { params }),
 
     getStrength: (symbol: string, params?: RegimeParams) =>
-        client.get<RegimeStrengthResponse>(`/regime/strength/${symbol}`, {params}),
+        client.get<RegimeStrengthResponse>(`/regime/strength/${symbol}`, { params }),
 
     getTransitions: (symbol: string, params?: RegimeParams) =>
-        client.get<TransitionResponse>(`/regime/transitions/${symbol}`, {params}),
+        client.get<TransitionResponse>(`/regime/transitions/${symbol}`, { params }),
 
     getFeatures: (symbol: string, params?: RegimeParams) =>
-        client.get<FeaturesResponse>(`/regime/features/${symbol}`, {params}),
+        client.get<FeaturesResponse>(`/regime/features/${symbol}`, { params }),
 
     clearDetectorCache: (symbol: string) =>
         client.delete<{ success: boolean; message: string }>(`/regime/cache/${symbol}`),
@@ -383,7 +390,7 @@ export interface AnalystReportParams {
 
 export const analyst = {
     getReport: (ticker: string, params?: AnalystReportParams) =>
-        client.get<AnalystReport>(`/analyst/report/${ticker}`, {params}),
+        client.get<AnalystReport>(`/analyst/report/${ticker}`, { params }),
 };
 
 // ==================== ADVISOR ====================
@@ -457,7 +464,13 @@ export const live = {
         client.post<ControlResponse>(`/live/strategy/${id}/control`, { action }),
 
     update: (id: number, data: Partial<StrategyUpdateRequest>) =>
-        client.put<UpdateResponse>(`/live/strategy/${id}`, data),
+        client.patch<UpdateResponse>(`/live/strategy/${id}`, data),
+
+    getVersions: (id: number) =>
+        client.get<any[]>(`/live/strategy/${id}/versions`),
+
+    rollback: (id: number, versionId: number) =>
+        client.post<{ status: string; message: string; current_version: number }>(`/live/strategy/${id}/rollback/${versionId}`),
 
     delete: (id: number) =>
         client.delete<{ strategy_id: number; message: string }>(`/live/strategy/${id}`),
@@ -467,13 +480,21 @@ export const live = {
 
     autoConnect: () =>
         client.post<{ status: string; broker?: string; message: string }>('/live/auto-connect'),
+};
 
+// ==================== SOCIAL ====================
+export const social = {
+    getFeed: (limit: number = 50) =>
+        client.get<ActivityResponse[]>('/social/activity', { params: { limit } }),
+
+    logActivity: (content: string, type: string = "MANUAL") =>
+        client.post<{ status: string }>('/social/activity/log', null, { params: { content, activity_type: type } }),
 };
 
 // ==================== MARKETPLACE ====================
 export const marketplace = {
     browse: (params?: MarketplaceFilterParams) =>
-        client.get<StrategyListing[]>('/marketplace/', {params}),
+        client.get<StrategyListing[]>('/marketplace/', { params }),
 
     getDetails: (strategy_id: number) =>
         client.get<StrategyListingDetailed>(`/marketplace/${strategy_id}`),
@@ -704,6 +725,7 @@ export const api = {
     advisor,
     alerts,
     live,
+    social,
     marketplace,
     mlstudio,
     options,

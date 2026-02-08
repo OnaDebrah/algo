@@ -24,6 +24,7 @@ from backend.app.api.routes import (
     regime,
     root,
     settings as settings_router,
+    social,
     strategy,
     websocket,
 )
@@ -101,6 +102,7 @@ app.include_router(marketplace.router)
 app.include_router(mlstudio.router)
 app.include_router(options.router)
 app.include_router(optimise.router)
+app.include_router(social.router)
 app.include_router(settings_router.router)
 app.include_router(health.router)
 app.include_router(root.router)

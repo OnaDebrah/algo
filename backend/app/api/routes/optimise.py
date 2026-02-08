@@ -2,21 +2,32 @@
 FastAPI endpoints for Portfolio Optimization
 """
 
+import asyncio
 import logging
 from typing import Any, Hashable
 
-from fastapi import APIRouter, HTTPException, Query
+import optuna
+from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlalchemy.ext.asyncio import AsyncSession
 
+from backend.app.api.deps import check_permission, get_db
+from backend.app.core.permissions import Permission
+from backend.app.models.user import User
 from backend.app.optimise import PortfolioBacktest, PortfolioOptimizer
+from backend.app.schemas.backtest import BacktestRequest as SingleBacktestRequest
 from backend.app.schemas.optimise import (
     BacktestRequest,
     BacktestResponse,
+    BayesianOptimizationRequest,
+    BayesianOptimizationResponse,
     BlackLittermanRequest,
     EfficientFrontierRequest,
     OptimizationResponse,
     PortfolioRequest,
     TargetReturnRequest,
+    TrialResult,
 )
+from backend.app.services.backtest_service import BacktestService
 
 router = APIRouter(prefix="/optimise", tags=["Optimise"])
 
@@ -212,4 +223,91 @@ async def compare_strategies(request: PortfolioRequest):
         return {"symbols": optimizer.symbols, "lookback_days": request.lookback_days, "strategies": strategies}
     except Exception as e:
         logger.error(f"Strategy comparison failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/bayesian", response_model=BayesianOptimizationResponse)
+async def bayesian_optimization(
+    request: BayesianOptimizationRequest,
+    current_user: User = Depends(check_permission(Permission.BASIC_BACKTEST)),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Run Bayesian optimization on strategy parameters
+    """
+    try:
+        service = BacktestService(db)
+
+        def objective(trial):
+            # 1. Suggest parameters
+            params = {}
+            for name, r in request.param_ranges.items():
+                if r.type == "int":
+                    params[name] = trial.suggest_int(name, int(r.min), int(r.max), step=int(r.step) if r.step else 1)
+                else:
+                    params[name] = trial.suggest_float(name, r.min, r.max, step=r.step)
+
+            # 2. Run backtest (synchronously in thread)
+            # Check if we are running single or multi-asset
+            if len(request.tickers) == 1:
+                backtest_req = SingleBacktestRequest(
+                    symbol=request.tickers[0],
+                    strategy_key=request.strategy_key,
+                    parameters=params,
+                    period=request.period,
+                    interval=request.interval,
+                    initial_capital=request.initial_capital,
+                )
+
+                loop = asyncio.new_event_loop()
+                try:
+                    result = loop.run_until_complete(service.run_single_backtest(backtest_req, current_user.id))
+                    return getattr(result.result, request.metric, 0)
+                finally:
+                    loop.close()
+            else:
+                from backend.app.schemas.backtest import MultiAssetBacktestRequest, StrategyConfig
+
+                # Multi-asset optimization (assuming SAME strategy for all assets)
+                strategy_configs = {ticker: StrategyConfig(strategy_key=request.strategy_key, parameters=params) for ticker in request.tickers}
+
+                multi_req = MultiAssetBacktestRequest(
+                    symbols=request.tickers,
+                    strategy_configs=strategy_configs,
+                    allocation_method="equal",  # Default to equal for optimization
+                    period=request.period,
+                    interval=request.interval,
+                    initial_capital=request.initial_capital,
+                )
+
+                loop = asyncio.new_event_loop()
+                try:
+                    result = loop.run_until_complete(service.run_multi_asset_backtest(multi_req, current_user.id))
+                    return getattr(result.result, request.metric, 0)
+                finally:
+                    loop.close()
+
+        # Run optimization
+        study = optuna.create_study(direction="maximize")
+        await asyncio.to_thread(study.optimize, objective, n_trials=request.n_trials)
+
+        # Prepare response
+        trials = []
+        for t in study.trials:
+            trials.append(TrialResult(trial_id=t.number, params=t.params, value=t.value if t.value is not None else 0, status=str(t.state)))
+
+        return BayesianOptimizationResponse(
+            best_params=study.best_params,
+            best_value=study.best_value,
+            trials=trials,
+            tickers=request.tickers,
+            strategy_key=request.strategy_key,
+            metric=request.metric,
+        )
+
+    except Exception as e:
+        logger.error(f"Bayesian optimization failed: {e}")
+        import traceback
+
+        traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))
