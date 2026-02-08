@@ -71,7 +71,7 @@ const MultiAssetBacktest: React.FC<MultiAssetBacktestProps> = ({
 }: MultiAssetBacktestProps) => {
     const [activeCategory, setActiveCategory] = useState('All');
     const [showAdvanced, setShowAdvanced] = useState(false);
-    const [hasRunBacktest, setHasRunBacktest] = useState(false);
+    // hasRunBacktest state removed
     const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
     const [showParameters, setShowParameters] = useState(true);
     const [allocationMode, setAllocationMode] = useState<'equal' | 'manual' | 'optimized'>('equal');
@@ -120,7 +120,6 @@ const MultiAssetBacktest: React.FC<MultiAssetBacktestProps> = ({
 
     const handleRunBacktest = async () => {
         await runBacktest();
-        setHasRunBacktest(true);
     };
 
     const handleExportResults = () => {
@@ -1163,7 +1162,7 @@ const MultiAssetBacktest: React.FC<MultiAssetBacktestProps> = ({
             </div>
 
             {/* Results Section - Only show after backtest has been run */}
-            {hasRunBacktest && results && (
+            {results && (
                 <div className="pt-6 border-t border-slate-800/80 animate-in fade-in">
                     <MultiBacktestResults results={results} />
                 </div>

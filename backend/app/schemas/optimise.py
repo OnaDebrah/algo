@@ -1,6 +1,6 @@
 from typing import Any, Dict, List, Optional
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 
 # Request/Response Models
@@ -64,6 +64,19 @@ class ParamRange(BaseModel):
     step: Optional[float] = None
     type: str = Field("float", description="'int' or 'float'")
 
+    @field_validator("type")
+    def validate_type(cls, v):
+        if v not in ["int", "float"]:
+            raise ValueError("Type must be 'int' or 'float'")
+        return v
+
+    @model_validator(mode="after")
+    def validate_range(self):
+        if self.min > self.max:
+            # Swap values if min > max to prevent Optuna errors
+            self.min, self.max = self.max, self.min
+        return self
+
 
 class BayesianOptimizationRequest(BaseModel):
     tickers: List[str] = Field(..., description="List of stock tickers")
@@ -90,3 +103,5 @@ class BayesianOptimizationResponse(BaseModel):
     tickers: List[str]
     strategy_key: str
     metric: str
+    n_completed: int
+    n_failed: int
