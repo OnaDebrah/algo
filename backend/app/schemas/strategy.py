@@ -80,7 +80,7 @@ class StrategyResponse(BaseModel):
     deployed_at: Optional[str]
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 
 class StrategyDetailsResponse(BaseModel):

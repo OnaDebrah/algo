@@ -15,7 +15,6 @@ from backend.app.api.routes import (
     auth,
     backtest,
     health,
-    live,
     market,
     marketplace,
     mlstudio,
@@ -28,6 +27,7 @@ from backend.app.api.routes import (
     strategy,
     websocket,
 )
+from backend.app.api.routes.live import live
 from backend.app.config import settings
 from backend.app.database import AsyncSessionLocal, init_db
 from backend.app.init_data import init_default_data

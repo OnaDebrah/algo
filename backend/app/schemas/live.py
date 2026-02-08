@@ -77,7 +77,7 @@ class ConnectRequest(BaseModel):
     credentials: Optional[Dict[str, Any]] = Field(default=None, description="Additional credentials or overrides")
 
     class Config:
-        schema_extra = {
+        json_schema_extra = {
             "example": {"broker": "alpaca_paper", "api_key": "PK123456789", "api_secret": "secret123"},
             "examples": {
                 "alpaca_paper": {
@@ -110,7 +110,7 @@ class EquityPoint(BaseModel):
     daily_pnl: float
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 
 class TradeResponse(BaseModel):
@@ -129,7 +129,7 @@ class TradeResponse(BaseModel):
     closed_at: Optional[str]
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 
 class ControlRequest(BaseModel):

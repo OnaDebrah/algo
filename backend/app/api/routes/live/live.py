@@ -1,27 +1,23 @@
 """
-Updated Live Trading Routes
-Properly integrates strategies with order execution
+Live Trading Routes with Broker Integration
+Uses BrokerFactory to support multiple brokers (Paper, Alpaca, IB, etc.)
 """
 
+import logging
 from datetime import datetime, timezone
-from typing import List, Optional
+from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.app.api.deps import get_current_user
-from backend.app.database import get_db
+from backend.app.api.routes.live.live_trading_state import LiveTradingState
+from backend.app.database import AsyncSessionLocal, get_db
 from backend.app.models.backtest import BacktestRun
-from backend.app.models.live import (
-    DeploymentMode,
-    LiveEquitySnapshot,
-    LiveStrategy,
-    LiveTrade,
-    StrategyStatus,
-)
+from backend.app.models.live import DeploymentMode, LiveEquitySnapshot, LiveStrategy, LiveTrade, StrategyStatus, TradeStatus
+from backend.app.models.user_settings import UserSettings as UserSettingsModel
 from backend.app.schemas.live import (
-    BrokerType,
     ConnectRequest,
     ControlRequest,
     EngineStatus,
@@ -31,74 +27,115 @@ from backend.app.schemas.live import (
     TradeResponse,
 )
 from backend.app.schemas.strategy import DeployStrategyRequest, StrategyDetailsResponse, StrategyResponse
+from backend.app.services.execution_manager import get_execution_manager
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/live", tags=["Live Execution"])
 
-
-# ============================================================================
-# GLOBAL STATE MANAGEMENT (In production, use Redis or database)
-# ============================================================================
-class LiveTradingState:
-    """Centralized state management for live trading"""
-
-    def __init__(self):
-        self.is_connected: bool = False
-        self.engine_status: EngineStatus = EngineStatus.IDLE
-        self.active_broker: BrokerType = BrokerType.PAPER
-        self.connected_at: Optional[datetime] = None
-        self.running_strategy_ids: List[int] = []
-
-    def connect(self, broker: BrokerType):
-        self.is_connected = True
-        self.active_broker = broker
-        self.connected_at = datetime.now(timezone.utc)
-
-    def disconnect(self):
-        self.is_connected = False
-        self.engine_status = EngineStatus.IDLE
-        self.running_strategy_ids = []
-
-    def start_engine(self, strategy_ids: List[int] = None):
-        if not self.is_connected:
-            raise ValueError("Broker not connected")
-        self.engine_status = EngineStatus.RUNNING
-        if strategy_ids:
-            self.running_strategy_ids = strategy_ids
-
-    def stop_engine(self):
-        self.engine_status = EngineStatus.IDLE
-        self.running_strategy_ids = []
-
-
-# Global state instance
 trading_state = LiveTradingState()
+execution_manager = get_execution_manager(AsyncSessionLocal)
 
 
-# ============================================================================
-# STATUS & CONNECTION ENDPOINTS
-# ============================================================================
+async def get_user_broker_settings(db: AsyncSession, user_id: int) -> Optional[Dict[str, Any]]:
+    """Get user's broker settings from database"""
+    stmt = select(UserSettingsModel).where(UserSettingsModel.user_id == user_id)
+    result = await db.execute(stmt)
+    settings = result.scalars().first()
+
+    if not settings:
+        return None
+
+    return {
+        "broker_type": settings.default_broker or "paper",
+        "api_key": settings.broker_api_key,
+        "api_secret": settings.broker_api_secret,
+        "base_url": settings.broker_base_url,
+        "auto_connect": settings.auto_connect_broker or False,
+        "data_source": settings.live_data_source or "alpaca",
+        "initial_capital": settings.initial_capital or 100000.0,
+    }
 
 
 @router.get("/status", response_model=LiveStatus)
-async def get_status():
+async def get_status(db: AsyncSession = Depends(get_db), current_user=Depends(get_current_user)):
     """Get current broker connection and engine status"""
+
+    # Get user's data source preference
+    user_broker = await get_user_broker_settings(db, current_user.id)
+    data_source = user_broker["data_source"] if user_broker else "alpaca"
+
+    # Check market status if connected
+    market_open = False
+    if trading_state.is_connected and trading_state.broker_client:
+        try:
+            market_open = await trading_state.broker_client.is_market_open()
+        except Exception as e:
+            logger.error(f"Error checking market status: {e}")
+
     return {
         "is_connected": trading_state.is_connected,
         "engine_status": trading_state.engine_status,
         "active_broker": trading_state.active_broker,
+        "data_source": data_source,
+        "connected_at": trading_state.connected_at.isoformat() if trading_state.connected_at else None,
+        "market_open": market_open,
+        "running_strategies": len(trading_state.running_strategy_ids),
     }
 
 
 @router.post("/connect")
-async def connect_broker(request: ConnectRequest):
-    """Connect to trading broker"""
-    # In production, validate credentials and establish actual connection
-    trading_state.connect(request.broker)
+async def connect_broker(
+    request: Optional[ConnectRequest] = None, use_settings: bool = True, db: AsyncSession = Depends(get_db), current_user=Depends(get_current_user)
+):
+    """
+    Connect to trading broker using saved settings or manual override
+    """
+
+    broker_type = None
+    credentials = {}
+
+    if use_settings:
+        # Get credentials from user settings
+        user_broker = await get_user_broker_settings(db, current_user.id)
+
+        if user_broker:
+            broker_type = user_broker["broker_type"]
+
+            # Build credentials dict
+            if broker_type != "paper":
+                credentials = {"api_key": user_broker["api_key"], "api_secret": user_broker["api_secret"], "base_url": user_broker["base_url"]}
+            else:
+                credentials = {"initial_capital": user_broker["initial_capital"]}
+
+    # Override with request if provided
+    if request:
+        broker_type = request.broker or broker_type
+        if request.api_key:
+            credentials["api_key"] = request.api_key
+        if request.api_secret:
+            credentials["api_secret"] = request.api_secret
+
+    if not broker_type:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No broker configured. Please configure broker in Settings.")
+
+    # Connect using broker factory
+    success = await trading_state.connect(broker_type, credentials)
+
+    if not success:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Failed to connect to {broker_type}")
+
+    # Get account info
+    account_info = {}
+    if trading_state.broker_client:
+        account_info = await trading_state.broker_client.get_account_info()
 
     return {
         "status": "connected",
-        "broker": request.broker,
-        "connected_at": trading_state.connected_at.isoformat() if trading_state.connected_at else None,
+        "broker": broker_type,
+        "mode": "paper" if broker_type == "paper" else "live",
+        "connected_at": trading_state.connected_at.isoformat(),
+        "account": account_info,
     }
 
 
@@ -117,19 +154,34 @@ async def disconnect_broker(db: AsyncSession = Depends(get_db), current_user=Dep
 
         await db.commit()
 
-    trading_state.disconnect()
+    await trading_state.disconnect()
 
     return {"status": "disconnected"}
 
 
+@router.post("/auto-connect")
+async def auto_connect_broker(db: AsyncSession = Depends(get_db), current_user=Depends(get_current_user)):
+    """Auto-connect using saved settings (called on app startup)"""
+
+    user_broker = await get_user_broker_settings(db, current_user.id)
+
+    if not user_broker:
+        return {"status": "skipped", "message": "No broker settings configured"}
+
+    if not user_broker["auto_connect"]:
+        return {"status": "skipped", "message": "Auto-connect disabled in settings"}
+
+    # Try to connect
+    try:
+        return await connect_broker(request=None, use_settings=True, db=db, current_user=current_user)
+    except Exception as e:
+        return {"status": "failed", "message": f"Auto-connect failed: {str(e)}"}
+
+
 @router.post("/engine/start")
 async def start_engine(strategy_ids: Optional[List[int]] = None, db: AsyncSession = Depends(get_db), current_user=Depends(get_current_user)):
-    """
-    Start execution engine
+    """Start execution engine with selected strategies"""
 
-    If strategy_ids provided, only run those strategies.
-    Otherwise, run all RUNNING strategies for the user.
-    """
     if not trading_state.is_connected:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Broker not connected. Please connect to a broker first.")
 
@@ -161,8 +213,9 @@ async def start_engine(strategy_ids: Optional[List[int]] = None, db: AsyncSessio
         strategy_ids = [s.id for s in strategies]
         trading_state.start_engine(strategy_ids)
 
-    # In production, this would start the actual execution loop
-    # For now, we just update the state
+    # Start background execution for each strategy
+    for sid in trading_state.running_strategy_ids:
+        await execution_manager.deploy_strategy(sid)
 
     return {"status": "started", "running_strategies": len(trading_state.running_strategy_ids), "strategy_ids": trading_state.running_strategy_ids}
 
@@ -182,6 +235,10 @@ async def stop_engine(db: AsyncSession = Depends(get_db), current_user=Depends(g
 
         await db.commit()
 
+    # Stop all running strategies in ExecutionManager
+    for sid in list(trading_state.running_strategy_ids):
+        await execution_manager.stop_strategy(sid)
+
     trading_state.stop_engine()
 
     return {"status": "stopped"}
@@ -194,12 +251,10 @@ async def stop_engine(db: AsyncSession = Depends(get_db), current_user=Depends(g
 
 @router.get("/orders", response_model=List[ExecutionOrder])
 async def get_orders(strategy_id: Optional[int] = None, db: AsyncSession = Depends(get_db), current_user=Depends(get_current_user)):
-    """
-    Get active orders
+    """Get active orders from broker"""
 
-    If strategy_id provided, only return orders for that strategy.
-    Otherwise, return all orders for running strategies.
-    """
+    if not trading_state.is_connected or not trading_state.broker_client:
+        return []
 
     # Determine which strategies to query
     if strategy_id:
@@ -208,23 +263,15 @@ async def get_orders(strategy_id: Optional[int] = None, db: AsyncSession = Depen
         strategy_ids = trading_state.running_strategy_ids
 
     if not strategy_ids:
-        # No running strategies, return empty list
         return []
 
-    # Query LiveTrade table for open trades that represent active orders
-    stmt = (
-        select(LiveTrade)
-        .where(
-            LiveTrade.strategy_id.in_(strategy_ids),
-            LiveTrade.status == "open",  # Only open trades
-        )
-        .order_by(LiveTrade.opened_at.desc())
-    )
+    # Get open trades from database that represent pending orders
+    stmt = select(LiveTrade).where(LiveTrade.strategy_id.in_(strategy_ids), LiveTrade.status == TradeStatus.OPEN).order_by(LiveTrade.opened_at.desc())
 
     result = await db.execute(stmt)
     trades = result.scalars().all()
 
-    # Convert trades to ExecutionOrder format
+    # Convert to ExecutionOrder format
     orders = []
     for trade in trades:
         orders.append(
@@ -233,8 +280,8 @@ async def get_orders(strategy_id: Optional[int] = None, db: AsyncSession = Depen
                 "symbol": trade.symbol,
                 "side": trade.side.value if hasattr(trade.side, "value") else trade.side,
                 "qty": int(trade.quantity),
-                "type": "MARKET",  # Default for now
-                "status": "PENDING",  # Open trades are pending
+                "type": "MARKET",
+                "status": "PENDING",
                 "price": float(trade.entry_price),
                 "time": trade.opened_at.strftime("%H:%M:%S"),
                 "strategy_id": trade.strategy_id,
@@ -244,6 +291,56 @@ async def get_orders(strategy_id: Optional[int] = None, db: AsyncSession = Depen
     return orders
 
 
+@router.get("/account")
+async def get_account():
+    """Get account information from broker"""
+
+    if not trading_state.is_connected or not trading_state.broker_client:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Not connected to broker")
+
+    try:
+        account_info = await trading_state.broker_client.get_account_info()
+        return account_info
+    except Exception as e:
+        logger.error(f"Error getting account info: {e}")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Failed to get account info: {str(e)}")
+
+
+@router.get("/positions")
+async def get_positions():
+    """Get current positions from broker"""
+
+    if not trading_state.is_connected or not trading_state.broker_client:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Not connected to broker")
+
+    try:
+        positions = await trading_state.broker_client.get_positions()
+        return {"positions": positions}
+    except Exception as e:
+        logger.error(f"Error getting positions: {e}")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Failed to get positions: {str(e)}")
+
+
+@router.get("/market-hours")
+async def get_market_hours():
+    """Get market hours information"""
+
+    if not trading_state.is_connected or not trading_state.broker_client:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Not connected to broker")
+
+    try:
+        # Check if broker has get_market_hours method (PaperClient does)
+        if hasattr(trading_state.broker_client, "get_market_hours"):
+            return await trading_state.broker_client.get_market_hours()
+        else:
+            # Fallback: just return is_open
+            is_open = await trading_state.broker_client.is_market_open()
+            return {"is_open": is_open, "message": "Detailed market hours not available for this broker"}
+    except Exception as e:
+        logger.error(f"Error getting market hours: {e}")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Failed to get market hours: {str(e)}")
+
+
 # ============================================================================
 # STRATEGY DEPLOYMENT
 # ============================================================================
@@ -251,11 +348,8 @@ async def get_orders(strategy_id: Optional[int] = None, db: AsyncSession = Depen
 
 @router.post("/strategy/deploy", status_code=status.HTTP_201_CREATED)
 async def deploy_strategy(request: DeployStrategyRequest, db: AsyncSession = Depends(get_db), current_user=Depends(get_current_user)):
-    """
-    Deploy a strategy to live or paper trading
+    """Deploy a strategy to live or paper trading"""
 
-    This creates a new LiveStrategy record and starts monitoring
-    """
     if request.deployment_mode not in ["paper", "live"]:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="deployment_mode must be 'paper' or 'live'")
 
@@ -279,15 +373,15 @@ async def deploy_strategy(request: DeployStrategyRequest, db: AsyncSession = Dep
         symbols=request.symbols,
         backtest_id=request.backtest_id,
         deployment_mode=DeploymentMode(request.deployment_mode),
-        status=StrategyStatus.STOPPED,  # Start as STOPPED, user must start it
+        status=StrategyStatus.STOPPED,
         initial_capital=request.initial_capital,
         current_equity=request.initial_capital,
         max_position_pct=request.max_position_pct,
         stop_loss_pct=request.stop_loss_pct,
         daily_loss_limit=request.daily_loss_limit,
-        broker=request.broker or trading_state.active_broker.value,
+        broker=request.broker or trading_state.broker_type or "paper",
         notes=request.notes,
-        created_at=now,  # ✅ FIX: Explicitly set created_at
+        created_at=now,
         deployed_at=now,
         # Copy backtest metrics if available
         backtest_return_pct=backtest.total_return_pct if backtest else None,
@@ -319,12 +413,12 @@ async def deploy_strategy(request: DeployStrategyRequest, db: AsyncSession = Dep
         "status": "deployed",
         "deployment_mode": request.deployment_mode,
         "deployed_at": now.isoformat(),
-        "message": f"Strategy '{request.name}' deployed to {request.deployment_mode} trading. Start the strategy from the Live Execution page.",
+        "message": f"Strategy '{request.name}' deployed to {request.deployment_mode} trading",
     }
 
 
 # ============================================================================
-# STRATEGY MANAGEMENT
+# STRATEGY MANAGEMENT (List, Get, Control, Update, Delete)
 # ============================================================================
 
 
@@ -371,7 +465,7 @@ async def list_strategies(
 
 @router.get("/strategy/{strategy_id}", response_model=StrategyDetailsResponse)
 async def get_strategy_details(strategy_id: int, db: AsyncSession = Depends(get_db), current_user=Depends(get_current_user)):
-    """Get complete details for a strategy including equity curve and trades"""
+    """Get complete details for a strategy"""
     stmt = select(LiveStrategy).where(LiveStrategy.id == strategy_id, LiveStrategy.user_id == current_user.id)
     result = await db.execute(stmt)
     strategy = result.scalars().first()
@@ -443,11 +537,7 @@ async def get_strategy_details(strategy_id: int, db: AsyncSession = Depends(get_
 
 @router.post("/strategy/{strategy_id}/control")
 async def control_strategy(strategy_id: int, request: ControlRequest, db: AsyncSession = Depends(get_db), current_user=Depends(get_current_user)):
-    """
-    Control strategy execution
-
-    Actions: start, pause, stop, restart
-    """
+    """Control strategy execution (start, pause, stop, restart)"""
     stmt = select(LiveStrategy).where(LiveStrategy.id == strategy_id, LiveStrategy.user_id == current_user.id)
 
     result = await db.execute(stmt)
@@ -497,6 +587,14 @@ async def control_strategy(strategy_id: int, request: ControlRequest, db: AsyncS
     else:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Invalid action: {action}. Must be start, pause, stop, or restart")
 
+    # Trigger ExecutionManager for the strategy
+    if action in ["start", "restart"]:
+        await execution_manager.deploy_strategy(strategy_id)
+    elif action == "pause":
+        await execution_manager.pause_strategy(strategy_id)
+    elif action == "stop":
+        await execution_manager.stop_strategy(strategy_id)
+
     await db.commit()
 
     return {
@@ -510,7 +608,7 @@ async def control_strategy(strategy_id: int, request: ControlRequest, db: AsyncS
 
 @router.delete("/strategy/{strategy_id}")
 async def delete_strategy(strategy_id: int, db: AsyncSession = Depends(get_db), current_user=Depends(get_current_user)):
-    """Delete a strategy (soft delete - sets status to stopped)"""
+    """Delete a strategy (soft delete)"""
     stmt = select(LiveStrategy).where(LiveStrategy.id == strategy_id, LiveStrategy.user_id == current_user.id)
 
     result = await db.execute(stmt)

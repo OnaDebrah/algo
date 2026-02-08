@@ -342,17 +342,15 @@ import {Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAx
 const LiveExecution = () => {
     const [isConnected, setIsConnected] = useState(false);
     const [engineStatus, setEngineStatus] = useState<EngineStatus>(EngineStatus.IDLE);
-    const [activeBroker, setActiveBroker] = useState<BrokerType>(BrokerType.PAPER_TRADING);
+    const [activeBroker, setActiveBroker] = useState<BrokerType>(BrokerType.PAPER);
     const [orders, setOrders] = useState<ExecutionOrder[]>([]);
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
-    // Live strategies management
     const [liveStrategies, setLiveStrategies] = useState<LiveStrategy[]>([]);
     const [selectedStrategyIds, setSelectedStrategyIds] = useState<number[]>([]);
     const [strategyPerformance, setStrategyPerformance] = useState<Map<number, any>>(new Map());
 
-    // Portfolio metrics
     const [portfolioEquity, setPortfolioEquity] = useState<any[]>([]);
     const [totalPnL, setTotalPnL] = useState(0);
     const [totalPnLPct, setTotalPnLPct] = useState(0);
@@ -464,7 +462,7 @@ const LiveExecution = () => {
         const payload: ConnectRequest = {
             broker: activeBroker,
             api_key: null,
-            api_secret: null
+            api_secret: null,
         };
 
         try {

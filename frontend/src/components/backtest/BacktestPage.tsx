@@ -412,10 +412,10 @@ import {
     StrategyInfo,
     Trade,
     DeploymentConfig,
-    BacktestResultToDeploy
+    BacktestResultToDeploy, UserSettings
 } from "@/types/all_types";
 
-import { backtest, strategy as strategyApi, live } from "@/utils/api";
+import { backtest, strategy as strategyApi, live, settings as settingsApi } from "@/utils/api";
 import { formatDate } from "@/utils/formatters";
 import DeploymentModal from "@/components/strategies/DeploymentModel";
 
@@ -432,6 +432,26 @@ const BacktestPage = () => {
     const [showDeploymentModal, setShowDeploymentModal] = useState(false);
     const [deploymentBacktest, setDeploymentBacktest] = useState<BacktestResultToDeploy | null>(null);
     const [deploymentStatus, setDeploymentStatus] = useState<'idle' | 'deploying' | 'success' | 'error'>('idle');
+    const [settings, setSettings] = useState<UserSettings | null>(null);
+    const [dataSource, setDataSource] = useState<string | undefined>(undefined);
+    const [slippage, setSlippage] = useState<number | undefined>(undefined);
+    const [commission, setCommission] = useState<number | undefined>(undefined);
+    const [initialCapital, setInitialCapital] = useState<number | undefined>(undefined);
+
+    useEffect(() => {
+        const loadSettings = async () => {
+            const userSettings = await settingsApi.get();
+            setSettings(userSettings);
+
+            // Use settings as defaults
+            setDataSource(userSettings.backtest.data_source);
+            setSlippage(userSettings.backtest.slippage);
+            setCommission(userSettings.backtest.commission);
+            setInitialCapital(userSettings.backtest.initial_capital);
+        };
+
+        loadSettings();
+    }, []);
 
     useEffect(() => {
         const fetchStrategies: () => Promise<void> = async () => {

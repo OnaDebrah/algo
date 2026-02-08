@@ -46,7 +46,6 @@ import {
 
     // Live Trading
     LiveStatus,
-    ConnectRequest,
     ExecutionOrder,
 
     // Marketplace
@@ -91,7 +90,8 @@ import {
 
     // HTTP Error
     HTTPValidationError, RegimeData, RegimeHistoryResponse, PairsValidationRequest, PairsValidationResponse,
-    LiveOrderPlacement, LiveOrderUpdate, MarketplaceFilterParams, AlertPreferences, Alert, DeploymentConfig
+    LiveOrderPlacement, LiveOrderUpdate, MarketplaceFilterParams, AlertPreferences, Alert, DeploymentConfig,
+    BrokerConnectionResponse
 } from '@/types/all_types';
 import {
     BaseOptimizationRequest, BlackLittermanRequest, BlackLittermanResponse,
@@ -100,6 +100,7 @@ import {
     PortfolioBacktestRequest, SharpeOptimizationRequest, TargetReturnRequest
 } from "@/types/optimise";
 import {
+    ConnectRequest,
     ControlResponse, LiveStrategy,
     StrategyDetailsResponse,
     StrategyUpdateRequest,
@@ -463,6 +464,10 @@ export const live = {
 
     deploy: (config: DeploymentConfig) =>
         client.post<{ strategy_id: number; message: string }>(`/live/strategy/deploy`, config),
+
+    autoConnect: () =>
+        client.post<{ status: string; broker?: string; message: string }>('/live/auto-connect'),
+
 };
 
 // ==================== MARKETPLACE ====================
@@ -668,6 +673,13 @@ export const settings = {
 
     reset: () =>
         client.post<UserSettings>('/settings/reset'),
+
+    testBrokerConnection: () =>
+        client.post<BrokerConnectionResponse>('/settings/broker/test-connection'),
+
+    deleteBrokerCredentials: () =>
+        client.delete<{ message: string; timestamp: string }>('/settings/broker/credentials'),
+
 };
 
 // ==================== HEALTH & UTILITY ====================

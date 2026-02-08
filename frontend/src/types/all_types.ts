@@ -828,12 +828,6 @@ export enum OrderStatus {
     REJECTED = "REJECTED"
 }
 
-export interface ConnectRequest {
-    broker: BrokerType;
-    api_key: string | null;
-    api_secret: string | null;
-}
-
 export interface ExecutionOrder {
     id: string;
     symbol: string;
@@ -1373,15 +1367,42 @@ export interface GeneralSettings {
     refresh_interval?: number;
 }
 
+export interface BrokerSettings {
+    broker_type: string;
+    api_key?: string;
+    api_secret?: string;
+    base_url?: string;
+    is_configured?: boolean;
+}
+
+export interface LiveTradingSettings {
+    data_source: string;
+    default_broker: string;
+    auto_connect: boolean;
+    broker?: BrokerSettings;
+}
+
 export interface UserSettings {
-    user_id: number | null;
+    user_id: number;
     backtest: BacktestSettings;
+    live_trading?: LiveTradingSettings;
     general: GeneralSettings;
 }
 
 export interface SettingsUpdate {
-    backtest?: BacktestSettings | null;
-    general?: GeneralSettings | null;
+    backtest?: Partial<BacktestSettings>;
+    live_trading?: Partial<LiveTradingSettings>;
+    general?: Partial<GeneralSettings>;
+}
+
+export interface BrokerConnectionResponse {
+    status: 'connected' | 'failed' | 'not_configured';
+    broker: string;
+    message?: string;
+    account_status?: string;
+    buying_power?: number;
+    equity?: number;
+    timestamp: string;
 }
 
 // ==================== API RESPONSE TYPES ====================
