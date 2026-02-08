@@ -148,15 +148,17 @@ class ExecutionManager:
         db = self.db_session_factory()
 
         try:
-            # Load strategy from DB
-            strategy = db.query(LiveStrategy).filter(LiveStrategy.id == strategy_id).first()
+            stmt = select(LiveStrategy).where(LiveStrategy.id == strategy_id)
+
+            result = await db.execute(stmt)
+            strategy = result.scalars().first()
 
             if not strategy:
                 logger.error(f"Strategy {strategy_id} not found")
                 return None
 
             # Get or create broker client
-            broker_name = strategy.broker or "paper_trading"
+            broker_name = strategy.broker or "paper"
             broker = await self._get_or_create_broker(broker_name, strategy)
 
             if not broker:
@@ -170,25 +172,20 @@ class ExecutionManager:
 
         except Exception as e:
             logger.error(f"Error creating executor for strategy {strategy_id}: {e}")
-            db.close()
+            await db.close()
             return None
 
     async def _get_or_create_broker(self, broker_name: str, strategy: LiveStrategy) -> Optional[BrokerClient]:
         """Get existing broker client or create new one"""
 
-        # Check if we already have this broker
         if broker_name in self.brokers:
             return self.brokers[broker_name]
 
-        # Create new broker
         try:
             broker = BrokerFactory.create_broker(broker_name)
 
-            # Connect to broker
-            credentials = {"initial_capital": float(strategy.initial_capital)}
+            credentials = {"initial_capital": strategy.initial_capital}
 
-            # For real brokers, would need actual credentials
-            # These would come from secure storage (env vars, secrets manager, etc.)
             if broker_name.startswith("alpaca"):
                 credentials.update(
                     {
@@ -204,7 +201,6 @@ class ExecutionManager:
                 logger.error(f"Failed to connect to broker {broker_name}")
                 return None
 
-            # Store broker
             self.brokers[broker_name] = broker
 
             logger.info(f"Created and connected to broker: {broker_name}")
@@ -245,7 +241,6 @@ class ExecutionManager:
 
             logger.info(f"Found {len(strategies)} running strategies in database")
 
-            # Deploy each strategy
             for strategy in strategies:
                 await self.deploy_strategy(strategy.id)
 
@@ -275,18 +270,17 @@ class ExecutionManager:
                 db = self.db_session_factory()
 
                 try:
-                    # Check each executor
                     for strategy_id, executor in list(self.executors.items()):
-                        # Refresh strategy from DB
-                        strategy = db.query(LiveStrategy).filter(LiveStrategy.id == strategy_id).first()
+                        stmt = select(LiveStrategy).where(LiveStrategy.id == strategy_id)
+
+                        result = await db.execute(stmt)
+                        strategy = result.scalars().first()
 
                         if not strategy:
-                            # Strategy deleted from DB
                             logger.warning(f"Strategy {strategy_id} deleted, stopping executor")
                             await self._stop_executor(strategy_id)
                             continue
 
-                        # Check if status changed
                         if strategy.status == StrategyStatus.STOPPED:
                             logger.info(f"Strategy {strategy_id} stopped, removing executor")
                             await self._stop_executor(strategy_id)
@@ -301,13 +295,12 @@ class ExecutionManager:
                                 logger.info(f"Strategy {strategy_id} should be running, restarting")
                                 asyncio.create_task(executor.start())
 
-                        # Check for error status
                         elif strategy.status == StrategyStatus.ERROR:
                             logger.error(f"Strategy {strategy_id} in error state: {strategy.error_message}")
                             await self._stop_executor(strategy_id)
 
                 finally:
-                    db.close()
+                    await db.close()
 
             except Exception as e:
                 logger.error(f"Error in strategy monitor: {e}")
@@ -322,10 +315,6 @@ class ExecutionManager:
         """Get status of all executors"""
         return {strategy_id: "running" if executor.is_running else "stopped" for strategy_id, executor in self.executors.items()}
 
-
-# ============================================================
-# GLOBAL EXECUTION MANAGER INSTANCE
-# ============================================================
 
 _execution_manager: Optional[ExecutionManager] = None
 

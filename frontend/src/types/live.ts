@@ -32,14 +32,8 @@ export enum OrderStatus {
 
 export interface ConnectRequest {
     broker: BrokerType;
-    api_key?: string;
-    api_secret?: string;
-    account_id?: string;
-    host?: string;
-    port?: number;
-    client_id?: number;
-    initial_capital?: number;
-    credentials?: Record<string, any>;
+    api_key: string | null;
+    api_secret: string | null;
 }
 
 

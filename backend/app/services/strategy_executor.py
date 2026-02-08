@@ -8,7 +8,8 @@ import logging
 from datetime import datetime, timezone
 from typing import Any, Dict, Optional
 
-from sqlalchemy.orm import Session
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.app.models.live import LiveEquitySnapshot, LiveStrategy, LiveTrade, StrategyStatus, TradeSide, TradeStatus
 from backend.app.strategies.base_strategy import BaseStrategy
@@ -59,7 +60,7 @@ class StrategyExecutor:
     def __init__(
         self,
         strategy_id: int,
-        db_session: Session,
+        db_session: AsyncSession,
         broker_client: Any,  # BrokerClient interface
     ):
         self.strategy_id = strategy_id
@@ -78,12 +79,15 @@ class StrategyExecutor:
         self.daily_start_equity = 0.0
         self.trades_today = 0
 
-        # Load strategy from DB
-        self._load_strategy()
+        # Initialization deferred to start()
+        pass
 
-    def _load_strategy(self):
+    async def _load_strategy(self):
         """Load strategy from database"""
-        self.strategy = self.db.query(LiveStrategy).filter(LiveStrategy.id == self.strategy_id).first()
+        stmt = select(LiveStrategy).where(LiveStrategy.id == self.strategy_id)
+
+        result = await self.db.execute(stmt)
+        self.strategy = result.scalars().first()
 
         if not self.strategy:
             raise ValueError(f"Strategy {self.strategy_id} not found")
@@ -101,19 +105,35 @@ class StrategyExecutor:
 
     async def start(self):
         """Start strategy execution"""
+        if self.is_running:
+            logger.warning(f"Strategy executor {self.strategy_id} is already running")
+            return
+
         logger.info(f"Starting strategy executor {self.strategy_id}")
+
+        # Ensure strategy is loaded
+        if self.strategy is None:
+            try:
+                await self._load_strategy()
+            except Exception as e:
+                logger.error(f"Failed to load strategy {self.strategy_id}: {e}")
+                return
+
         self.is_running = True
 
         # Update status in DB
         self.strategy.status = StrategyStatus.RUNNING
         self.strategy.started_at = datetime.now(timezone.utc)
-        self.db.commit()
+        await self.db.commit()
 
         # Main execution loop
         await self._execution_loop()
 
     async def stop(self):
         """Stop strategy execution"""
+        if not self.is_running:
+            return
+
         logger.info(f"Stopping strategy executor {self.strategy_id}")
         self.is_running = False
 
@@ -121,17 +141,22 @@ class StrategyExecutor:
         await self._close_all_positions()
 
         # Update status in DB
-        self.strategy.status = StrategyStatus.STOPPED
-        self.strategy.stopped_at = datetime.now(timezone.utc)
-        self.db.commit()
+        if self.strategy:
+            self.strategy.status = StrategyStatus.STOPPED
+            self.strategy.stopped_at = datetime.now(timezone.utc)
+            await self.db.commit()
 
     async def pause(self):
         """Pause strategy execution"""
+        if not self.is_running:
+            return
+
         logger.info(f"Pausing strategy executor {self.strategy_id}")
         self.is_running = False
 
-        self.strategy.status = StrategyStatus.PAUSED
-        self.db.commit()
+        if self.strategy:
+            self.strategy.status = StrategyStatus.PAUSED
+            await self.db.commit()
 
     async def _execution_loop(self):
         """
@@ -154,7 +179,7 @@ class StrategyExecutor:
                     continue
 
                 # Refresh strategy from DB (check if paused/stopped)
-                self.db.refresh(self.strategy)
+                await self.db.refresh(self.strategy)
                 if self.strategy.status != StrategyStatus.RUNNING:
                     logger.info(f"Strategy {self.strategy_id} status changed to {self.strategy.status}")
                     break
@@ -171,7 +196,7 @@ class StrategyExecutor:
                 # Save error to DB
                 self.strategy.error_message = str(e)
                 self.strategy.status = StrategyStatus.ERROR
-                self.db.commit()
+                await self.db.commit()
 
                 # Notify via WebSocket
                 await ws_manager.broadcast_error(self.strategy_id, str(e))
@@ -325,14 +350,14 @@ class StrategyExecutor:
         )
 
         self.db.add(trade)
-        self.db.commit()
+        await self.db.commit()
 
         # Update strategy metrics
         self.strategy.total_trades += 1
         self.strategy.daily_trades += 1
         self.trades_today += 1
         self.strategy.last_trade_at = datetime.now(timezone.utc)
-        self.db.commit()
+        await self.db.commit()
 
         # Broadcast trade execution
         await ws_manager.broadcast_trade_executed(
@@ -367,15 +392,13 @@ class StrategyExecutor:
         commission = position.quantity * price * 0.001
         net_profit = profit - commission
 
-        # Update cash
         self.cash += position.quantity * price - commission
 
         # Find and update trade in database
-        trade = (
-            self.db.query(LiveTrade)
-            .filter(LiveTrade.strategy_id == self.strategy_id, LiveTrade.symbol == symbol, LiveTrade.status == TradeStatus.OPEN)
-            .first()
-        )
+        stmt = select(LiveStrategy).where(LiveTrade.strategy_id == self.strategy_id, LiveTrade.symbol == symbol, LiveTrade.status == TradeStatus.OPEN)
+
+        result = await self.db.execute(stmt)
+        trade = result.scalars().first()
 
         if trade:
             trade.exit_price = price
@@ -384,7 +407,7 @@ class StrategyExecutor:
             trade.profit = net_profit
             trade.profit_pct = (profit / (position.entry_price * position.quantity)) * 100
             trade.commission += commission
-            self.db.commit()
+            await self.db.commit()
 
             # Update win/loss counters
             if net_profit > 0:
@@ -397,7 +420,7 @@ class StrategyExecutor:
 
         # Update strategy total return
         self.strategy.total_return += net_profit
-        self.db.commit()
+        await self.db.commit()
 
         # Broadcast trade execution
         await ws_manager.broadcast_trade_executed(
@@ -527,13 +550,13 @@ class StrategyExecutor:
         )
 
         self.db.add(snapshot)
-        self.db.commit()
+        await self.db.commit()
 
         # Update strategy
         self.strategy.current_equity = equity
         self.strategy.daily_pnl = daily_pnl
         self.strategy.last_equity_update = datetime.now(timezone.utc)
-        self.db.commit()
+        await self.db.commit()
 
         # Broadcast to WebSocket clients
         await ws_manager.broadcast_equity_update(
@@ -563,7 +586,7 @@ class StrategyExecutor:
         # Calculate Sharpe ratio (simplified - needs more data)
         # TODO: Implement proper Sharpe calculation with returns history
 
-        self.db.commit()
+        await self.db.commit()
 
     async def _is_market_open(self) -> bool:
         """Check if market is currently open"""

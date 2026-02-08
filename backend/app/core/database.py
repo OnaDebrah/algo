@@ -58,8 +58,8 @@ class DatabaseManager:
             cursor.execute(
                 """
                 CREATE TABLE IF NOT EXISTS trades (
-                                                      id SERIAL PRIMARY KEY,
-                                                      symbol VARCHAR(20) NOT NULL,
+                    id SERIAL PRIMARY KEY,
+                    symbol VARCHAR(20) NOT NULL,
                     order_type VARCHAR(10) NOT NULL,
                     quantity NUMERIC NOT NULL,
                     price NUMERIC NOT NULL,
@@ -82,8 +82,8 @@ class DatabaseManager:
             cursor.execute(
                 """
                 CREATE TABLE IF NOT EXISTS positions (
-                                                         id SERIAL PRIMARY KEY,
-                                                         symbol VARCHAR(20) NOT NULL,
+                    id SERIAL PRIMARY KEY,
+                    symbol VARCHAR(20) NOT NULL,
                     side VARCHAR(10) NOT NULL,
                     quantity NUMERIC NOT NULL,
                     entry_price NUMERIC NOT NULL,
@@ -100,9 +100,9 @@ class DatabaseManager:
             cursor.execute(
                 """
                 CREATE TABLE IF NOT EXISTS portfolios (
-                                                          id SERIAL PRIMARY KEY,
-                                                          user_id INTEGER NOT NULL,
-                                                          name VARCHAR(255) NOT NULL UNIQUE,
+                    id SERIAL PRIMARY KEY,
+                    user_id INTEGER NOT NULL,
+                    name VARCHAR(255) NOT NULL UNIQUE,
                     description TEXT,
                     initial_capital NUMERIC NOT NULL,
                     current_capital NUMERIC NOT NULL,
@@ -117,8 +117,8 @@ class DatabaseManager:
             cursor.execute(
                 """
                 CREATE TABLE IF NOT EXISTS performance_history (
-                                                                   id SERIAL PRIMARY KEY,
-                                                                   portfolio_id INTEGER REFERENCES portfolios(id),
+                    id SERIAL PRIMARY KEY,
+                    portfolio_id INTEGER REFERENCES portfolios(id),
                     timestamp TIMESTAMP NOT NULL,
                     equity NUMERIC NOT NULL,
                     cash NUMERIC NOT NULL,
@@ -140,8 +140,8 @@ class DatabaseManager:
             cursor.execute(
                 """
                 CREATE TABLE IF NOT EXISTS options_positions (
-                                                                 id SERIAL PRIMARY KEY,
-                                                                 symbol VARCHAR(20),
+                    id SERIAL PRIMARY KEY,
+                    symbol VARCHAR(20),
                     strategy VARCHAR(100),
                     entry_date TIMESTAMP,
                     expiration TIMESTAMP,
@@ -156,8 +156,8 @@ class DatabaseManager:
             cursor.execute(
                 """
                 CREATE TABLE IF NOT EXISTS options_legs (
-                                                            id SERIAL PRIMARY KEY,
-                                                            position_id INTEGER REFERENCES options_positions(id),
+                    id SERIAL PRIMARY KEY,
+                    position_id INTEGER REFERENCES options_positions(id),
                     option_type VARCHAR(10),
                     strike NUMERIC,
                     quantity INTEGER,
@@ -171,18 +171,37 @@ class DatabaseManager:
             cursor.execute(
                 """
                 CREATE TABLE IF NOT EXISTS user_settings (
-                                                             id SERIAL PRIMARY KEY,
-                                                             user_id INTEGER UNIQUE NOT NULL,
-                                                             data_source VARCHAR(50) DEFAULT 'yahoo',
+                    id SERIAL PRIMARY KEY,
+                    user_id INTEGER UNIQUE NOT NULL,
+
+                    -- Backtest settings
+                    data_source VARCHAR(50) DEFAULT 'yahoo',
                     slippage NUMERIC DEFAULT 0.001,
                     commission NUMERIC DEFAULT 0.002,
-                    initial_capital NUMERIC DEFAULT 100000.0,
+                    initial_capital NUMERIC DEFAULT 10000.0,
+
+                    -- Live trading settings
+                    live_data_source VARCHAR(50) DEFAULT 'alpaca',
+                    default_broker VARCHAR(50) DEFAULT 'paper',
+                    auto_connect_broker BOOLEAN DEFAULT false,
+
+                    -- Broker credentials (consider encryption for production)
+                    broker_api_key VARCHAR(255),
+                    broker_api_secret VARCHAR(255),
+                    broker_base_url VARCHAR(255),
+
+                    -- General settings
                     theme VARCHAR(20) DEFAULT 'dark',
                     notifications BOOLEAN DEFAULT true,
                     auto_refresh BOOLEAN DEFAULT true,
                     refresh_interval INTEGER DEFAULT 30,
+
+                    -- Timestamps
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+                    -- Foreign key constraint
+                    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
                     )
                 """
             )
@@ -191,6 +210,7 @@ class DatabaseManager:
             cursor.execute("CREATE INDEX IF NOT EXISTS idx_trades_portfolio ON trades(portfolio_id, executed_at DESC)")
             cursor.execute("CREATE INDEX IF NOT EXISTS idx_trades_symbol ON trades(symbol)")
             cursor.execute("CREATE INDEX IF NOT EXISTS idx_positions_portfolio ON positions(portfolio_id)")
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_user_settings_user_id ON user_settings(user_id)")
 
             conn.commit()
             logger.info("Database tables initialized successfully")
