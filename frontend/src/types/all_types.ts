@@ -115,6 +115,7 @@ export interface BacktestResult {
     final_equity: number;
     initial_capital: number;
     num_symbols?: number;
+    total_profit?: number;
     equity_curve?: EquityCurvePoint[];
     benchmark?: BenchmarkInfo;
     trades?: Trade[];
@@ -346,6 +347,27 @@ export interface BacktestHistoryItem {
     error_message: string | null;
     created_at: string | null;
     completed_at: string | null;
+
+    user_id: number;                    // Owner
+    strategy_key: string;               // e.g., "sma_crossover"
+    strategy_name?: string | null;      // User-friendly name
+    parameters?: Record<string, any>;   // Strategy parameters
+
+    is_deployed?: boolean;              // Already deployed?
+    deployed_count?: number;            // Times deployed
+    is_published?: boolean;             // Already published?
+    marketplace_id?: number | null;     // Marketplace link
+
+    winning_trades?: number | null;
+    losing_trades?: number | null;
+    avg_win?: number | null;
+    avg_loss?: number | null;
+    avg_profit?: number | null;
+    total_profit?: number | null;
+    profit_factor?: number | null;
+    sortino_ratio?: number | null;
+    total_return?: number | null;       // Dollar amount
+    data_source?: string;
 }
 
 export interface BacktestHistoryResponse {
@@ -983,28 +1005,36 @@ export interface StrategyReviewSchema {
 }
 
 export interface StrategyListing {
-    id: string | number;
+    id: number;
     name: string;
-    creator: string;
     description: string;
+    creator: string;
+    category: string;
+    tags: string[];
+    price: number;
     rating: number;
     reviews: number;
-    price: number;
-    category: string;
-    complexity: string;
-    time_horizon?: string;
-    monthly_return: number;
-    drawdown: number;
-    sharpe_ratio: number;
     total_downloads: number;
-    tags: string[];
-    best_for: string[];
+    is_verified: boolean;
+    is_favorite?: boolean;
+
+    total_return: number;
+    sharpe_ratio: number;
+    max_drawdown: number;
+    win_rate: number;
+    num_trades: number;
+    avg_win: number;
+    avg_loss: number;
+    profit_factor: number;
+    volatility: number;
+    sortino_ratio: number;
+    calmar_ratio: number;
+    var_95: number;
+    initial_capital: number;
+    symbols?: string[];
+
     pros: string[];
     cons: string[];
-    is_favorite: boolean;
-    is_verified: boolean;
-    verification_badge?: string;
-    publish_date: string;
 }
 
 export interface StrategyListingDetailed extends StrategyListing {
@@ -1021,6 +1051,7 @@ export interface StrategyPublishRequest {
     is_public?: boolean;
     tags?: string[];
     backtest_id?: number | null;
+    strategy_key?: string | null;
 }
 
 export interface MarketplaceFilterParams {
@@ -1361,6 +1392,7 @@ export interface DeploymentConfig {
 
     broker?: string;
     notes?: string;
+    marketplace_id?: number;
 }
 
 // ==================== SETTINGS ====================

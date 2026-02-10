@@ -696,6 +696,90 @@ class StrategyMarketplace:
             cursor.close()
             self.db.return_connection(conn)
 
+    # ============================================================
+    # REVIEWS & RATINGS
+    # ============================================================
+
+    def add_review(
+        self, strategy_id: int, user_id: int, username: str, rating: int, review_text: str, performance_achieved: Dict = None
+    ) -> Optional[int]:
+        """Add or update a review for a strategy"""
+        conn = self.db.get_connection()
+        try:
+            cursor = conn.cursor(cursor_factory=RealDictCursor)
+
+            cursor.execute(
+                """
+                INSERT INTO strategy_reviews (strategy_id, user_id, username, rating, review_text, performance_achieved)
+                VALUES (%s, %s, %s, %s, %s, %s)
+                ON CONFLICT (strategy_id, user_id) DO UPDATE SET
+                    rating = EXCLUDED.rating,
+                    review_text = EXCLUDED.review_text,
+                    performance_achieved = EXCLUDED.performance_achieved,
+                    created_at = CURRENT_TIMESTAMP
+                RETURNING id
+                """,
+                (strategy_id, user_id, username, rating, review_text, json.dumps(performance_achieved) if performance_achieved else None),
+            )
+            review_id = cursor.fetchone()["id"]
+
+            # Recalculate strategy rating from all reviews
+            cursor.execute(
+                """
+                UPDATE marketplace_strategies SET
+                    rating = (SELECT COALESCE(AVG(rating), 0) FROM strategy_reviews WHERE strategy_id = %s),
+                    num_ratings = (SELECT COUNT(*) FROM strategy_reviews WHERE strategy_id = %s),
+                    num_reviews = (SELECT COUNT(*) FROM strategy_reviews WHERE strategy_id = %s)
+                WHERE id = %s
+                """,
+                (strategy_id, strategy_id, strategy_id, strategy_id),
+            )
+
+            conn.commit()
+            return review_id
+        except Exception as e:
+            conn.rollback()
+            logger.error(f"Failed to add review: {e}")
+            return None
+        finally:
+            cursor.close()
+            self.db.return_connection(conn)
+
+    def get_reviews(self, strategy_id: int, limit: int = 20) -> List[StrategyReview]:
+        """Get reviews for a strategy"""
+        conn = self.db.get_connection()
+        try:
+            cursor = conn.cursor(cursor_factory=RealDictCursor)
+            cursor.execute(
+                """
+                SELECT * FROM strategy_reviews
+                WHERE strategy_id = %s
+                ORDER BY created_at DESC
+                LIMIT %s
+                """,
+                (strategy_id, limit),
+            )
+            rows = cursor.fetchall()
+
+            reviews = []
+            for row in rows:
+                reviews.append(
+                    StrategyReview(
+                        id=row["id"],
+                        strategy_id=row["strategy_id"],
+                        user_id=row["user_id"],
+                        username=row["username"],
+                        rating=row["rating"],
+                        review_text=row["review_text"],
+                        performance_achieved=json.loads(row["performance_achieved"]) if row["performance_achieved"] else {},
+                        created_at=row["created_at"],
+                    )
+                )
+            return reviews
+        finally:
+            cursor.close()
+            self.db.return_connection(conn)
+
 
 # Helper function to convert backtest engine results to SingleBacktestResults
 def convert_engine_results_to_backtest(engine_results: Dict) -> BacktestResults:
