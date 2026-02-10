@@ -52,6 +52,7 @@ import {
     StrategyListing,
     StrategyListingDetailed,
     StrategyPublishRequest,
+    StrategyReviewSchema,
 
     // ML Studio
     MLModel,
@@ -107,6 +108,7 @@ import {
     UpdateResponse
 } from "@/types/live";
 import { ActivityResponse } from "@/types/social";
+import {AnalystReportParams} from "@/types/analyst";
 
 // Use environment variable or default to localhost
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
@@ -285,10 +287,10 @@ export const market = {
         client.get<OptionsChain>(`/market/options/${symbol}`, { params: { expiration } }),
 
     getFundamentals: (symbol: string) =>
-        client.get<Record<string, unknown>>(`/market/fundamentals/${symbol}`),
+        client.get<Record<string, any>>(`/market/fundamentals/${symbol}`),
 
     getNews: (symbol: string, params?: NewsParams) =>
-        client.get<Record<string, unknown>[]>(`/market/news/${symbol}`, { params }),
+        client.get<Record<string, any>[]>(`/market/news/${symbol}`, { params }),
 
     search: (query: string, limit: number = 10) =>
         client.get<SearchResult[]>(`/market/search`, { params: { q: query, limit } }),
@@ -300,7 +302,7 @@ export const market = {
         client.get<{ is_open: boolean; next_open?: string; next_close?: string }>(`/market/status`),
 
     getCacheStats: () =>
-        client.get<Record<string, unknown>>(`/market/cache/stats`),
+        client.get<Record<string, any>>(`/market/cache/stats`),
 
     clearCache: (data_type?: string) =>
         client.post<{ success: boolean; message: string }>(`/market/cache/clear`, null, { params: { data_type } }),
@@ -330,13 +332,13 @@ export const analytics = {
     },
 
     getReturnsAnalysis: (portfolio_id: number) =>
-        client.get<Record<string, unknown>>(`/analytics/returns/${portfolio_id}`),
+        client.get<Record<string, any>>(`/analytics/returns/${portfolio_id}`),
 
     getRiskMetrics: (portfolio_id: number) =>
-        client.get<Record<string, unknown>>(`/analytics/risk/${portfolio_id}`),
+        client.get<Record<string, any>>(`/analytics/risk/${portfolio_id}`),
 
     getDrawdownAnalysis: (portfolio_id: number) =>
-        client.get<Record<string, unknown>>(`/analytics/drawdown/${portfolio_id}`),
+        client.get<Record<string, any>>(`/analytics/drawdown/${portfolio_id}`),
 };
 
 // ==================== MARKET REGIME ====================
@@ -384,9 +386,6 @@ export const regime = {
 };
 
 // ==================== ANALYST ====================
-export interface AnalystReportParams {
-    depth?: string;
-}
 
 export const analyst = {
     getReport: (ticker: string, params?: AnalystReportParams) =>
@@ -508,8 +507,14 @@ export const marketplace = {
     recordDownload: (strategy_id: number) =>
         client.post<{ success: boolean; downloads: number }>(`/marketplace/${strategy_id}/download`),
 
-    publish: (data: StrategyPublishRequest) =>
-        client.post<{ success: boolean; strategy_id: number; message: string }>(`/marketplace/publish`, data),
+    publish: (request: StrategyPublishRequest) =>
+        client.post<{ success: boolean; strategy_id: number; message: string }>(`/marketplace/publish`, request),
+
+    getReviews: (strategy_id: number, limit: number = 20) =>
+        client.get<StrategyReviewSchema[]>(`/marketplace/${strategy_id}/reviews`, { params: { limit } }),
+
+    createReview: (strategy_id: number, data: { rating: number; review_text: string; performance_achieved?: Record<string, any> }) =>
+        client.post<{ id: number; status: string }>(`/marketplace/${strategy_id}/review`, data),
 };
 
 // ==================== ML STUDIO ====================

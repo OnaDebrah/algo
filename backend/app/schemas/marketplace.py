@@ -79,6 +79,7 @@ class StrategyPublishRequest(BaseModel):
     is_public: bool = True
     tags: List[str] = []
     backtest_id: Optional[int] = None  # Link to an existing backtest
+    strategy_key: Optional[str] = None  # Strategy type identifier
 
 
 class ReviewCreateRequest(BaseModel):

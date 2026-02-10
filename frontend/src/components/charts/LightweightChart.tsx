@@ -82,6 +82,7 @@ const LightweightChart: React.FC<LightweightChartProps> = ({
                 background: { type: ColorType.Solid, color: theme.backgroundColor },
                 textColor: theme.textColor,
                 fontFamily: "'Inter', sans-serif",
+                attributionLogo: false,
             },
             grid: {
                 vertLines: { color: theme.gridColor },
