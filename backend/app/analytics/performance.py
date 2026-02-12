@@ -2,10 +2,46 @@
 Performance analytics and metrics calculation
 """
 
+import math
 from typing import Dict, List
 
 import numpy as np
 import pandas as pd
+
+
+def _sanitize_float(value, default=0.0, cap=999999.0):
+    """
+    Sanitize a numeric value to ensure JSON compliance.
+    Replaces inf, -inf, NaN with default, and caps extreme values.
+    """
+    if isinstance(value, (int, np.integer)):
+        return int(value)
+    if isinstance(value, (float, np.floating)):
+        if math.isnan(value) or math.isinf(value):
+            return default
+        # Cap extreme values to prevent meaningless huge numbers
+        if value > cap:
+            return cap
+        if value < -cap:
+            return -cap
+        return float(value)
+    return value
+
+
+def _sanitize_metrics(metrics: Dict) -> Dict:
+    """
+    Sanitize all numeric values in a metrics dictionary to ensure
+    they are JSON-serializable (no inf, NaN, or extreme values).
+    """
+    sanitized = {}
+    for key, value in metrics.items():
+        if isinstance(value, dict):
+            sanitized[key] = _sanitize_metrics(value)
+        elif isinstance(value, list):
+            sanitized[key] = value  # Don't modify lists (equity curves, etc.)
+        else:
+            sanitized[key] = _sanitize_float(value)
+    return sanitized
 
 
 def calculate_performance_metrics(trades: List[Dict], equity_curve: List[Dict], initial_capital: float) -> Dict:
@@ -45,10 +81,13 @@ def calculate_performance_metrics(trades: List[Dict], equity_curve: List[Dict], 
     losing_trades = completed_trades[completed_trades["profit"] < 0]
     avg_loss = losing_trades["profit"].mean() if len(losing_trades) > 0 else 0
 
-    # Sharpe ratio
-    returns = completed_trades["profit_pct"].values
-    if len(returns) > 1 and np.std(returns) != 0:
-        sharpe_ratio = (np.mean(returns) / np.std(returns)) * np.sqrt(252)
+    # Sharpe ratio - use equity curve daily returns (not per-trade profit_pct)
+    # Per-trade profit_pct spans variable time periods, not daily,
+    # so annualizing with sqrt(252) would be incorrect
+    equity_values = pd.Series([e["equity"] for e in equity_curve])
+    daily_returns = equity_values.pct_change().dropna()
+    if len(daily_returns) > 1 and daily_returns.std() != 0:
+        sharpe_ratio = (daily_returns.mean() / daily_returns.std()) * np.sqrt(252)
     else:
         sharpe_ratio = 0
 
@@ -85,7 +124,7 @@ def calculate_performance_metrics(trades: List[Dict], equity_curve: List[Dict], 
     # Merge risk metrics
     metrics.update(risk_metrics)
 
-    return metrics
+    return _sanitize_metrics(metrics)
 
 
 def calculate_risk_metrics(trades: List[Dict], equity_curve: List[Dict]) -> Dict:
@@ -123,33 +162,38 @@ def calculate_risk_metrics(trades: List[Dict], equity_curve: List[Dict]) -> Dict
         gross_losses = abs(closed_trades[closed_trades["profit"] < 0]["profit"].sum())
 
         # Profit Factor: How many dollars earned for every dollar lost
-        profit_factor = gross_profits / gross_losses if gross_losses > 0 else gross_profits
+        # When no losses, cap at 0 (no meaningful ratio) rather than returning raw gross_profits
+        profit_factor = gross_profits / gross_losses if gross_losses > 0 else 0.0
 
         # Win Rate
         win_rate = (len(closed_trades[closed_trades["profit"] > 0]) / len(closed_trades)) * 100
 
         # Expectancy: (Win% * Avg Win) - (Loss% * Avg Loss)
-        avg_win = closed_trades[closed_trades["profit"] > 0]["profit"].mean() or 0
-        avg_loss = abs(closed_trades[closed_trades["profit"] < 0]["profit"].mean()) or 0
+        winning = closed_trades[closed_trades["profit"] > 0]["profit"]
+        losing = closed_trades[closed_trades["profit"] < 0]["profit"]
+        avg_win = float(winning.mean()) if len(winning) > 0 else 0.0
+        avg_loss = abs(float(losing.mean())) if len(losing) > 0 else 0.0
         expectancy = (win_rate / 100 * avg_win) - ((1 - win_rate / 100) * avg_loss)
     else:
         profit_factor, win_rate, expectancy = 0, 0, 0
 
-    return {
-        "volatility": float(volatility),
-        "beta": 1.0,  # Placeholder for future benchmark comparison
-        "var_95": float(var_95),
-        "cvar_95": float(cvar_95),
-        "max_drawdown": float(max_dd),
-        "sharpe_ratio": float(sharpe),
-        "sortino_ratio": float(sortino),
-        "calmar_ratio": float(calmar),
-        "profit_factor": float(profit_factor),
-        "win_rate": float(win_rate),
-        "expectancy": float(expectancy),
-        "total_trades": len(df_trades),
-        "total_commission": float(df_trades["commission"].sum()) if "commission" in df_trades else 0,
-    }
+    return _sanitize_metrics(
+        {
+            "volatility": float(volatility),
+            "beta": 1.0,  # Placeholder for future benchmark comparison
+            "var_95": float(var_95),
+            "cvar_95": float(cvar_95),
+            "max_drawdown": float(max_dd),
+            "sharpe_ratio": float(sharpe),
+            "sortino_ratio": float(sortino),
+            "calmar_ratio": float(calmar),
+            "profit_factor": float(profit_factor),
+            "win_rate": float(win_rate),
+            "expectancy": float(expectancy),
+            "total_trades": len(df_trades),
+            "total_commission": float(df_trades["commission"].sum()) if "commission" in df_trades else 0,
+        }
+    )
 
 
 def calculate_returns(trades: List[Dict]) -> Dict:
@@ -217,7 +261,7 @@ def calculate_sharpe_ratio(returns: pd.Series, risk_free_rate: float = 0.0) -> f
 
 def calculate_max_drawdown(equity_curve: List[Dict]) -> float:
     """
-    Calculate maximum drawdown percentage
+    Calculate maximum drawdown percentage (vectorized)
 
     Args:
         equity_curve: List of equity snapshots
@@ -225,18 +269,10 @@ def calculate_max_drawdown(equity_curve: List[Dict]) -> float:
     Returns:
         Maximum drawdown as percentage
     """
-    equity_values = [e["equity"] for e in equity_curve]
-    peak = equity_values[0]
-    max_dd = 0
-
-    for value in equity_values:
-        if value > peak:
-            peak = value
-        dd = ((peak - value) / peak) * 100
-        if dd > max_dd:
-            max_dd = dd
-
-    return max_dd
+    equity_values = np.array([e["equity"] for e in equity_curve])
+    running_max = np.maximum.accumulate(equity_values)
+    drawdowns = ((running_max - equity_values) / running_max) * 100
+    return float(drawdowns.max()) if len(drawdowns) > 0 else 0
 
 
 def calculate_sortino_ratio(returns: pd.Series, risk_free_rate: float = 0.0) -> float:
@@ -261,7 +297,8 @@ def calculate_sortino_ratio(returns: pd.Series, risk_free_rate: float = 0.0) -> 
     if downside_std == 0:
         return 0
 
-    return np.mean(excess_returns) / downside_std * np.sqrt(252)
+    result = np.mean(excess_returns) / downside_std * np.sqrt(252)
+    return float(result) if np.isfinite(result) else 0.0
 
 
 def calculate_calmar_ratio(total_return: float, max_drawdown: float, years: float = 1.0) -> float:

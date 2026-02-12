@@ -43,6 +43,13 @@ def convert_core_to_schema(core_listing, marketplace: StrategyMarketplace = None
         except Exception:
             is_fav = False
 
+    # Use user-provided pros/cons if available, otherwise auto-generate
+    pros = core_listing.pros if core_listing.pros else _generate_pros(core_listing)
+    cons = core_listing.cons if core_listing.cons else _generate_cons(core_listing)
+
+    # Get backtest results for additional metrics
+    br = core_listing.backtest_results
+
     return StrategyListingSchema(
         id=core_listing.id if core_listing.id else "unknown",
         name=core_listing.name,
@@ -54,14 +61,25 @@ def convert_core_to_schema(core_listing, marketplace: StrategyMarketplace = None
         category=core_listing.category,
         complexity=core_listing.complexity,
         time_horizon=getattr(core_listing, "time_horizon", "Medium-term"),
+        total_return=core_listing.total_return,
         monthly_return=round(core_listing.total_return / 12, 2) if core_listing.total_return else 0,
         drawdown=abs(core_listing.max_drawdown),
         sharpe_ratio=core_listing.sharpe_ratio,
+        win_rate=core_listing.win_rate,
+        num_trades=core_listing.num_trades,
+        avg_win=br.avg_win if br else 0.0,
+        avg_loss=br.avg_loss if br else 0.0,
+        profit_factor=br.profit_factor if br else 0.0,
+        volatility=br.volatility if br else 0.0,
+        sortino_ratio=br.sortino_ratio if br else 0.0,
+        calmar_ratio=br.calmar_ratio if br else 0.0,
+        var_95=br.var_95 if br else 0.0,
+        initial_capital=br.initial_capital if br else 10000.0,
         total_downloads=core_listing.downloads,
         tags=core_listing.tags if core_listing.tags else [],
         best_for=core_listing.tags[:3] if core_listing.tags else [],
-        pros=_generate_pros(core_listing),
-        cons=_generate_cons(core_listing),
+        pros=pros,
+        cons=cons,
         is_favorite=is_fav,
         is_verified=core_listing.is_verified,
         verification_badge=core_listing.verification_badge,
@@ -140,13 +158,18 @@ async def get_strategy_details(
 ):
     """Get detailed information about a specific strategy including backtest results"""
 
-    core_listings = marketplace.browse_strategies(limit=100)
+    core_listings = marketplace.browse_strategies(limit=200)
     target_listing = next((listing for listing in core_listings if listing.id == strategy_id), None)
 
     if not target_listing:
         raise HTTPException(status_code=404, detail="Strategy not found")
 
+    # Load full backtest data for the detail view
     backtest_data = marketplace.get_strategy_backtest(strategy_id)
+
+    # Inject backtest results into listing so convert_core_to_schema has full metrics
+    if backtest_data:
+        target_listing.backtest_results = backtest_data["backtest_results"]
 
     detailed_schema = StrategyListingDetailedSchema(**convert_core_to_schema(target_listing, marketplace, current_user.id).dict())
 
@@ -335,6 +358,10 @@ async def publish_strategy(
             price=request.price,
             is_public=request.is_public,
             tags=request.tags,
+            pros=request.pros,
+            cons=request.cons,
+            risk_level=request.risk_level or "medium",
+            recommended_capital=request.recommended_capital or 10000.0,
         )
 
         strategy_id = marketplace.publish_strategy_with_backtest(listing)

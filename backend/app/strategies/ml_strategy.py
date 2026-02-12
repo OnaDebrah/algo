@@ -7,6 +7,7 @@ import logging
 import pandas as pd
 from sklearn.ensemble import GradientBoostingClassifier, RandomForestClassifier
 from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import accuracy_score
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 from sklearn.svm import SVC
@@ -180,7 +181,51 @@ class MLStrategy(BaseStrategy):
 
         logger.info(f"Model trained - Train: {train_score:.2%}, Test: {test_score:.2%}")
 
-        return train_score, test_score
+        # Build training history for the frontend chart
+        training_history = self._build_training_history(X_train_scaled, y_train, X_test_scaled, y_test)
+
+        return train_score, test_score, training_history
+
+    def _build_training_history(self, X_train, y_train, X_test, y_test):
+        """Build per-stage training curves for the frontend chart.
+
+        GradientBoosting: uses staged_predict for per-stage accuracy curves.
+        Others (RF, SVM, Logistic): single-point history with final scores.
+        """
+        training_history = []
+
+        if isinstance(self.model, GradientBoostingClassifier):
+            # Collect all staged predictions in one pass each (cheap, uses already-trained trees)
+            train_staged = list(self.model.staged_predict(X_train))
+            test_staged = list(self.model.staged_predict(X_test))
+
+            for stage in range(len(train_staged)):
+                train_acc = accuracy_score(y_train, train_staged[stage])
+                test_acc = accuracy_score(y_test, test_staged[stage])
+                training_history.append(
+                    {
+                        "epoch": stage + 1,
+                        "loss": round(1.0 - train_acc, 6),
+                        "accuracy": round(train_acc, 6),
+                        "val_loss": round(1.0 - test_acc, 6),
+                        "val_accuracy": round(test_acc, 6),
+                    }
+                )
+        else:
+            # Single-shot models (RF, SVM, Logistic) — single data point
+            train_acc = self.model.score(X_train, y_train)
+            test_acc = self.model.score(X_test, y_test)
+            training_history.append(
+                {
+                    "epoch": 1,
+                    "loss": round(1.0 - train_acc, 6),
+                    "accuracy": round(train_acc, 6),
+                    "val_loss": round(1.0 - test_acc, 6),
+                    "val_accuracy": round(test_acc, 6),
+                }
+            )
+
+        return training_history
 
     def generate_signal(self, data: pd.DataFrame) -> int:
         """

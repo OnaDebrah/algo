@@ -1,9 +1,10 @@
 'use client'
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
     Activity,
     AlertCircle,
     BarChart3,
+    Brain,
     Calendar,
     Check,
     ChevronDown,
@@ -36,9 +37,9 @@ import StrategyParameterForm from "@/components/backtest/StrategyParameterForm";
 import RiskAnalysisModal from "@/components/backtest/RiskAnalysisModal";
 import LoadConfigModal from "@/components/backtest/LoadConfigModal";
 import BayesianOptimizerModal from "@/components/backtest/BayesianOptimizerModal";
-import { BacktestResult, SingleAssetConfig, Strategy, PortfolioCreate } from "@/types/all_types";
+import { BacktestResult, SingleAssetConfig, Strategy, PortfolioCreate, DeployedMLModel } from "@/types/all_types";
 import { formatCSVCell, formatCurrency } from "@/utils/formatters";
-import { portfolio } from "@/utils/api";
+import { portfolio, mlstudio } from "@/utils/api";
 import { assetSuggestions, quickSuggestions } from "@/utils/suggestions";
 
 interface SingleAssetBacktestProps {
@@ -67,6 +68,11 @@ const SingleAssetBacktest: React.FC<SingleAssetBacktestProps> = ({
     const [isSaving, setIsSaving] = useState(false);
     const [showLoadModal, setShowLoadModal] = useState(false);
     const [showOptimizer, setShowOptimizer] = useState(false);
+    const [deployedModels, setDeployedModels] = useState<DeployedMLModel[]>([]);
+    const [loadingModels, setLoadingModels] = useState(false);
+
+    // ML strategy keys that support deployed model loading
+    const ML_STRATEGY_KEYS = ['ml_random_forest', 'ml_gradient_boosting', 'ml_svm', 'ml_logistic', 'ml_lstm', 'mc_ml_sentiment'];
 
     const categories = useMemo(() =>
         ['All', ...Array.from(new Set(strategies.map((s: Strategy) => s.category)))],
@@ -77,6 +83,33 @@ const SingleAssetBacktest: React.FC<SingleAssetBacktestProps> = ({
         strategies.find((s: Strategy) => s.id === config.strategy),
         [config.strategy, strategies]
     );
+
+    const isMLStrategy = useMemo(() =>
+        ML_STRATEGY_KEYS.includes(config.strategy),
+        [config.strategy]
+    );
+
+    // Fetch deployed models when an ML strategy is selected
+    useEffect(() => {
+        if (isMLStrategy) {
+            setLoadingModels(true);
+            mlstudio.getDeployedModels()
+                .then((models) => {
+                    setDeployedModels(models || []);
+                })
+                .catch((err) => {
+                    console.error('Failed to fetch deployed models:', err);
+                    setDeployedModels([]);
+                })
+                .finally(() => setLoadingModels(false));
+        } else {
+            // Clear ml_model_id when switching away from ML strategies
+            if (config.ml_model_id) {
+                setConfig({ ...config, ml_model_id: undefined });
+            }
+            setDeployedModels([]);
+        }
+    }, [isMLStrategy]);
 
     const filteredStrategies = useMemo(() => {
         let filtered = selectedCategory === 'All'
@@ -668,6 +701,82 @@ const SingleAssetBacktest: React.FC<SingleAssetBacktestProps> = ({
                                                     </span>
                                                 ))}
                                             </div>
+                                        </div>
+                                    )}
+
+                                    {/* ML Model Selector - shown when an ML strategy is selected */}
+                                    {isMLStrategy && (
+                                        <div className="mb-6 pt-6 border-t border-violet-500/20">
+                                            <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3 flex items-center gap-2">
+                                                <Brain size={14} className="text-purple-400" />
+                                                Deployed Model
+                                            </p>
+                                            {loadingModels ? (
+                                                <div className="flex items-center gap-2 text-xs text-slate-500">
+                                                    <RefreshCw size={14} className="animate-spin" />
+                                                    Loading deployed models...
+                                                </div>
+                                            ) : deployedModels.length > 0 ? (
+                                                <div className="space-y-2">
+                                                    {/* Auto-train option (no model selected) */}
+                                                    <button
+                                                        onClick={() => setConfig({ ...config, ml_model_id: undefined })}
+                                                        className={`w-full p-3 rounded-xl border text-left transition-all ${
+                                                            !config.ml_model_id
+                                                                ? 'border-emerald-500 bg-emerald-500/10 shadow-lg shadow-emerald-500/20'
+                                                                : 'border-slate-700/50 bg-slate-800/40 hover:border-slate-600/50'
+                                                        }`}
+                                                    >
+                                                        <div className="flex items-center justify-between">
+                                                            <div>
+                                                                <p className="text-sm font-bold text-slate-200">Auto-Train on Data</p>
+                                                                <p className="text-[10px] text-slate-500 mt-0.5">
+                                                                    Train a fresh model on backtest data automatically
+                                                                </p>
+                                                            </div>
+                                                            {!config.ml_model_id && (
+                                                                <div className="w-6 h-6 rounded-full bg-gradient-to-br from-emerald-500 to-teal-500 flex items-center justify-center">
+                                                                    <Check size={12} className="text-white" strokeWidth={3} />
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    </button>
+                                                    {/* Deployed model options */}
+                                                    {deployedModels.map((model) => (
+                                                        <button
+                                                            key={model.id}
+                                                            onClick={() => setConfig({ ...config, ml_model_id: model.id })}
+                                                            className={`w-full p-3 rounded-xl border text-left transition-all ${
+                                                                config.ml_model_id === model.id
+                                                                    ? 'border-purple-500 bg-purple-500/10 shadow-lg shadow-purple-500/20'
+                                                                    : 'border-slate-700/50 bg-slate-800/40 hover:border-slate-600/50'
+                                                            }`}
+                                                        >
+                                                            <div className="flex items-center justify-between">
+                                                                <div>
+                                                                    <p className="text-sm font-bold text-slate-200">{model.name}</p>
+                                                                    <p className="text-[10px] text-slate-500 mt-0.5">
+                                                                        {model.type} &bull; {model.symbol} &bull; Accuracy: {(model.test_accuracy * 100).toFixed(1)}%
+                                                                    </p>
+                                                                </div>
+                                                                {config.ml_model_id === model.id && (
+                                                                    <div className="w-6 h-6 rounded-full bg-gradient-to-br from-purple-500 to-fuchsia-500 flex items-center justify-center">
+                                                                        <Check size={12} className="text-white" strokeWidth={3} />
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                            ) : (
+                                                <div className="p-3 bg-emerald-500/10 border border-emerald-500/30 rounded-xl">
+                                                    <p className="text-xs font-bold text-emerald-400 mb-1">Auto-Train Mode</p>
+                                                    <p className="text-[10px] text-emerald-400/70 leading-relaxed">
+                                                        The model will be automatically trained on backtest data before generating signals.
+                                                        For better results, train and deploy a model in ML Studio first.
+                                                    </p>
+                                                </div>
+                                            )}
                                         </div>
                                     )}
 

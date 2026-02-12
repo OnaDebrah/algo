@@ -28,6 +28,7 @@ class StrategyInfo(BaseModel):
     time_horizon: Optional[str] = "Medium-term"
     best_for: List[str] = []
     parameters: List[StrategyParameter]
+    backtest_mode: str = "single"  # "single", "multi", or "both"
 
 
 class Strategy(BaseModel):

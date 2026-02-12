@@ -6,7 +6,9 @@ Signal: sign(P_t − MA_t)
 Why add it: Extremely robust, Works across asset classes, Excellent for drawdown diversification
 """
 
+import logging
 import warnings
+from abc import ABC
 from typing import Dict, Optional, Tuple, Union
 
 import numpy as np
@@ -16,8 +18,10 @@ from backend.app.strategies import BaseStrategy
 
 warnings.filterwarnings("ignore")
 
+logger = logging.getLogger(__name__)
 
-class TimeSeriesMomentumStrategy(BaseStrategy):
+
+class TimeSeriesMomentumStrategy(BaseStrategy, ABC):
     """
     Time-Series Momentum (Trend Following) Strategy
 
@@ -606,5 +610,5 @@ def plot_signals(self, prices: pd.Series, signals_df: pd.DataFrame = None):
         return fig
 
     except ImportError:
-        print("Matplotlib not installed. Install with: pip install matplotlib")
+        logger.error("Matplotlib not installed. Install with: pip install matplotlib")
         return None

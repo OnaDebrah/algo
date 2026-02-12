@@ -543,6 +543,26 @@ class StatisticalArbitrageStrategy(BaseStrategy):
 
         return self.active_baskets
 
+    def generate_signal(self, data: pd.DataFrame) -> Dict:
+        """
+        Generate trading signal (required by BaseStrategy).
+
+        For multi-asset stat arb, delegates to generate_signals()
+        and returns an aggregate signal dict.
+        """
+        signals = self.generate_signals(data)
+        if not signals:
+            return {"signal": 0, "baskets": {}}
+        # Aggregate: net signal across baskets
+        net_signal = sum(b.get("signal", 0) for b in signals.values())
+        if net_signal > 0:
+            agg = 1
+        elif net_signal < 0:
+            agg = -1
+        else:
+            agg = 0
+        return {"signal": agg, "baskets": signals}
+
     def generate_signals(self, prices: pd.DataFrame) -> Dict[str, Dict]:
         """
         Generate trading signals for all active baskets

@@ -52,7 +52,7 @@ async def get_performance_analytics(
         trades = db.get_trades(portfolio_id, start_date=start_date, end_date=end_date)
 
         metrics = calculate_performance_metrics(trades, equity_curve, initial_equity)
-        print(metrics)
+
         return {
             "period": period,
             "metrics": metrics,

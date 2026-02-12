@@ -57,6 +57,7 @@ import {
     // ML Studio
     MLModel,
     TrainingConfig,
+    DeployedMLModel,
 
     // Options
     ChainRequest,
@@ -92,7 +93,7 @@ import {
     // HTTP Error
     HTTPValidationError, RegimeData, RegimeHistoryResponse, PairsValidationRequest, PairsValidationResponse,
     LiveOrderPlacement, LiveOrderUpdate, MarketplaceFilterParams, AlertPreferences, Alert, DeploymentConfig,
-    BrokerConnectionResponse
+    BrokerConnectionResponse, MLModelStatusRequest, ModelPrediction
 } from '@/types/all_types';
 import {
     BaseOptimizationRequest, BlackLittermanRequest, BlackLittermanResponse,
@@ -313,8 +314,9 @@ export const market = {
 
 // ==================== STRATEGY ====================
 export const strategy = {
-    list: async (): Promise<StrategyInfo[]> => {
-        return client.get<StrategyInfo[]>('/strategy/list')
+    list: async (mode?: 'single' | 'multi'): Promise<StrategyInfo[]> => {
+        const params = mode ? { mode } : {};
+        return client.get<StrategyInfo[]>('/strategy/list', { params })
     },
 
     get: (strategy_key: string) =>
@@ -518,11 +520,6 @@ export const marketplace = {
 };
 
 // ==================== ML STUDIO ====================
-export interface ModelPrediction {
-    prediction: number;
-    confidence: number;
-    timestamp: string;
-}
 
 export const mlstudio = {
     getModels: () =>
@@ -534,52 +531,64 @@ export const mlstudio = {
     deployModel: (model_id: string) =>
         client.post<{ success: boolean; deployed: boolean; endpoint?: string }>(`/mlstudio/deploy/${model_id}`),
 
+    undeployModel: (model_id: string) =>
+        client.post<{ success: boolean; deployed: boolean; endpoint?: string }>(`/mlstudio/undeploy/${model_id}`),
+
+    updateModelStatus: (request: MLModelStatusRequest) =>
+            client.post<{ success: boolean; deployed: boolean; endpoint?: string }>(`/mlstudio/update-status/`, request),
+
+    exportModel: (model_id: string) =>
+        client.post<Blob | MediaSource>(`/mlstudio/export/${model_id}`),
+
     deleteModel: (model_id: string) =>
         client.delete<{ success: boolean; message: string }>(`/mlstudio/models/${model_id}`),
 
     predictWithModel: (model_id: string) =>
         client.get<ModelPrediction>(`/mlstudio/models/${model_id}/predict`),
+
+    getDeployedModels: () =>
+        client.get<DeployedMLModel[]>('/mlstudio/models/deployed'),
 };
 
 // ==================== OPTIONS ====================
 export const options = {
-    getChain: async (data: ChainRequest): Promise<ChainResponse> => {
-        return client.post<ChainResponse>('/options/chain', data)
+    getChain: async (request: ChainRequest): Promise<ChainResponse> => {
+        return client.post<ChainResponse>('/options/chain', request)
     },
 
     runBacktest: async (request: OptionsBacktestRequest): Promise<OptionsBacktestResponse> => {
         return client.post<OptionsBacktestResponse>('/options/backtest', request);
     },
 
-    analyzeStrategy: async (data: StrategyAnalysisRequest): Promise<StrategyAnalysisResponse> => {
-        return client.post<StrategyAnalysisResponse>('/options/analyze', data)
+    analyzeStrategy: async (request: StrategyAnalysisRequest): Promise<StrategyAnalysisResponse> => {
+        return client.post<StrategyAnalysisResponse>('/options/analyze', request)
     },
 
-    calculateGreeks: async (data: GreeksRequest): Promise<GreeksResponse> => {
-        return client.post<GreeksResponse>('/options/greeks', data)
+    calculateGreeks: async (request: GreeksRequest): Promise<GreeksResponse> => {
+        return client.post<GreeksResponse>('/options/greeks', request)
     },
 
-    compareStrategies: async (data: StrategyComparisonRequest): Promise<StrategyComparisonResponse> => {
-        return client.post<StrategyComparisonResponse>('/options/compare', data)
+    compareStrategies: async (request: StrategyComparisonRequest): Promise<StrategyComparisonResponse> => {
+        return client.post<StrategyComparisonResponse>('/options/compare', request)
     },
 
-    calculateProbability: async (data: ProbabilityRequest): Promise<ProbabilityResponse> => {
-        return client.post<ProbabilityResponse>('/options/analytics/probability', data)
+    calculateProbability: async (request: ProbabilityRequest): Promise<ProbabilityResponse> => {
+        return client.post<ProbabilityResponse>('/options/analytics/probability', request)
     },
 
-    optimizeStrike: async (data: StrikeOptimizerRequest): Promise<StrikeOptimizerResponse> => {
-        return client.post<StrikeOptimizerResponse>('/options/analytics/optimize-strike', data)
+    optimizeStrike: async (request: StrikeOptimizerRequest): Promise<StrikeOptimizerResponse> => {
+        return client.post<StrikeOptimizerResponse>('/options/analytics/optimize-strike', request)
     },
 
-    calculateRiskMetrics: async (data: RiskMetricsRequest): Promise<RiskMetricsResponse> => {
-        return client.post<RiskMetricsResponse>('/options/analytics/risk-metrics', data)
+    calculateRiskMetrics: async (request: RiskMetricsRequest): Promise<RiskMetricsResponse> => {
+        return client.post<RiskMetricsResponse>('/options/analytics/risk-metrics', request)
     },
-    calculatePortfolioStats: async (data: PortfolioStatsRequest): Promise<PortfolioStatsResponse> => {
-        return client.post<PortfolioStatsResponse>('/options/analytics/portfolio-stats', data)
+    calculatePortfolioStats: async (request: PortfolioStatsRequest): Promise<PortfolioStatsResponse> => {
+        return client.post<PortfolioStatsResponse>('/options/analytics/portfolio-stats', request)
     },
 
-    runMonteCarlo: async (data: MonteCarloRequest): Promise<MonteCarloResponse> => {
-        return client.post<MonteCarloResponse>('/options/analytics/monte-carlo', data)
+    runMonteCarlo: async (request: MonteCarloRequest): Promise<MonteCarloResponse> => {
+        return client.post<MonteCarloResponse>('/options/analytics/monte-carlo', request)
     }
 };
 

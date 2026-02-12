@@ -63,6 +63,7 @@ export interface StrategyInfo {
     historical_return: number;
     total_trades: number;
     parameters: StrategyParameter[];
+    backtest_mode: 'single' | 'multi' | 'both';
 }
 
 export interface StrategyConfig {
@@ -80,6 +81,7 @@ export interface SingleBacktestRequest {
     initial_capital?: number;
     commission_rate?: number;
     slippage_rate?: number;
+    ml_model_id?: string;  // For ML strategies: ID of a deployed model to use
 }
 
 export interface ComparisonInfo {
@@ -171,6 +173,18 @@ export interface SingleAssetConfig {
     params: Record<string, any>
     riskLevel?: string;
     commission?: number;
+    ml_model_id?: string;  // For ML strategies: ID of a deployed model to use
+}
+
+// Deployed ML model info (for backtest model selector)
+export interface DeployedMLModel {
+    id: string;
+    name: string;
+    type: string;
+    symbol: string;
+    accuracy: number;
+    test_accuracy: number;
+    status: string;
 }
 
 // ==================== MULTI-ASSET BACKTEST ====================
@@ -200,6 +214,7 @@ export interface Strategy {
     complexity: 'Beginner' | 'Intermediate' | 'Advanced' | 'Expert' | 'Institutional';
     time_horizon: string | null;
     best_for?: string[];
+    backtest_mode?: 'single' | 'multi' | 'both';
     rating?: number;
     monthly_return?: number;
     drawdown?: number;
@@ -1050,6 +1065,10 @@ export interface StrategyPublishRequest {
     price: number;
     is_public?: boolean;
     tags?: string[];
+    pros?: string[];
+    cons?: string[];
+    risk_level?: string;
+    recommended_capital?: number;
     backtest_id?: number | null;
     strategy_key?: string | null;
 }
@@ -1067,9 +1086,31 @@ export interface MarketplaceFilterParams {
 
 // ==================== ML STUDIO ====================
 
+export interface ModelPrediction {
+    prediction: number;
+    confidence: number;
+    timestamp: string;
+}
+
+export interface MLModelStatusRequest {
+    modelId: string, isActive: boolean
+}
+
 export interface MLFeatureImportance {
     feature: string;
     importance: number;
+}
+
+export interface TrainingEpoch {
+    epoch: number;
+    loss: number;
+    accuracy: number;
+    val_loss: number | null;
+    val_accuracy: number | null;
+}
+
+export interface MLPerformanceHistory {
+
 }
 
 export interface MLModel {
@@ -1086,6 +1127,13 @@ export interface MLModel {
     status: string;
     feature_importance: MLFeatureImportance[];
     hyperparams: Record<string, any>;
+    training_history?: TrainingEpoch[];
+    created_at?: string,
+    deployed_at?: string,
+    is_active?: boolean,
+    last_used?: string,
+    usage_count?: number;
+    performance_history?: MLPerformanceHistory[]
 }
 
 export interface TrainingConfig {

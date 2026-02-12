@@ -123,6 +123,24 @@ class KAMAStrategy(BaseStrategy):
 
         return 0
 
+    def generate_signals_vectorized(self, data: pd.DataFrame) -> pd.Series:
+        """Vectorized KAMA crossover signal generation"""
+        close = data["Close"]
+        kama = self.calculate_kama(data)
+        threshold = self.params["signal_threshold"]
+
+        signals = pd.Series(0, index=data.index)
+        prev_close = close.shift(1)
+        prev_kama = kama.shift(1)
+
+        # Buy: Price crosses above KAMA (with threshold)
+        signals[(prev_close <= prev_kama) & (close > kama * (1 + threshold))] = 1
+
+        # Sell: Price crosses below KAMA (with threshold)
+        signals[(prev_close >= prev_kama) & (close < kama * (1 - threshold))] = -1
+
+        return signals
+
     def get_indicator_values(self, data: pd.DataFrame) -> Dict[str, pd.Series]:
         """
         Get KAMA and additional indicators for analysis/visualization

@@ -72,3 +72,21 @@ class BollingerMeanReversionStrategy(BaseStrategy):
             return -1
 
         return 0
+
+    def generate_signals_vectorized(self, data: pd.DataFrame) -> pd.Series:
+        """Vectorized Bollinger Bands mean reversion signal generation"""
+        sma, upper_band, lower_band = self.calculate_bollinger_bands(data)
+        close = data["Close"]
+        prev_close = close.shift(1)
+        prev_upper = upper_band.shift(1)
+        prev_lower = lower_band.shift(1)
+
+        signals = pd.Series(0, index=data.index)
+
+        # Mean Reversion Buy: Price was below lower band, now crossing back above
+        signals[(prev_close < prev_lower) & (close > lower_band)] = 1
+
+        # Mean Reversion Sell: Price was above upper band, now crossing back below
+        signals[(prev_close > prev_upper) & (close < upper_band)] = -1
+
+        return signals

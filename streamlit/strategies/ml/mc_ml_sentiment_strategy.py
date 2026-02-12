@@ -6,6 +6,7 @@ A complete implementation combining sentiment analysis, machine learning,
 and Monte Carlo simulation for probabilistic price forecasting.
 """
 
+import logging
 import warnings
 from datetime import datetime
 from typing import Any, Dict, List, Tuple
@@ -33,6 +34,8 @@ except ImportError:
 warnings.filterwarnings("ignore")
 # Ensure VADER lexicon is downloaded
 nltk.download("vader_lexicon", quiet=True)
+
+logger = logging.getLogger(__name__)
 
 
 class SentimentAnalyzer:
@@ -130,7 +133,7 @@ class SentimentAnalyzer:
 
         except Exception as e:
             # In production, log this to your monitoring service
-            print(f"Stocktwits API Error for {symbol}: {e}")
+            logger.error(f"Stocktwits API Error for {symbol}: {e}")
             return 0.0
 
         # 4. Final Weighted Average
@@ -190,7 +193,7 @@ class SentimentAnalyzer:
             # Production fallback: Log the rate limit and return a neutral/cached value
             return self._get_cached_sentiment(symbol)
         except Exception as e:
-            print(f"Sentiment Pipeline Error: {e}")
+            logger.error(f"Sentiment Pipeline Error: {e}")
             return 0.0
 
         # 3. Final Aggregation
@@ -250,7 +253,7 @@ class SentimentAnalyzer:
                     total_weight += c_weight
 
         except Exception as e:
-            print(f"Reddit API Error for {symbol}: {e}")
+            logger.error(f"Reddit API Error for {symbol}: {e}")
             return 0.0
 
         # 4. Final Aggregation
@@ -627,7 +630,7 @@ class MonteCarloMLSentimentStrategy(BaseStrategy):
             try:
                 self.train_model(train_data)
             except Exception as e:
-                print(f"Training failed: {e}")
+                logger.error(f"Training failed: {e}")
                 return df
 
         # Generate features for prediction
@@ -648,7 +651,7 @@ class MonteCarloMLSentimentStrategy(BaseStrategy):
             predicted_return = predictions[0]
             predicted_volatility = uncertainty[0]
         except Exception as e:
-            print(f"Prediction failed: {e}")
+            logger.error(f"Prediction failed: {e}")
             return df
 
         # Run Monte Carlo simulation
