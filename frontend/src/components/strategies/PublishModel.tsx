@@ -249,7 +249,7 @@ const PublishModal = ({ backtest, onClose, onPublish }: PublishModalProps) => {
                                 </p>
                             )}
                             <p className="text-xs text-slate-500 ml-auto">
-                                {formData.description.length} / 50 characters
+                                {formData.description.length} / 150 characters
                             </p>
                         </div>
                     </div>
@@ -299,7 +299,7 @@ const PublishModal = ({ backtest, onClose, onPublish }: PublishModalProps) => {
                                 type="text"
                                 value={currentTag}
                                 onChange={(e) => setCurrentTag(e.target.value)}
-                                onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addTag())}
+                                onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addTag())}
                                 className="flex-1 px-4 py-2 bg-slate-800 border border-slate-700 rounded-xl text-slate-200 focus:border-violet-500 outline-none"
                                 placeholder="Add tags (e.g., stocks, crypto, swing-trading)"
                             />

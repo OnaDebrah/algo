@@ -65,11 +65,11 @@ const Sidebar = ({ currentPage, setCurrentPage, user, onLogout }: any) => {
     };
 
     return (
-        <aside className="fixed left-0 top-0 h-full w-64 bg-midnight/80 backdrop-blur-xl border-r border-white/5 flex flex-col z-50">
+        <aside className="fixed left-0 top-0 h-full w-64 bg-slate-900/95 backdrop-blur-xl border-r border-slate-800/80 flex flex-col z-50">
             {/* Brand Section */}
             <div className="p-6 border-b border-slate-800/80">
                 <div className="flex items-center space-x-3">
-                    <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-primary-600 to-secondary-600 flex items-center justify-center shadow-lg shadow-primary-500/20">
+                    <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-violet-500 to-fuchsia-500 flex items-center justify-center shadow-lg shadow-violet-500/30">
                         <Activity size={20} className="text-white" strokeWidth={2.5} />
                     </div>
                     <div>

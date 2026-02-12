@@ -231,7 +231,7 @@ class PortfolioOptimizer:
 
     def efficient_frontier(self, num_portfolios: int = 50) -> pd.DataFrame:
         """
-        Generate efficient frontier
+        Generate efficient frontier (optimized with warm-starting)
 
         Args:
             num_portfolios: Number of portfolios to generate
@@ -248,18 +248,50 @@ class PortfolioOptimizer:
 
         target_returns = np.linspace(min_return, max_return, num_portfolios)
 
+        # Pre-compute annualized covariance matrix once
+        cov_annual = self.cov_matrix.values * 252
+        mean_ret_annual = self.mean_returns.values * 252
+        num_assets = len(self.symbols)
+        bounds = tuple((0, 1) for _ in range(num_assets))
+
+        def portfolio_vol_fast(weights):
+            return np.sqrt(weights @ cov_annual @ weights)
+
+        # Use warm-starting: each optimization starts from previous solution
+        prev_weights = np.array([1.0 / num_assets] * num_assets)
+
         frontier = []
         for target_return in target_returns:
             try:
-                result = self.optimize_target_return(target_return)
-                frontier.append(
-                    {
-                        "return": result["expected_return"],
-                        "volatility": result["volatility"],
-                        "sharpe": result["sharpe_ratio"],
-                        "weights": result["weights"],
-                    }
+                constraints = [
+                    {"type": "eq", "fun": lambda x: np.sum(x) - 1},
+                    {"type": "eq", "fun": lambda x, tr=target_return: mean_ret_annual @ x - tr},
+                ]
+
+                result = minimize(
+                    portfolio_vol_fast,
+                    prev_weights,  # Warm-start from previous solution
+                    method="SLSQP",
+                    bounds=bounds,
+                    constraints=constraints,
+                    options={"ftol": 1e-8, "maxiter": 100},
                 )
+
+                if result.success:
+                    optimal_weights = result.x
+                    prev_weights = optimal_weights  # Use as warm-start for next
+                    ret = mean_ret_annual @ optimal_weights
+                    vol = portfolio_vol_fast(optimal_weights)
+                    sharpe = (ret - 0.02) / vol if vol > 0 else 0
+
+                    frontier.append(
+                        {
+                            "return": ret,
+                            "volatility": vol,
+                            "sharpe": sharpe,
+                            "weights": dict(zip(self.symbols, optimal_weights)),
+                        }
+                    )
             except Exception as e:
                 logger.exception(f"Failed to create efficient frontier: {e}")
                 continue

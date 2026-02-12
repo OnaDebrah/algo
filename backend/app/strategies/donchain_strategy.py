@@ -8,6 +8,7 @@ Simple, robust, and effective across timeframes and asset classes.
 
 from typing import Dict
 
+import numpy as np
 import pandas as pd
 
 from backend.app.strategies import BaseStrategy
@@ -139,6 +140,47 @@ class DonchianChannelStrategy(BaseStrategy):
                 return 1  # Exit short
 
         return 0  # Hold current position
+
+    def generate_signals_vectorized(self, data: pd.DataFrame) -> pd.Series:
+        """Vectorized Donchian Channel breakout with distinct Exit Logic"""
+        channels = self.calculate_channels(data)
+        high = data["High"]
+        low = data["Low"]
+
+        prev_upper_entry = channels["upper_entry"].shift(1)
+        prev_lower_entry = channels["lower_entry"].shift(1)
+        prev_upper_exit = channels["upper_exit"].shift(1)
+        prev_lower_exit = channels["lower_exit"].shift(1)
+
+        # Long: Enter on N-period high, Exit on M-period low
+        long_entry = high > prev_upper_entry
+        long_exit = low < prev_lower_exit
+
+        # Short: Enter on N-period low, Exit on M-period high
+        short_entry = low < prev_lower_entry
+        short_exit = high > prev_upper_exit
+
+        # Initial state is 0 (Flat)
+        signals = pd.Series(0, index=data.index)
+
+        # We use np.select to prioritize entries over exits in the same bar
+        # 1 = Long, -1 = Short, 0 = Flat
+        signals = np.select(
+            condlist=[
+                long_entry,  # Trigger Long
+                short_entry if self.params["use_both_sides"] else False,  # Trigger Short
+                long_exit,  # Close Long
+                short_exit,  # Close Short
+            ],
+            choicelist=[1, -1, 0, 0],
+            default=np.nan,  # Use NaN to identify "Hold" bars
+        )
+
+        # Forward-fill the signals
+        # This carries the '1' or '-1' until a '0' (exit) is hit
+        signals = pd.Series(signals, index=data.index).ffill().fillna(0)
+
+        return signals
 
     def get_indicator_values(self, data: pd.DataFrame) -> Dict[str, pd.Series]:
         """
@@ -299,6 +341,29 @@ class DonchianATRStrategy(BaseStrategy):
 
         return 0
 
+    def generate_signals_vectorized(self, data: pd.DataFrame) -> pd.Series:
+        """Vectorized Donchian ATR breakout signal generation"""
+        channels = self.calculate_channels(data)
+        atr = self.calculate_atr(data)
+        high = data["High"]
+        low = data["Low"]
+
+        prev_upper_entry = channels["upper_entry"].shift(1)
+        prev_lower_entry = channels["lower_entry"].shift(1)
+
+        signals = pd.Series(0, index=data.index)
+
+        # Long entry with ATR filter: breakout strength > 0.1 ATR
+        breakout_up = high - prev_upper_entry
+        signals[(high > prev_upper_entry) & (breakout_up / atr > 0.1)] = 1
+
+        # Short entry with ATR filter
+        if self.params["use_both_sides"]:
+            breakout_down = prev_lower_entry - low
+            signals[(low < prev_lower_entry) & (breakout_down / atr > 0.1)] = -1
+
+        return signals
+
     def get_position_size(self, data: pd.DataFrame, account_value: float, risk_per_trade: float = 0.02) -> float:
         """
         Calculate position size based on ATR
@@ -419,6 +484,32 @@ class FilteredDonchianStrategy(BaseStrategy):
             return 1
 
         return 0
+
+    def generate_signals_vectorized(self, data: pd.DataFrame) -> pd.Series:
+        """Vectorized Filtered Donchian signal generation"""
+        entry_period = self.params["entry_period"]
+        exit_period = self.params["exit_period"]
+
+        donchian = DonchianChannelStrategy(entry_period=entry_period, exit_period=exit_period)
+        channels = donchian.calculate_channels(data)
+        trend_ma = self.calculate_trend(data)
+
+        high = data["High"]
+        low = data["Low"]
+        close = data["Close"]
+
+        prev_upper_entry = channels["upper_entry"].shift(1)
+        prev_lower_entry = channels["lower_entry"].shift(1)
+
+        signals = pd.Series(0, index=data.index)
+
+        # Long: Breakout + price above MA (uptrend)
+        signals[(high > prev_upper_entry) & (close > trend_ma)] = 1
+
+        # Short: Breakout + price below MA (downtrend)
+        signals[(low < prev_lower_entry) & (close < trend_ma)] = -1
+
+        return signals
 
 
 # ============================================================

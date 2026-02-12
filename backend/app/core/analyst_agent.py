@@ -154,7 +154,7 @@ class FinancialAnalystAgent:
             }
 
         except Exception as e:
-            print(f"  ⚠️ Error gathering data: {e}")
+            logger.error(f"  ⚠️ Error gathering data: {e}")
             return {
                 "ticker": ticker,
                 "info": {},
@@ -164,7 +164,7 @@ class FinancialAnalystAgent:
 
     def _perform_technical_analysis(self, data: Dict) -> Dict:
         """Perform comprehensive technical analysis"""
-        print("  📈 Performing technical analysis...")
+        logger.info("  📈 Performing technical analysis...")
 
         hist = data.get("history", pd.DataFrame())
         if hist.empty:
@@ -244,12 +244,12 @@ class FinancialAnalystAgent:
             }
 
         except Exception as e:
-            print(f"  ⚠️ Technical analysis error: {e}")
+            logger.error(f"  ⚠️ Technical analysis error: {e}")
             return {}
 
     def _calculate_fundamentals(self, data: Dict) -> Dict:
         """Calculate fundamental metrics"""
-        print("  💰 Calculating fundamentals...")
+        logger.info("  💰 Calculating fundamentals...")
 
         info = data.get("info", {})
 
@@ -291,12 +291,12 @@ class FinancialAnalystAgent:
             }
 
         except Exception as e:
-            print(f"  ⚠️ Fundamentals calculation error: {e}")
+            logger.error(f"  ⚠️ Fundamentals calculation error: {e}")
             return {}
 
     async def _analyze_peers(self, ticker: str, data: Dict) -> Dict:
         """Analyze peer companies"""
-        print("  🏢 Analyzing peer companies...")
+        logger.info("  🏢 Analyzing peer companies...")
 
         info = data.get("info", {})
         sector = info.get("sector", "")
@@ -316,7 +316,7 @@ class FinancialAnalystAgent:
 
     async def _analyze_news_sentiment(self, ticker: str) -> Dict:
         """Analyze recent news and sentiment"""
-        print("  📰 Analyzing news sentiment...")
+        logger.info("  📰 Analyzing news sentiment...")
 
         try:
             sentiment_data = await self.sentiment_service.get_sentiment(ticker)
@@ -329,7 +329,7 @@ class FinancialAnalystAgent:
             }
 
         except Exception as e:
-            print(f"  ⚠️ News analysis error: {e}")
+            logger.error(f"  ⚠️ News analysis error: {e}")
             return {"recent_news": [], "news_count": 0, "sentiment": "N/A", "score": 0.0}
 
     async def _generate_ai_analysis(
@@ -343,7 +343,7 @@ class FinancialAnalystAgent:
         depth: str,
     ) -> Dict:
         """Generate AI-powered analysis using Claude"""
-        print("  🤖 Generating AI analysis...")
+        logger.info("  🤖 Generating AI analysis...")
 
         if not self.client:
             return self._generate_fallback_analysis(ticker, data, technical, fundamentals)
@@ -369,7 +369,7 @@ class FinancialAnalystAgent:
             return analysis
 
         except Exception as e:
-            print(f"  ⚠️ AI analysis error: {e}, using fallback")
+            logger.error(f"  ⚠️ AI analysis error: {e}, using fallback")
             return self._generate_fallback_analysis(ticker, data, technical, fundamentals)
 
     def _build_analysis_prompt(

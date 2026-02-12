@@ -5,7 +5,7 @@ Organize all trading strategies by type - Expanded Version
 
 from dataclasses import dataclass
 from enum import Enum
-from typing import Dict, List, Type
+from typing import Dict, List, Literal, Type
 
 from backend.app.strategies import BaseStrategy, KAMAStrategy, MACDStrategy, MLStrategy, MultiTimeframeKAMAStrategy
 from backend.app.strategies.adpative_trend_ff_strategy import AdaptiveTrendFollowingStrategy
@@ -14,16 +14,28 @@ from backend.app.strategies.cs_momentum_strategy import CrossSectionalMomentumSt
 from backend.app.strategies.donchain_strategy import DonchianATRStrategy, DonchianChannelStrategy, FilteredDonchianStrategy
 from backend.app.strategies.kalman_filter_strategy import KalmanFilterStrategy
 from backend.app.strategies.lstm_strategy import LSTMStrategy
+
+# ML Strategies
+from backend.app.strategies.ml.mc_ml_sentiment_strategy import MonteCarloMLSentimentStrategy
 from backend.app.strategies.options_strategies import OptionsStrategy
 from backend.app.strategies.pairs_trading_strategy import PairsTradingStrategy
 from backend.app.strategies.parabolic_sar import ParabolicSARStrategy
 from backend.app.strategies.rsi_strategy import RSIStrategy
 from backend.app.strategies.sma_crossover import SMACrossoverStrategy
+from backend.app.strategies.stat_arb.base_stat_arb import RiskParityStatArb
 from backend.app.strategies.stat_arb.sector_neutral import SectorNeutralStrategy
 
 # Statistical Arbitrage
 # from backend.app.strategies import SectorNeutralStrategy
 from backend.app.strategies.ts_momentum_strategy import TimeSeriesMomentumStrategy
+
+# Kalman Filter HFT (conditional on numba)
+try:
+    from backend.app.strategies.kalman_filter_strategy import KalmanFilterStrategyHFT
+
+    HFT_AVAILABLE = True
+except ImportError:
+    HFT_AVAILABLE = False
 from backend.app.strategies.volatility.dynamic_scaling import DynamicVolatilityScalingStrategy
 from backend.app.strategies.volatility.variance_risk_premium import VarianceRiskPremiumStrategy
 
@@ -63,6 +75,7 @@ class StrategyInfo:
     parameters: Dict
     pros: List[str]
     cons: List[str]
+    backtest_mode: Literal["single", "multi", "both"] = "single"  # Which backtest modes this strategy supports
 
 
 class StrategyCatalog:
@@ -109,6 +122,7 @@ class StrategyCatalog:
                     "Many false signals in ranging markets",
                     "Late entries and exits",
                 ],
+                backtest_mode="both",
             ),
             "macd": StrategyInfo(
                 name="MACD Strategy",
@@ -150,6 +164,7 @@ class StrategyCatalog:
                     "Complex for beginners",
                     "Can whipsaw in choppy markets",
                 ],
+                backtest_mode="both",
             ),
             "adaptive_trend": StrategyInfo(
                 name="Adaptive Trend Following",
@@ -187,6 +202,7 @@ class StrategyCatalog:
                     "Parameter optimization needed",
                     "Computationally intensive",
                 ],
+                backtest_mode="both",
             ),
             "kama": StrategyInfo(
                 name="KAMA Strategy",
@@ -210,6 +226,7 @@ class StrategyCatalog:
                     "Works across multiple timeframes",
                 ],
                 cons=["More complex than simple MAs", "Still has some lag", "Parameter sensitive", "Can whipsaw during trend transitions"],
+                backtest_mode="both",
             ),
             "multi_kama": StrategyInfo(
                 name="MULTI KAMA Strategy",
@@ -233,6 +250,7 @@ class StrategyCatalog:
                     "Works across multiple timeframes",
                 ],
                 cons=["More complex than simple MAs", "Still has some lag", "Parameter sensitive", "Can whipsaw during trend transitions"],
+                backtest_mode="both",
             ),
             "donchian": StrategyInfo(
                 name="Donchian Channel Breakout",
@@ -262,6 +280,7 @@ class StrategyCatalog:
                     "Requires discipline to follow",
                     "Late exits can give back profits",
                 ],
+                backtest_mode="both",
             ),
             "donchian_atr": StrategyInfo(
                 name="Donchian ATR Strategy",
@@ -285,6 +304,7 @@ class StrategyCatalog:
                     "Adapts to volatility",
                 ],
                 cons=["More complex than classic version", "May miss some breakouts", "Requires ATR calculation", "Parameter optimization needed"],
+                backtest_mode="both",
             ),
             "filtered_donchian": StrategyInfo(
                 name="Filtered Donchian Strategy",
@@ -301,6 +321,7 @@ class StrategyCatalog:
                 },
                 pros=["Fewer false breakouts", "Better win rate", "Reduced whipsaws", "Trend-aligned entries", "Lower drawdowns"],
                 cons=["Misses counter-trend moves", "Later entries than classic", "More parameters to optimize", "May miss trend reversals"],
+                backtest_mode="both",
             ),
             # ============================================================
             # MOMENTUM STRATEGIES
@@ -341,6 +362,7 @@ class StrategyCatalog:
                     "Less effective in strong trends",
                     "False signals common",
                 ],
+                backtest_mode="both",
             ),
             "ts_momentum": StrategyInfo(
                 name="Time Series Momentum",
@@ -378,6 +400,7 @@ class StrategyCatalog:
                     "Requires patience",
                     "Transaction costs matter",
                 ],
+                backtest_mode="multi",
             ),
             "cs_momentum": StrategyInfo(
                 name="Cross-Sectional Momentum",
@@ -420,6 +443,7 @@ class StrategyCatalog:
                     "Crowded trade risk",
                     "Sector concentration risk",
                 ],
+                backtest_mode="multi",
             ),
             "parabolic_sar": StrategyInfo(
                 name="Parabolic SAR",
@@ -461,6 +485,7 @@ class StrategyCatalog:
                     "Always in market (can be a con)",
                     "Late entries in fast reversals",
                 ],
+                backtest_mode="both",
             ),
             # ============================================================
             # MEAN REVERSION
@@ -500,6 +525,7 @@ class StrategyCatalog:
                     "Stop loss placement tricky",
                     "Can be early to counter-trend",
                 ],
+                backtest_mode="both",
             ),
             "pairs_trading": StrategyInfo(
                 name="Pairs Trading",
@@ -542,6 +568,7 @@ class StrategyCatalog:
                     "Higher transaction costs",
                     "Relationship breakdown risk",
                 ],
+                backtest_mode="multi",
             ),
             # ============================================================
             # VOLATILITY STRATEGIES
@@ -582,6 +609,7 @@ class StrategyCatalog:
                     "Requires quick execution",
                     "Stop losses essential",
                 ],
+                backtest_mode="single",
             ),
             "volatility_targeting": StrategyInfo(
                 name="Volatility Targeting",
@@ -619,6 +647,7 @@ class StrategyCatalog:
                     "Frequent rebalancing",
                     "Implementation complexity",
                 ],
+                backtest_mode="single",
             ),
             "dynamic_scaling": StrategyInfo(
                 name="Dynamic Position Scaling",
@@ -656,6 +685,7 @@ class StrategyCatalog:
                     "Can underperform in stable markets",
                     "Higher turnover",
                 ],
+                backtest_mode="single",
             ),
             "variance_risk_premium": StrategyInfo(
                 name="Variance Risk Premium",
@@ -693,6 +723,7 @@ class StrategyCatalog:
                     "Negative skewness",
                     "Can blow up in crises",
                 ],
+                backtest_mode="single",
             ),
             # ============================================================
             # STATISTICAL ARBITRAGE
@@ -733,6 +764,7 @@ class StrategyCatalog:
                     "Execution challenges",
                     "Lower absolute returns",
                 ],
+                backtest_mode="multi",
             ),
             # ============================================================
             # MACHINE LEARNING
@@ -750,6 +782,7 @@ class StrategyCatalog:
                     "Data-rich environments",
                 ],
                 parameters={
+                    "model_type": {"default": "random_forest", "range": None, "description": "Model type"},
                     "n_estimators": {
                         "default": 100,
                         "range": (50, 500),
@@ -778,6 +811,7 @@ class StrategyCatalog:
                     "Risk of overfitting",
                     "Computationally expensive",
                 ],
+                backtest_mode="single",
             ),
             "ml_gradient_boosting": StrategyInfo(
                 name="ML Gradient Boosting",
@@ -792,6 +826,7 @@ class StrategyCatalog:
                     "High accuracy needs",
                 ],
                 parameters={
+                    "model_type": {"default": "gradient_boosting", "range": None, "description": "Model type"},
                     "n_estimators": {
                         "default": 100,
                         "range": (50, 500),
@@ -820,6 +855,7 @@ class StrategyCatalog:
                     "Requires careful tuning",
                     "Computationally intensive",
                 ],
+                backtest_mode="single",
             ),
             "ml_svm": StrategyInfo(
                 name="ML SVM Classifier",
@@ -851,6 +887,7 @@ class StrategyCatalog:
                     "Sensitive to noise",
                     "Hard to interpret probability",
                 ],
+                backtest_mode="single",
             ),
             "ml_logistic": StrategyInfo(
                 name="ML Logistic Regression",
@@ -882,6 +919,7 @@ class StrategyCatalog:
                     "Underperforms on complex data",
                     "Requires feature engineering",
                 ],
+                backtest_mode="single",
             ),
             "ml_lstm": StrategyInfo(
                 name="ML LSTM (Deep Learning)",
@@ -923,6 +961,7 @@ class StrategyCatalog:
                     "Hard to train (vanishing gradients)",
                     "Black box",
                 ],
+                backtest_mode="single",
             ),
             # ============================================================
             # ADAPTIVE STRATEGIES
@@ -1000,6 +1039,7 @@ class StrategyCatalog:
                     "Requires cointegrated asset pairs to be effective",
                     "More complex than simple pairs trading",
                 ],
+                backtest_mode="multi",
             ),
             # ============================================================
             # OPTIONS STRATEGIES
@@ -1041,6 +1081,7 @@ class StrategyCatalog:
                     "Opportunity cost if stock rallies",
                     "Early assignment risk",
                 ],
+                backtest_mode="single",
             ),
             "iron_condor": StrategyInfo(
                 name="Iron Condor",
@@ -1079,6 +1120,7 @@ class StrategyCatalog:
                     "Pin risk near expiration",
                     "Complex adjustments needed",
                 ],
+                backtest_mode="single",
             ),
             "butterfly_spread": StrategyInfo(
                 name="Butterfly Spread",
@@ -1117,6 +1159,7 @@ class StrategyCatalog:
                     "Time decay works against you early",
                     "Complex to manage",
                 ],
+                backtest_mode="single",
             ),
             "straddle": StrategyInfo(
                 name="Long Straddle",
@@ -1155,10 +1198,215 @@ class StrategyCatalog:
                     "Time decay hurts",
                     "IV crush risk after event",
                 ],
+                backtest_mode="single",
+            ),
+            # ============================================================
+            # STATISTICAL ARBITRAGE - RISK PARITY
+            # ============================================================
+            "risk_parity_stat_arb": StrategyInfo(
+                name="Risk Parity Statistical Arbitrage",
+                class_type=RiskParityStatArb,
+                category=StrategyCategory.STATISTICAL_ARBITRAGE,
+                description="Market-neutral statistical arbitrage that allocates based on risk contribution rather than equal weights. Builds cointegrated baskets and trades mean-reverting spreads with risk-parity position sizing.",
+                complexity="Advanced",
+                time_horizon="Short to Medium-term",
+                best_for=[
+                    "Market-neutral portfolios",
+                    "Risk-adjusted stat arb",
+                    "Institutional trading",
+                    "Balanced risk allocation",
+                ],
+                parameters={
+                    "universe": {
+                        "default": ["AAPL", "MSFT", "GOOGL", "AMZN", "META"],
+                        "range": None,
+                        "description": "List of asset symbols for basket construction",
+                    },
+                    "basket_size": {
+                        "default": 3,
+                        "range": (2, 10),
+                        "description": "Number of assets per trading basket",
+                    },
+                    "lookback_period": {
+                        "default": 252,
+                        "range": (60, 504),
+                        "description": "Period for cointegration analysis (days)",
+                    },
+                    "entry_threshold": {
+                        "default": 2.0,
+                        "range": (1.0, 3.0),
+                        "description": "Z-score entry threshold",
+                    },
+                    "exit_threshold": {
+                        "default": 0.5,
+                        "range": (0.0, 1.0),
+                        "description": "Z-score exit threshold",
+                    },
+                    "stop_loss_threshold": {
+                        "default": 3.0,
+                        "range": (2.0, 5.0),
+                        "description": "Z-score stop loss threshold",
+                    },
+                    "method": {
+                        "default": "cointegration",
+                        "range": ["cointegration", "pca", "kalman"],
+                        "description": "Basket construction method",
+                    },
+                },
+                pros=[
+                    "Risk-balanced position sizing",
+                    "Market-neutral by design",
+                    "Lower volatility than equal-weight stat arb",
+                    "Exploits multi-asset cointegration",
+                    "Institutional-grade risk management",
+                ],
+                cons=[
+                    "Requires multiple correlated assets",
+                    "Complex implementation",
+                    "Cointegration relationships can break down",
+                    "Higher computational requirements",
+                    "Sensitive to lookback period choice",
+                ],
+                backtest_mode="multi",
+            ),
+            # ============================================================
+            # MACHINE LEARNING - MONTE CARLO SENTIMENT
+            # ============================================================
+            "mc_ml_sentiment": StrategyInfo(
+                name="Monte Carlo ML Sentiment",
+                class_type=MonteCarloMLSentimentStrategy,
+                category=StrategyCategory.MACHINE_LEARNING,
+                description="Combines sentiment analysis, machine learning predictions, and Monte Carlo simulation for probabilistic price forecasting. Uses Kelly Criterion for risk-aware position sizing.",
+                complexity="Expert",
+                time_horizon="Short to Medium-term",
+                best_for=[
+                    "Sentiment-driven trading",
+                    "Probabilistic forecasting",
+                    "Risk-aware position sizing",
+                    "Multi-factor alpha generation",
+                ],
+                parameters={
+                    "ml_model_type": {
+                        "default": "gradient_boosting",
+                        "range": ["gradient_boosting", "random_forest"],
+                        "description": "ML model for return prediction",
+                    },
+                    "lookback_period": {
+                        "default": 252,
+                        "range": (60, 504),
+                        "description": "Training data lookback (days)",
+                    },
+                    "forecast_horizon": {
+                        "default": 20,
+                        "range": (5, 60),
+                        "description": "Forecast horizon (days)",
+                    },
+                    "num_simulations": {
+                        "default": 10000,
+                        "range": (1000, 50000),
+                        "description": "Number of Monte Carlo paths",
+                    },
+                    "confidence_level": {
+                        "default": 0.95,
+                        "range": (0.90, 0.99),
+                        "description": "Confidence level for VaR/bounds",
+                    },
+                    "sentiment_weight": {
+                        "default": 0.3,
+                        "range": (0.0, 1.0),
+                        "description": "Weight of sentiment in combined signal",
+                    },
+                },
+                pros=[
+                    "Combines multiple alpha sources (sentiment + technical + ML)",
+                    "Probabilistic risk assessment via Monte Carlo",
+                    "Kelly Criterion position sizing",
+                    "Automatic model retraining",
+                    "Confidence-weighted signals",
+                ],
+                cons=[
+                    "Requires sentiment data API access (Twitter, news)",
+                    "Computationally intensive (Monte Carlo sims)",
+                    "Complex pipeline with multiple failure points",
+                    "Sentiment data quality varies",
+                    "ML model overfitting risk",
+                ],
+                backtest_mode="single",
             ),
         }
 
+        # Conditionally add HFT Kalman Filter strategy
+        if HFT_AVAILABLE:
+            catalog["kalman_filter_hft"] = StrategyInfo(
+                name="Kalman Filter Pairs (HFT/Numba)",
+                class_type=KalmanFilterStrategyHFT,
+                category=StrategyCategory.PAIRS_TRADING,
+                description="High-frequency version of Kalman Filter pairs trading with Numba JIT acceleration. Uses pre-compiled numerical routines for ultra-fast Kalman updates suitable for intraday trading.",
+                complexity="Expert",
+                time_horizon="Intraday to Short-term",
+                best_for=[
+                    "High-frequency pairs trading",
+                    "Low-latency stat arb",
+                    "Intraday mean reversion",
+                    "Cointegrated asset pairs",
+                ],
+                parameters={
+                    "asset_1": {
+                        "default": "AAPL",
+                        "range": None,
+                        "description": "First asset in the pair",
+                    },
+                    "asset_2": {
+                        "default": "MSFT",
+                        "range": None,
+                        "description": "Second asset in the pair",
+                    },
+                    "entry_z": {
+                        "default": 2.0,
+                        "range": (1.0, 4.0),
+                        "description": "Z-score threshold for trade entry",
+                    },
+                    "exit_z": {
+                        "default": 0.5,
+                        "range": (0.0, 1.0),
+                        "description": "Z-score threshold for mean reversion exit",
+                    },
+                    "stop_loss_z": {
+                        "default": 3.0,
+                        "range": (2.0, 5.0),
+                        "description": "Z-score threshold for stop loss",
+                    },
+                    "transitory_std": {
+                        "default": 0.01,
+                        "range": (0.0001, 0.1),
+                        "description": "System noise for hedge ratio changes",
+                    },
+                    "observation_std": {
+                        "default": 0.1,
+                        "range": (0.01, 1.0),
+                        "description": "Measurement noise",
+                    },
+                },
+                pros=[
+                    "10-100x faster than pure Python Kalman updates",
+                    "Numba JIT compilation for near-C performance",
+                    "Suitable for intraday/HFT timeframes",
+                    "Same mathematical model as standard Kalman pairs",
+                ],
+                cons=[
+                    "Requires numba package installation",
+                    "First run has JIT compilation overhead",
+                    "Same pair selection challenges as standard Kalman",
+                    "Not all systems support numba",
+                ],
+                backtest_mode="multi",
+            )
+
         return catalog
+
+    def get_by_mode(self, mode: str) -> Dict[str, StrategyInfo]:
+        """Get strategies compatible with a backtest mode ('single' or 'multi')"""
+        return {key: info for key, info in self.strategies.items() if info.backtest_mode == mode or info.backtest_mode == "both"}
 
     def get_by_category(self, category: StrategyCategory) -> Dict[str, StrategyInfo]:
         """Get all strategies in a category"""

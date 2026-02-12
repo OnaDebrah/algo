@@ -16,6 +16,7 @@ class BacktestRequest(BaseModel):
     initial_capital: float = 100000
     commission_rate: float = 0.001
     slippage_rate: float = 0.0005
+    ml_model_id: Optional[str] = None  # For ML strategies: ID of a deployed model to use
 
 
 class BacktestResult(BaseModel):

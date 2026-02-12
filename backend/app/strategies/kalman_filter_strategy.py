@@ -153,16 +153,13 @@ class KalmanFilterStrategy(BaseStrategy):
 
     def _update_kalman_batch(self, log_prices_1: np.ndarray, log_prices_2: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
         """
-        Batch update Kalman filter - much faster than sequential updates
+        Batch update Kalman filter - processes all observations sequentially
+        and retains the final state for future calls.
         Returns: (hedge_ratios, intercepts)
         """
         n = len(log_prices_1)
         hedge_ratios = np.zeros(n)
         intercepts = np.zeros(n)
-
-        # Save initial state
-        x_save = self.kf.x.copy()
-        P_save = self.kf.P.copy()
 
         for i in range(n):
             # Update measurement matrix
@@ -179,17 +176,6 @@ class KalmanFilterStrategy(BaseStrategy):
             # Store results
             hedge_ratios[i] = self.kf.x[0, 0]
             intercepts[i] = self.kf.x[1, 0]
-
-        # Restore state to last update
-        self.kf.x = x_save
-        self.kf.P = P_save
-
-        # Final update with last observation
-        self.H_buffer[0, 0] = log_prices_2[-1]
-        self.H_buffer[0, 1] = 1.0
-        self.z_buffer[0, 0] = log_prices_1[-1]
-        self.kf.predict()
-        self.kf.update(self.z_buffer)
 
         return hedge_ratios, intercepts
 

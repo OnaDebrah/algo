@@ -255,8 +255,8 @@ async def get_option_chain(
     except Exception as e:
         import traceback
 
-        print(f"❌ Option chain error: {str(e)}")
-        print(traceback.format_exc())
+        logger.error(f"❌ Option chain error: {str(e)}")
+        logger.debug(traceback.format_exc())
         raise HTTPException(status_code=500, detail=f"Failed to fetch option chain for {request.symbol}: {str(e)}")
 
 
@@ -279,7 +279,7 @@ async def run_backtest(request: BacktestRequest, current_user: User = Depends(ge
                 raise ValueError("Missing required OHLC columns")
 
         except Exception as e:
-            print(f"⚠️ Failed to fetch real data for {request.symbol}: {e}")
+            logger.error(f"⚠️ Failed to fetch real data for {request.symbol}: {e}")
             # Fallback to mock data
             dates = pd.date_range(start=request.start_date, end=request.end_date, freq="D")
             prices = 100 * (1 + np.random.randn(len(dates)).cumsum() * 0.02)
@@ -292,16 +292,13 @@ async def run_backtest(request: BacktestRequest, current_user: User = Depends(ge
         logger.info(f"📊 Running backtest for {request.symbol} from {request.start_date} to {request.end_date}")
         logger.info(f"📊 Data shape: {data.shape}, Strategy: {request.strategy_type}")
 
-        # ✅ FIX 1: Convert strategy type string to enum
         try:
-            # Handle both uppercase and lowercase, with/without underscores
             strategy_name = request.strategy_type.upper().replace("-", "_").replace(" ", "_")
             strategy_enum = OptionsStrategy[strategy_name]
         except KeyError:
             # Try direct value match
             strategy_enum = OptionsStrategy(request.strategy_type)
 
-        # ✅ FIX 2: Run backtest using the core engine
         results = backtest_options_strategy(
             symbol=request.symbol,
             data=data,
@@ -314,16 +311,13 @@ async def run_backtest(request: BacktestRequest, current_user: User = Depends(ge
 
         logger.info(f"✅ Backtest complete: {results['total_trades']} trades, {results['win_rate']:.1f}% win rate")
 
-        # ✅ FIX 3: Get engine from results
         engine = results.get("engine")
         if not engine:
             raise ValueError("Backtest engine not found in results")
 
-        # ✅ FIX 4: Safely serialize equity curve
         equity_curve_data = []
         for e in engine.equity_curve:
             date_val = e["date"]
-            # Handle both Timestamp and datetime objects
             if hasattr(date_val, "isoformat"):
                 date_str = date_val.isoformat()
             else:
@@ -331,7 +325,6 @@ async def run_backtest(request: BacktestRequest, current_user: User = Depends(ge
 
             equity_curve_data.append({"date": date_str, "equity": float(e["equity"])})
 
-        # ✅ FIX 5: Safely serialize trades
         trades_data = []
         for t in engine.trades:
             date_val = t["date"]
@@ -366,11 +359,6 @@ async def run_backtest(request: BacktestRequest, current_user: User = Depends(ge
         logger.info(f"❌ Backtest error: {str(e)}")
         logger.info(traceback.format_exc())
         raise HTTPException(status_code=500, detail=f"Backtest failed for {request.symbol}: {str(e)}")
-
-
-# ============================================================
-# ENHANCED ENDPOINTS
-# ============================================================
 
 
 @router.post("/analyze", response_model=StrategyAnalysisResponse)

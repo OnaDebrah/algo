@@ -246,7 +246,7 @@ const MultiAssetBacktest: React.FC<MultiAssetBacktestProps> = ({
     };
 
     const isPairsStrategy = useMemo(() => {
-        const pairsStrategies = ['kalman_filter', 'pairs_trading', 'cointegration'];
+        const pairsStrategies = ['kalman_filter', 'kalman_filter_hft', 'pairs_trading', 'cointegration'];
         return pairsStrategies.includes(config.strategy);
     }, [config.strategy]);
 

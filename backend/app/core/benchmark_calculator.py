@@ -37,34 +37,32 @@ class BenchmarkCalculator:
         commission = self.initial_capital * commission_rate
         shares = (self.initial_capital - commission) / first_price
 
-        # Track equity over time
-        equity_curve = []
-        for timestamp, row in data.iterrows():
-            current_price = row["Close"]
-            equity = shares * current_price
-            equity_curve.append(
-                {
-                    "timestamp": timestamp,
-                    "equity": equity,
-                    "cash": 0,  # All in
-                    "drawdown": 0,  # Will calculate below
-                }
-            )
+        # Vectorized equity calculation - no iterrows loop
+        close_prices = data["Close"].values
+        timestamps = data.index
+        equity_values = shares * close_prices
 
-        # Calculate drawdown
-        equity_series = pd.Series([point["equity"] for point in equity_curve])
+        # Vectorized drawdown calculation
+        equity_series = pd.Series(equity_values)
         running_max = equity_series.expanding().max()
         drawdown = (equity_series - running_max) / running_max
 
-        for i, point in enumerate(equity_curve):
-            point["drawdown"] = drawdown.iloc[i]
+        # Build equity curve from vectorized arrays
+        equity_curve = [
+            {
+                "timestamp": timestamps[i],
+                "equity": float(equity_values[i]),
+                "cash": 0,
+                "drawdown": float(drawdown.iloc[i]),
+            }
+            for i in range(len(timestamps))
+        ]
 
         # Final metrics
-        final_price = data["Close"].iloc[-1]
-        final_equity = shares * final_price
+        final_equity = float(equity_values[-1])
         total_return = final_equity - self.initial_capital
         total_return_pct = (total_return / self.initial_capital) * 100
-        max_drawdown = drawdown.min()
+        max_drawdown = float(drawdown.min())
 
         # Sharpe ratio (annualized)
         returns = equity_series.pct_change().dropna()

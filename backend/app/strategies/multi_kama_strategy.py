@@ -102,3 +102,23 @@ class MultiTimeframeKAMAStrategy(BaseStrategy):
             return -1
 
         return 0
+
+    def generate_signals_vectorized(self, data: pd.DataFrame) -> pd.Series:
+        """Vectorized Multi-Timeframe KAMA signal generation"""
+        short_kama = self.calculate_kama(data, self.params["short_period"])
+        long_kama = self.calculate_kama(data, self.params["long_period"])
+        close = data["Close"]
+        prev_close = close.shift(1)
+        prev_short_kama = short_kama.shift(1)
+
+        signals = pd.Series(0, index=data.index)
+
+        # Buy: Price crosses above short KAMA, above both KAMAs, short > long
+        buy_cond = (prev_close <= prev_short_kama) & (close > short_kama) & (close > long_kama) & (short_kama > long_kama)
+        signals[buy_cond] = 1
+
+        # Sell: Price crosses below short KAMA, below both KAMAs, short < long
+        sell_cond = (prev_close >= prev_short_kama) & (close < short_kama) & (close < long_kama) & (short_kama < long_kama)
+        signals[sell_cond] = -1
+
+        return signals

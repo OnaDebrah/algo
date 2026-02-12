@@ -4,9 +4,11 @@ Enhanced Backtest service with pairs trading support
 
 import asyncio
 import logging
+import math
 from datetime import datetime
 from typing import List
 
+import numpy as np
 import pandas as pd
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -31,6 +33,29 @@ from backend.app.schemas.backtest import (
 from backend.app.strategies.strategy_catalog import get_catalog
 
 logger = logging.getLogger(__name__)
+
+
+def _sanitize_value(value):
+    """Recursively sanitize values to ensure JSON compliance (no inf/NaN)."""
+    if isinstance(value, (float, np.floating)):
+        if math.isnan(value) or math.isinf(value):
+            return 0.0
+        return float(value)
+    elif isinstance(value, (np.integer,)):
+        return int(value)
+    elif isinstance(value, dict):
+        return {k: _sanitize_value(v) for k, v in value.items()}
+    elif isinstance(value, list):
+        return [_sanitize_value(item) for item in value]
+    return value
+
+
+# ML strategy keys that require training before backtesting.
+# These strategies have is_trained flags and return zeros if not trained.
+ML_STRATEGY_KEYS = {"ml_random_forest", "ml_gradient_boosting", "ml_svm", "ml_logistic", "ml_lstm"}
+
+# ML strategies that self-train during signal generation (no explicit train() needed for backtest)
+ML_SELF_TRAINING_KEYS = {"mc_ml_sentiment"}
 
 
 class BacktestService:
@@ -136,14 +161,46 @@ class BacktestService:
                 )
                 await self.update_backtest_status(backtest_run.id, "running")
 
+            # Validate strategy is compatible with single-asset mode
+            strategy_info = self.catalog.get_info(request.strategy_key)
+            if strategy_info and strategy_info.backtest_mode == "multi":
+                raise ValueError(f"Strategy '{strategy_info.name}' requires multi-asset mode. " f"Please use the multi-asset backtest instead.")
+
             # Fetch data
             data = await asyncio.to_thread(fetch_stock_data, request.symbol, request.period, request.interval)
 
             if data.empty:
                 raise ValueError(f"No data available for {request.symbol}")
 
-            # Create strategy
-            strategy = self.catalog.create_strategy(request.strategy_key, **request.parameters)
+            # Create strategy — for ML strategies, either load a deployed model or auto-train
+            if request.strategy_key in ML_STRATEGY_KEYS:
+                strategy = None
+                if request.ml_model_id:
+                    # Try to load a pre-trained deployed model from ML Studio
+                    try:
+                        from backend.app.api.routes.mlstudio import load_model
+
+                        strategy = load_model(request.ml_model_id)
+                        logger.info(f"Loaded deployed ML model '{request.ml_model_id}' for backtest")
+                    except (ValueError, FileNotFoundError) as e:
+                        logger.warning(f"Could not load ML model '{request.ml_model_id}': {e}. Falling back to auto-train.")
+
+                if strategy is None:
+                    # No deployed model or model not found — auto-train on the data
+                    strategy = self.catalog.create_strategy(request.strategy_key, **request.parameters)
+                    logger.info(f"Auto-training ML strategy '{request.strategy_key}' on backtest data")
+                    try:
+                        await asyncio.to_thread(strategy.train, data)
+                        logger.info(f"ML strategy auto-trained: is_trained={getattr(strategy, 'is_trained', 'N/A')}")
+                    except Exception as e:
+                        raise ValueError(f"ML auto-training failed: {str(e)}")
+            elif request.strategy_key in ML_SELF_TRAINING_KEYS:
+                # Self-training ML strategies (e.g., MC ML Sentiment) — they train
+                # during signal generation, so just create the strategy instance
+                strategy = self.catalog.create_strategy(request.strategy_key, **request.parameters)
+                logger.info(f"Created self-training ML strategy '{request.strategy_key}' — will train during signal generation")
+            else:
+                strategy = self.catalog.create_strategy(request.strategy_key, **request.parameters)
 
             # Run backtest
             engine = TradingEngine(
@@ -169,9 +226,11 @@ class BacktestService:
             equity_series = pd.Series([point.equity for point in equity_curve])
             running_max = equity_series.expanding().max()
             drawdown = (equity_series - running_max) / running_max
+            # Replace NaN/inf values in drawdown (e.g. when running_max is 0)
+            drawdown = drawdown.fillna(0.0).replace([float("inf"), float("-inf")], 0.0)
 
             for i, point in enumerate(equity_curve):
-                point.drawdown = drawdown.iloc[i]
+                point.drawdown = float(drawdown.iloc[i])
 
             # Create result
             result = BacktestResult(**metrics)
@@ -203,6 +262,11 @@ class BacktestService:
 
             if benchmark:
                 benchmark["comparison"] = benchmark_calc.compare_to_benchmark(metrics, benchmark)
+                # Sanitize benchmark to prevent inf/NaN JSON serialization errors
+                benchmark = _sanitize_value(benchmark)
+
+            # Sanitize price_data (engine.trades can contain NaN from pandas)
+            sanitized_price_data = _sanitize_value(engine.trades) if engine.trades else None
 
             # Update database with results
             if backtest_run:
@@ -211,7 +275,7 @@ class BacktestService:
                 update_data["trades"] = [t.model_dump() for t in trades]
                 await self.update_backtest_status(backtest_run.id, "completed", update_data)
 
-            return BacktestResponse(result=result, equity_curve=equity_curve, trades=trades, price_data=engine.trades, benchmark=benchmark)
+            return BacktestResponse(result=result, equity_curve=equity_curve, trades=trades, price_data=sanitized_price_data, benchmark=benchmark)
 
         except Exception as e:
             logger.error(f"Backtest failed: {e}", exc_info=True)
@@ -243,6 +307,14 @@ class BacktestService:
                 )
                 await self.update_backtest_status(backtest_run.id, "running")
 
+            # Validate strategies are compatible with multi-asset mode
+            for symbol, config in request.strategy_configs.items():
+                strategy_info = self.catalog.get_info(config.strategy_key)
+                if strategy_info and strategy_info.backtest_mode == "single":
+                    raise ValueError(
+                        f"Strategy '{strategy_info.name}' only supports single-asset mode. " f"It cannot be used in multi-asset backtests."
+                    )
+
             # Detect if this is a pairs trading strategy
             is_pairs_strategy = self._is_pairs_strategy(request.strategy_configs, request.symbols)
 
@@ -269,9 +341,11 @@ class BacktestService:
             equity_series = pd.Series([point.equity for point in equity_curve])
             running_max = equity_series.expanding().max()
             drawdown = (equity_series - running_max) / running_max
+            # Replace NaN/inf values in drawdown (e.g. when running_max is 0)
+            drawdown = drawdown.fillna(0.0).replace([float("inf"), float("-inf")], 0.0)
 
             for i, point in enumerate(equity_curve):
-                point.drawdown = drawdown.iloc[i]
+                point.drawdown = float(drawdown.iloc[i])
 
             # Create trades
             trades = [
@@ -315,6 +389,11 @@ class BacktestService:
 
                 if benchmark:
                     benchmark["comparison"] = benchmark_calc.compare_to_benchmark(results.model_dump(), benchmark)
+                    # Sanitize benchmark to prevent inf/NaN JSON serialization errors
+                    benchmark = _sanitize_value(benchmark)
+
+            # Sanitize price_data
+            sanitized_price_data = _sanitize_value(engine.trades) if engine.trades else None
 
             # Update database
             if backtest_run:
@@ -323,7 +402,9 @@ class BacktestService:
                 update_data["trades"] = [t.model_dump() for t in trades]
                 await self.update_backtest_status(backtest_run.id, "completed", update_data)
 
-            return MultiAssetBacktestResponse(result=results, equity_curve=equity_curve, trades=trades, price_data=engine.trades, benchmark=benchmark)
+            return MultiAssetBacktestResponse(
+                result=results, equity_curve=equity_curve, trades=trades, price_data=sanitized_price_data, benchmark=benchmark
+            )
 
         except Exception as e:
             logger.error(f"Multi-asset backtest failed: {e}", exc_info=True)

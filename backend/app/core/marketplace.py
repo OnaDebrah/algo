@@ -136,6 +136,12 @@ class StrategyListing:
     num_ratings: int = 0
     num_reviews: int = 0
 
+    # User-provided content
+    pros: List[str] = None
+    cons: List[str] = None
+    risk_level: str = "medium"
+    recommended_capital: float = 10000.0
+
     # Timestamps
     created_at: datetime = None
     updated_at: datetime = None
@@ -145,6 +151,10 @@ class StrategyListing:
             self.parameters = {}
         if self.tags is None:
             self.tags = []
+        if self.pros is None:
+            self.pros = []
+        if self.cons is None:
+            self.cons = []
         if self.backtest_results is None:
             self.backtest_results = BacktestResults()
         if self.created_at is None:
@@ -168,7 +178,6 @@ class StrategyMarketplace:
         try:
             cursor = conn.cursor(cursor_factory=RealDictCursor)
 
-            # Main strategy listings table (with quick access metrics)
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS marketplace_strategies (
                     id SERIAL PRIMARY KEY,
@@ -211,7 +220,20 @@ class StrategyMarketplace:
                 )
             """)
 
-            # Backtest results table (stores complete backtest data)
+            migrations = [
+                ("verification_badge", "TEXT"),
+                ("pros", "TEXT"),
+                ("cons", "TEXT"),
+                ("risk_level", "TEXT DEFAULT 'medium'"),
+                ("recommended_capital", "DOUBLE PRECISION DEFAULT 10000.0"),
+            ]
+
+            for col, col_type in migrations:
+                cursor.execute(f"""
+                    ALTER TABLE marketplace_strategies
+                    ADD COLUMN IF NOT EXISTS {col} {col_type};
+                """)
+
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS strategy_backtests (
                     id SERIAL PRIMARY KEY,
@@ -238,7 +260,6 @@ class StrategyMarketplace:
                 )
             """)
 
-            # Keep existing tables for reviews, downloads, favorites
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS strategy_reviews (
                     id SERIAL PRIMARY KEY,
@@ -280,6 +301,7 @@ class StrategyMarketplace:
 
             conn.commit()
             logger.info("Marketplace data initialised successfully")
+
         except Exception as e:
             conn.rollback()
             logger.error(f"Failed to initialise Marketplace: {e}")
@@ -287,10 +309,6 @@ class StrategyMarketplace:
         finally:
             cursor.close()
             self.db.return_connection(conn)
-
-    # ============================================================
-    # PUBLISHING WITH BACKTEST RESULTS
-    # ============================================================
 
     def publish_strategy_with_backtest(
         self, listing: StrategyListing, equity_curve_df: pd.DataFrame = None, trades_df: pd.DataFrame = None, daily_returns_df: pd.DataFrame = None
@@ -319,8 +337,9 @@ class StrategyMarketplace:
                                                       category, complexity, parameters,
                                                       sharpe_ratio, total_return, max_drawdown, win_rate,
                                                       num_trades,
-                                                      price, is_public, is_verified, verification_badge, version, tags)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                                                      price, is_public, is_verified, verification_badge, version, tags,
+                                                      pros, cons, risk_level, recommended_capital)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                 RETURNING id
                 """,
                 (
@@ -343,6 +362,10 @@ class StrategyMarketplace:
                     listing.verification_badge,
                     listing.version,
                     json.dumps(listing.tags),
+                    json.dumps(listing.pros),
+                    json.dumps(listing.cons),
+                    listing.risk_level,
+                    listing.recommended_capital,
                 ),
             )
 
@@ -503,9 +526,6 @@ class StrategyMarketplace:
 
         strategies = []
         for row in rows:
-            # Get backtest results for this strategy
-            backtest_data = self.get_strategy_backtest(row["id"])
-
             listing = StrategyListing(
                 id=row["id"],
                 name=row["name"],
@@ -516,7 +536,6 @@ class StrategyMarketplace:
                 category=row["category"],
                 complexity=row["complexity"],
                 parameters=json.loads(row["parameters"]),
-                backtest_results=backtest_data["backtest_results"] if backtest_data else BacktestResults(),
                 sharpe_ratio=row["sharpe_ratio"],
                 total_return=row["total_return"],
                 max_drawdown=row["max_drawdown"],
@@ -532,6 +551,10 @@ class StrategyMarketplace:
                 rating=row["rating"],
                 num_ratings=row["num_ratings"],
                 num_reviews=row["num_reviews"],
+                pros=json.loads(row["pros"]) if row.get("pros") else [],
+                cons=json.loads(row["cons"]) if row.get("cons") else [],
+                risk_level=row.get("risk_level", "medium") or "medium",
+                recommended_capital=row.get("recommended_capital", 10000.0) or 10000.0,
                 created_at=datetime.fromisoformat(row["created_at"]),
                 updated_at=datetime.fromisoformat(row["updated_at"]),
             )

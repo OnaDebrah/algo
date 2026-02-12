@@ -136,3 +136,21 @@ class ParabolicSARStrategy(BaseStrategy):
             return -1
 
         return 0
+
+    def generate_signals_vectorized(self, data: pd.DataFrame) -> pd.Series:
+        """Vectorized Parabolic SAR signal generation"""
+        sar = self.calculate_sar(data)
+        close = data["Close"]
+
+        is_uptrend = close > sar
+        was_uptrend = close.shift(1) > sar.shift(1)
+
+        signals = pd.Series(0, index=data.index)
+
+        # Bullish flip: was downtrend, now uptrend
+        signals[is_uptrend & ~was_uptrend] = 1
+
+        # Bearish flip: was uptrend, now downtrend
+        signals[~is_uptrend & was_uptrend] = -1
+
+        return signals

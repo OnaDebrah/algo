@@ -80,7 +80,7 @@ export const useBacktestStore = create<BacktestState>((set, get) => ({
 
         try {
             if (backtestMode === 'single') {
-                const request = {
+                const request: any = {
                     symbol: singleConfig.symbol,
                     strategy_key: singleConfig.strategy,
                     parameters: singleConfig.params || {},
@@ -88,6 +88,11 @@ export const useBacktestStore = create<BacktestState>((set, get) => ({
                     interval: singleConfig.interval,
                     initial_capital: singleConfig.initialCapital
                 };
+
+                // Pass ml_model_id for ML strategies with a deployed model selected
+                if (singleConfig.ml_model_id) {
+                    request.ml_model_id = singleConfig.ml_model_id;
+                }
 
                 const response = await backtest.runSingle(request);
 

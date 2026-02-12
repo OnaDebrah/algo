@@ -156,7 +156,12 @@ class LSTMStrategy(BaseStrategy):
         criterion = nn.CrossEntropyLoss()
         optimizer = torch.optim.Adam(self.model.parameters(), lr=self.learning_rate)
 
-        # Training loop
+        # Prepare test tensors BEFORE the training loop so we can compute val metrics per epoch
+        X_test = torch.from_numpy(X_test_np).float() if len(X_test_np) > 0 else None
+        y_test = torch.from_numpy(y_test_np).long() if len(y_test_np) > 0 else None
+
+        # Training loop — capture per-epoch metrics
+        training_history = []
         self.model.train()
         for i in range(self.epochs):
             optimizer.zero_grad()
@@ -165,28 +170,49 @@ class LSTMStrategy(BaseStrategy):
             loss.backward()
             optimizer.step()
 
+            # Per-epoch metrics
+            with torch.no_grad():
+                _, train_pred = torch.max(outputs.data, 1)
+                train_acc = (train_pred == y_train).sum().item() / len(y_train)
+
+                val_loss_val = None
+                val_acc_val = None
+                if X_test is not None and y_test is not None:
+                    self.model.eval()
+                    test_out = self.model(X_test)
+                    val_loss_val = float(criterion(test_out, y_test).item())
+                    _, test_pred = torch.max(test_out.data, 1)
+                    val_acc_val = (test_pred == y_test).sum().item() / len(y_test)
+                    self.model.train()
+
+                training_history.append(
+                    {
+                        "epoch": i + 1,
+                        "loss": round(float(loss.item()), 6),
+                        "accuracy": round(train_acc, 6),
+                        "val_loss": round(val_loss_val, 6) if val_loss_val is not None else None,
+                        "val_accuracy": round(val_acc_val, 6) if val_acc_val is not None else None,
+                    }
+                )
+
         self.is_trained = True
         logger.info("LSTM Model Trained")
 
-        # Calculate scores
+        # Final scores (use last epoch values for consistency)
         self.model.eval()
         with torch.no_grad():
-            # Train score
             train_out = self.model(X_train)
             _, train_pred = torch.max(train_out.data, 1)
             train_score = (train_pred == y_train).sum().item() / len(y_train)
 
-            # Test score
-            if len(X_test_np) > 0:
-                X_test = torch.from_numpy(X_test_np).float()
-                y_test = torch.from_numpy(y_test_np).long()
+            if X_test is not None and y_test is not None:
                 test_out = self.model(X_test)
                 _, test_pred = torch.max(test_out.data, 1)
                 test_score = (test_pred == y_test).sum().item() / len(y_test)
             else:
                 test_score = 0.0
 
-        return train_score, test_score
+        return train_score, test_score, training_history
 
     def generate_signal(self, data: pd.DataFrame) -> int:
         """Generate signal"""
@@ -210,3 +236,41 @@ class LSTMStrategy(BaseStrategy):
 
         # Prediction 1 = Up, 0 = Down/Hold
         return 1 if prediction == 1 else -1
+
+    def generate_signals_vectorized(self, data: pd.DataFrame) -> pd.Series:
+        """Vectorized LSTM signal generation - batch inference on all windows"""
+        signals = pd.Series(0, index=data.index)
+
+        if not self.is_trained or len(data) < self.lookback + 2:
+            return signals
+
+        # Calculate returns for entire series
+        returns = data["Close"].pct_change().values.reshape(-1, 1)
+
+        # Scale all returns at once
+        scaled = self.scaler.transform(returns)
+
+        # Build all sequences at once using stride_tricks for zero-copy
+        n = len(scaled) - self.lookback
+        if n <= 0:
+            return signals
+
+        # Create all windows in one operation
+        sequences = np.lib.stride_tricks.sliding_window_view(scaled.flatten(), self.lookback)[:n]
+        sequences = sequences.reshape(n, self.lookback, 1)
+
+        # Batch inference
+        seq_tensor = torch.from_numpy(sequences).float()
+        self.model.eval()
+        with torch.no_grad():
+            outputs = self.model(seq_tensor)
+            _, predictions = torch.max(outputs.data, 1)
+
+        # Map predictions to signals (1=Up->1, 0=Down->-1)
+        pred_array = predictions.numpy()
+        signal_values = np.where(pred_array == 1, 1, -1)
+
+        # Align with index (sequences start at lookback position)
+        signals.iloc[self.lookback : self.lookback + n] = signal_values
+
+        return signals
