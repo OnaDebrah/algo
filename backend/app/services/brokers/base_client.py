@@ -2,7 +2,7 @@ import logging
 from abc import ABC, abstractmethod
 from typing import Any, Dict, List, Optional
 
-from backend.app.schemas.settings import UserSettings
+from backend.app.models import UserSettings
 
 logger = logging.getLogger(__name__)
 

@@ -191,8 +191,9 @@ class DatabaseManager:
                     broker_base_url VARCHAR(255),
 
                     broker_host VARCHAR(255),
-                    broker_port VARCHAR(255),
-                    broker_client_id VARCHAR(255),
+                    broker_port INTEGER,
+                    broker_client_id INTEGER,
+                    user_ib_account_id VARCHAR(255),
 
                     -- General settings
                     theme VARCHAR(20) DEFAULT 'dark',

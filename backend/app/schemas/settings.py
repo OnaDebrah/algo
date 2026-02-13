@@ -21,7 +21,7 @@ class BrokerSettings(BaseModel):
     host: Optional[str] = Field(settings.IB_HOST, description="IB host")
     port: Optional[int] = Field(settings.IB_PAPER_PORT, description="IB port")
     client_id: Optional[int] = Field(settings.IB_CLIENT_ID, description="IB client id")
-    user_ib_account_id: Optional[str] = Field(settings.IB_CLIENT_ID, description="User IB Account id")
+    user_ib_account_id: Optional[str] = Field(None, description="User IB Account id")
 
     is_configured: Optional[bool] = Field(False, description="Whether credentials are configured")
 

@@ -6,6 +6,8 @@ Supports: Alpaca, Paper Trading, and extensible for other brokers
 import logging
 from typing import Any, Dict, List, Optional
 
+from backend.app.config import settings
+from backend.app.models import UserSettings
 from backend.app.services.brokers.base_client import BrokerClient
 
 logger = logging.getLogger(__name__)
@@ -22,14 +24,14 @@ class AlpacaClient(BrokerClient):
         self.api = None
         self.connected = False
 
-    async def connect(self, credentials: Dict[str, str]) -> bool:
+    async def connect(self, user_settings: UserSettings) -> bool:
         """Connect to Alpaca API"""
         try:
             import alpaca_trade_api as tradeapi
 
-            api_key = credentials.get("api_key")
-            api_secret = credentials.get("api_secret")
-            base_url = credentials.get("base_url", "https://paper-api.alpaca.markets")
+            api_key = user_settings.broker_api_key
+            api_secret = user_settings.broker_api_secret
+            base_url = user_settings.broker_base_url or settings.ALPACA_PAPER_BASE_URL
 
             if not api_key or not api_secret:
                 logger.error("Missing Alpaca credentials")

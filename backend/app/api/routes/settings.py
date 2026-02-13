@@ -215,8 +215,8 @@ async def delete_broker_credentials(current_user: User = Depends(get_current_act
     settings.broker_api_key = None
     settings.broker_api_secret = None
     settings.broker_base_url = None
-    settings.broker_base_url = None
-    settings.broker_base_url = None
+    settings.broker_host = None
+    settings.broker_port = None
     settings.broker_client_id = None
     settings.user_ib_account_id = None
 
