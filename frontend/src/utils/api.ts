@@ -93,7 +93,7 @@ import {
     // HTTP Error
     HTTPValidationError, RegimeData, RegimeHistoryResponse, PairsValidationRequest, PairsValidationResponse,
     LiveOrderPlacement, LiveOrderUpdate, MarketplaceFilterParams, AlertPreferences, Alert, DeploymentConfig,
-    BrokerConnectionResponse, MLModelStatusRequest, ModelPrediction
+    BrokerConnectionResponse, MLModelStatusRequest, ModelPrediction, BrokerSettings
 } from '@/types/all_types';
 import {
     BaseOptimizationRequest, BlackLittermanRequest, BlackLittermanResponse,
@@ -703,8 +703,8 @@ export const settings = {
     get: () =>
         client.get<UserSettings>('/settings/'),
 
-    update: (data: SettingsUpdate) =>
-        client.put<UserSettings>('/settings/', data),
+    update: (request: SettingsUpdate) =>
+        client.put<UserSettings>('/settings/', request),
 
     reset: () =>
         client.post<UserSettings>('/settings/reset'),

@@ -3,6 +3,7 @@ Enhanced User Settings API
 Includes broker configuration and data source preferences for live trading
 """
 
+import asyncio
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -10,9 +11,19 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.app.api.deps import get_current_active_user, get_db
+from backend.app.config import settings
 from backend.app.models.user import User
 from backend.app.models.user_settings import UserSettings as UserSettingsModel
-from backend.app.schemas.settings import BacktestSettings, BrokerSettings, GeneralSettings, LiveTradingSettings, SettingsUpdate, UserSettings
+from backend.app.schemas.settings import (
+    BacktestSettings,
+    BrokerConnectionResponse,
+    BrokerSettings,
+    GeneralSettings,
+    LiveTradingSettings,
+    SettingsUpdate,
+    UserSettings,
+)
+from backend.app.services.brokers.ib_client import IBClient
 
 router = APIRouter(prefix="/settings", tags=["Settings"])
 
@@ -21,22 +32,26 @@ async def get_or_create_settings(db: AsyncSession, user_id: int) -> UserSettings
     """Get existing settings or create default ones"""
     stmt = select(UserSettingsModel).where(UserSettingsModel.user_id == user_id)
     result = await db.execute(stmt)
-    settings = result.scalars().first()
+    settings_ = result.scalars().first()
 
-    if not settings:
-        settings = UserSettingsModel(
+    if not settings_:
+        settings_ = UserSettingsModel(
             user_id=user_id,
             # Backtest defaults
             data_source="yahoo",
-            slippage=0.001,
-            commission=0.002,
-            initial_capital=10000.0,
+            slippage=settings.DEFAULT_SLIPPAGE_RATE,
+            commission=settings.DEFAULT_COMMISSION_RATE,
+            initial_capital=settings.DEFAULT_INITIAL_CAPITAL,
             # Live trading defaults
             live_data_source="alpaca",
             default_broker="paper",
             broker_api_key=None,
             broker_api_secret=None,
             broker_base_url=None,
+            # IBKR
+            broker_host=None,
+            broker_port=None,
+            broker_client_id=None,
             auto_connect_broker=False,
             # General defaults
             theme="dark",
@@ -44,15 +59,16 @@ async def get_or_create_settings(db: AsyncSession, user_id: int) -> UserSettings
             auto_refresh=True,
             refresh_interval=30,
         )
-        db.add(settings)
+        db.add(settings_)
         await db.commit()
-        await db.refresh(settings)
+        await db.refresh(settings_)
 
-    return settings
+    return settings_
 
 
 def model_to_schema(model: UserSettingsModel) -> UserSettings:
     """Convert SQLAlchemy model to Pydantic schema"""
+    has_broker_config = bool(model.broker_api_key or model.broker_host or model.broker_port)
     return UserSettings(
         user_id=model.user_id,
         backtest=BacktestSettings(
@@ -67,9 +83,13 @@ def model_to_schema(model: UserSettingsModel) -> UserSettings:
                 api_key=model.broker_api_key,  # Never send actual keys to frontend
                 api_secret=None,  # NEVER send secrets to frontend
                 base_url=model.broker_base_url,
-                is_configured=bool(model.broker_api_key),  # Just indicate if configured
+                host=model.broker_host,
+                port=model.broker_port,
+                client_id=model.broker_client_id,
+                user_ib_account_id=model.user_ib_account_id,
+                is_configured=bool(model.broker_api_key or model.broker_host),  # Just indicate if configured
             )
-            if model.broker_api_key
+            if has_broker_config
             else None,
         ),
         general=GeneralSettings(
@@ -126,6 +146,14 @@ async def update_user_settings(
             if broker.base_url:
                 settings.broker_base_url = broker.base_url
 
+            if broker.host:
+                settings.broker_host = broker.host
+            if broker.port:
+                settings.broker_port = broker.port
+                settings.broker_client_id = int(current_user.id % 32700)
+            if broker.user_ib_account_id:
+                settings.user_ib_account_id = broker.user_ib_account_id
+
     # Update general settings
     if settings_update.general:
         if settings_update.general.theme:
@@ -154,7 +182,6 @@ async def reset_user_settings(current_user: User = Depends(get_current_active_us
         await db.delete(settings)
         await db.commit()
 
-    # Create new default settings
     settings = await get_or_create_settings(db, current_user.id)
     return model_to_schema(settings)
 
@@ -173,6 +200,10 @@ async def get_broker_credentials(current_user: User = Depends(get_current_active
         "api_key": settings.broker_api_key,
         "api_secret": settings.broker_api_secret,
         "base_url": settings.broker_base_url,
+        "host": settings.broker_base_url,
+        "port": settings.broker_base_url,
+        "client_id": settings.broker_client_id,
+        "user_ib_account_id": settings.user_ib_account_id,
     }
 
 
@@ -184,56 +215,74 @@ async def delete_broker_credentials(current_user: User = Depends(get_current_act
     settings.broker_api_key = None
     settings.broker_api_secret = None
     settings.broker_base_url = None
+    settings.broker_base_url = None
+    settings.broker_base_url = None
+    settings.broker_client_id = None
+    settings.user_ib_account_id = None
 
     await db.commit()
 
     return {"message": "Broker credentials deleted successfully", "timestamp": datetime.now(timezone.utc).isoformat()}
 
 
-@router.post("/broker/test-connection")
+@router.post("/broker/test-connection", response_model=BrokerConnectionResponse)
 async def test_broker_connection(current_user: User = Depends(get_current_active_user), db: AsyncSession = Depends(get_db)):
     """
     Test broker connection with stored credentials
 
     Returns connection status and account info if successful
     """
-    settings = await get_or_create_settings(db, current_user.id)
+    settings_: UserSettingsModel = await get_or_create_settings(db, current_user.id)
 
-    if not settings.broker_api_key:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No broker credentials configured. Please add credentials in settings.")
+    if settings_.default_broker == "alpaca" and not settings_.broker_api_key:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Alpaca requires an API Key. Please update settings.")
 
-    # TODO: Implement actual broker connection test
-    # For now, just validate credentials exist
+    if settings_.default_broker == "ibkr" and not settings_.broker_host:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="IBKR requires a Gateway Host. Please update settings.")
 
     try:
-        # Example: Test Alpaca connection
-        if settings.default_broker == "alpaca":
-            # from alpaca_trade_api import REST
-            # api = REST(
-            #     settings.broker_api_key,
-            #     settings.broker_api_secret,
-            #     settings.broker_base_url or 'https://paper-api.alpaca.markets'
-            # )
-            # account = api.get_account()
-            # return {
-            #     "status": "connected",
-            #     "broker": "alpaca",
-            #     "account_status": account.status,
-            #     "buying_power": float(account.buying_power),
-            #     "equity": float(account.equity)
-            # }
+        if settings_.default_broker == "alpaca":
+            from alpaca_trade_api import REST
 
+            api = REST(settings_.broker_api_key, settings_.broker_api_secret, settings_.broker_base_url or settings.ALPACA_PAPER_BASE_URL)
+            account = api.get_account()
             return {
                 "status": "connected",
-                "broker": settings.default_broker,
-                "message": "Connection test successful (mock)",
-                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "broker": "alpaca",
+                "account_status": account.status,
+                "buying_power": float(account.buying_power),
+                "equity": float(account.equity),
             }
+
+        if settings_.default_broker == "ibkr":
+            ib = IBClient()
+            try:
+                is_connected = await asyncio.wait_for(ib.connect(settings_, lightweight=True), timeout=15.0)
+
+                await ib.disconnect()
+
+                return {
+                    "status": "connected" if is_connected else "failed",
+                    "broker": "ibkr",
+                    "message": "IBKR connection successful" if is_connected else "Connection failed",
+                    "timestamp": datetime.now(timezone.utc).isoformat(),
+                }
+            except asyncio.TimeoutError:
+                await ib.disconnect()
+                return {
+                    "status": "timeout",
+                    "broker": "ibkr",
+                    "message": "Connection timed out during synchronization",
+                    "timestamp": datetime.now(timezone.utc).isoformat(),
+                }
+            except Exception as e:
+                await ib.disconnect()
+                raise HTTPException(status_code=500, detail=str(e))
 
         return {
             "status": "not_implemented",
-            "broker": settings.default_broker,
-            "message": f"Connection test not implemented for {settings.default_broker}",
+            "broker": settings_.default_broker,
+            "message": f"Connection test not implemented for {settings_.default_broker}",
         }
 
     except Exception as e:

@@ -8,9 +8,14 @@ import logging
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
+from ib_insync import IB, util
+
+from backend.app.models import UserSettings
 from backend.app.services.brokers.base_client import BrokerClient
 
 logger = logging.getLogger(__name__)
+
+util.patchAsyncio()
 
 
 class IBClient(BrokerClient):
@@ -21,52 +26,34 @@ class IBClient(BrokerClient):
     """
 
     def __init__(self):
-        self.ib = None
+        self.ib = IB()
         self.connected = False
         self.account_id = None
         self._bars_cache = {}  # Cache for historical data
 
-    async def connect(self, credentials: Dict[str, str]) -> bool:
-        """Connect to IB Gateway/TWS"""
+    async def connect(self, settings: UserSettings, lightweight: bool = False) -> bool:
+        """Connect to IB Gateway/TWS using native async methods"""
         try:
-            # Try to import ib_insync
-            try:
-                from ib_insync import IB
-            except ImportError:
-                logger.error("ib_insync not installed. Run: pip install ib_insync")
-                return False
+            if self.ib.isConnected():
+                self.ib.disconnect()
 
-            # Get connection parameters
-            host = credentials.get("host", "127.0.0.1")
-            port = int(credentials.get("port", 7497))  # 7497 for TWS paper, 7496 for TWS live
-            client_id = int(credentials.get("client_id", 1))
-            self.account_id = credentials.get("account_id", "")
+            host = settings.broker_host
+            port = settings.broker_port
+            client_id = settings.broker_client_id
+            self.account_id: str = settings.user_ib_account_id
 
-            # Create and connect IB instance
-            self.ib = IB()
-
-            # Run connection in thread to avoid blocking
-            def connect_sync():
-                return self.ib.connect(host=host, port=port, clientId=client_id, timeout=20)
-
-            # Use asyncio to run blocking connection
-            loop = asyncio.get_event_loop()
-            await loop.run_in_executor(None, connect_sync)
+            await self.ib.connectAsync(host=host, port=port, clientId=client_id, timeout=20)
 
             if self.ib.isConnected():
                 self.connected = True
-
-                # Set up error handler
                 self.ib.errorEvent += self._on_error
 
-                # Request account updates
-                if self.account_id:
-                    self.ib.reqAccountUpdates(True, self.account_id)
+                if not lightweight and self.account_id:
+                    self.ib.reqAccountUpdates(self.account_id)
 
                 logger.info(f"Connected to Interactive Brokers (Account: {self.account_id})")
                 return True
             else:
-                logger.error("Failed to connect to Interactive Brokers")
                 return False
 
         except Exception as e:
@@ -84,15 +71,12 @@ class IBClient(BrokerClient):
         """Disconnect from IB"""
         if self.ib and self.connected:
             try:
-                if self.account_id:
-                    self.ib.reqAccountUpdates(False, self.account_id)
-
                 self.ib.disconnect()
                 self.connected = False
                 logger.info("Disconnected from Interactive Brokers")
             except Exception as e:
                 logger.error(f"Error disconnecting from IB: {e}")
-        self.ib = None
+        self.connected = False
 
     async def is_market_open(self) -> bool:
         """

@@ -1464,6 +1464,10 @@ export interface BrokerSettings {
     api_key?: string;
     api_secret?: string;
     base_url?: string;
+    host?: string,
+    port?: number,
+    client_id?: string,
+    user_ib_account_id?: string,
     is_configured?: boolean;
 }
 

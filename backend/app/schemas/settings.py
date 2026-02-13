@@ -7,6 +7,8 @@ from typing import Optional
 
 from pydantic import BaseModel, Field
 
+from backend.app.config import settings
+
 
 class BrokerSettings(BaseModel):
     """Broker configuration"""
@@ -15,6 +17,12 @@ class BrokerSettings(BaseModel):
     api_key: Optional[str] = Field(None, description="API key (masked in responses)")
     api_secret: Optional[str] = Field(None, description="API secret (never sent to frontend)")
     base_url: Optional[str] = Field(None, description="Broker API base URL")
+    # IBKR Fields
+    host: Optional[str] = Field(settings.IB_HOST, description="IB host")
+    port: Optional[int] = Field(settings.IB_PAPER_PORT, description="IB port")
+    client_id: Optional[int] = Field(settings.IB_CLIENT_ID, description="IB client id")
+    user_ib_account_id: Optional[str] = Field(settings.IB_CLIENT_ID, description="User IB Account id")
+
     is_configured: Optional[bool] = Field(False, description="Whether credentials are configured")
 
 
@@ -22,9 +30,9 @@ class BacktestSettings(BaseModel):
     """Backtest-specific settings"""
 
     data_source: str = Field(default="yahoo", description="Data provider: yahoo, alpaca, polygon, etc.")
-    slippage: float = Field(default=0.001, ge=0, le=0.1, description="Slippage as decimal (0.001 = 0.1%)")
-    commission: float = Field(default=0.002, ge=0, le=0.1, description="Commission as decimal (0.002 = 0.2%)")
-    initial_capital: float = Field(default=10000.0, gt=0, description="Default initial capital for backtests")
+    slippage: float = Field(default=settings.DEFAULT_SLIPPAGE_RATE, ge=0, le=0.1, description="Slippage as decimal (0.001 = 0.1%)")
+    commission: float = Field(default=settings.DEFAULT_COMMISSION_RATE, ge=0, le=0.1, description="Commission as decimal (0.002 = 0.2%)")
+    initial_capital: float = Field(default=settings.DEFAULT_INITIAL_CAPITAL, gt=0, description="Default initial capital for backtests")
 
 
 class LiveTradingSettings(BaseModel):
