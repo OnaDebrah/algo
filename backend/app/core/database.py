@@ -190,6 +190,10 @@ class DatabaseManager:
                     broker_api_secret VARCHAR(255),
                     broker_base_url VARCHAR(255),
 
+                    broker_host VARCHAR(255),
+                    broker_port VARCHAR(255),
+                    broker_client_id VARCHAR(255),
+
                     -- General settings
                     theme VARCHAR(20) DEFAULT 'dark',
                     notifications BOOLEAN DEFAULT true,
