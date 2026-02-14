@@ -252,6 +252,7 @@ async def test_broker_connection(current_user: User = Depends(get_current_active
                 "account_status": account.status,
                 "buying_power": float(account.buying_power),
                 "equity": float(account.equity),
+                "timestamp": datetime.now(timezone.utc).isoformat(),
             }
 
         if settings_.default_broker == "ibkr":
@@ -277,12 +278,13 @@ async def test_broker_connection(current_user: User = Depends(get_current_active
                 }
             except Exception as e:
                 await ib.disconnect()
-                raise HTTPException(status_code=500, detail=str(e))
+                raise HTTPException(status_code=500, detail="IBKR connection test failed") from e
 
         return {
             "status": "not_implemented",
             "broker": settings_.default_broker,
             "message": f"Connection test not implemented for {settings_.default_broker}",
+            "timestamp": datetime.now(timezone.utc).isoformat(),
         }
 
     except Exception as e:
