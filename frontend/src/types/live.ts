@@ -191,3 +191,11 @@ export interface ControlResponse {
     message: string;
     timestamp: string;
 }
+
+export interface AccountResponse {
+    cash: number;
+    equity: number;
+    buying_power: number;
+    margin_used: number;
+    unrealized_pnl: number;
+}

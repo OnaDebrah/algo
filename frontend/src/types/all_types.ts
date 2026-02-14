@@ -1471,11 +1471,20 @@ export interface BrokerSettings {
     is_configured?: boolean;
 }
 
+export interface RiskManagement {
+    max_position_size?: number;
+    stop_loss_limit?: number;
+    daily_loss_limit?: number;
+    slippage?: number;
+    cooldown_seconds?: number;
+}
+
 export interface LiveTradingSettings {
     data_source: string;
     default_broker: string;
     auto_connect: boolean;
     broker?: BrokerSettings;
+    risk_management?: RiskManagement;
 }
 
 export interface UserSettings {

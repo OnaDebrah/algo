@@ -46,13 +46,24 @@ class PaperTradingClient(BrokerClient):
         """Get account information"""
         positions_value = sum(pos["quantity"] * pos["current_price"] for pos in self.positions.values())
 
+        # Calculate unrealized P&L
+        unrealized_pnl = sum((pos["current_price"] - pos["entry_price"]) * pos["quantity"] for pos in self.positions.values())
+
         equity = self.cash + positions_value
+
+        # Simple margin calculation (positions value as margin used)
+        margin_used = positions_value * 0.5  # Assume 50% margin requirement
 
         return {
             "cash": self.cash,
             "equity": equity,
-            "buying_power": self.cash,  # Simplified - no margin
+            "buying_power": self.cash * 4,  # 4x leverage for paper trading
+            "portfolio_value": equity,
             "positions_value": positions_value,
+            "unrealized_pnl": unrealized_pnl,
+            "realized_pnl": 0.0,  # Track this separately if needed
+            "margin_used": margin_used,
+            "total_cash": self.cash,
         }
 
     async def get_latest_bars(self, symbol: str, limit: int = 100) -> Optional[Dict[str, List[float]]]:
