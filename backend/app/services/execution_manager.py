@@ -9,7 +9,8 @@ from typing import Dict, Optional
 
 from sqlalchemy import select
 
-from backend.app.config import settings
+from backend.app.api.routes.settings import get_or_create_settings
+from backend.app.models import UserSettings
 from backend.app.models.live import LiveStrategy, StrategyStatus
 from backend.app.services.brokers.broker import BrokerClient, BrokerFactory
 from backend.app.services.strategy_executor import StrategyExecutor
@@ -31,13 +32,10 @@ class ExecutionManager:
     def __init__(self, db_session_factory):
         self.db_session_factory = db_session_factory
 
-        # Active executors: {strategy_id: StrategyExecutor}
         self.executors: Dict[int, StrategyExecutor] = {}
 
-        # Broker clients: {broker_name: BrokerClient}
         self.brokers: Dict[str, BrokerClient] = {}
 
-        # Background tasks
         self.running = False
         self.monitor_task: Optional[asyncio.Task] = None
 
@@ -157,9 +155,11 @@ class ExecutionManager:
                 logger.error(f"Strategy {strategy_id} not found")
                 return None
 
-            # Get or create broker client
-            broker_name = strategy.broker or "paper"
-            broker = await self._get_or_create_broker(broker_name, strategy)
+            user_settings = await get_or_create_settings(db, strategy.user_id)
+
+            broker_name = strategy.broker or user_settings.default_broker or "paper"
+
+            broker = await self._get_or_create_broker(broker_name, user_settings)
 
             if not broker:
                 logger.error(f"Failed to create broker for strategy {strategy_id}")
@@ -175,7 +175,7 @@ class ExecutionManager:
             await db.close()
             return None
 
-    async def _get_or_create_broker(self, broker_name: str, strategy: LiveStrategy) -> Optional[BrokerClient]:
+    async def _get_or_create_broker(self, broker_name: str, user_settings: UserSettings) -> Optional[BrokerClient]:
         """Get existing broker client or create new one"""
 
         if broker_name in self.brokers:
@@ -184,18 +184,7 @@ class ExecutionManager:
         try:
             broker = BrokerFactory.create_broker(broker_name)
 
-            credentials = {"initial_capital": strategy.initial_capital}
-
-            if broker_name.startswith("alpaca"):
-                credentials.update(
-                    {
-                        "api_key": settings.ALPACA_API_KEY,
-                        "api_secret": settings.ALPACA_SECRET,
-                        "base_url": settings.ALPACA_PAPER_BASE_URL if "paper" in broker_name else settings.ALPACA_BASE_URL,
-                    }
-                )
-
-            connected = await broker.connect(credentials)
+            connected = await broker.connect(user_settings)
 
             if not connected:
                 logger.error(f"Failed to connect to broker {broker_name}")

@@ -10,7 +10,8 @@ export const strategies: Strategy[] = [
         complexity: 'Beginner',
         time_horizon: 'Short to Medium-term',
         best_for: ["Trending markets", "Beginner traders", "Clear trends"],
-        parameters: { short_window: 20, long_window: 50 }
+        parameters: { short_window: 20, long_window: 50 },
+        backtest_mode: 'both',
     },
     {
         id: 'macd',
@@ -20,7 +21,8 @@ export const strategies: Strategy[] = [
         complexity: 'Intermediate',
         time_horizon: 'Medium-term',
         best_for: ["Trend identification", "Momentum confirmation", "Swing trading"],
-        parameters: { fast: 12, slow: 26, signal: 9 }
+        parameters: { fast: 12, slow: 26, signal: 9 },
+        backtest_mode: 'both',
     },
     {
         id: 'kama',
@@ -30,7 +32,8 @@ export const strategies: Strategy[] = [
         complexity: 'Intermediate',
         time_horizon: 'Medium-term',
         best_for: ["Trending markets", "Swing trading", "Reduced whipsaws", "Adaptive trend following"],
-        parameters: { period: 10, fast_ema: 2, slow_ema: 30, signal_threshold: 0.0 }
+        parameters: { period: 10, fast_ema: 2, slow_ema: 30, signal_threshold: 0.0 },
+        backtest_mode: 'both',
     },
     {
         id: 'multi_kama',
@@ -40,7 +43,8 @@ export const strategies: Strategy[] = [
         complexity: 'Intermediate',
         time_horizon: 'Medium-term',
         best_for: ["Trending markets", "Swing trading", "Reduced whipsaws", "Adaptive trend following"],
-        parameters: { short_period: 10, long_period: 15, fast_ema: 2, slow_ema: 30 }
+        parameters: { short_period: 10, long_period: 15, fast_ema: 2, slow_ema: 30 },
+        backtest_mode: 'both',
     },
     {
         id: 'donchian',
@@ -50,7 +54,8 @@ export const strategies: Strategy[] = [
         complexity: 'Beginner',
         time_horizon: 'Medium to Long-term',
         best_for: ["Trending markets", "Futures trading", "Long-term trend following", "Systematic trading"],
-        parameters: { entry_period: 20, exit_period: 10, use_both_sides: true }
+        parameters: { entry_period: 20, exit_period: 10, use_both_sides: true },
+        backtest_mode: 'both',
     },
     {
         id: 'donchian_atr',
@@ -60,7 +65,8 @@ export const strategies: Strategy[] = [
         complexity: 'Intermediate',
         time_horizon: 'Medium to Long-term',
         best_for: ["Risk-managed trend following", "Volatile markets", "Professional trading"],
-        parameters: { entry_period: 20, exit_period: 10, atr_period: 14, atr_multiplier: 2.0 }
+        parameters: { entry_period: 20, exit_period: 10, atr_period: 14, atr_multiplier: 2.0 },
+        backtest_mode: 'both',
     },
     {
         id: 'filtered_donchian',
@@ -70,7 +76,8 @@ export const strategies: Strategy[] = [
         complexity: 'Intermediate',
         time_horizon: 'Medium to Long-term',
         best_for: ["Reducing false breakouts", "Trend-aligned trading", "Lower drawdown tolerance"],
-        parameters: { entry_period: 20, exit_period: 10, trend_period: 50 }
+        parameters: { entry_period: 20, exit_period: 10, trend_period: 50 },
+        backtest_mode: 'both',
     },
     {
         id: 'parabolic_sar',
@@ -80,7 +87,8 @@ export const strategies: Strategy[] = [
         complexity: 'Intermediate',
         time_horizon: 'Medium-term',
         best_for: ["Trending markets", "Trailing stops", "Crypto/Volatile assets"],
-        parameters: { start: 0.02, increment: 0.02, maximum: 0.2 }
+        parameters: { start: 0.02, increment: 0.02, maximum: 0.2 },
+        backtest_mode: 'both',
     },
 
     // MOMENTUM
@@ -92,7 +100,8 @@ export const strategies: Strategy[] = [
         complexity: 'Beginner',
         time_horizon: 'Short-term',
         best_for: ["Range-bound markets", "Momentum trading", "Quick trades"],
-        parameters: { period: 14, oversold: 30, overbought: 70 }
+        parameters: { period: 14, oversold: 30, overbought: 70 },
+        backtest_mode: 'both',
     },
     {
         id: 'ts_momentum',
@@ -102,7 +111,8 @@ export const strategies: Strategy[] = [
         complexity: 'Intermediate',
         time_horizon: 'Short to Medium-term',
         best_for: ["Trending assets", "Futures trading", "Systematic strategies"],
-        parameters: { lookback: 12, holding_period: 1 }
+        parameters: { lookback: 12, holding_period: 1 },
+        backtest_mode: 'multi',
     },
     {
         id: 'cs_momentum',
@@ -112,7 +122,8 @@ export const strategies: Strategy[] = [
         complexity: 'Intermediate',
         time_horizon: 'Medium-term',
         best_for: ["Stock portfolios", "ETF rotation", "Long-short strategies"],
-        parameters: { lookback: 6, top_pct: 0.2, bottom_pct: 0.2 }
+        parameters: { lookback: 6, top_pct: 0.2, bottom_pct: 0.2 },
+        backtest_mode: 'multi',
     },
 
     // MEAN REVERSION
@@ -124,7 +135,8 @@ export const strategies: Strategy[] = [
         complexity: 'Intermediate',
         time_horizon: 'Short-term',
         best_for: ["Range-bound markets", "Mean reversion", "Swing trading"],
-        parameters: { period: 20, std_dev: 2.0 }
+        parameters: { period: 20, std_dev: 2.0 },
+        backtest_mode: 'both',
     },
     {
         id: 'pairs_trading',
@@ -134,7 +146,8 @@ export const strategies: Strategy[] = [
         complexity: 'Advanced',
         time_horizon: 'Short to Medium-term',
         best_for: ["Market-neutral strategies", "Statistical arbitrage", "Hedge funds"],
-        parameters: { lookback: 60, entry_threshold: 2.0, exit_threshold: 0.5 }
+        parameters: { lookback: 60, entry_threshold: 2.0, exit_threshold: 0.5 },
+        backtest_mode: 'multi',
     },
 
     // VOLATILITY
@@ -146,7 +159,8 @@ export const strategies: Strategy[] = [
         complexity: 'Intermediate',
         time_horizon: 'Short-term',
         best_for: ["Volatile markets", "Breakout trading", "Crypto and commodities"],
-        parameters: { period: 20, std_dev: 2.0 }
+        parameters: { period: 20, std_dev: 2.0 },
+        backtest_mode: 'single',
     },
     {
         id: 'volatility_targeting',
@@ -156,7 +170,8 @@ export const strategies: Strategy[] = [
         complexity: 'Advanced',
         time_horizon: 'All timeframes',
         best_for: ["Risk management", "Portfolio optimization", "Professional trading"],
-        parameters: { target_vol: 0.15, lookback: 21 }
+        parameters: { target_vol: 0.15, lookback: 21 },
+        backtest_mode: 'single',
     },
     {
         id: 'dynamic_scaling',
@@ -166,7 +181,8 @@ export const strategies: Strategy[] = [
         complexity: 'Advanced',
         time_horizon: 'All timeframes',
         best_for: ["Risk-adjusted returns", "Drawdown management", "Adaptive trading"],
-        parameters: { base_size: 0.1, scaling_factor: 1.5 }
+        parameters: { base_size: 0.1, scaling_factor: 1.5 },
+        backtest_mode: 'single',
     },
     {
         id: 'variance_risk_premium',
@@ -176,7 +192,8 @@ export const strategies: Strategy[] = [
         complexity: 'Advanced',
         time_horizon: 'Medium-term',
         best_for: ["Options trading", "Volatility arbitrage", "Institutional strategies"],
-        parameters: { lookback: 30, threshold: 0.05 }
+        parameters: { lookback: 30, threshold: 0.05 },
+        backtest_mode: 'single',
     },
 
     // STATISTICAL ARBITRAGE
@@ -188,7 +205,8 @@ export const strategies: Strategy[] = [
         complexity: 'Advanced',
         time_horizon: 'Short to Medium-term',
         best_for: ["Hedge funds", "Market-neutral portfolios", "Statistical arbitrage"],
-        parameters: { lookback: 60, rebalance_freq: 20 }
+        parameters: { lookback: 60, rebalance_freq: 20 },
+        backtest_mode: 'multi',
     },
 
     // MACHINE LEARNING
@@ -200,7 +218,8 @@ export const strategies: Strategy[] = [
         complexity: 'Advanced',
         time_horizon: 'Adaptable',
         best_for: ["Complex pattern recognition", "Multi-factor analysis"],
-        parameters: { n_estimators: 100, max_depth: 10, test_size: 0.2 }
+        parameters: { n_estimators: 100, max_depth: 10, test_size: 0.2 },
+        backtest_mode: 'single',
     },
     {
         id: 'ml_gradient_boosting',
@@ -210,7 +229,8 @@ export const strategies: Strategy[] = [
         complexity: 'Advanced',
         time_horizon: 'Adaptable',
         best_for: ["Complex patterns", "Incremental learning"],
-        parameters: { n_estimators: 100, learning_rate: 0.1, max_depth: 5 }
+        parameters: { n_estimators: 100, learning_rate: 0.1, max_depth: 5 },
+        backtest_mode: 'single',
     },
     {
         id: 'ml_svm',
@@ -220,7 +240,8 @@ export const strategies: Strategy[] = [
         complexity: 'Advanced',
         time_horizon: 'Adaptable',
         best_for: ["Regime classification", "Non-linear boundaries"],
-        parameters: { model_type: 'svm', test_size: 0.2 }
+        parameters: { model_type: 'svm', test_size: 0.2 },
+        backtest_mode: 'single',
     },
     {
         id: 'ml_logistic',
@@ -230,7 +251,8 @@ export const strategies: Strategy[] = [
         complexity: 'Intermediate',
         time_horizon: 'Adaptable',
         best_for: ["Baseline models", "Interpretability"],
-        parameters: { model_type: 'logistic_regression', test_size: 0.2 }
+        parameters: { model_type: 'logistic_regression', test_size: 0.2 },
+        backtest_mode: 'single',
     },
     {
         id: 'ml_lstm',
@@ -240,7 +262,8 @@ export const strategies: Strategy[] = [
         complexity: 'Expert',
         time_horizon: 'Short to Medium-term',
         best_for: ["Time-series forecasting", "Sequence patterns", "Complex temporal dependencies"],
-        parameters: { lookback: 10, classes: 2, epochs: 20 }
+        parameters: { lookback: 10, classes: 2, epochs: 20 },
+        backtest_mode: 'single',
     },
 
     // ADAPTIVE
@@ -252,7 +275,8 @@ export const strategies: Strategy[] = [
         complexity: 'Advanced',
         time_horizon: 'Medium to Long-term',
         best_for: ["Changing market conditions", "Volatile markets", "Institutional trading"],
-        parameters: { lookback_period: 50, volatility_threshold: 0.02 }
+        parameters: { lookback_period: 50, volatility_threshold: 0.02 },
+        backtest_mode: 'both',
     },
     {
         id: 'kalman_filter',
@@ -262,7 +286,8 @@ export const strategies: Strategy[] = [
         complexity: 'Advanced',
         time_horizon: 'Intraday to Medium-term',
         best_for: ["Pairs Trading", "Statistical Arbitrage", "Mean Reversion"],
-        parameters: { entry_z: 2.0, exit_z: 0.5, transitory_std: 0.01, observation_std: 0.1, decay_factor: 0.99, min_obs: 20 }
+        parameters: { entry_z: 2.0, exit_z: 0.5, transitory_std: 0.01, observation_std: 0.1, decay_factor: 0.99, min_obs: 20 },
+        backtest_mode: 'multi',
     },
 
     // OPTIONS
@@ -274,7 +299,8 @@ export const strategies: Strategy[] = [
         complexity: 'Intermediate',
         time_horizon: 'Short to Medium-term',
         best_for: ["Income generation", "Range-bound markets", "Conservative traders"],
-        parameters: { strategy_type: 'covered_call', strike_pct: 0.05, dte: 30 }
+        parameters: { strategy_type: 'covered_call', strike_pct: 0.05, dte: 30 },
+        backtest_mode: 'single',
     },
     {
         id: 'iron_condor',
@@ -284,7 +310,8 @@ export const strategies: Strategy[] = [
         complexity: 'Advanced',
         time_horizon: 'Short-term',
         best_for: ["Low volatility markets", "Income generation", "Range-bound stocks"],
-        parameters: { strategy_type: 'iron_condor', wing_width: 0.05, dte: 30 }
+        parameters: { strategy_type: 'iron_condor', wing_width: 0.05, dte: 30 },
+        backtest_mode: 'single',
     },
     {
         id: 'butterfly_spread',
@@ -294,7 +321,8 @@ export const strategies: Strategy[] = [
         complexity: 'Advanced',
         time_horizon: 'Short-term',
         best_for: ["Neutral outlook", "Low volatility expected", "Precise targets"],
-        parameters: { strategy_type: 'butterfly_spread', wing_width: 0.03, dte: 30 }
+        parameters: { strategy_type: 'butterfly_spread', wing_width: 0.03, dte: 30 },
+        backtest_mode: 'single',
     },
     {
         id: 'straddle',
@@ -304,6 +332,46 @@ export const strategies: Strategy[] = [
         complexity: 'Intermediate',
         time_horizon: 'Short-term',
         best_for: ["Earnings events", "High expected volatility", "Direction unknown"],
-        parameters: { strategy_type: 'straddle', dte: 30, iv_threshold: 0.30 }
+        parameters: { strategy_type: 'straddle', dte: 30, iv_threshold: 0.30 },
+        backtest_mode: 'single',
+    },
+
+    // STATISTICAL ARBITRAGE - RISK PARITY
+    {
+        id: 'risk_parity_stat_arb',
+        name: 'Risk Parity Statistical Arbitrage',
+        category: 'Statistical Arbitrage',
+        description: 'Market-neutral stat arb that allocates based on risk contribution. Builds cointegrated baskets with risk-parity sizing.',
+        complexity: 'Advanced',
+        time_horizon: 'Short to Medium-term',
+        best_for: ["Market-neutral portfolios", "Risk-adjusted stat arb", "Institutional trading", "Balanced risk allocation"],
+        parameters: { universe: ["AAPL", "MSFT", "GOOGL", "AMZN", "META"], basket_size: 3, lookback_period: 252, entry_threshold: 2.0, exit_threshold: 0.5, stop_loss_threshold: 3.0, method: 'cointegration' },
+        backtest_mode: 'multi',
+    },
+
+    // MACHINE LEARNING - MONTE CARLO SENTIMENT
+    {
+        id: 'mc_ml_sentiment',
+        name: 'Monte Carlo ML Sentiment',
+        category: 'Machine Learning',
+        description: 'Combines sentiment analysis, ML predictions, and Monte Carlo simulation for probabilistic price forecasting.',
+        complexity: 'Expert',
+        time_horizon: 'Short to Medium-term',
+        best_for: ["Sentiment-driven trading", "Probabilistic forecasting", "Risk-aware position sizing", "Multi-factor alpha generation"],
+        parameters: { ml_model_type: 'gradient_boosting', lookback_period: 252, forecast_horizon: 20, num_simulations: 10000, confidence_level: 0.95, sentiment_weight: 0.3 },
+        backtest_mode: 'single',
+    },
+
+    // KALMAN FILTER HFT (conditional on numba backend)
+    {
+        id: 'kalman_filter_hft',
+        name: 'Kalman Filter Pairs (HFT/Numba)',
+        category: 'Pairs Trading',
+        description: 'High-frequency Kalman Filter pairs trading with Numba JIT acceleration for ultra-fast intraday execution.',
+        complexity: 'Expert',
+        time_horizon: 'Intraday to Short-term',
+        best_for: ["High-frequency pairs trading", "Low-latency stat arb", "Intraday mean reversion", "Cointegrated asset pairs"],
+        parameters: { asset_1: 'AAPL', asset_2: 'MSFT', entry_z: 2.0, exit_z: 0.5, stop_loss_z: 3.0, transitory_std: 0.01, observation_std: 0.1 },
+        backtest_mode: 'multi',
     }
 ];

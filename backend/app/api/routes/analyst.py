@@ -3,7 +3,7 @@ from typing import Dict
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from backend.app.api.deps import check_permission, get_db
+from backend.app.api.deps import check_permission, get_current_active_user, get_db
 from backend.app.config import settings
 from backend.app.core.analyst_agent import FinancialAnalystAgent
 from backend.app.core.permissions import Permission
@@ -65,9 +65,21 @@ def convert_core_report_to_api(core_report, ticker_info: Dict) -> AnalystReport:
         operational=["Execution risk"],
     )
 
-    # Generate sentiment scores (would be real data in production)
+    # Generate sentiment scores (normalized to 0-100 for the UI)
+    sentiment_score = core_report.sentiment_score  # Already in AnalystReport dataclass
+    # If the analyst agent added the score to the news dict, we should use it
+
+    # We use the raw score (-1 to 1) and map it to 0-100 for the radar chart
+    # -1 -> 0, 0 -> 50, 1 -> 100
+    display_score = int((sentiment_score + 1) * 50)
+
     sentiment_data = SentimentData(
-        institutional=75, retail=65, analyst=80 if core_report.recommendation in ["Buy", "Strong Buy"] else 50, news=70, social=60, options=65
+        institutional=display_score,
+        retail=display_score - 5 if display_score > 5 else 0,
+        analyst=80 if core_report.recommendation in ["Buy", "Strong Buy"] else 50,
+        news=display_score,
+        social=display_score + 5 if display_score < 95 else 100,
+        options=65,
     )
 
     # Calculate confidence score
@@ -159,3 +171,22 @@ async def get_analyst_report(
     except Exception as e:
         # If analysis fails, return a basic error report
         raise HTTPException(status_code=500, detail=f"Failed to generate analyst report for {ticker}: {str(e)}")
+
+
+@router.get("/sentiment/{ticker}")
+async def get_sentiment_analysis(
+    ticker: str,
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Get real-time sentiment analysis for a ticker
+    """
+    await AuthService.track_usage(db, current_user.id, "get_sentiment", {"ticker": ticker})
+    ticker = ticker.upper()
+
+    try:
+        sentiment = await analyst_agent.sentiment_service.get_sentiment(ticker)
+        return sentiment
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Sentiment analysis failed for {ticker}: {str(e)}")

@@ -65,3 +65,17 @@ class RSIStrategy(BaseStrategy):
             return -1
 
         return 0
+
+    def generate_signals_vectorized(self, data: pd.DataFrame) -> pd.Series:
+        """Vectorized version of RSI signal generation"""
+        rsi = self.calculate_rsi(data)
+
+        signals = pd.Series(0, index=data.index)
+
+        # Buy: crossing above oversold
+        signals[(rsi >= self.params["oversold"]) & (rsi.shift(1) < self.params["oversold"])] = 1
+
+        # Sell: crossing below overbought
+        signals[(rsi <= self.params["overbought"]) & (rsi.shift(1) > self.params["overbought"])] = -1
+
+        return signals

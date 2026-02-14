@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 from pydantic import BaseModel
 
@@ -7,6 +7,14 @@ from pydantic import BaseModel
 class FeatureImportance(BaseModel):
     feature: str
     importance: float
+
+
+class TrainingEpoch(BaseModel):
+    epoch: int
+    loss: float
+    accuracy: float
+    val_loss: Optional[float] = None
+    val_accuracy: Optional[float] = None
 
 
 class MLModel(BaseModel):
@@ -23,6 +31,7 @@ class MLModel(BaseModel):
     status: str
     feature_importance: List[FeatureImportance]
     hyperparams: Dict[str, Any]
+    training_history: List[TrainingEpoch] = []
 
 
 class TrainingConfig(BaseModel):

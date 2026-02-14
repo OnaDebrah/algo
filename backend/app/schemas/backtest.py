@@ -16,6 +16,7 @@ class BacktestRequest(BaseModel):
     initial_capital: float = 100000
     commission_rate: float = 0.001
     slippage_rate: float = 0.0005
+    ml_model_id: Optional[str] = None  # For ML strategies: ID of a deployed model to use
 
 
 class BacktestResult(BaseModel):
@@ -33,6 +34,15 @@ class BacktestResult(BaseModel):
     profit_factor: float
     final_equity: float
     initial_capital: float
+
+    # Advanced metrics
+    sortino_ratio: Optional[float] = 0.0
+    calmar_ratio: Optional[float] = 0.0
+    var_95: Optional[float] = 0.0
+    cvar_95: Optional[float] = 0.0
+    volatility: Optional[float] = 0.0
+    expectancy: Optional[float] = 0.0
+    total_commission: Optional[float] = 0.0
 
 
 class EquityCurvePoint(BaseModel):

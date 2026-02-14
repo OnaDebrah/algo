@@ -63,6 +63,7 @@ export interface StrategyInfo {
     historical_return: number;
     total_trades: number;
     parameters: StrategyParameter[];
+    backtest_mode: 'single' | 'multi' | 'both';
 }
 
 export interface StrategyConfig {
@@ -80,6 +81,7 @@ export interface SingleBacktestRequest {
     initial_capital?: number;
     commission_rate?: number;
     slippage_rate?: number;
+    ml_model_id?: string;  // For ML strategies: ID of a deployed model to use
 }
 
 export interface ComparisonInfo {
@@ -115,11 +117,21 @@ export interface BacktestResult {
     final_equity: number;
     initial_capital: number;
     num_symbols?: number;
+    total_profit?: number;
     equity_curve?: EquityCurvePoint[];
     benchmark?: BenchmarkInfo;
     trades?: Trade[];
     price_data?: Record<string, any>[] | null;
-    symbol_stats: Record<string, SymbolStats>
+    symbol_stats: Record<string, SymbolStats>;
+
+    // Advanced metrics
+    sortino_ratio: number;
+    calmar_ratio: number;
+    var_95: number;
+    cvar_95: number;
+    volatility: number;
+    expectancy: number;
+    total_commission: number;
 }
 
 export interface EquityCurvePoint {
@@ -137,6 +149,7 @@ export interface Trade {
     price: number;
     commission: number;
     executed_at: string;
+    timestamp?: string; // Alias for backward compatibility
     strategy: string;
     profit: number | null;
     profit_pct: number | null;
@@ -160,6 +173,18 @@ export interface SingleAssetConfig {
     params: Record<string, any>
     riskLevel?: string;
     commission?: number;
+    ml_model_id?: string;  // For ML strategies: ID of a deployed model to use
+}
+
+// Deployed ML model info (for backtest model selector)
+export interface DeployedMLModel {
+    id: string;
+    name: string;
+    type: string;
+    symbol: string;
+    accuracy: number;
+    test_accuracy: number;
+    status: string;
 }
 
 // ==================== MULTI-ASSET BACKTEST ====================
@@ -184,10 +209,12 @@ export interface Strategy {
     name: string;
     category: string;
     parameters: Record<string, any>;
+    parameterMetadata?: StrategyParameter[];
     description: string;
     complexity: 'Beginner' | 'Intermediate' | 'Advanced' | 'Expert' | 'Institutional';
     time_horizon: string | null;
     best_for?: string[];
+    backtest_mode?: 'single' | 'multi' | 'both';
     rating?: number;
     monthly_return?: number;
     drawdown?: number;
@@ -335,6 +362,27 @@ export interface BacktestHistoryItem {
     error_message: string | null;
     created_at: string | null;
     completed_at: string | null;
+
+    user_id: number;                    // Owner
+    strategy_key: string;               // e.g., "sma_crossover"
+    strategy_name?: string | null;      // User-friendly name
+    parameters?: Record<string, any>;   // Strategy parameters
+
+    is_deployed?: boolean;              // Already deployed?
+    deployed_count?: number;            // Times deployed
+    is_published?: boolean;             // Already published?
+    marketplace_id?: number | null;     // Marketplace link
+
+    winning_trades?: number | null;
+    losing_trades?: number | null;
+    avg_win?: number | null;
+    avg_loss?: number | null;
+    avg_profit?: number | null;
+    total_profit?: number | null;
+    profit_factor?: number | null;
+    sortino_ratio?: number | null;
+    total_return?: number | null;       // Dollar amount
+    data_source?: string;
 }
 
 export interface BacktestHistoryResponse {
@@ -972,27 +1020,36 @@ export interface StrategyReviewSchema {
 }
 
 export interface StrategyListing {
-    id: string | number;
+    id: number;
     name: string;
-    creator: string;
     description: string;
+    creator: string;
+    category: string;
+    tags: string[];
+    price: number;
     rating: number;
     reviews: number;
-    price: number;
-    category: string;
-    complexity: string;
-    time_horizon?: string;
-    monthly_return: number;
-    drawdown: number;
-    sharpe_ratio: number;
     total_downloads: number;
-    tags: string[];
-    best_for: string[];
+    is_verified: boolean;
+    is_favorite?: boolean;
+
+    total_return: number;
+    sharpe_ratio: number;
+    max_drawdown: number;
+    win_rate: number;
+    num_trades: number;
+    avg_win: number;
+    avg_loss: number;
+    profit_factor: number;
+    volatility: number;
+    sortino_ratio: number;
+    calmar_ratio: number;
+    var_95: number;
+    initial_capital: number;
+    symbols?: string[];
+
     pros: string[];
     cons: string[];
-    is_favorite: boolean;
-    is_verified: boolean;
-    publish_date: string;
 }
 
 export interface StrategyListingDetailed extends StrategyListing {
@@ -1008,7 +1065,12 @@ export interface StrategyPublishRequest {
     price: number;
     is_public?: boolean;
     tags?: string[];
+    pros?: string[];
+    cons?: string[];
+    risk_level?: string;
+    recommended_capital?: number;
     backtest_id?: number | null;
+    strategy_key?: string | null;
 }
 
 export interface MarketplaceFilterParams {
@@ -1024,9 +1086,31 @@ export interface MarketplaceFilterParams {
 
 // ==================== ML STUDIO ====================
 
+export interface ModelPrediction {
+    prediction: number;
+    confidence: number;
+    timestamp: string;
+}
+
+export interface MLModelStatusRequest {
+    modelId: string, isActive: boolean
+}
+
 export interface MLFeatureImportance {
     feature: string;
     importance: number;
+}
+
+export interface TrainingEpoch {
+    epoch: number;
+    loss: number;
+    accuracy: number;
+    val_loss: number | null;
+    val_accuracy: number | null;
+}
+
+export interface MLPerformanceHistory {
+
 }
 
 export interface MLModel {
@@ -1043,6 +1127,13 @@ export interface MLModel {
     status: string;
     feature_importance: MLFeatureImportance[];
     hyperparams: Record<string, any>;
+    training_history?: TrainingEpoch[];
+    created_at?: string,
+    deployed_at?: string,
+    is_active?: boolean,
+    last_used?: string,
+    usage_count?: number;
+    performance_history?: MLPerformanceHistory[]
 }
 
 export interface TrainingConfig {
@@ -1349,6 +1440,7 @@ export interface DeploymentConfig {
 
     broker?: string;
     notes?: string;
+    marketplace_id?: number;
 }
 
 // ==================== SETTINGS ====================
@@ -1372,6 +1464,10 @@ export interface BrokerSettings {
     api_key?: string;
     api_secret?: string;
     base_url?: string;
+    host?: string,
+    port?: number,
+    client_id?: string,
+    user_ib_account_id?: string,
     is_configured?: boolean;
 }
 

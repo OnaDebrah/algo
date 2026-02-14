@@ -3,10 +3,13 @@ AI Strategy Advisor - Personalized trading strategy recommendations
 """
 
 import json
+import logging
 from dataclasses import dataclass
 from typing import Dict, List
 
 from backend.app.core.ai_advisor_api import AIAdvisorAPI
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -151,7 +154,7 @@ class AIStrategyAdvisor:
             recommendations = self._parse_recommendations(response, user_profile)
             return recommendations
         except Exception as e:
-            print(f"AI recommendation error: {e}")
+            logger.error(f"AI recommendation error: {e}")
             # Fallback to rule-based recommendations
             return self._fallback_recommendations(user_profile)
 

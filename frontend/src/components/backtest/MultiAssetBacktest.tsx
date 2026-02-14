@@ -35,7 +35,7 @@ import {
     Target,
     X,
     Zap,
-    FolderOpen
+    FolderOpen, Sparkles
 } from "lucide-react";
 import React, { useMemo, useState } from "react";
 import StrategyParameterForm from "@/components/backtest/StrategyParameterForm";
@@ -44,8 +44,9 @@ import RiskAnalysisModal from "@/components/backtest/RiskAnalysisModal";
 import LoadConfigModal from "@/components/backtest/LoadConfigModal";
 import { BacktestResult, MultiAssetConfig, Strategy, PortfolioCreate } from "@/types/all_types";
 import { portfolio } from "@/utils/api";
+import BayesianOptimizerModal from "@/components/backtest/BayesianOptimizerModal";
+import { assetSuggestions } from "@/utils/suggestions";
 import KalmanFilterParameters from "@/components/backtest/KalmanFilterParameters";
-import {assetSuggestions} from "@/utils/suggestions";
 
 interface MultiAssetBacktestProps {
     config: MultiAssetConfig;
@@ -70,7 +71,7 @@ const MultiAssetBacktest: React.FC<MultiAssetBacktestProps> = ({
 }: MultiAssetBacktestProps) => {
     const [activeCategory, setActiveCategory] = useState('All');
     const [showAdvanced, setShowAdvanced] = useState(false);
-    const [hasRunBacktest, setHasRunBacktest] = useState(false);
+    // hasRunBacktest state removed
     const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
     const [showParameters, setShowParameters] = useState(true);
     const [allocationMode, setAllocationMode] = useState<'equal' | 'manual' | 'optimized'>('equal');
@@ -78,6 +79,7 @@ const MultiAssetBacktest: React.FC<MultiAssetBacktestProps> = ({
     const [showRiskAnalysis, setShowRiskAnalysis] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
     const [showLoadModal, setShowLoadModal] = useState(false);
+    const [showOptimizer, setShowOptimizer] = useState(false);
 
     const selectedStrategy = useMemo(() =>
         strategies.find((s) => s.id === config.strategy),
@@ -118,7 +120,6 @@ const MultiAssetBacktest: React.FC<MultiAssetBacktestProps> = ({
 
     const handleRunBacktest = async () => {
         await runBacktest();
-        setHasRunBacktest(true);
     };
 
     const handleExportResults = () => {
@@ -245,7 +246,7 @@ const MultiAssetBacktest: React.FC<MultiAssetBacktestProps> = ({
     };
 
     const isPairsStrategy = useMemo(() => {
-        const pairsStrategies = ['kalman_filter', 'pairs_trading', 'cointegration'];
+        const pairsStrategies = ['kalman_filter', 'kalman_filter_hft', 'pairs_trading', 'cointegration'];
         return pairsStrategies.includes(config.strategy);
     }, [config.strategy]);
 
@@ -1055,6 +1056,34 @@ const MultiAssetBacktest: React.FC<MultiAssetBacktestProps> = ({
                             </div>
                         )}
 
+                        {/* Bayesian Optimizer Access */}
+                        {selectedStrategy && (
+                            <div className="bg-gradient-to-br from-indigo-900/40 via-slate-900/90 to-slate-900/90 backdrop-blur-xl border border-indigo-500/30 rounded-2xl p-6 shadow-xl relative overflow-hidden group mb-6">
+                                <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+                                    <Sparkles size={64} className="text-indigo-400" />
+                                </div>
+                                <div className="relative">
+                                    <div className="flex items-center gap-3 mb-4">
+                                        <div className="p-2 bg-indigo-500/20 rounded-lg border border-indigo-500/30">
+                                            <Sparkles className="text-indigo-400" size={20} strokeWidth={2} />
+                                        </div>
+                                        <h4 className="text-sm font-bold text-slate-300">Alpha Strategy Optimizer</h4>
+                                    </div>
+                                    <p className="text-xs text-slate-500 mb-6 leading-relaxed">
+                                        Use Bayesian optimization to find the mathematical "Sweet Spot" for your strategy parameters across all selected assets.
+                                        Replaces trial-and-error with statistical precision.
+                                    </p>
+                                    <button
+                                        onClick={() => setShowOptimizer(true)}
+                                        className="w-full py-3 bg-indigo-600/20 hover:bg-indigo-600/30 border border-indigo-500/50 hover:border-indigo-400 text-indigo-300 rounded-xl text-sm font-black transition-all flex items-center justify-center gap-2"
+                                    >
+                                        <Zap size={16} fill="currentColor" />
+                                        LAUNCH OPTIMIZER
+                                    </button>
+                                </div>
+                            </div>
+                        )}
+
                         {/* Quick Actions Panel */}
                         <div
                             className="bg-gradient-to-br from-slate-900/90 to-slate-800/90 backdrop-blur-xl border border-slate-700/50 rounded-2xl p-6 shadow-xl">
@@ -1133,7 +1162,7 @@ const MultiAssetBacktest: React.FC<MultiAssetBacktestProps> = ({
             </div>
 
             {/* Results Section - Only show after backtest has been run */}
-            {hasRunBacktest && results && (
+            {results && (
                 <div className="pt-6 border-t border-slate-800/80 animate-in fade-in">
                     <MultiBacktestResults results={results} />
                 </div>
@@ -1161,6 +1190,18 @@ const MultiAssetBacktest: React.FC<MultiAssetBacktestProps> = ({
                             period: savedConfig.period || config.period,
                             interval: savedConfig.interval || config.interval,
                         });
+                    }}
+                />
+            )}
+            {/* Modals */}
+            {showOptimizer && selectedStrategy && (
+                <BayesianOptimizerModal
+                    symbols={config.symbols}
+                    strategy={selectedStrategy}
+                    onClose={() => setShowOptimizer(false)}
+                    onApply={(bestParams) => {
+                        setConfig({ ...config, params: bestParams });
+                        setShowOptimizer(false);
                     }}
                 />
             )}

@@ -59,6 +59,18 @@ class BaseStrategy(ABC):
         """
         pass
 
+    def generate_signals_vectorized(self, data: pd.DataFrame) -> pd.Series:
+        """
+        Generate multiple trading signals at once using vectorized operations
+
+        Args:
+            data: DataFrame with historical market data
+
+        Returns:
+            Series of signals (1, -1, 0) indexed by timestamp
+        """
+        raise NotImplementedError("Vectorized signal generation not implemented for this strategy")
+
     def reset(self):
         """
         Reset strategy state

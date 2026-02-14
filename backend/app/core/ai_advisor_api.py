@@ -29,7 +29,7 @@ class AIAdvisorAPI:
         """
         # Check if API key is configured
         if not self.client:
-            print("⚠️ No Anthropic API key found. Using rule-based recommendations.")
+            logger.warning("⚠️ No Anthropic API key found. Using rule-based recommendations.")
             return self._get_fallback_response()
 
         try:
@@ -154,12 +154,12 @@ class AIAdvisorAPI:
                 if self.validate_response(response):
                     return response
                 else:
-                    print(f"⚠️ Invalid response format (attempt {attempt + 1}/{max_retries})")
+                    logger.warning(f"⚠️ Invalid response format (attempt {attempt + 1}/{max_retries})")
                     if attempt < max_retries - 1:
                         continue
 
             except Exception as e:
-                print(f"❌ Error on attempt {attempt + 1}: {e}")
+                logger.error(f"❌ Error on attempt {attempt + 1}: {e}")
                 if attempt < max_retries - 1:
                     continue
 
@@ -190,7 +190,7 @@ class RateLimitedAdvisor(AIAdvisorAPI):
 
         # Check cache
         if cache_key in self.request_cache:
-            print("✓ Returning cached recommendations")
+            logger.info("✓ Returning cached recommendations")
             return self.request_cache[cache_key]
 
         # Get new recommendations

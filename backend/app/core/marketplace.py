@@ -126,6 +126,7 @@ class StrategyListing:
     price: float = 0.0
     is_public: bool = True
     is_verified: bool = False  # Admin verified performance
+    verification_badge: Optional[str] = None  # 'INSTITUTIONAL', 'VERIFIED', etc.
     version: str = "1.0.0"
     tags: List[str] = None
 
@@ -134,6 +135,12 @@ class StrategyListing:
     rating: float = 0.0
     num_ratings: int = 0
     num_reviews: int = 0
+
+    # User-provided content
+    pros: List[str] = None
+    cons: List[str] = None
+    risk_level: str = "medium"
+    recommended_capital: float = 10000.0
 
     # Timestamps
     created_at: datetime = None
@@ -144,6 +151,10 @@ class StrategyListing:
             self.parameters = {}
         if self.tags is None:
             self.tags = []
+        if self.pros is None:
+            self.pros = []
+        if self.cons is None:
+            self.cons = []
         if self.backtest_results is None:
             self.backtest_results = BacktestResults()
         if self.created_at is None:
@@ -167,7 +178,6 @@ class StrategyMarketplace:
         try:
             cursor = conn.cursor(cursor_factory=RealDictCursor)
 
-            # Main strategy listings table (with quick access metrics)
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS marketplace_strategies (
                     id SERIAL PRIMARY KEY,
@@ -193,6 +203,7 @@ class StrategyMarketplace:
                     price DOUBLE PRECISION DEFAULT 0.0,
                     is_public BOOLEAN DEFAULT TRUE,
                     is_verified BOOLEAN DEFAULT FALSE,
+                    verification_badge TEXT,
                     version TEXT DEFAULT '1.0.0',
                     tags TEXT,
 
@@ -209,7 +220,20 @@ class StrategyMarketplace:
                 )
             """)
 
-            # Backtest results table (stores complete backtest data)
+            migrations = [
+                ("verification_badge", "TEXT"),
+                ("pros", "TEXT"),
+                ("cons", "TEXT"),
+                ("risk_level", "TEXT DEFAULT 'medium'"),
+                ("recommended_capital", "DOUBLE PRECISION DEFAULT 10000.0"),
+            ]
+
+            for col, col_type in migrations:
+                cursor.execute(f"""
+                    ALTER TABLE marketplace_strategies
+                    ADD COLUMN IF NOT EXISTS {col} {col_type};
+                """)
+
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS strategy_backtests (
                     id SERIAL PRIMARY KEY,
@@ -236,7 +260,6 @@ class StrategyMarketplace:
                 )
             """)
 
-            # Keep existing tables for reviews, downloads, favorites
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS strategy_reviews (
                     id SERIAL PRIMARY KEY,
@@ -278,6 +301,7 @@ class StrategyMarketplace:
 
             conn.commit()
             logger.info("Marketplace data initialised successfully")
+
         except Exception as e:
             conn.rollback()
             logger.error(f"Failed to initialise Marketplace: {e}")
@@ -285,10 +309,6 @@ class StrategyMarketplace:
         finally:
             cursor.close()
             self.db.return_connection(conn)
-
-    # ============================================================
-    # PUBLISHING WITH BACKTEST RESULTS
-    # ============================================================
 
     def publish_strategy_with_backtest(
         self, listing: StrategyListing, equity_curve_df: pd.DataFrame = None, trades_df: pd.DataFrame = None, daily_returns_df: pd.DataFrame = None
@@ -317,8 +337,9 @@ class StrategyMarketplace:
                                                       category, complexity, parameters,
                                                       sharpe_ratio, total_return, max_drawdown, win_rate,
                                                       num_trades,
-                                                      price, is_public, version, tags)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                                                      price, is_public, is_verified, verification_badge, version, tags,
+                                                      pros, cons, risk_level, recommended_capital)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                 RETURNING id
                 """,
                 (
@@ -337,8 +358,14 @@ class StrategyMarketplace:
                     listing.backtest_results.num_trades,
                     listing.price,
                     listing.is_public,
+                    listing.is_verified,
+                    listing.verification_badge,
                     listing.version,
                     json.dumps(listing.tags),
+                    json.dumps(listing.pros),
+                    json.dumps(listing.cons),
+                    listing.risk_level,
+                    listing.recommended_capital,
                 ),
             )
 
@@ -499,9 +526,6 @@ class StrategyMarketplace:
 
         strategies = []
         for row in rows:
-            # Get backtest results for this strategy
-            backtest_data = self.get_strategy_backtest(row["id"])
-
             listing = StrategyListing(
                 id=row["id"],
                 name=row["name"],
@@ -512,7 +536,6 @@ class StrategyMarketplace:
                 category=row["category"],
                 complexity=row["complexity"],
                 parameters=json.loads(row["parameters"]),
-                backtest_results=backtest_data["backtest_results"] if backtest_data else BacktestResults(),
                 sharpe_ratio=row["sharpe_ratio"],
                 total_return=row["total_return"],
                 max_drawdown=row["max_drawdown"],
@@ -521,12 +544,17 @@ class StrategyMarketplace:
                 price=row["price"],
                 is_public=bool(row["is_public"]),
                 is_verified=bool(row["is_verified"]),
+                verification_badge=row["verification_badge"],
                 version=row["version"],
                 tags=json.loads(row["tags"]) if row["tags"] else [],
                 downloads=row["downloads"],
                 rating=row["rating"],
                 num_ratings=row["num_ratings"],
                 num_reviews=row["num_reviews"],
+                pros=json.loads(row["pros"]) if row.get("pros") else [],
+                cons=json.loads(row["cons"]) if row.get("cons") else [],
+                risk_level=row.get("risk_level", "medium") or "medium",
+                recommended_capital=row.get("recommended_capital", 10000.0) or 10000.0,
                 created_at=datetime.fromisoformat(row["created_at"]),
                 updated_at=datetime.fromisoformat(row["updated_at"]),
             )
@@ -687,6 +715,90 @@ class StrategyMarketplace:
             conn.rollback()
             logger.error(f"Failed to record download: {e}")
             return False
+        finally:
+            cursor.close()
+            self.db.return_connection(conn)
+
+    # ============================================================
+    # REVIEWS & RATINGS
+    # ============================================================
+
+    def add_review(
+        self, strategy_id: int, user_id: int, username: str, rating: int, review_text: str, performance_achieved: Dict = None
+    ) -> Optional[int]:
+        """Add or update a review for a strategy"""
+        conn = self.db.get_connection()
+        try:
+            cursor = conn.cursor(cursor_factory=RealDictCursor)
+
+            cursor.execute(
+                """
+                INSERT INTO strategy_reviews (strategy_id, user_id, username, rating, review_text, performance_achieved)
+                VALUES (%s, %s, %s, %s, %s, %s)
+                ON CONFLICT (strategy_id, user_id) DO UPDATE SET
+                    rating = EXCLUDED.rating,
+                    review_text = EXCLUDED.review_text,
+                    performance_achieved = EXCLUDED.performance_achieved,
+                    created_at = CURRENT_TIMESTAMP
+                RETURNING id
+                """,
+                (strategy_id, user_id, username, rating, review_text, json.dumps(performance_achieved) if performance_achieved else None),
+            )
+            review_id = cursor.fetchone()["id"]
+
+            # Recalculate strategy rating from all reviews
+            cursor.execute(
+                """
+                UPDATE marketplace_strategies SET
+                    rating = (SELECT COALESCE(AVG(rating), 0) FROM strategy_reviews WHERE strategy_id = %s),
+                    num_ratings = (SELECT COUNT(*) FROM strategy_reviews WHERE strategy_id = %s),
+                    num_reviews = (SELECT COUNT(*) FROM strategy_reviews WHERE strategy_id = %s)
+                WHERE id = %s
+                """,
+                (strategy_id, strategy_id, strategy_id, strategy_id),
+            )
+
+            conn.commit()
+            return review_id
+        except Exception as e:
+            conn.rollback()
+            logger.error(f"Failed to add review: {e}")
+            return None
+        finally:
+            cursor.close()
+            self.db.return_connection(conn)
+
+    def get_reviews(self, strategy_id: int, limit: int = 20) -> List[StrategyReview]:
+        """Get reviews for a strategy"""
+        conn = self.db.get_connection()
+        try:
+            cursor = conn.cursor(cursor_factory=RealDictCursor)
+            cursor.execute(
+                """
+                SELECT * FROM strategy_reviews
+                WHERE strategy_id = %s
+                ORDER BY created_at DESC
+                LIMIT %s
+                """,
+                (strategy_id, limit),
+            )
+            rows = cursor.fetchall()
+
+            reviews = []
+            for row in rows:
+                reviews.append(
+                    StrategyReview(
+                        id=row["id"],
+                        strategy_id=row["strategy_id"],
+                        user_id=row["user_id"],
+                        username=row["username"],
+                        rating=row["rating"],
+                        review_text=row["review_text"],
+                        performance_achieved=json.loads(row["performance_achieved"]) if row["performance_achieved"] else {},
+                        created_at=row["created_at"],
+                    )
+                )
+            return reviews
         finally:
             cursor.close()
             self.db.return_connection(conn)
