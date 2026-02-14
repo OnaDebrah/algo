@@ -3,6 +3,7 @@ Live Trading Routes with Broker Integration
 Uses BrokerFactory to support multiple brokers (Paper, Alpaca, IB, etc.)
 """
 
+import asyncio
 import logging
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
@@ -13,6 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.app.api.deps import get_current_user
 from backend.app.api.routes.live.live_trading_state import LiveTradingState
+from backend.app.api.routes.settings import get_or_create_settings
 from backend.app.database import AsyncSessionLocal, get_db
 from backend.app.models.backtest import BacktestRun
 from backend.app.models.live import (
@@ -104,44 +106,39 @@ async def connect_broker(
     """
     Connect to trading broker using saved settings or manual override
     """
+    user_settings = await get_or_create_settings(db, current_user.id)
 
     broker_type = None
-    credentials = {}
 
     if use_settings:
-        # Get credentials from user settings
-        user_broker = await get_user_broker_settings(db, current_user.id)
+        broker_type = user_settings.default_broker or "paper"
 
-        if user_broker:
-            broker_type = user_broker["broker_type"]
-
-            # Build credentials dict
-            if broker_type != "paper":
-                credentials = {"api_key": user_broker["api_key"], "api_secret": user_broker["api_secret"], "base_url": user_broker["base_url"]}
-            else:
-                credentials = {"initial_capital": user_broker["initial_capital"]}
-
-    # Override with request if provided
-    if request:
-        broker_type = request.broker or broker_type
-        if request.api_key:
-            credentials["api_key"] = request.api_key
-        if request.api_secret:
-            credentials["api_secret"] = request.api_secret
+    if request and request.broker:
+        broker_type = request.broker
 
     if not broker_type:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No broker configured. Please configure broker in Settings.")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No broker configured. Please configure broker in Settings.",
+        )
 
-    # Connect using broker factory
-    success = await trading_state.connect(broker_type, credentials)
+    success = await trading_state.connect(broker_type, user_settings)
 
     if not success:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Failed to connect to {broker_type}")
 
-    # Get account info
+    # Get account info with timeout to prevent hanging
     account_info = {}
     if trading_state.broker_client:
-        account_info = await trading_state.broker_client.get_account_info()
+        try:
+            # Add 5-second timeout to prevent hanging
+            account_info = await asyncio.wait_for(trading_state.broker_client.get_account_info(), timeout=5.0)
+        except asyncio.TimeoutError:
+            logger.warning("Account info fetch timed out, returning without account details")
+            account_info = {}
+        except Exception as e:
+            logger.error(f"Error fetching account info: {e}")
+            account_info = {}
 
     return {
         "status": "connected",

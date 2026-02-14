@@ -48,8 +48,8 @@ class IBClient(BrokerClient):
                 self.connected = True
                 self.ib.errorEvent += self._on_error
 
-                if not lightweight and self.account_id:
-                    self.ib.reqAccountUpdates(self.account_id)
+                # Note: We don't call reqAccountUpdates here as it can cause blocking issues
+                # Account info is fetched on-demand via get_account_info() instead
 
                 logger.info(f"Connected to Interactive Brokers (Account: {self.account_id})")
                 return True
@@ -110,11 +110,21 @@ class IBClient(BrokerClient):
             return {}
 
         try:
-            # Wait for account values to be populated
+            # Wait briefly for connection to stabilize
             await asyncio.sleep(0.5)
 
             # Get account summary
             account_values = self.ib.accountValues(self.account_id)
+
+            # If no account values yet, return empty dict instead of hanging
+            if not account_values:
+                logger.warning("No account values available yet")
+                return {
+                    "cash": 0.0,
+                    "equity": 0.0,
+                    "buying_power": 0.0,
+                    "portfolio_value": 0.0,
+                }
 
             # Convert to dictionary
             account_dict = {}
