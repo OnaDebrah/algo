@@ -51,6 +51,7 @@ class LiveStrategy(Base):
     backtest_id = Column(Integer, ForeignKey("backtest_runs.id"), nullable=True)
     deployment_mode = Column(SQLEnum(DeploymentMode), nullable=False)
     status = Column(SQLEnum(StrategyStatus), nullable=False, default=StrategyStatus.PENDING)
+    is_deleted = Column(Boolean, default=False, nullable=False)
 
     # Capital & Risk Management
     initial_capital = Column(Float, nullable=False)

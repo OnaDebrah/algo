@@ -5,6 +5,7 @@ Configuration settings for FastAPI backend
 import os
 from typing import List
 
+from pydantic import model_validator
 from pydantic_settings import BaseSettings
 
 
@@ -32,6 +33,8 @@ class Settings(BaseSettings):
     ]
 
     # Database Configuration
+    DATABASE_URL: str = os.getenv("DATABASE_URL", "")
+
     # PostgreSQL (Primary - for production and development)
     POSTGRES_USER: str = os.getenv("POSTGRES_USER", "trading_user")
     POSTGRES_PASSWORD: str = os.getenv("POSTGRES_PASSWORD", "secure_password_here")
@@ -39,17 +42,15 @@ class Settings(BaseSettings):
     POSTGRES_PORT: str = os.getenv("POSTGRES_PORT", "5432")
     POSTGRES_DB: str = os.getenv("POSTGRES_DB", "trading_platform")
 
-    @property
-    def DATABASE_URL(self) -> str:
-        """
-        Construct database URL based on environment
-        """
-        # Allow override via environment variable
-        if os.getenv("DATABASE_URL"):
-            return os.getenv("DATABASE_URL")
-
-        # Use PostgreSQL by default
-        return f"postgresql+asyncpg://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}" f"@{self.POSTGRES_HOST}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}"
+    @model_validator(mode="after")
+    def assemble_db_url(self) -> "Settings":
+        if not self.DATABASE_URL:
+            self.DATABASE_URL = (
+                f"postgresql+asyncpg://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}@{self.POSTGRES_HOST}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}"
+            )
+        elif self.DATABASE_URL.startswith("postgresql://"):
+            self.DATABASE_URL = self.DATABASE_URL.replace("postgresql://", "postgresql+asyncpg://", 1)
+        return self
 
     # SQLite paths (for legacy/testing)
     DATABASE_PATH: str = os.getenv("DATABASE_PATH", "trading_platform.db")
@@ -113,6 +114,7 @@ class Settings(BaseSettings):
         case_sensitive = True
         env_file = ".env"
         env_file_encoding = "utf-8"
+        extra = "allow"
 
 
 settings = Settings()

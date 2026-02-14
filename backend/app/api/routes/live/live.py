@@ -437,7 +437,7 @@ async def list_strategies(
     status_: Optional[str] = None, mode: Optional[str] = None, db: AsyncSession = Depends(get_db), current_user=Depends(get_current_user)
 ):
     """List all strategies for the current user"""
-    stmt = select(LiveStrategy).where(LiveStrategy.user_id == current_user.id)
+    stmt = select(LiveStrategy).where(LiveStrategy.user_id == current_user.id, ~LiveStrategy.is_deleted)
 
     if status_:
         try:
@@ -456,21 +456,7 @@ async def list_strategies(
     result = await db.execute(stmt)
     strategies = result.scalars().all()
 
-    return [
-        StrategyResponse(
-            id=s.id,
-            name=s.name,
-            strategy_key=s.strategy_key,
-            symbols=s.symbols,
-            status=s.status.value,
-            deployment_mode=s.deployment_mode.value,
-            current_equity=s.current_equity or s.initial_capital,
-            total_return_pct=s.total_return_pct or 0.0,
-            total_trades=s.total_trades or 0,
-            deployed_at=s.deployed_at.isoformat() if s.deployed_at else None,
-        )
-        for s in strategies
-    ]
+    return [StrategyResponse(**s.to_dict()) for s in strategies]
 
 
 @router.get("/strategy/{strategy_id}", response_model=StrategyDetailsResponse)
@@ -627,7 +613,8 @@ async def delete_strategy(strategy_id: int, db: AsyncSession = Depends(get_db), 
     if not strategy:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Strategy {strategy_id} not found")
 
-    # Soft delete
+    # Soft delete using is_deleted flag
+    strategy.is_deleted = True
     strategy.status = StrategyStatus.STOPPED
     strategy.stopped_at = datetime.now(timezone.utc)
 
@@ -637,7 +624,7 @@ async def delete_strategy(strategy_id: int, db: AsyncSession = Depends(get_db), 
 
     await db.commit()
 
-    return {"strategy_id": strategy_id, "message": "Strategy deleted successfully"}
+    return {"strategy_id": strategy_id, "message": "Strategy dropped from active list successfully"}
 
 
 @router.patch("/strategy/{strategy_id}", response_model=StrategyResponse)
