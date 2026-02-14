@@ -7,6 +7,7 @@ Add this to your UserSettings model or create a new migration
 from sqlalchemy import Boolean, Column, Float, ForeignKey, Integer, String
 from sqlalchemy.orm import relationship
 
+from backend.app.config import settings
 from backend.app.database import Base
 
 
@@ -23,9 +24,9 @@ class UserSettings(Base):
 
     # Backtest settings (existing)
     data_source = Column(String, default="yahoo")
-    slippage = Column(Float, default=0.001)
-    commission = Column(Float, default=0.002)
-    initial_capital = Column(Float, default=10000.0)
+    slippage = Column(Float, default=settings.DEFAULT_SLIPPAGE_RATE)
+    commission = Column(Float, default=settings.DEFAULT_COMMISSION_RATE)
+    initial_capital = Column(Float, default=settings.DEFAULT_INITIAL_CAPITAL)
 
     # Live trading settings
     live_data_source = Column(String, default="alpaca", nullable=True)
@@ -36,6 +37,11 @@ class UserSettings(Base):
     broker_api_key = Column(String, nullable=True)
     broker_api_secret = Column(String, nullable=True)
     broker_base_url = Column(String, nullable=True)
+
+    broker_host = Column(String, nullable=True)
+    broker_port = Column(Integer, nullable=True)
+    broker_client_id = Column(Integer, nullable=True)
+    user_ib_account_id = Column(String, nullable=True)
 
     # General settings
     theme = Column(String, default="dark")

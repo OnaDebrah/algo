@@ -1,16 +1,22 @@
 'use client'
 import React, { useState, useMemo } from 'react';
 import { Area, AreaChart, CartesianGrid, ComposedChart, ResponsiveContainer, Tooltip, XAxis, YAxis, Line, BarChart, Bar, Cell } from 'recharts';
-import { Activity, Target, TrendingDown, TrendingUp, Calendar, AlertTriangle } from 'lucide-react';
+import { Activity, Target, TrendingDown, TrendingUp, Calendar, AlertTriangle, Info, Shield, List, Download, Zap } from 'lucide-react';
 import MetricCard from "@/components/backtest/MetricCard";
 import BenchmarkComparison from "@/components/backtest/BenchmarkComparison";
 import RiskAnalysisModal from "@/components/backtest/RiskAnalysisModal";
 import { formatCurrency, formatPercent } from "@/utils/formatters";
 import { BacktestResult, EquityCurvePoint, SymbolStats, Trade } from "@/types/all_types";
 
-const MultiBacktestResults = ({ results }: { results: BacktestResult }) => {
+interface MultiBacktestResultsProps {
+    results: BacktestResult;
+}
+
+const MultiBacktestResults: React.FC<MultiBacktestResultsProps> = ({ results }) => {
+    const [activeTab, setActiveTab] = useState<'overview' | 'tearsheet' | 'trades'>('overview');
     const [tradeFilter, setTradeFilter] = useState('all');
     const [showRiskAnalysis, setShowRiskAnalysis] = useState(false);
+
     const trades = results.trades || [];
     const equityCurve = results.equity_curve || [];
 
@@ -23,6 +29,7 @@ const MultiBacktestResults = ({ results }: { results: BacktestResult }) => {
         const monthlyData: { [key: string]: { start: number; end: number; dates: string[] } } = {};
 
         equityCurve.forEach((point) => {
+            if (!point.timestamp) return;
             const date = new Date(point.timestamp);
             const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
 
@@ -126,408 +133,374 @@ const MultiBacktestResults = ({ results }: { results: BacktestResult }) => {
 
     return (
         <div className="space-y-6">
-            {/* Metrics Cards */}
-            <div className="grid grid-cols-4 gap-6">
-                <MetricCard
-                    title="Total Return"
-                    value={formatPercent(results.total_return)}
-                    icon={TrendingUp}
-                    trend="up"
-                    color="emerald"
-                />
-                <MetricCard
-                    title="Win Rate"
-                    value={`${results.win_rate.toFixed(1)}%`}
-                    icon={Target}
-                    trend="up"
-                    color="blue"
-                />
-                <MetricCard
-                    title="Sharpe Ratio"
-                    value={results.sharpe_ratio.toFixed(2)}
-                    icon={Activity}
-                    trend="up"
-                    color="violet"
-                />
-                <MetricCard
-                    title="Max Drawdown"
-                    value={formatPercent(results.max_drawdown)}
-                    icon={TrendingDown}
-                    trend="down"
-                    color="red"
-                />
+            {/* Tabs Header */}
+            <div className="flex items-center justify-between border-b border-slate-800 pb-4">
+                <div className="flex space-x-1 bg-slate-900/50 p-1 rounded-xl border border-slate-800">
+                    <button
+                        onClick={() => setActiveTab('overview')}
+                        className={`px-6 py-2.5 rounded-lg text-sm font-bold transition-all flex items-center gap-2 ${activeTab === 'overview'
+                            ? 'bg-violet-600 text-white shadow-lg shadow-violet-600/20'
+                            : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'
+                            }`}
+                    >
+                        <Info size={16} />
+                        Portfolio Overview
+                    </button>
+                    <button
+                        onClick={() => setActiveTab('tearsheet')}
+                        className={`px-6 py-2.5 rounded-lg text-sm font-bold transition-all flex items-center gap-2 ${activeTab === 'tearsheet'
+                            ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20'
+                            : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'
+                            }`}
+                    >
+                        <Shield size={16} />
+                        Quant Tear Sheet
+                    </button>
+                    <button
+                        onClick={() => setActiveTab('trades')}
+                        className={`px-6 py-2.5 rounded-lg text-sm font-bold transition-all flex items-center gap-2 ${activeTab === 'trades'
+                            ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-600/20'
+                            : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'
+                            }`}
+                    >
+                        <List size={16} />
+                        Trade History
+                    </button>
+                </div>
+
+                <div className="flex items-center gap-4">
+                    <button
+                        onClick={() => setShowRiskAnalysis(true)}
+                        className="flex items-center gap-2 px-4 py-2 bg-amber-500/10 hover:bg-amber-500/20 text-amber-500 rounded-lg text-xs font-black uppercase tracking-widest transition-all border border-amber-500/20"
+                    >
+                        <AlertTriangle size={14} />
+                        Portfolio Risk Analysis
+                    </button>
+                    <button className="p-2 bg-slate-800 hover:bg-slate-700 rounded-lg text-slate-400 transition-colors border border-slate-700">
+                        <Download size={18} />
+                    </button>
+                </div>
             </div>
 
-            {/* Per-Symbol Performance */}
-            <div className="bg-gradient-to-br from-slate-900/90 to-slate-800/90 backdrop-blur-xl border border-slate-700/50 rounded-2xl p-6 shadow-xl">
-                <h3 className="text-xl font-semibold text-slate-100 mb-6">Per-Symbol Performance</h3>
-                <div className="grid grid-cols-1 gap-3">
-                    {Object.entries(results.symbol_stats || {}).map(([symbol, stats]: [string, SymbolStats]) => (
-                        <div
-                            key={symbol}
-                            className="flex items-center justify-between p-4 bg-slate-800/40 border border-slate-700/50 rounded-xl hover:bg-slate-800/60 transition-all"
-                        >
-                            <div className="flex items-center space-x-4">
-                                <div className="w-12 h-12 bg-gradient-to-br from-violet-500/20 to-fuchsia-500/20 border border-violet-500/30 rounded-lg flex items-center justify-center">
-                                    <span className="font-bold text-sm text-violet-300">{symbol.slice(0, 3)}</span>
-                                </div>
-                                <div>
-                                    <p className="font-semibold text-slate-200">{symbol}</p>
-                                </div>
-                            </div>
-                            <div className="flex items-center space-x-8">
-                                <div className="text-right">
-                                    <p className="text-xs text-slate-500 font-medium mb-0.5">Profit</p>
-                                    <p className={`font-bold ${stats.total_return >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                                        {formatCurrency(stats.total_return)}
-                                    </p>
-                                </div>
-                                <div className="text-right">
-                                    <p className="text-xs text-slate-500 font-medium mb-0.5">Trades</p>
-                                    <p className="font-bold text-slate-200">{stats.total_trades}</p>
-                                </div>
-                                <div className="text-right">
-                                    <p className="text-xs text-slate-500 font-medium mb-0.5">Win Rate</p>
-                                    <p className="font-bold text-blue-400">{stats.win_rate.toFixed(1)}%</p>
-                                </div>
-                            </div>
+            {/* Content per Tab */}
+            {activeTab === 'overview' && (
+                <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                    <div className="grid grid-cols-4 gap-6">
+                        <MetricCard
+                            title="Total Return"
+                            value={formatPercent(results.total_return)}
+                            icon={TrendingUp}
+                            trend="up"
+                            color="emerald"
+                        />
+                        <MetricCard
+                            title="Win Rate"
+                            value={`${results.win_rate.toFixed(1)}%`}
+                            icon={Target}
+                            trend="up"
+                            color="blue"
+                        />
+                        <MetricCard
+                            title="Sharpe Ratio"
+                            value={results.sharpe_ratio.toFixed(2)}
+                            icon={Activity}
+                            trend="up"
+                            color="violet"
+                        />
+                        <MetricCard
+                            title="Max Drawdown"
+                            value={formatPercent(results.max_drawdown)}
+                            icon={TrendingDown}
+                            trend="down"
+                            color="red"
+                        />
+                    </div>
+
+                    {/* Per-Symbol Performance Table */}
+                    <div className="bg-gradient-to-br from-slate-900/90 to-slate-800/90 backdrop-blur-xl border border-slate-700/50 rounded-2xl p-6 shadow-xl">
+                        <div className="flex items-center justify-between mb-6">
+                            <h3 className="text-xl font-semibold text-slate-100 flex items-center gap-3">
+                                <Zap size={20} className="text-amber-400" />
+                                Asset Allocation Performance
+                            </h3>
+                            <span className="text-[10px] text-slate-500 font-black uppercase tracking-widest bg-slate-800/50 px-3 py-1 rounded-full border border-slate-700/50">
+                                {Object.keys(results.symbol_stats || {}).length} Active Assets
+                            </span>
                         </div>
-                    ))}
-                </div>
-            </div>
-
-            {/* Portfolio Equity Curve */}
-            <div className="bg-gradient-to-br from-slate-900/90 to-slate-800/90 backdrop-blur-xl border border-slate-700/50 rounded-2xl p-6 shadow-xl">
-                <div className="mb-6">
-                    <h3 className="text-xl font-semibold text-slate-100">Portfolio Equity Curve</h3>
-                    {results.benchmark && (
-                        <p className="text-xs text-slate-500 mt-1">
-                            Strategy (purple) vs Benchmark (blue)
-                        </p>
-                    )}
-                </div>
-                <ResponsiveContainer width="100%" height={320}>
-                    <ComposedChart data={equityChartData}>
-                        <defs>
-                            <linearGradient id="colorStrategyEquity" x1="0" y1="0" x2="0" y2="1">
-                                <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.4} />
-                                <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0} />
-                            </linearGradient>
-                            <linearGradient id="colorBenchmarkEquity" x1="0" y1="0" x2="0" y2="1">
-                                <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.2} />
-                                <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
-                            </linearGradient>
-                        </defs>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#334155" opacity={0.3} />
-                        <XAxis dataKey="timestamp" stroke="#64748b" style={{ fontSize: '12px' }} />
-                        <YAxis stroke="#64748b" tickFormatter={(value) => formatCurrency(value)} style={{ fontSize: '12px' }} />
-                        <Tooltip
-                            contentStyle={{
-                                backgroundColor: '#1e293b',
-                                border: '1px solid #334155',
-                                borderRadius: '12px',
-                                padding: '12px'
-                            }}
-                            formatter={(value: any, name: any) => {
-                                if (name === 'strategy_equity') return [formatCurrency(value), 'Strategy'];
-                                if (name === 'benchmark_equity') return [formatCurrency(value), 'Benchmark'];
-                                return [formatCurrency(value), name];
-                            }}
-                            labelStyle={{ color: '#94a3b8', fontWeight: 600, marginBottom: '4px' }}
-                        />
-                        {results.benchmark && (
-                            <Area
-                                type="monotone"
-                                dataKey="benchmark_equity"
-                                stroke="#3b82f6"
-                                strokeWidth={2}
-                                fillOpacity={1}
-                                fill="url(#colorBenchmarkEquity)"
-                                strokeDasharray="5 5"
-                            />
-                        )}
-                        <Area
-                            type="monotone"
-                            dataKey="strategy_equity"
-                            stroke="#8b5cf6"
-                            strokeWidth={3}
-                            fillOpacity={1}
-                            fill="url(#colorStrategyEquity)"
-                        />
-                    </ComposedChart>
-                </ResponsiveContainer>
-            </div>
-
-            {/* ⭐ NEW: DRAWDOWN CHART */}
-            <div className="bg-gradient-to-br from-slate-900/90 to-slate-800/90 backdrop-blur-xl border border-slate-700/50 rounded-2xl p-6 shadow-xl">
-                <div className="flex justify-between items-center mb-6">
-                    <div>
-                        <h3 className="text-xl font-semibold text-slate-100">Drawdown Analysis</h3>
-                        <p className="text-xs text-slate-500 mt-1">
-                            Underwater equity chart • Max DD: {formatPercent(Math.abs(results.max_drawdown))}
-                        </p>
-                    </div>
-                </div>
-                <ResponsiveContainer width="100%" height={250}>
-                    <AreaChart data={drawdownData}>
-                        <defs>
-                            <linearGradient id="colorDrawdown" x1="0" y1="0" x2="0" y2="1">
-                                <stop offset="5%" stopColor="#ef4444" stopOpacity={0.4} />
-                                <stop offset="95%" stopColor="#ef4444" stopOpacity={0.05} />
-                            </linearGradient>
-                        </defs>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#334155" opacity={0.3} />
-                        <XAxis dataKey="timestamp" stroke="#64748b" style={{ fontSize: '12px' }} />
-                        <YAxis
-                            stroke="#64748b"
-                            tickFormatter={(value) => `${value.toFixed(1)}%`}
-                            style={{ fontSize: '12px' }}
-                            domain={['dataMin', 0]}
-                        />
-                        <Tooltip
-                            contentStyle={{
-                                backgroundColor: '#1e293b',
-                                border: '1px solid #334155',
-                                borderRadius: '12px',
-                                padding: '12px'
-                            }}
-                            formatter={(value: any) => [`${Number(value).toFixed(2)}%`, 'Drawdown']}
-                            labelStyle={{ color: '#94a3b8', fontWeight: 600, marginBottom: '4px' }}
-                        />
-                        <Area
-                            type="monotone"
-                            dataKey="drawdown"
-                            stroke="#ef4444"
-                            strokeWidth={2}
-                            fillOpacity={1}
-                            fill="url(#colorDrawdown)"
-                        />
-                    </AreaChart>
-                </ResponsiveContainer>
-            </div>
-
-            {/* ⭐ NEW: ROLLING SHARPE RATIO */}
-            <div className="bg-gradient-to-br from-slate-900/90 to-slate-800/90 backdrop-blur-xl border border-slate-700/50 rounded-2xl p-6 shadow-xl">
-                <div className="flex justify-between items-center mb-6">
-                    <div>
-                        <h3 className="text-xl font-semibold text-slate-100">Rolling Sharpe Ratio (30-day)</h3>
-                        <p className="text-xs text-slate-500 mt-1">
-                            Annualized risk-adjusted return over time
-                        </p>
-                    </div>
-                </div>
-                <ResponsiveContainer width="100%" height={250}>
-                    <ComposedChart data={rollingSharpe}>
-                        <defs>
-                            <linearGradient id="colorSharpe" x1="0" y1="0" x2="0" y2="1">
-                                <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.3} />
-                                <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0} />
-                            </linearGradient>
-                        </defs>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#334155" opacity={0.3} />
-                        <XAxis dataKey="timestamp" stroke="#64748b" style={{ fontSize: '12px' }} />
-                        <YAxis
-                            stroke="#64748b"
-                            tickFormatter={(value) => value.toFixed(1)}
-                            style={{ fontSize: '12px' }}
-                        />
-                        <Tooltip
-                            contentStyle={{
-                                backgroundColor: '#1e293b',
-                                border: '1px solid #334155',
-                                borderRadius: '12px',
-                                padding: '12px'
-                            }}
-                            formatter={(value: any) => [Number(value).toFixed(2), 'Sharpe Ratio']}
-                            labelStyle={{ color: '#94a3b8', fontWeight: 600, marginBottom: '4px' }}
-                        />
-                        <Line
-                            type="monotone"
-                            dataKey={() => 0}
-                            stroke="#64748b"
-                            strokeWidth={1}
-                            strokeDasharray="5 5"
-                            dot={false}
-                        />
-                        <Area
-                            type="monotone"
-                            dataKey="sharpe"
-                            stroke="#8b5cf6"
-                            strokeWidth={2}
-                            fillOpacity={1}
-                            fill="url(#colorSharpe)"
-                        />
-                    </ComposedChart>
-                </ResponsiveContainer>
-            </div>
-
-            {/* ⭐ NEW: MONTHLY RETURNS TABLE */}
-            <div className="bg-gradient-to-br from-slate-900/90 to-slate-800/90 backdrop-blur-xl border border-slate-700/50 rounded-2xl p-6 shadow-xl">
-                <div className="flex items-center gap-3 mb-6">
-                    <Calendar className="text-violet-400" size={24} />
-                    <div>
-                        <h3 className="text-xl font-semibold text-slate-100">Monthly Returns</h3>
-                        <p className="text-xs text-slate-500 mt-1">
-                            Month-by-month performance breakdown
-                        </p>
-                    </div>
-                </div>
-
-                {monthlyReturns.length > 0 ? (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                        {monthlyReturns.map((monthData) => {
-                            const [year, month] = monthData.month.split('-');
-                            const monthName = new Date(parseInt(year), parseInt(month) - 1).toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
-
-                            return (
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                            {Object.entries(results.symbol_stats || {}).map(([symbol, stats]: [string, SymbolStats]) => (
                                 <div
-                                    key={monthData.month}
-                                    className="p-4 bg-slate-800/40 border border-slate-700/50 rounded-xl hover:bg-slate-800/60 transition-all"
+                                    key={symbol}
+                                    className="p-4 bg-slate-800/40 border border-slate-700/50 rounded-xl hover:bg-slate-800/60 transition-all border-l-4 border-l-violet-500"
                                 >
-                                    <div className="flex justify-between items-center">
+                                    <div className="flex justify-between items-start mb-3">
                                         <div>
-                                            <p className="text-xs text-slate-500 font-medium mb-1">{monthName}</p>
-                                            <p className={`text-xl font-bold ${monthData.return >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                                                {monthData.return >= 0 ? '+' : ''}{monthData.return.toFixed(2)}%
+                                            <p className="font-black text-lg text-slate-100 uppercase tracking-tighter">{symbol}</p>
+                                            <p className="text-[10px] text-slate-500 font-bold uppercase">{stats.total_trades} Executed Trades</p>
+                                        </div>
+                                        <div className={`px-2 py-1 rounded text-[10px] font-black ${stats.win_rate >= 50 ? 'bg-emerald-500/10 text-emerald-400' : 'bg-red-500/10 text-red-400'}`}>
+                                            {stats.win_rate.toFixed(1)}% WR
+                                        </div>
+                                    </div>
+                                    <div className="flex justify-between items-end">
+                                        <div>
+                                            <p className="text-[9px] text-slate-600 font-black uppercase">Net P&L</p>
+                                            <p className={`text-base font-bold ${stats.total_return >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                                                {formatCurrency(stats.total_return)}
                                             </p>
                                         </div>
-                                        <div className={`p-2 rounded-lg ${monthData.return >= 0 ? 'bg-emerald-500/10' : 'bg-red-500/10'}`}>
-                                            {monthData.return >= 0 ? (
-                                                <TrendingUp className="text-emerald-400" size={20} />
-                                            ) : (
-                                                <TrendingDown className="text-red-400" size={20} />
-                                            )}
-                                        </div>
-                                    </div>
-                                    <div className="mt-2 pt-2 border-t border-slate-700/30">
-                                        <p className="text-xs text-slate-600">
-                                            {formatCurrency(monthData.startEquity)} → {formatCurrency(monthData.endEquity)}
-                                        </p>
+                                        <TrendingUp size={16} className={stats.total_return >= 0 ? 'text-emerald-500/30' : 'text-red-500/30'} />
                                     </div>
                                 </div>
-                            );
-                        })}
-                    </div>
-                ) : (
-                    <div className="text-center py-12">
-                        <Calendar className="mx-auto text-slate-600 mb-3" size={48} />
-                        <p className="text-slate-500">No monthly data available</p>
-                    </div>
-                )}
-
-                {/* Monthly Stats Summary */}
-                {monthlyReturns.length > 0 && (
-                    <div className="grid grid-cols-4 gap-4 mt-6 pt-6 border-t border-slate-700/50">
-                        <div className="text-center">
-                            <p className="text-xs text-slate-500 mb-1">Best Month</p>
-                            <p className="text-lg font-bold text-emerald-400">
-                                +{Math.max(...monthlyReturns.map(m => m.return)).toFixed(2)}%
-                            </p>
-                        </div>
-                        <div className="text-center">
-                            <p className="text-xs text-slate-500 mb-1">Worst Month</p>
-                            <p className="text-lg font-bold text-red-400">
-                                {Math.min(...monthlyReturns.map(m => m.return)).toFixed(2)}%
-                            </p>
-                        </div>
-                        <div className="text-center">
-                            <p className="text-xs text-slate-500 mb-1">Avg Month</p>
-                            <p className="text-lg font-bold text-slate-300">
-                                {(monthlyReturns.reduce((sum, m) => sum + m.return, 0) / monthlyReturns.length).toFixed(2)}%
-                            </p>
-                        </div>
-                        <div className="text-center">
-                            <p className="text-xs text-slate-500 mb-1">Positive Months</p>
-                            <p className="text-lg font-bold text-blue-400">
-                                {monthlyReturns.filter(m => m.return > 0).length}/{monthlyReturns.length}
-                            </p>
-                        </div>
-                    </div>
-                )}
-            </div>
-
-            {/* Benchmark Comparison */}
-            {results.benchmark && <BenchmarkComparison benchmark={results.benchmark} />}
-
-            {/* Trades Table */}
-            <div className="bg-gradient-to-br from-slate-900/90 to-slate-800/90 backdrop-blur-xl border border-slate-700/50 rounded-2xl p-6 shadow-xl">
-                <div className="flex justify-between items-center mb-6">
-                    <h3 className="text-xl font-semibold text-slate-100">Trade History</h3>
-                    <div className="flex space-x-2">
-                        {['all', 'wins', 'losses'].map((filter) => (
-                            <button
-                                key={filter}
-                                onClick={() => setTradeFilter(filter)}
-                                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${tradeFilter === filter
-                                    ? 'bg-violet-500 text-white shadow-lg shadow-violet-500/20'
-                                    : 'bg-slate-800/60 text-slate-400 hover:text-slate-200'
-                                }`}
-                            >
-                                {filter.charAt(0).toUpperCase() + filter.slice(1)}
-                            </button>
-                        ))}
-                        <button
-                            onClick={() => setShowRiskAnalysis(true)}
-                            className="flex items-center gap-2 px-4 py-2 bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 rounded-lg text-sm font-medium transition-all border border-blue-500/30"
-                        >
-                            <AlertTriangle size={16} />
-                            Risk Analysis
-                        </button>
-                    </div>
-                </div>
-
-                <div className="overflow-x-auto">
-                    <table className="w-full">
-                        <thead>
-                        <tr className="border-b border-slate-700/50">
-                            <th className="text-left p-3 text-xs font-bold text-slate-500 uppercase">Symbol</th>
-                            <th className="text-left p-3 text-xs font-bold text-slate-500 uppercase">Type</th>
-                            <th className="text-right p-3 text-xs font-bold text-slate-500 uppercase">Quantity</th>
-                            <th className="text-right p-3 text-xs font-bold text-slate-500 uppercase">Price</th>
-                            <th className="text-right p-3 text-xs font-bold text-slate-500 uppercase">Profit/Loss</th>
-                            <th className="text-right p-3 text-xs font-bold text-slate-500 uppercase">Return %</th>
-                            <th className="text-left p-3 text-xs font-bold text-slate-500 uppercase">Date</th>
-                        </tr>
-                        </thead>
-                        <tbody>
-                        {trades
-                            .filter((trade) => {
-                                if (tradeFilter === 'wins') return (trade.profit || 0) > 0;
-                                if (tradeFilter === 'losses') return (trade.profit || 0) < 0;
-                                return true;
-                            })
-                            .map((trade, index) => (
-                                <tr key={index} className="border-b border-slate-800/50 hover:bg-slate-800/30 transition-colors">
-                                    <td className="p-3 font-medium text-slate-200">{trade.symbol}</td>
-                                    <td className="p-3">
-                                            <span className={`px-2 py-1 rounded text-xs font-bold ${trade.order_type === 'BUY'
-                                                ? 'bg-emerald-500/20 text-emerald-400'
-                                                : 'bg-red-500/20 text-red-400'
-                                            }`}>
-                                                {trade.order_type}
-                                            </span>
-                                    </td>
-                                    <td className="p-3 text-right text-slate-300">{trade.quantity}</td>
-                                    <td className="p-3 text-right font-mono text-slate-300">{formatCurrency(trade.price)}</td>
-                                    <td className={`p-3 text-right font-bold ${(trade.profit || 0) >= 0 ? 'text-emerald-400' : 'text-red-400'
-                                    }`}>
-                                        {trade.profit ? formatCurrency(trade.profit) : '-'}
-                                    </td>
-                                    <td className={`p-3 text-right font-mono ${(trade.profit_pct || 0) >= 0 ? 'text-emerald-400' : 'text-red-400'
-                                    }`}>
-                                        {trade.profit_pct ? `${trade.profit_pct.toFixed(2)}%` : '-'}
-                                    </td>
-                                    <td className="p-3 text-slate-400 text-sm">
-                                        {trade.executed_at}
-                                    </td>
-                                </tr>
                             ))}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
+                        </div>
+                    </div>
 
-            {/* Risk Analysis Modal */}
+                    <div className="bg-gradient-to-br from-slate-900/90 to-slate-800/90 backdrop-blur-xl border border-slate-700/50 rounded-2xl p-6 shadow-xl">
+                        <div className="flex justify-between items-center mb-6">
+                            <div>
+                                <h3 className="text-xl font-semibold text-slate-100">Portfolio Equity Curve</h3>
+                                {results.benchmark && (
+                                    <p className="text-xs text-slate-500 mt-1 uppercase font-bold tracking-widest">
+                                        Multi-Asset Strategy (Violet) vs {results.benchmark.symbol} (Blue)
+                                    </p>
+                                )}
+                            </div>
+                        </div>
+                        <ResponsiveContainer width="100%" height={400}>
+                            <ComposedChart data={equityChartData}>
+                                <defs>
+                                    <linearGradient id="colorStrategyEquity" x1="0" y1="0" x2="0" y2="1">
+                                        <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.4} />
+                                        <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0} />
+                                    </linearGradient>
+                                    <linearGradient id="colorBenchmarkEquity" x1="0" y1="0" x2="0" y2="1">
+                                        <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.2} />
+                                        <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
+                                    </linearGradient>
+                                </defs>
+                                <CartesianGrid strokeDasharray="3 3" stroke="#334155" opacity={0.3} />
+                                <XAxis dataKey="timestamp" stroke="#64748b" style={{ fontSize: '10px' }} />
+                                <YAxis stroke="#64748b" tickFormatter={(value) => formatCurrency(value)} style={{ fontSize: '10px' }} />
+                                <Tooltip
+                                    contentStyle={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '12px' }}
+                                    formatter={(value: any, name: any) => {
+                                        if (name === 'strategy_equity') return [formatCurrency(value), 'Portfolio'];
+                                        if (name === 'benchmark_equity') return [formatCurrency(value), 'Benchmark'];
+                                        return [formatCurrency(value), name];
+                                    }}
+                                />
+                                {results.benchmark && (
+                                    <Area
+                                        type="monotone"
+                                        dataKey="benchmark_equity"
+                                        stroke="#3b82f6"
+                                        strokeWidth={2}
+                                        fillOpacity={1}
+                                        fill="url(#colorBenchmarkEquity)"
+                                        strokeDasharray="5 5"
+                                    />
+                                )}
+                                <Area
+                                    type="monotone"
+                                    dataKey="strategy_equity"
+                                    stroke="#8b5cf6"
+                                    strokeWidth={3}
+                                    fillOpacity={1}
+                                    fill="url(#colorStrategyEquity)"
+                                />
+                            </ComposedChart>
+                        </ResponsiveContainer>
+                    </div>
+
+                    {results.benchmark && <BenchmarkComparison benchmark={results.benchmark} />}
+                </div>
+            )}
+
+            {activeTab === 'tearsheet' && (
+                <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        <div className="bg-slate-900 border border-slate-800 p-5 rounded-2xl">
+                            <div className="flex items-center gap-2 mb-2">
+                                <Shield size={14} className="text-violet-400" />
+                                <p className="text-[10px] text-slate-500 font-black uppercase tracking-widest">Sortino Ratio</p>
+                            </div>
+                            <p className="text-2xl font-bold text-slate-200">
+                                {(results?.sortino_ratio || 0).toFixed(2)}
+                            </p>
+                        </div>
+                        <div className="bg-slate-900 border border-slate-800 p-5 rounded-2xl">
+                            <div className="flex items-center gap-2 mb-2">
+                                <Zap size={14} className="text-blue-400" />
+                                <p className="text-[10px] text-slate-500 font-black uppercase tracking-widest">Calmar Ratio</p>
+                            </div>
+                            <p className="text-2xl font-bold text-slate-200">
+                                {(results?.calmar_ratio || 0).toFixed(2)}
+                            </p>
+                        </div>
+                        <div className="bg-slate-900 border border-slate-800 p-5 rounded-2xl">
+                            <div className="flex items-center gap-2 mb-2">
+                                <TrendingDown size={14} className="text-red-400" />
+                                <p className="text-[10px] text-slate-500 font-black uppercase tracking-widest">VaR (95%)</p>
+                            </div>
+                            <p className="text-2xl font-bold text-red-500">
+                                {formatPercent(Math.abs(results?.var_95 || 0))}
+                            </p>
+                        </div>
+                        <div className="bg-slate-900 border border-slate-800 p-5 rounded-2xl">
+                            <div className="flex items-center gap-2 mb-2">
+                                <Activity size={14} className="text-amber-400" />
+                                <p className="text-[10px] text-slate-500 font-black uppercase tracking-widest">Portfolio Vol</p>
+                            </div>
+                            <p className="text-2xl font-bold text-slate-200">
+                                {formatPercent(results?.volatility || 0)}
+                            </p>
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div className="bg-slate-900 border border-slate-800 p-6 rounded-2xl">
+                            <h4 className="text-sm font-bold text-slate-300 mb-6 flex items-center gap-2 uppercase tracking-widest">
+                                <TrendingDown size={16} className="text-red-400" />
+                                Portfolio Drawdowns
+                            </h4>
+                            <ResponsiveContainer width="100%" height={200}>
+                                <AreaChart data={drawdownData}>
+                                    <defs>
+                                        <linearGradient id="colorDrawdown" x1="0" y1="0" x2="0" y2="1">
+                                            <stop offset="5%" stopColor="#ef4444" stopOpacity={0.4} />
+                                            <stop offset="95%" stopColor="#ef4444" stopOpacity={0.05} />
+                                        </linearGradient>
+                                    </defs>
+                                    <CartesianGrid strokeDasharray="3 3" stroke="#334155" opacity={0.3} vertical={false} />
+                                    <XAxis dataKey="timestamp" hide />
+                                    <YAxis stroke="#64748b" style={{ fontSize: '10px' }} tickFormatter={(val) => `${val.toFixed(1)}%`} />
+                                    <Tooltip contentStyle={{ backgroundColor: '#0f172a', border: '1px solid #1e293b' }} />
+                                    <Area type="monotone" dataKey="drawdown" stroke="#ef4444" fill="url(#colorDrawdown)" />
+                                </AreaChart>
+                            </ResponsiveContainer>
+                        </div>
+                        <div className="bg-slate-900 border border-slate-800 p-6 rounded-2xl">
+                            <h4 className="text-sm font-bold text-slate-300 mb-6 flex items-center gap-2 uppercase tracking-widest">
+                                <Activity size={16} className="text-violet-400" />
+                                30D Rolling Sharpe
+                            </h4>
+                            <ResponsiveContainer width="100%" height={200}>
+                                <ComposedChart data={rollingSharpe}>
+                                    <defs>
+                                        <linearGradient id="colorSharpe" x1="0" y1="0" x2="0" y2="1">
+                                            <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.3} />
+                                            <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0} />
+                                        </linearGradient>
+                                    </defs>
+                                    <CartesianGrid strokeDasharray="3 3" stroke="#334155" opacity={0.3} vertical={false} />
+                                    <XAxis dataKey="timestamp" hide />
+                                    <YAxis stroke="#64748b" style={{ fontSize: '10px' }} />
+                                    <Tooltip contentStyle={{ backgroundColor: '#0f172a', border: '1px solid #1e293b' }} />
+                                    <Line type="monotone" dataKey={() => 0} stroke="#475569" strokeDasharray="5 5" dot={false} />
+                                    <Area type="monotone" dataKey="sharpe" stroke="#8b5cf6" fill="url(#colorSharpe)" />
+                                </ComposedChart>
+                            </ResponsiveContainer>
+                        </div>
+                    </div>
+
+                    {/* Monthly Returns */}
+                    <div className="bg-slate-900 border border-slate-800 p-6 rounded-2xl">
+                        <div className="flex items-center justify-between mb-6">
+                            <div className="flex items-center gap-3">
+                                <Calendar className="text-blue-400" size={20} />
+                                <h4 className="text-sm font-bold text-slate-300 uppercase tracking-widest">Annual Heatmap</h4>
+                            </div>
+                        </div>
+                        <div className="grid grid-cols-2 lg:grid-cols-6 gap-3">
+                            {monthlyReturns.map((monthData) => {
+                                const [year, month] = monthData.month.split('-');
+                                const monthName = new Date(parseInt(year), parseInt(month) - 1).toLocaleDateString('en-US', { month: 'short', year: '2-digit' });
+
+                                return (
+                                    <div
+                                        key={monthData.month}
+                                        className={`p-4 border rounded-xl flex flex-col items-center justify-center transition-all ${monthData.return >= 0
+                                                ? 'bg-emerald-500/5 border-emerald-500/20'
+                                                : 'bg-red-500/5 border-red-500/20'
+                                            }`}
+                                    >
+                                        <p className="text-[10px] text-slate-500 font-bold mb-1 uppercase">{monthName}</p>
+                                        <p className={`text-sm font-black ${monthData.return >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                                            {monthData.return >= 0 ? '+' : ''}{monthData.return.toFixed(2)}%
+                                        </p>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {activeTab === 'trades' && (
+                <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                    <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-xl">
+                        <div className="p-6 border-b border-slate-800 flex justify-between items-center bg-white/[0.01]">
+                            <h3 className="text-xl font-semibold text-slate-100 italic">Portfolio Trade History</h3>
+                            <div className="flex bg-slate-800/50 p-1 rounded-lg border border-slate-700">
+                                {['all', 'wins', 'losses'].map((f) => (
+                                    <button
+                                        key={f}
+                                        onClick={() => setTradeFilter(f)}
+                                        className={`px-4 py-1.5 rounded text-[10px] font-black uppercase tracking-widest transition-all ${tradeFilter === f
+                                            ? 'bg-violet-600 text-white'
+                                            : 'text-slate-500 hover:text-slate-300'
+                                            }`}
+                                    >
+                                        {f}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                        <div className="overflow-x-auto">
+                            <table className="w-full">
+                                <thead>
+                                    <tr className="border-b border-slate-800 bg-black/20">
+                                        <th className="text-left p-4 text-[10px] font-black text-slate-500 uppercase tracking-widest">Symbol</th>
+                                        <th className="text-left p-4 text-[10px] font-black text-slate-500 uppercase tracking-widest">Type</th>
+                                        <th className="text-right p-4 text-[10px] font-black text-slate-500 uppercase tracking-widest">Quantity</th>
+                                        <th className="text-right p-4 text-[10px] font-black text-slate-500 uppercase tracking-widest">Price</th>
+                                        <th className="text-right p-4 text-[10px] font-black text-slate-500 uppercase tracking-widest">P/L</th>
+                                        <th className="text-right p-4 text-[10px] font-black text-slate-500 uppercase tracking-widest">Executed At</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {trades
+                                        .filter((t) => {
+                                            if (tradeFilter === 'wins') return (t.profit || 0) > 0;
+                                            if (tradeFilter === 'losses') return (t.profit || 0) < 0;
+                                            return true;
+                                        })
+                                        .map((trade, idx) => (
+                                            <tr key={idx} className="border-b border-slate-800/50 hover:bg-slate-800/20 transition-colors">
+                                                <td className="p-4 text-xs font-black text-slate-200 uppercase">{trade.symbol}</td>
+                                                <td className="p-4">
+                                                    <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${trade.order_type === 'BUY' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-red-500/10 text-red-400'}`}>
+                                                        {trade.order_type}
+                                                    </span>
+                                                </td>
+                                                <td className="p-4 text-right text-xs font-mono text-slate-400">{trade.quantity}</td>
+                                                <td className="p-4 text-right text-xs font-mono text-slate-300">{formatCurrency(trade.price)}</td>
+                                                <td className={`p-4 text-right text-xs font-bold ${(trade.profit || 0) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                                                    {trade.profit ? formatCurrency(trade.profit) : '-'}
+                                                </td>
+                                                <td className="p-4 text-right text-[10px] text-slate-600 uppercase font-bold">
+                                                    {trade.executed_at}
+                                                </td>
+                                            </tr>
+                                        ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {showRiskAnalysis && (
                 <RiskAnalysisModal results={results} onClose={() => setShowRiskAnalysis(false)} />
             )}

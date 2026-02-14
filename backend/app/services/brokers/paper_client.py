@@ -5,6 +5,7 @@ from typing import Any, Dict, List, Optional
 
 import pytz
 
+from backend.app.models import UserSettings
 from backend.app.services.brokers.base_client import BrokerClient
 
 logger = logging.getLogger(__name__)
@@ -26,14 +27,13 @@ class PaperTradingClient(BrokerClient):
         # Mock market data cache
         self.market_data_cache: Dict[str, Dict[str, List[float]]] = {}
 
-    async def connect(self, credentials: Dict[str, str]) -> bool:
+    async def connect(self, settings: UserSettings) -> bool:
         """Connect to paper trading"""
         logger.info("Connecting to paper trading")
         self.connected = True
 
-        # Set initial capital if provided
-        if "initial_capital" in credentials:
-            self.cash = float(credentials["initial_capital"])
+        if settings.initial_capital is not None:
+            self.cash = float(settings.initial_capital)
 
         return True
 

@@ -1,21 +1,22 @@
 """
-Market Regime Detector - FIXED VERSION
+Market Regime Detector
 Purpose: Identify current market regime and adjust strategy allocations accordingly
 Why critical: Most strategies fail in wrong regimes; this ensures right strategy at right time
 
-FIXES APPLIED:
-1. ✅ Fixed Hurst exponent calculation (now returns Series)
-2. ✅ Fixed half-life calculation (now returns Series)
-3. ✅ Fixed volume data initialization
-4. ✅ Optimized correlation calculation
-5. ✅ Added caching for expensive calculations
-6. ✅ Fixed memory leaks
-7. ✅ Added regime confidence intervals
-8. ✅ Added early warning system
-9. ✅ Added regime strength indicator
+Features:
+1. Hurst exponent calculation (now returns Series)
+2. Half-life calculation (now returns Series)
+3. Volume data initialization
+4. Optimized correlation calculation
+5. Caching for expensive calculations
+6. Memory leaks
+7. Regime confidence intervals
+8. Early warning system
+9. Regime strength indicator
 """
 
 import hashlib
+import logging
 import warnings
 from typing import Dict, List, Optional, Union
 
@@ -26,10 +27,12 @@ from sklearn.preprocessing import LabelEncoder, StandardScaler
 
 warnings.filterwarnings("ignore")
 
+logger = logging.getLogger(__name__)
+
 
 class MarketRegimeDetector:
     """
-    Advanced Market Regime Detection System - FIXED VERSION
+    Advanced Market Regime Detection System
 
     Uses multiple methods to detect and classify market regimes:
     1. Statistical methods (volatility, trend, mean reversion)
@@ -119,10 +122,6 @@ class MarketRegimeDetector:
         # Cache for expensive calculations
         self._feature_cache = {}
         self._cache_max_size = 100
-
-    # ============================================================================
-    # FEATURE ENGINEERING - FIXED
-    # ============================================================================
 
     def calculate_features(
         self,
@@ -235,17 +234,16 @@ class MarketRegimeDetector:
 
     def _classify_volatility(self, volatility: pd.Series) -> pd.Series:
         """Classify volatility regime - VECTORIZED"""
-        return pd.cut(
-            volatility,
-            bins=[
-                0,
-                self.volatility_thresholds["low_vol"],
-                self.volatility_thresholds["medium_vol"],
-                self.volatility_thresholds["high_vol"],
-                np.inf,
-            ],
-            labels=["low_vol", "medium_vol", "high_vol", "crisis_vol"],
-        )
+        conditions = [
+            (volatility <= self.volatility_thresholds["low_vol"]),
+            (volatility <= self.volatility_thresholds["medium_vol"]),
+            (volatility <= self.volatility_thresholds["high_vol"]),
+            (volatility > self.volatility_thresholds["high_vol"]),
+        ]
+
+        choices = ["low_vol", "medium_vol", "high_vol", "crisis_vol"]
+
+        return pd.Series(np.select(conditions, choices, default="medium_vol"), index=volatility.index)
 
     def _calculate_trend_strength(self, prices: pd.Series, window: int = 14) -> pd.Series:
         """Calculate ADX-like trend strength"""
@@ -269,55 +267,43 @@ class MarketRegimeDetector:
 
     def _calculate_hurst_exponent_rolling(self, prices: pd.Series, window: int = 100) -> pd.Series:
         """
-        FIXED: Calculate rolling Hurst exponent for mean reversion detection
+        OPTIMIZED: Calculate rolling Hurst exponent using vectorized lag differences
 
         Returns:
             pd.Series with Hurst exponent values
         """
+        values = prices.values
+        n = len(values)
+        result = np.full(n, 0.5)
 
-        def hurst_for_window(price_window):
-            """Calculate Hurst exponent for a price window"""
-            if len(price_window) < 20:
-                return 0.5  # Neutral (geometric Brownian motion)
+        max_lag = min(50, window // 2)
+        if max_lag < 2:
+            return pd.Series(result, index=prices.index)
 
-            max_lag = min(50, len(price_window) // 2)
-            if max_lag < 2:
-                return 0.5
+        lags = np.arange(2, max_lag)
+        log_lags = np.log(lags)
 
-            lags = range(2, max_lag)
-            tau = []
+        for i in range(window - 1, n):
+            win = values[i - window + 1 : i + 1]
 
-            for lag in lags:
-                if lag >= len(price_window):
-                    break
-
-                pp = np.subtract(price_window.iloc[lag:].values, price_window.iloc[:-lag].values)
-
-                if len(pp) > 0:
-                    tau.append(np.sqrt(np.std(pp)))
+            # Vectorized tau calculation across all lags at once
+            tau = np.array([np.sqrt(np.std(win[lag:] - win[:-lag])) for lag in lags if lag < len(win) and len(win[lag:]) > 0])
 
             if len(tau) < 2:
-                return 0.5
+                continue
 
-            # Calculate Hurst exponent via log-log regression
+            log_tau = np.log(tau)
+            valid = np.isfinite(log_lags[: len(tau)]) & np.isfinite(log_tau)
+            if valid.sum() < 2:
+                continue
+
             try:
-                log_lags = np.log(list(range(2, 2 + len(tau))))
-                log_tau = np.log(tau)
-
-                # Filter out inf/nan
-                valid_idx = np.isfinite(log_lags) & np.isfinite(log_tau)
-                if valid_idx.sum() < 2:
-                    return 0.5
-
-                hurst = np.polyfit(log_lags[valid_idx], log_tau[valid_idx], 1)[0]
-
-                # Constrain to reasonable range
-                return np.clip(hurst, 0, 1)
+                hurst = np.polyfit(log_lags[: len(tau)][valid], log_tau[valid], 1)[0]
+                result[i] = np.clip(hurst, 0, 1)
             except Exception:
-                return 0.5
+                pass
 
-        # Apply rolling calculation
-        return prices.rolling(window, min_periods=20).apply(hurst_for_window, raw=False)
+        return pd.Series(result, index=prices.index)
 
     def _calculate_half_life_rolling(self, prices: pd.Series, window: int = 50) -> pd.Series:
         """
@@ -409,48 +395,60 @@ class MarketRegimeDetector:
         obv = (np.sign(price_change) * volume_aligned).fillna(0).cumsum()
 
         features["obv"] = obv
-        features["obv_slope"] = obv.rolling(20).apply(lambda x: np.polyfit(range(len(x)), x, 1)[0] if len(x) > 1 else 0, raw=False)
+        features["obv_slope"] = obv.rolling(20).apply(lambda x: np.polyfit(range(len(x)), x, 1)[0] if len(x) > 1 else 0, raw=True)
 
         return features
 
     def _calculate_correlation_features_optimized(self, price_data: pd.DataFrame) -> pd.DataFrame:
         """
-        OPTIMIZED: Calculate correlation-based features efficiently
+        OPTIMIZED: Calculate correlation-based features using vectorized rolling correlations
         """
         features = pd.DataFrame(index=price_data.index)
         returns = price_data.pct_change().dropna()
 
-        if len(returns) < 63:
+        if len(returns) < 63 or returns.shape[1] < 2:
             return features
 
-        # Calculate rolling average correlation (optimized)
-        def avg_pairwise_correlation(return_matrix):
-            """Calculate average pairwise correlation efficiently"""
-            if len(return_matrix) < 10:
-                return np.nan
+        # Vectorized approach: compute rolling pairwise correlations directly
+        cols = returns.columns
+        n_cols = len(cols)
 
-            # Calculate correlation matrix
-            corr_matrix = return_matrix.corr().values
+        if n_cols < 2:
+            return features
 
-            # Get upper triangle (excluding diagonal)
-            n = corr_matrix.shape[0]
-            upper_indices = np.triu_indices(n, k=1)
+        # Calculate rolling correlations for all pairs using pandas rolling corr
+        corr_sums = pd.Series(0.0, index=returns.index)
+        n_pairs = 0
 
-            # Average of upper triangle
-            return np.mean(corr_matrix[upper_indices])
+        for i in range(n_cols):
+            for j in range(i + 1, n_cols):
+                pair_corr = returns.iloc[:, i].rolling(63, min_periods=20).corr(returns.iloc[:, j])
+                corr_sums = corr_sums.add(pair_corr, fill_value=0)
+                n_pairs += 1
 
-        # Rolling correlation calculation
-        avg_corr = returns.rolling(63).apply(lambda x: avg_pairwise_correlation(pd.DataFrame(x)), raw=False)
+        if n_pairs > 0:
+            features["avg_correlation"] = corr_sums / n_pairs
+        else:
+            features["avg_correlation"] = np.nan
 
-        # Take mean across all columns (they should be similar)
-        features["avg_correlation"] = avg_corr.mean(axis=1)
+        # Reindex to match original price_data index
+        features = features.reindex(price_data.index)
 
         # Correlation regime
-        features["correlation_regime"] = pd.cut(
-            features["avg_correlation"],
-            bins=[-1, 0.2, 0.5, 0.8, 1],
-            labels=["very_low", "low", "medium", "high"],
-        )
+        corr_values = features["avg_correlation"].values
+        regime = np.empty(len(corr_values), dtype=object)
+
+        mask1 = corr_values <= 0.2
+        mask2 = (corr_values > 0.2) & (corr_values <= 0.5)
+        mask3 = (corr_values > 0.5) & (corr_values <= 0.8)
+        mask4 = corr_values > 0.8
+
+        regime[mask1] = "very_low"
+        regime[mask2] = "low"
+        regime[mask3] = "medium"
+        regime[mask4] = "high"
+
+        features["correlation_regime"] = pd.Series(regime, index=features.index)
 
         return features
 
@@ -500,10 +498,6 @@ class MarketRegimeDetector:
                 break
 
         return persistence / len(self.regime_history) if len(self.regime_history) > 0 else 0.0
-
-    # ============================================================================
-    # REGIME DETECTION METHODS
-    # ============================================================================
 
     def detect_regime_statistical(self, features: pd.DataFrame) -> Dict:
         """
@@ -639,7 +633,7 @@ class MarketRegimeDetector:
             }
 
         except Exception as e:
-            print(f"ML detection error: {e}")
+            logger.error(f"ML detection error: {e}")
             return self.detect_regime_statistical(features)
 
     def detect_regime_ensemble(self, features: pd.DataFrame) -> Dict:
@@ -688,10 +682,6 @@ class MarketRegimeDetector:
             "ml_regime": ml_result["regime"] if self.use_ml else None,
         }
 
-    # ============================================================================
-    # NEW: REGIME CONFIDENCE INTERVALS
-    # ============================================================================
-
     def get_regime_with_confidence_interval(self, features: pd.DataFrame, n_bootstrap: int = 100) -> Dict:
         """
         Bootstrap confidence intervals for regime detection
@@ -726,10 +716,6 @@ class MarketRegimeDetector:
             "distribution": regime_dist.to_dict(),
             "method": "bootstrap",
         }
-
-    # ============================================================================
-    # NEW: EARLY WARNING SYSTEM
-    # ============================================================================
 
     def detect_regime_change_warning(self, features: pd.DataFrame, lookback: int = 20) -> Dict:
         """
@@ -788,10 +774,6 @@ class MarketRegimeDetector:
             "recommendation": recommendation,
         }
 
-    # ============================================================================
-    # NEW: REGIME STRENGTH INDICATOR
-    # ============================================================================
-
     def calculate_regime_strength(self, features: pd.DataFrame) -> float:
         """
         Calculate how strongly the current regime is presenting itself
@@ -835,10 +817,6 @@ class MarketRegimeDetector:
                     z_scores.append(abs(z))
 
         return np.mean(z_scores) if z_scores else 0.0
-
-    # ============================================================================
-    # NEW: REGIME DURATION PREDICTION
-    # ============================================================================
 
     def predict_regime_duration(self) -> Optional[Dict]:
         """
@@ -902,10 +880,6 @@ class MarketRegimeDetector:
             durations.append(current_duration)
 
         return durations
-
-    # ============================================================================
-    # STRATEGY ALLOCATION
-    # ============================================================================
 
     def _create_allocation_templates(self) -> Dict:
         """Create strategy allocation templates for each regime"""
@@ -1000,10 +974,6 @@ class MarketRegimeDetector:
 
         return allocation
 
-    # ============================================================================
-    # MAIN INTERFACE
-    # ============================================================================
-
     def detect_current_regime(
         self,
         price_data: Union[pd.Series, pd.DataFrame],
@@ -1086,14 +1056,14 @@ class MarketRegimeDetector:
 
         if labels is None:
             # Generate labels using statistical method
-            labels = self._generate_labels(historical_data, features)
+            labels = self._generate_labels(features)
 
         # Prepare data
         X = features.dropna()
         y = labels.loc[X.index]
 
         if len(X) < 100 or len(np.unique(y)) < 3:
-            print("Insufficient data for ML training")
+            logger.info("Insufficient data for ML training")
             return
 
         # Store feature columns
@@ -1118,9 +1088,9 @@ class MarketRegimeDetector:
         self.classifier.fit(X_scaled, y_encoded)
         self.last_training_date = historical_data.index[-1]
 
-        print(f"ML model trained on {len(X)} samples")
+        logger.info(f"ML model trained on {len(X)} samples")
 
-    def _generate_labels(self, historical_data: pd.DataFrame, features: pd.DataFrame) -> pd.Series:
+    def _generate_labels(self, features: pd.DataFrame) -> pd.Series:
         """Generate regime labels for training"""
         labels = pd.Series(index=features.index, dtype="object")
 

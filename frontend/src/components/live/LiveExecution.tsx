@@ -318,7 +318,7 @@
 // export default LiveExecution;
 
 'use client'
-import React, {useEffect, useMemo, useState} from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
     Activity,
     AlertCircle,
@@ -333,11 +333,13 @@ import {
     ShieldAlert,
     Square,
     TrendingUp,
-    Wallet
+    Wallet,
+    History
 } from "lucide-react";
-import {live} from '@/utils/api';
-import {BrokerType, ConnectRequest, EngineStatus, ExecutionOrder, LiveStrategy} from '@/types/live';
-import {Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis} from 'recharts';
+import { live } from '@/utils/api';
+import { BrokerType, ConnectRequest, EngineStatus, ExecutionOrder, LiveStrategy } from '@/types/live';
+import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
+import VersionHistoryModal from './VersionHistoryModal';
 
 const LiveExecution = () => {
     const [isConnected, setIsConnected] = useState(false);
@@ -354,6 +356,9 @@ const LiveExecution = () => {
     const [portfolioEquity, setPortfolioEquity] = useState<any[]>([]);
     const [totalPnL, setTotalPnL] = useState(0);
     const [totalPnLPct, setTotalPnLPct] = useState(0);
+
+    const [isHistoryOpen, setIsHistoryOpen] = useState(false);
+    const [selectedHistoryStrategy, setSelectedHistoryStrategy] = useState<{ id: number, name: string } | null>(null);
 
     // Initial load and polling
     useEffect(() => {
@@ -535,7 +540,7 @@ const LiveExecution = () => {
         <div className="space-y-6 animate-in fade-in duration-700">
             {/* Critical Warning */}
             <div className="bg-amber-500/10 border border-amber-500/20 rounded-2xl p-4 flex gap-4 items-start">
-                <ShieldAlert className="text-amber-500 shrink-0" size={24}/>
+                <ShieldAlert className="text-amber-500 shrink-0" size={24} />
                 <div>
                     <h4 className="text-sm font-bold text-amber-500 uppercase tracking-tight">Real Money Risk Warning</h4>
                     <p className="text-xs text-slate-400 leading-relaxed">
@@ -575,8 +580,8 @@ const LiveExecution = () => {
                             <AreaChart data={portfolioEquity}>
                                 <defs>
                                     <linearGradient id="equityGradient" x1="0" y1="0" x2="0" y2="1">
-                                        <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.3}/>
-                                        <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0}/>
+                                        <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.3} />
+                                        <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0} />
                                     </linearGradient>
                                 </defs>
                                 <CartesianGrid strokeDasharray="3 3" stroke="#334155" opacity={0.2} />
@@ -626,13 +631,24 @@ const LiveExecution = () => {
                                                 {strategy.deployment_mode === 'paper' ? '📋 Paper' : '🚀 Live'}
                                             </p>
                                         </div>
-                                        <span className={`px-2 py-1 rounded text-[10px] font-black uppercase ${
-                                            strategy.status === 'RUNNING' ? 'bg-emerald-500/20 text-emerald-400' :
-                                                strategy.status === 'PAUSED' ? 'bg-amber-500/20 text-amber-400' :
-                                                    'bg-slate-700 text-slate-400'
-                                        }`}>
-                                            {strategy.status}
-                                        </span>
+                                        <div className="flex flex-col items-end gap-2">
+                                            <span className={`px-2 py-1 rounded text-[10px] font-black uppercase ${strategy.status === 'RUNNING' ? 'bg-emerald-500/20 text-emerald-400' :
+                                                    strategy.status === 'PAUSED' ? 'bg-amber-500/20 text-amber-400' :
+                                                        'bg-slate-700 text-slate-400'
+                                                }`}>
+                                                {strategy.status}
+                                            </span>
+                                            <button
+                                                onClick={() => {
+                                                    setSelectedHistoryStrategy({ id: strategy.id, name: strategy.name });
+                                                    setIsHistoryOpen(true);
+                                                }}
+                                                className="p-1.5 hover:bg-slate-700 rounded-lg text-slate-500 hover:text-violet-400 transition-all"
+                                                title="View Version History"
+                                            >
+                                                <History size={14} />
+                                            </button>
+                                        </div>
                                     </div>
                                     {perf && (
                                         <div className="space-y-2">
@@ -644,9 +660,8 @@ const LiveExecution = () => {
                                             </div>
                                             <div className="flex justify-between text-sm">
                                                 <span className="text-slate-500">Return:</span>
-                                                <span className={`font-semibold ${
-                                                    (perf.strategy.total_return_pct || 0) >= 0 ? 'text-emerald-400' : 'text-red-400'
-                                                }`}>
+                                                <span className={`font-semibold ${(perf.strategy.total_return_pct || 0) >= 0 ? 'text-emerald-400' : 'text-red-400'
+                                                    }`}>
                                                     {(perf.strategy.total_return_pct || 0) >= 0 ? '+' : ''}{(perf.strategy.total_return_pct || 0).toFixed(2)}%
                                                 </span>
                                             </div>
@@ -666,11 +681,10 @@ const LiveExecution = () => {
                     <div className="bg-slate-900/50 border border-slate-800/50 rounded-2xl p-6">
                         <div className="flex items-center justify-between mb-6">
                             <h3 className="text-sm font-black text-slate-300 uppercase tracking-widest flex items-center gap-2">
-                                <Link size={16} className="text-emerald-500"/> Connectivity
+                                <Link size={16} className="text-emerald-500" /> Connectivity
                             </h3>
-                            <span className={`px-2 py-1 rounded text-[10px] font-black uppercase ${
-                                isConnected ? 'bg-emerald-500/20 text-emerald-400' : 'bg-slate-800 text-slate-500'
-                            }`}>
+                            <span className={`px-2 py-1 rounded text-[10px] font-black uppercase ${isConnected ? 'bg-emerald-500/20 text-emerald-400' : 'bg-slate-800 text-slate-500'
+                                }`}>
                                 {isConnected ? 'Connected' : 'Disconnected'}
                             </span>
                         </div>
@@ -693,11 +707,10 @@ const LiveExecution = () => {
                             <button
                                 onClick={handleConnect}
                                 disabled={isLoading}
-                                className={`w-full py-3 rounded-xl text-xs font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${
-                                    isConnected
+                                className={`w-full py-3 rounded-xl text-xs font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${isConnected
                                         ? 'bg-red-500/20 border border-red-500/50 text-red-400 hover:bg-red-500/30'
                                         : 'bg-emerald-500/20 border border-emerald-500/50 text-emerald-400 hover:bg-emerald-500/30'
-                                }`}
+                                    }`}
                             >
                                 {isLoading ? (
                                     <Loader2 size={14} className="animate-spin" />
@@ -714,7 +727,7 @@ const LiveExecution = () => {
                     <div className="bg-slate-900/50 border border-slate-800/50 rounded-2xl p-6">
                         <div className="flex items-center justify-between mb-4">
                             <h3 className="text-sm font-black text-slate-300 uppercase tracking-widest flex items-center gap-2">
-                                <PieChart size={16} className="text-violet-500"/> Active Strategies
+                                <PieChart size={16} className="text-violet-500" /> Active Strategies
                             </h3>
                             <button
                                 onClick={loadLiveStrategies}
@@ -735,11 +748,10 @@ const LiveExecution = () => {
                                 liveStrategies.map(strategy => (
                                     <label
                                         key={strategy.id}
-                                        className={`flex items-start gap-3 p-3 rounded-xl cursor-pointer transition-all ${
-                                            selectedStrategyIds.includes(strategy.id)
+                                        className={`flex items-start gap-3 p-3 rounded-xl cursor-pointer transition-all ${selectedStrategyIds.includes(strategy.id)
                                                 ? 'bg-violet-500/20 border border-violet-500/50'
                                                 : 'bg-slate-800/30 border border-slate-700/50 hover:bg-slate-800/50'
-                                        }`}
+                                            }`}
                                     >
                                         <input
                                             type="checkbox"
@@ -752,11 +764,10 @@ const LiveExecution = () => {
                                                 <div className="font-semibold text-slate-200 text-sm truncate">
                                                     {strategy.name}
                                                 </div>
-                                                <span className={`px-1.5 py-0.5 rounded text-[9px] font-black uppercase shrink-0 ${
-                                                    strategy.status === 'RUNNING' ? 'bg-emerald-500/20 text-emerald-400' :
+                                                <span className={`px-1.5 py-0.5 rounded text-[9px] font-black uppercase shrink-0 ${strategy.status === 'RUNNING' ? 'bg-emerald-500/20 text-emerald-400' :
                                                         strategy.status === 'PAUSED' ? 'bg-amber-500/20 text-amber-400' :
                                                             'bg-slate-700 text-slate-400'
-                                                }`}>
+                                                    }`}>
                                                     {strategy.status}
                                                 </span>
                                             </div>
@@ -774,7 +785,7 @@ const LiveExecution = () => {
                     <div className="bg-slate-900/50 border border-slate-800/50 rounded-2xl p-6">
                         <div className="flex items-center justify-between mb-6">
                             <h3 className="text-sm font-black text-slate-300 uppercase tracking-widest flex items-center gap-2">
-                                <Wallet size={16} className="text-emerald-500"/> Account
+                                <Wallet size={16} className="text-emerald-500" /> Account
                             </h3>
                         </div>
                         <div className="space-y-4">
@@ -803,12 +814,11 @@ const LiveExecution = () => {
                         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
                             <div>
                                 <h3 className="text-lg font-bold text-slate-100 flex items-center gap-2">
-                                    <Activity className="text-emerald-500" size={20}/> Execution Engine
+                                    <Activity className="text-emerald-500" size={20} /> Execution Engine
                                 </h3>
                                 <p className="text-xs text-slate-500">
-                                    Status: <span className={`font-bold ${
-                                    engineStatus === EngineStatus.RUNNING ? 'text-emerald-400' : 'text-slate-400'
-                                }`}>{engineStatus.toUpperCase()}</span>
+                                    Status: <span className={`font-bold ${engineStatus === EngineStatus.RUNNING ? 'text-emerald-400' : 'text-slate-400'
+                                        }`}>{engineStatus.toUpperCase()}</span>
                                 </p>
                                 {selectedStrategyIds.length > 0 && (
                                     <p className="text-xs text-violet-400 mt-1">
@@ -821,15 +831,14 @@ const LiveExecution = () => {
                                 <button
                                     onClick={handleEngineToggle}
                                     disabled={!isConnected}
-                                    className={`px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center gap-2 transition-all ${
-                                        engineStatus === EngineStatus.RUNNING
+                                    className={`px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center gap-2 transition-all ${engineStatus === EngineStatus.RUNNING
                                             ? 'bg-red-500 text-white shadow-lg shadow-red-500/20'
                                             : 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/20 hover:bg-emerald-600 disabled:opacity-50 disabled:cursor-not-allowed'
-                                    }`}
+                                        }`}
                                 >
                                     {engineStatus === EngineStatus.RUNNING
-                                        ? <><Square size={14} className="fill-current"/> STOP ENGINE</>
-                                        : <><Play size={14} className="fill-current"/> START ENGINE</>
+                                        ? <><Square size={14} className="fill-current" /> STOP ENGINE</>
+                                        : <><Play size={14} className="fill-current" /> START ENGINE</>
                                     }
                                 </button>
                             </div>
@@ -859,52 +868,50 @@ const LiveExecution = () => {
                             <div className="overflow-x-auto">
                                 <table className="w-full text-left">
                                     <thead>
-                                    <tr className="border-b border-slate-800">
-                                        <th className="pb-3 text-[10px] font-black text-slate-600 uppercase">Symbol</th>
-                                        <th className="pb-3 text-[10px] font-black text-slate-600 uppercase">Side</th>
-                                        <th className="pb-3 text-[10px] font-black text-slate-600 uppercase">Qty</th>
-                                        <th className="pb-3 text-[10px] font-black text-slate-600 uppercase">Status</th>
-                                        <th className="pb-3 text-[10px] font-black text-slate-600 uppercase text-right">Price</th>
-                                    </tr>
+                                        <tr className="border-b border-slate-800">
+                                            <th className="pb-3 text-[10px] font-black text-slate-600 uppercase">Symbol</th>
+                                            <th className="pb-3 text-[10px] font-black text-slate-600 uppercase">Side</th>
+                                            <th className="pb-3 text-[10px] font-black text-slate-600 uppercase">Qty</th>
+                                            <th className="pb-3 text-[10px] font-black text-slate-600 uppercase">Status</th>
+                                            <th className="pb-3 text-[10px] font-black text-slate-600 uppercase text-right">Price</th>
+                                        </tr>
                                     </thead>
                                     <tbody className="divide-y divide-slate-800/50">
-                                    {orders.length === 0 ? (
-                                        <tr>
-                                            <td colSpan={5} className="py-8 text-center text-slate-500 text-xs italic">
-                                                {engineStatus === EngineStatus.RUNNING
-                                                    ? 'No active orders yet - waiting for signals...'
-                                                    : 'No active orders. Start the engine to begin trading.'}
-                                            </td>
-                                        </tr>
-                                    ) : orders.map((order) => (
-                                        <tr key={order.id} className="group hover:bg-white/5 transition-colors">
-                                            <td className="py-4">
-                                                <span className="text-xs font-bold text-slate-200">{order.symbol}</span>
-                                                <p className="text-[9px] text-slate-600 font-mono">{order.time}</p>
-                                            </td>
-                                            <td className="py-4">
-                                                <span className={`text-[10px] font-black px-2 py-0.5 rounded ${
-                                                    order.side === 'BUY' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-red-500/10 text-red-400'
-                                                }`}>
-                                                    {order.side}
-                                                </span>
-                                            </td>
-                                            <td className="py-4 text-xs text-slate-400 font-mono">{order.qty}</td>
-                                            <td className="py-4">
-                                                <div className="flex items-center gap-1.5">
-                                                    <div className={`w-1.5 h-1.5 rounded-full ${
-                                                        order.status === 'FILLED' ? 'bg-emerald-500' : 'bg-amber-500 animate-pulse'
-                                                    }`}/>
-                                                    <span className="text-[10px] font-bold text-slate-300 uppercase tracking-tight">
-                                                        {order.status}
+                                        {orders.length === 0 ? (
+                                            <tr>
+                                                <td colSpan={5} className="py-8 text-center text-slate-500 text-xs italic">
+                                                    {engineStatus === EngineStatus.RUNNING
+                                                        ? 'No active orders yet - waiting for signals...'
+                                                        : 'No active orders. Start the engine to begin trading.'}
+                                                </td>
+                                            </tr>
+                                        ) : orders.map((order) => (
+                                            <tr key={order.id} className="group hover:bg-white/5 transition-colors">
+                                                <td className="py-4">
+                                                    <span className="text-xs font-bold text-slate-200">{order.symbol}</span>
+                                                    <p className="text-[9px] text-slate-600 font-mono">{order.time}</p>
+                                                </td>
+                                                <td className="py-4">
+                                                    <span className={`text-[10px] font-black px-2 py-0.5 rounded ${order.side === 'BUY' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-red-500/10 text-red-400'
+                                                        }`}>
+                                                        {order.side}
                                                     </span>
-                                                </div>
-                                            </td>
-                                            <td className="py-4 text-xs font-bold text-slate-200 text-right font-mono">
-                                                ${order.price?.toFixed(2) || 'MKT'}
-                                            </td>
-                                        </tr>
-                                    ))}
+                                                </td>
+                                                <td className="py-4 text-xs text-slate-400 font-mono">{order.qty}</td>
+                                                <td className="py-4">
+                                                    <div className="flex items-center gap-1.5">
+                                                        <div className={`w-1.5 h-1.5 rounded-full ${order.status === 'FILLED' ? 'bg-emerald-500' : 'bg-amber-500 animate-pulse'
+                                                            }`} />
+                                                        <span className="text-[10px] font-bold text-slate-300 uppercase tracking-tight">
+                                                            {order.status}
+                                                        </span>
+                                                    </div>
+                                                </td>
+                                                <td className="py-4 text-xs font-bold text-slate-200 text-right font-mono">
+                                                    ${order.price?.toFixed(2) || 'MKT'}
+                                                </td>
+                                            </tr>
+                                        ))}
                                     </tbody>
                                 </table>
                             </div>
@@ -914,7 +921,7 @@ const LiveExecution = () => {
                     {/* Execution Guardrails */}
                     <div className="bg-slate-900/50 border border-slate-800/50 rounded-2xl p-6">
                         <h4 className="text-xs font-black text-slate-300 uppercase tracking-widest mb-6 flex items-center gap-2">
-                            <Settings size={16} className="text-emerald-500"/> Execution Guardrails
+                            <Settings size={16} className="text-emerald-500" /> Execution Guardrails
                         </h4>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <div className="space-y-4">
@@ -941,6 +948,19 @@ const LiveExecution = () => {
                     </div>
                 </div>
             </div>
+
+            {selectedHistoryStrategy && (
+                <VersionHistoryModal
+                    strategyId={selectedHistoryStrategy.id}
+                    strategyName={selectedHistoryStrategy.name}
+                    isOpen={isHistoryOpen}
+                    onClose={() => setIsHistoryOpen(false)}
+                    onRollbackSuccess={() => {
+                        loadLiveStrategies();
+                        updateStrategyPerformance();
+                    }}
+                />
+            )}
         </div>
     );
 };

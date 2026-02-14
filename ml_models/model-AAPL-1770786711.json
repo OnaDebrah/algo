@@ -1,0 +1,21 @@
+{
+  "id": "model-AAPL-1770786711",
+  "name": "AAPL_Random Forest_v1",
+  "type": "Random Forest",
+  "symbol": "AAPL",
+  "accuracy": 0.0,
+  "test_accuracy": 0.0,
+  "overfit_score": 0.0,
+  "features": 16,
+  "training_time": 0,
+  "created": "2026-02-11T06:11:51",
+  "status": "trained",
+  "feature_importance": [],
+  "hyperparams": {
+    "n_estimators": 100,
+    "max_depth": 10,
+    "learning_rate": 0.001
+  },
+  "user_id": 1,
+  "model_path": "ml_models/model-AAPL-1770786711.pkl"
+}

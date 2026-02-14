@@ -131,6 +131,10 @@ class MultiAssetEngine:
         # Align all data to common dates
         aligned_data = self._align_data(data_dict)
 
+        # Pre-compute vectorized signals for all strategies that support it
+        if not self.pairs_mode:
+            self._precompute_vectorized_signals(aligned_data)
+
         # Run backtest for each timestamp
         for i in range(len(aligned_data["dates"])):
             timestamp = aligned_data["dates"][i]
@@ -358,26 +362,49 @@ class MultiAssetEngine:
         del self.positions[symbol]
 
     def _process_independent_strategies(self, aligned_data: Dict, index: int, timestamp):
-        """Process independent strategies (original behavior)"""
+        """Process independent strategies with vectorized signal lookup when available"""
         for symbol in aligned_data["symbols"]:
             if symbol not in self.strategies:
                 continue
 
-            # Get data up to current point
-            symbol_data = aligned_data["data"][symbol].iloc[: index + 1]
-            current_price = symbol_data["Close"].iloc[-1]
-
-            # Generate signal
             strategy = self.strategies[symbol]
-            signal_info = strategy.generate_signal(symbol_data)
+            full_data = aligned_data["data"][symbol]
+            current_price = full_data["Close"].iloc[index]
 
-            from backend.app.strategies.base_strategy import normalize_signal
+            # Use pre-computed vectorized signals if available
+            if hasattr(self, "_precomputed_signals") and symbol in self._precomputed_signals:
+                signal = int(self._precomputed_signals[symbol].iloc[index])
+            else:
+                # Fallback to loop-based signal generation
+                symbol_data = full_data.iloc[: index + 1]
+                signal_info = strategy.generate_signal(symbol_data)
 
-            normalized = normalize_signal(signal_info)
-            signal = normalized["signal"]
+                from backend.app.strategies.base_strategy import normalize_signal
+
+                normalized = normalize_signal(signal_info)
+                signal = normalized["signal"]
 
             # Execute trade
             self._execute_trade(symbol, signal, current_price, timestamp, strategy.name)
+
+    def _precompute_vectorized_signals(self, aligned_data: Dict):
+        """Pre-compute all signals using vectorized methods where available"""
+        self._precomputed_signals = {}
+
+        for symbol in aligned_data["symbols"]:
+            if symbol not in self.strategies:
+                continue
+
+            strategy = self.strategies[symbol]
+            full_data = aligned_data["data"][symbol]
+
+            if hasattr(strategy, "generate_signals_vectorized"):
+                try:
+                    signals = strategy.generate_signals_vectorized(full_data)
+                    self._precomputed_signals[symbol] = signals
+                    logger.info(f"Pre-computed vectorized signals for {symbol} ({strategy.name})")
+                except Exception as e:
+                    logger.warning(f"Vectorized signal failed for {symbol}: {e}, will use loop fallback")
 
     def _align_data(self, data_dict: Dict[str, pd.DataFrame]) -> Dict:
         """Align data across all symbols to common timestamps"""
@@ -498,10 +525,9 @@ class MultiAssetEngine:
                 current_price = aligned_data["data"][symbol]["Close"].iloc[index]
 
                 if position.get("is_short", False):
-                    # For short positions, calculate unrealized P&L
-                    # Short P&L = entry_value - current_value
-                    unrealized_pnl = (position["entry_price"] - current_price) * position["quantity"]
-                    equity += unrealized_pnl
+                    # For short positions: cash already includes short-sale proceeds,
+                    # so we subtract the current buyback cost (obligation to return shares)
+                    equity -= position["quantity"] * current_price
                 else:
                     # For long positions
                     equity += position["quantity"] * current_price

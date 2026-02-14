@@ -51,17 +51,29 @@ class StrategyListing(BaseModel):
     category: str
     complexity: str
     time_horizon: str = "Medium-term"
-    monthly_return: float
-    drawdown: float
-    sharpe_ratio: float
-    total_downloads: int
-    tags: List[str]
-    best_for: List[str]
-    pros: List[str]
-    cons: List[str]
-    is_favorite: bool
-    is_verified: bool
-    publish_date: str
+    total_return: float = 0.0
+    monthly_return: float = 0.0
+    drawdown: float = 0.0
+    sharpe_ratio: float = 0.0
+    win_rate: float = 0.0
+    num_trades: int = 0
+    avg_win: float = 0.0
+    avg_loss: float = 0.0
+    profit_factor: float = 0.0
+    volatility: float = 0.0
+    sortino_ratio: float = 0.0
+    calmar_ratio: float = 0.0
+    var_95: float = 0.0
+    initial_capital: float = 10000.0
+    total_downloads: int = 0
+    tags: List[str] = []
+    best_for: List[str] = []
+    pros: List[str] = []
+    cons: List[str] = []
+    is_favorite: bool = False
+    is_verified: bool = False
+    verification_badge: Optional[str] = None
+    publish_date: str = ""
 
 
 class StrategyListingDetailed(StrategyListing):
@@ -77,7 +89,12 @@ class StrategyPublishRequest(BaseModel):
     price: float
     is_public: bool = True
     tags: List[str] = []
+    pros: List[str] = []
+    cons: List[str] = []
+    risk_level: Optional[str] = "medium"  # low, medium, high
+    recommended_capital: Optional[float] = 10000.0
     backtest_id: Optional[int] = None  # Link to an existing backtest
+    strategy_key: Optional[str] = None  # Strategy type identifier
 
 
 class ReviewCreateRequest(BaseModel):

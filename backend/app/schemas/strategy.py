@@ -28,6 +28,7 @@ class StrategyInfo(BaseModel):
     time_horizon: Optional[str] = "Medium-term"
     best_for: List[str] = []
     parameters: List[StrategyParameter]
+    backtest_mode: str = "single"  # "single", "multi", or "both"
 
 
 class Strategy(BaseModel):
@@ -62,6 +63,15 @@ class DeployStrategyRequest(BaseModel):
     daily_loss_limit: Optional[float] = None
 
     broker: Optional[str] = None
+    notes: Optional[str] = None
+
+
+class UpdateStrategyRequest(BaseModel):
+    """Request to update strategy parameters"""
+
+    name: Optional[str] = None
+    parameters: Optional[Dict[str, Any]] = None
+    symbols: Optional[List[str]] = None
     notes: Optional[str] = None
 
 

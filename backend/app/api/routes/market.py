@@ -64,11 +64,9 @@ async def get_historical_data(
     try:
         data = await market_service.get_historical_data(symbol=symbol, period=period, interval=interval, start=start, end=end, use_cache=use_cache)
 
-        # ✅ FIX: Properly format the response
         if "data" in data and isinstance(data["data"], list):
             formatted_data = []
             for item in data["data"]:
-                # Handle both dict and dataframe row formats
                 if isinstance(item, dict):
                     date_val = item.get("Date") or item.get("date") or item.get("timestamp")
 
@@ -94,7 +92,6 @@ async def get_historical_data(
 
             return {"symbol": symbol, "period": period, "interval": interval, "data": formatted_data}
 
-        # Remove dataframe from response (not JSON serializable)
         if "dataframe" in data:
             del data["dataframe"]
 

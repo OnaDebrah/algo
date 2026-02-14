@@ -55,7 +55,7 @@ async def run_multi_asset_backtest(
 ):
     """Run multi-asset backtest"""
     # Track usage
-    await AuthService.track_usage(db, current_user.id, "run_backtest_multi", {"symbols": request.symbols})
+    # await AuthService.track_usage(db, current_user.id, "run_backtest_multi", {"symbols": request.symbols})
 
     service = BacktestService(db)
     result = await service.run_multi_asset_backtest(request, current_user.id)

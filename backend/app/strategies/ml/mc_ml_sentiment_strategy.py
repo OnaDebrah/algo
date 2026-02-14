@@ -6,6 +6,7 @@ A complete implementation combining sentiment analysis, machine learning,
 and Monte Carlo simulation for probabilistic price forecasting.
 """
 
+import logging
 import warnings
 from datetime import datetime
 from typing import Any, Dict, List, Tuple
@@ -28,11 +29,17 @@ try:
 
     ML_AVAILABLE = True
 except ImportError:
+    from sklearn.ensemble import GradientBoostingRegressor, RandomForestRegressor
+    from sklearn.model_selection import train_test_split
+    from sklearn.preprocessing import StandardScaler
+
     ML_AVAILABLE = False
 
 warnings.filterwarnings("ignore")
 # Ensure VADER lexicon is downloaded
 nltk.download("vader_lexicon", quiet=True)
+
+logger = logging.getLogger(__name__)
 
 
 class SentimentAnalyzer:
@@ -130,7 +137,7 @@ class SentimentAnalyzer:
 
         except Exception as e:
             # In production, log this to your monitoring service
-            print(f"Stocktwits API Error for {symbol}: {e}")
+            logger.error(f"Stocktwits API Error for {symbol}: {e}")
             return 0.0
 
         # 4. Final Weighted Average
@@ -190,7 +197,7 @@ class SentimentAnalyzer:
             # Production fallback: Log the rate limit and return a neutral/cached value
             return self._get_cached_sentiment(symbol)
         except Exception as e:
-            print(f"Sentiment Pipeline Error: {e}")
+            logger.error(f"Sentiment Pipeline Error: {e}")
             return 0.0
 
         # 3. Final Aggregation
@@ -250,7 +257,7 @@ class SentimentAnalyzer:
                     total_weight += c_weight
 
         except Exception as e:
-            print(f"Reddit API Error for {symbol}: {e}")
+            logger.error(f"Reddit API Error for {symbol}: {e}")
             return 0.0
 
         # 4. Final Aggregation
@@ -520,7 +527,17 @@ class MonteCarloMLSentimentStrategy(BaseStrategy):
         min_sentiment_quality: float = 0.7,
         **kwargs,
     ):
-        super().__init__(**kwargs)
+        params = {
+            "ml_model_type": ml_model_type,
+            "lookback_period": lookback_period,
+            "forecast_horizon": forecast_horizon,
+            "num_simulations": num_simulations,
+            "confidence_level": confidence_level,
+            "retraining_frequency": retraining_frequency,
+            "sentiment_weight": sentiment_weight,
+            "min_sentiment_quality": min_sentiment_quality,
+        }
+        super().__init__("Monte Carlo ML Sentiment Strategy", params)
 
         self.sentiment_sources = sentiment_sources or ["news", "twitter", "options"]
         self.ml_model_type = ml_model_type
@@ -543,11 +560,23 @@ class MonteCarloMLSentimentStrategy(BaseStrategy):
         self.simulation_results = {}
         self.sentiment_history = pd.DataFrame()
 
+    def _normalize_columns(self, data: pd.DataFrame) -> pd.DataFrame:
+        """Normalize column names to lowercase for consistent access."""
+        df = data.copy()
+        col_map = {}
+        for col in df.columns:
+            lower = col.lower()
+            if lower != col and lower not in df.columns:
+                col_map[col] = lower
+        if col_map:
+            df = df.rename(columns=col_map)
+        return df
+
     def calculate_indicators(self, data: pd.DataFrame) -> pd.DataFrame:
         """
         Calculate technical indicators and gather sentiment data
         """
-        df = data.copy()
+        df = self._normalize_columns(data)
 
         # Collect sentiment features
         sentiment_data = []
@@ -607,11 +636,37 @@ class MonteCarloMLSentimentStrategy(BaseStrategy):
 
         return metrics
 
+    def generate_signal(self, data: pd.DataFrame) -> int:
+        """
+        Generate a single trading signal (required by BaseStrategy).
+
+        Delegates to generate_signals() and returns the last signal value.
+        """
+        try:
+            result = self.generate_signals(data)
+            signal_val = result["signal"].iloc[-1]
+            return int(signal_val) if not pd.isna(signal_val) else 0
+        except Exception as e:
+            logger.error(f"MC ML Sentiment generate_signal error: {e}")
+            return 0
+
+    def generate_signals_vectorized(self, data: pd.DataFrame) -> pd.Series:
+        """
+        Vectorized signal generation for backtest engine compatibility.
+        Runs full signal generation and returns the signal column as pd.Series.
+        """
+        try:
+            result = self.generate_signals(data)
+            return result["signal"].fillna(0).astype(int)
+        except Exception as e:
+            logger.error(f"MC ML Sentiment vectorized signal error: {e}")
+            return pd.Series(0, index=data.index)
+
     def generate_signals(self, data: pd.DataFrame) -> pd.DataFrame:
         """
         Generate trading signals using Monte Carlo simulation
         """
-        df = data.copy()
+        df = self._normalize_columns(data)
         df["signal"] = 0
         df["position_size"] = 0.0
         df["expected_return"] = 0.0
@@ -627,7 +682,7 @@ class MonteCarloMLSentimentStrategy(BaseStrategy):
             try:
                 self.train_model(train_data)
             except Exception as e:
-                print(f"Training failed: {e}")
+                logger.error(f"Training failed: {e}")
                 return df
 
         # Generate features for prediction
@@ -648,7 +703,7 @@ class MonteCarloMLSentimentStrategy(BaseStrategy):
             predicted_return = predictions[0]
             predicted_volatility = uncertainty[0]
         except Exception as e:
-            print(f"Prediction failed: {e}")
+            logger.error(f"Prediction failed: {e}")
             return df
 
         # Run Monte Carlo simulation

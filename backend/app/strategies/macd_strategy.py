@@ -68,3 +68,17 @@ class MACDStrategy(BaseStrategy):
             return -1
 
         return 0
+
+    def generate_signals_vectorized(self, data: pd.DataFrame) -> pd.Series:
+        """Vectorized MACD crossover signal generation"""
+        macd_line, signal_line, _ = self.calculate_macd(data)
+
+        signals = pd.Series(0, index=data.index)
+
+        # Bullish crossover: MACD crosses above signal line
+        signals[(macd_line > signal_line) & (macd_line.shift(1) <= signal_line.shift(1))] = 1
+
+        # Bearish crossover: MACD crosses below signal line
+        signals[(macd_line < signal_line) & (macd_line.shift(1) >= signal_line.shift(1))] = -1
+
+        return signals

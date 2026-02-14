@@ -5,17 +5,25 @@ FastAPI endpoints for Portfolio Optimization
 import logging
 from typing import Any, Hashable
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlalchemy.ext.asyncio import AsyncSession
 
+from backend.app.api.deps import check_permission, get_db
+from backend.app.core.permissions import Permission
+from backend.app.models.user import User
 from backend.app.optimise import PortfolioBacktest, PortfolioOptimizer
+from backend.app.optimise.optimisation_runner import OptimizationRunner
 from backend.app.schemas.optimise import (
     BacktestRequest,
     BacktestResponse,
+    BayesianOptimizationRequest,
+    BayesianOptimizationResponse,
     BlackLittermanRequest,
     EfficientFrontierRequest,
     OptimizationResponse,
     PortfolioRequest,
     TargetReturnRequest,
+    TrialResult,
 )
 
 router = APIRouter(prefix="/optimise", tags=["Optimise"])
@@ -213,3 +221,57 @@ async def compare_strategies(request: PortfolioRequest):
     except Exception as e:
         logger.error(f"Strategy comparison failed: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/bayesian", response_model=BayesianOptimizationResponse)
+async def bayesian_optimization(
+    request: BayesianOptimizationRequest,
+    current_user: User = Depends(check_permission(Permission.BASIC_BACKTEST)),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Run Bayesian optimization on strategy parameters
+
+    This endpoint:
+    1. Creates an isolated database connection pool for optimization
+    2. Runs multiple backtest trials with different parameters
+    3. Uses Bayesian optimization (TPE) to find optimal parameters
+    4. Returns best parameters and all trial results
+
+    Note: This can take several minutes depending on n_trials
+    """
+    try:
+        # Validate request
+        if request.n_trials < 1:
+            raise HTTPException(status_code=400, detail="n_trials must be at least 1")
+
+        if request.n_trials > 200:
+            raise HTTPException(status_code=400, detail="n_trials cannot exceed 200 (performance limit)")
+
+        async with OptimizationRunner(request=request, user_id=current_user.id, max_workers=4) as runner:
+            study = await runner.run_optimization()
+
+        trials = []
+        for t in study.trials:
+            if t.value is not None and t.value != float("-inf"):
+                trials.append(TrialResult(trial_id=t.number, params=t.params, value=t.value, status=str(t.state)))
+
+        if not trials:
+            raise HTTPException(status_code=500, detail="All optimization trials failed. Check strategy configuration.")
+
+        return BayesianOptimizationResponse(
+            best_params=study.best_params,
+            best_value=study.best_value,
+            trials=trials,
+            tickers=request.tickers,
+            strategy_key=request.strategy_key,
+            metric=request.metric,
+            n_completed=len(trials),
+            n_failed=request.n_trials - len(trials),
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Bayesian optimization failed: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Optimization failed: {str(e)[:200]}")

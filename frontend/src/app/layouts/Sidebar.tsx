@@ -1,4 +1,4 @@
-import {useState} from "react";
+import { useState } from "react";
 import {
     Activity,
     BarChart3,
@@ -107,20 +107,18 @@ const Sidebar = ({ currentPage, setCurrentPage, user, onLogout }: any) => {
                                                 <button
                                                     key={item.id}
                                                     onClick={() => setCurrentPage(item.id)}
-                                                    className={`w-full group flex items-center px-3 py-2.5 rounded-lg text-sm transition-all relative ${
-                                                        isActive
-                                                            ? 'text-slate-100 bg-slate-800/70'
-                                                            : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/40'
-                                                    }`}
+                                                    className={`w-full group flex items-center px-3 py-2.5 rounded-lg text-sm transition-all relative ${isActive
+                                                        ? 'text-slate-100 bg-slate-800/70'
+                                                        : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/40'
+                                                        }`}
                                                 >
                                                     {isActive && (
                                                         <div className="absolute left-0 w-1 h-5 bg-violet-500 rounded-r-full" />
                                                     )}
                                                     <item.icon
                                                         size={18}
-                                                        className={`mr-3 transition-colors ${
-                                                            isActive ? 'text-violet-400' : 'text-slate-500 group-hover:text-slate-400'
-                                                        }`}
+                                                        className={`mr-3 transition-colors ${isActive ? 'text-violet-400' : 'text-slate-500 group-hover:text-slate-400'
+                                                            }`}
                                                         strokeWidth={2}
                                                     />
                                                     <span className="font-medium">{item.label}</span>
@@ -141,11 +139,10 @@ const Sidebar = ({ currentPage, setCurrentPage, user, onLogout }: any) => {
                         <button
                             key={item.id}
                             onClick={() => setCurrentPage(item.id)}
-                            className={`w-full flex items-center px-3 py-2.5 rounded-lg text-sm transition-all ${
-                                currentPage === item.id
-                                    ? 'text-slate-100 bg-slate-800/70'
-                                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/40'
-                            }`}
+                            className={`w-full flex items-center px-3 py-2.5 rounded-lg text-sm transition-all ${currentPage === item.id
+                                ? 'text-slate-100 bg-slate-800/70'
+                                : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/40'
+                                }`}
                         >
                             <item.icon size={18} className="mr-3 text-slate-500" strokeWidth={2} />
                             <span className="font-medium">{item.label}</span>
@@ -157,7 +154,7 @@ const Sidebar = ({ currentPage, setCurrentPage, user, onLogout }: any) => {
             {/* User Profile Footer */}
             <div className="p-3 border-t border-slate-800/80 relative">
                 {showUserMenu && (
-                    <div className="absolute bottom-full left-3 right-3 mb-2 bg-slate-800/95 backdrop-blur-xl border border-slate-700/80 rounded-xl shadow-2xl overflow-hidden">
+                    <div className="absolute bottom-full left-3 right-3 mb-2 glass-panel rounded-xl overflow-hidden animate-in slide-in-from-bottom-2 fade-in duration-200">
                         <div className="p-3 space-y-1">
                             <button className="w-full flex items-center space-x-3 px-3 py-2 text-sm text-slate-300 hover:bg-slate-700/50 rounded-lg transition-colors">
                                 <Settings size={16} className="text-violet-400" />
@@ -186,11 +183,10 @@ const Sidebar = ({ currentPage, setCurrentPage, user, onLogout }: any) => {
 
                 <button
                     onClick={() => setShowUserMenu(!showUserMenu)}
-                    className={`w-full rounded-xl p-3 transition-all border backdrop-blur-md group ${
-                        showUserMenu
-                            ? 'bg-slate-800/70 border-violet-500/50'
-                            : 'bg-slate-800/40 border-slate-700/50 hover:border-slate-600/50'
-                    }`}
+                    className={`w-full rounded-xl p-3 transition-all border backdrop-blur-md group ${showUserMenu
+                        ? 'bg-white/10 border-primary-500/50'
+                        : 'bg-white/5 border-white/5 hover:bg-white/10 hover:border-white/10'
+                        }`}
                 >
                     <div className="flex items-center space-x-3">
                         <div className="relative">

@@ -93,6 +93,7 @@ class LiveStrategy(Base):
 
     # Relationships
     equity_snapshots = relationship("LiveEquitySnapshot", back_populates="strategy", cascade="all, delete-orphan")
+    parameter_snapshots = relationship("LiveStrategySnapshot", back_populates="strategy", cascade="all, delete-orphan")
     trades = relationship("LiveTrade", back_populates="strategy", cascade="all, delete-orphan")
 
     def __repr__(self):
@@ -327,4 +328,36 @@ class StrategyMarketplace(Base):
             "status": self.status,
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "updated_at": self.updated_at.isoformat() if self.updated_at else None,
+        }
+
+
+class LiveStrategySnapshot(Base):
+    """
+    Historical snapshots of strategy parameters
+    Allows for version tracking and rollbacks
+    """
+
+    __tablename__ = "live_strategy_snapshots"
+
+    id = Column(Integer, primary_key=True, index=True)
+    strategy_id = Column(Integer, ForeignKey("live_strategies.id"), nullable=False)
+    version = Column(Integer, nullable=False)
+    parameters = Column(JSON, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+    notes = Column(Text, nullable=True)
+
+    # Relationship
+    strategy = relationship("LiveStrategy", back_populates="parameter_snapshots")
+
+    def __repr__(self):
+        return f"<LiveStrategySnapshot(strategy_id={self.strategy_id}, version={self.version})>"
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "strategy_id": self.strategy_id,
+            "version": self.version,
+            "parameters": self.parameters,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+            "notes": self.notes,
         }

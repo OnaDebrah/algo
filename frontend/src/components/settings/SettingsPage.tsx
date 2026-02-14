@@ -22,7 +22,7 @@ import {
     Eye,
     EyeOff,
     TestTube,
-    Bell
+    Bell, CheckCircle
 } from "lucide-react";
 import { settings } from "@/utils/api";
 import { UserSettings } from "@/types/all_types";
@@ -53,6 +53,9 @@ const SettingsPage = () => {
     const [brokerApiKey, setBrokerApiKey] = useState('');
     const [brokerApiSecret, setBrokerApiSecret] = useState('');
     const [brokerBaseUrl, setBrokerBaseUrl] = useState('');
+    const [brokerHost, setBrokerHost] = useState('');
+    const [brokerPort, setBrokerPort] = useState(7497);
+    const [userIBAccountId, setUserIBAccountId] = useState('U7645XXX');
     const [showApiSecret, setShowApiSecret] = useState(false);
     const [brokerConfigured, setBrokerConfigured] = useState(false);
 
@@ -125,12 +128,16 @@ const SettingsPage = () => {
                 };
 
                 // Only include broker credentials if they were entered
-                if (brokerApiKey || brokerApiSecret || brokerBaseUrl) {
+                if (brokerApiKey || brokerApiSecret || brokerBaseUrl || brokerHost || brokerPort || userIBAccountId) {
                     updatePayload.live_trading.broker = {
                         broker_type: defaultBroker,
                         api_key: brokerApiKey || undefined,
                         api_secret: brokerApiSecret || undefined,
-                        base_url: brokerBaseUrl || undefined
+                        base_url: brokerBaseUrl || undefined,
+                        host: brokerHost || undefined,
+                        port: brokerPort || undefined,
+                        user_ib_account_id: userIBAccountId || undefined,
+                        is_configured: true
                     };
                 }
             } else if (activeTab === 'general') {
@@ -176,14 +183,14 @@ const SettingsPage = () => {
             const response = await settings.testBrokerConnection();
 
             setTestResult({
-                type: response.status === 'connected' ? 'success' : 'warning',
-                message: response.message || 'Connection test completed',
+                type: response.status,
+                message: response.message,
                 details: response
             });
         } catch (error: any) {
             setTestResult({
                 type: 'error',
-                message: error.response?.data?.detail || 'Connection test failed'
+                message: error.response?.data?.detail
             });
         } finally {
             setIsTesting(false);
@@ -260,14 +267,14 @@ const SettingsPage = () => {
             description: 'Commission-free stock & crypto trading'
         },
         {
-            value: 'interactive_brokers',
-            label: 'Interactive Brokers',
-            description: 'Professional trading platform'
-        },
-        {
             value: 'td_ameritrade',
             label: 'TD Ameritrade',
             description: 'Full-service broker'
+        },
+        {
+            value: 'ibkr',
+            label: 'Interactive Brokers',
+            description: 'Professional trading platform'
         }
     ];
 
@@ -548,7 +555,7 @@ const SettingsPage = () => {
                                             <div className="flex items-center justify-between">
                                                 <label className="text-sm font-bold text-slate-300 flex items-center gap-2">
                                                     <Key size={16} />
-                                                    Broker Credentials
+                                                    {defaultBroker === 'ibkr' ? 'IBKR Gateway Connection' : 'Broker Credentials'}
                                                 </label>
                                                 {brokerConfigured && (
                                                     <div className="flex items-center gap-2">
@@ -566,66 +573,122 @@ const SettingsPage = () => {
                                             </div>
 
                                             <div className="space-y-3">
-                                                <div>
-                                                    <label className="text-xs text-slate-400 mb-1 block">API Key</label>
-                                                    <input
-                                                        type="text"
-                                                        value={brokerApiKey}
-                                                        onChange={(e) => setBrokerApiKey(e.target.value)}
-                                                        placeholder={brokerConfigured ? "••••••••••••••••" : "Enter your API key"}
-                                                        className="w-full px-4 py-3 bg-slate-800 border border-slate-700 rounded-xl text-slate-200 focus:border-emerald-500 outline-none font-mono text-sm"
-                                                    />
-                                                </div>
-
-                                                <div>
-                                                    <label className="text-xs text-slate-400 mb-1 block">API Secret</label>
-                                                    <div className="relative">
-                                                        <input
-                                                            type={showApiSecret ? "text" : "password"}
-                                                            value={brokerApiSecret}
-                                                            onChange={(e) => setBrokerApiSecret(e.target.value)}
-                                                            placeholder={brokerConfigured ? "••••••••••••••••" : "Enter your API secret"}
-                                                            className="w-full px-4 py-3 pr-12 bg-slate-800 border border-slate-700 rounded-xl text-slate-200 focus:border-emerald-500 outline-none font-mono text-sm"
-                                                        />
-                                                        <button
-                                                            type="button"
-                                                            onClick={() => setShowApiSecret(!showApiSecret)}
-                                                            className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300"
-                                                        >
-                                                            {showApiSecret ? <EyeOff size={18} /> : <Eye size={18} />}
-                                                        </button>
+                                                {defaultBroker === 'ibkr' ? (
+                                                    /* INTERACTIVE BROKERS LAYOUT */
+                                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                                        <div>
+                                                            <label className="text-xs text-slate-400 mb-1 block">Host</label>
+                                                            <input
+                                                                value={brokerHost}
+                                                                onChange={(e) => setBrokerHost(e.target.value)}
+                                                                placeholder="127.0.0.1"
+                                                                className="w-full px-4 py-3 bg-slate-800 border border-slate-700 rounded-xl text-slate-200 outline-none focus:border-emerald-500"
+                                                            />
+                                                        </div>
+                                                        <div>
+                                                            <label className="text-xs text-slate-400 mb-1 block">Port</label>
+                                                            <input
+                                                                type="number"
+                                                                value={brokerPort}
+                                                                onChange={(e) => setBrokerPort(parseInt(e.target.value))}
+                                                                placeholder="7497"
+                                                                className="w-full px-4 py-3 bg-slate-800 border border-slate-700 rounded-xl text-slate-200 outline-none focus:border-emerald-500"
+                                                            />
+                                                        </div>
+                                                        <div>
+                                                            <label className="text-xs text-slate-400 mb-1 block">Account ID</label>
+                                                            <input
+                                                                type="string"
+                                                                value={userIBAccountId}
+                                                                onChange={(e) => setUserIBAccountId(e.target.value)}
+                                                                placeholder="1"
+                                                                className="w-full px-4 py-3 bg-slate-800 border border-slate-700 rounded-xl text-slate-200 outline-none focus:border-emerald-500"
+                                                            />
+                                                        </div>
                                                     </div>
-                                                </div>
+                                                ) : (
+                                                    /* STANDARD API KEY LAYOUT (Alpaca, etc.) */
+                                                    <>
+                                                        <div>
+                                                            <label className="text-xs text-slate-400 mb-1 block">API Key</label>
+                                                            <input
+                                                                type="text"
+                                                                value={brokerApiKey}
+                                                                onChange={(e) => setBrokerApiKey(e.target.value)}
+                                                                placeholder={brokerConfigured ? "••••••••••••••••" : "Enter your API key"}
+                                                                className="w-full px-4 py-3 bg-slate-800 border border-slate-700 rounded-xl text-slate-200 focus:border-emerald-500 outline-none font-mono text-sm"
+                                                            />
+                                                        </div>
 
-                                                <div>
-                                                    <label className="text-xs text-slate-400 mb-1 block">
-                                                        Base URL (Optional)
-                                                    </label>
-                                                    <input
-                                                        type="text"
-                                                        value={brokerBaseUrl}
-                                                        onChange={(e) => setBrokerBaseUrl(e.target.value)}
-                                                        placeholder="https://paper-api.alpaca.markets"
-                                                        className="w-full px-4 py-3 bg-slate-800 border border-slate-700 rounded-xl text-slate-200 focus:border-emerald-500 outline-none font-mono text-sm"
-                                                    />
+                                                        <div>
+                                                            <label className="text-xs text-slate-400 mb-1 block">API Secret</label>
+                                                            <div className="relative">
+                                                                <input
+                                                                    type={showApiSecret ? "text" : "password"}
+                                                                    value={brokerApiSecret}
+                                                                    onChange={(e) => setBrokerApiSecret(e.target.value)}
+                                                                    placeholder={brokerConfigured ? "••••••••••••••••" : "Enter your API secret"}
+                                                                    className="w-full px-4 py-3 pr-12 bg-slate-800 border border-slate-700 rounded-xl text-slate-200 focus:border-emerald-500 outline-none font-mono text-sm"
+                                                                />
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => setShowApiSecret(!showApiSecret)}
+                                                                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300"
+                                                                >
+                                                                    {showApiSecret ? <EyeOff size={18} /> : <Eye size={18} />}
+                                                                </button>
+                                                            </div>
+                                                        </div>
+
+                                                        <div>
+                                                            <label className="text-xs text-slate-400 mb-1 block">Base URL (Optional)</label>
+                                                            <input
+                                                                type="text"
+                                                                value={brokerBaseUrl}
+                                                                onChange={(e) => setBrokerBaseUrl(e.target.value)}
+                                                                placeholder="https://paper-api.alpaca.markets"
+                                                                className="w-full px-4 py-3 bg-slate-800 border border-slate-700 rounded-xl text-slate-200 focus:border-emerald-500 outline-none font-mono text-sm"
+                                                            />
+                                                        </div>
+                                                    </>
+                                                )}
+
+                                                <div className="pt-4 flex flex-col gap-3">
+                                                    <button
+                                                        onClick={handleTestConnection}
+                                                        disabled={isTesting}
+                                                        className={`w-full py-3 rounded-xl font-semibold flex items-center justify-center gap-2 transition-all duration-200 disabled:opacity-50 ${
+                                                            isTesting
+                                                                ? 'bg-violet-700 text-white shadow-lg cursor-not-allowed'
+                                                                : 'bg-violet-600 hover:bg-violet-500 text-white shadow-lg active:scale-[0.98]'
+                                                        }`}
+                                                    >
+                                                        {isTesting ? (
+                                                            <Loader2 size={18} className="animate-spin" />
+                                                        ) : (
+                                                            <TestTube size={18} />
+                                                        )}
+                                                        Test Connection
+                                                    </button>
+
+                                                    {testResult && (
+                                                        <div className={`p-4 rounded-xl border ${
+                                                            testResult.type === 'connected'
+                                                                ? 'bg-emerald-500/10 border-emerald-500/50 text-emerald-400'
+                                                                : 'bg-red-500/10 border-red-500/50 text-red-400'
+                                                        }`}>
+                                                            <div className="flex items-center gap-2 font-bold mb-1">
+                                                                {testResult.type === 'connected' ? <CheckCircle size={16} /> : <AlertCircle size={16} />}
+                                                                {testResult.type === 'connected' ? 'Success' : 'Connection Failed'}
+                                                            </div>
+                                                            <p className="text-xs opacity-80">{testResult.message}</p>
+                                                            {testResult.equity && (
+                                                                <p className="text-xs mt-2 font-mono">Equity: ${testResult.equity}</p>
+                                                            )}
+                                                        </div>
+                                                    )}
                                                 </div>
                                             </div>
-
-                                            {/* Test Connection Button */}
-                                            {brokerConfigured && (
-                                                <button
-                                                    onClick={handleTestConnection}
-                                                    disabled={isTesting}
-                                                    className="w-full py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-semibold flex items-center justify-center gap-2 transition-all disabled:opacity-50"
-                                                >
-                                                    {isTesting ? (
-                                                        <Loader2 size={18} className="animate-spin" />
-                                                    ) : (
-                                                        <TestTube size={18} />
-                                                    )}
-                                                    {isTesting ? 'Testing...' : 'Test Connection'}
-                                                </button>
-                                            )}
                                         </div>
                                     )}
 
