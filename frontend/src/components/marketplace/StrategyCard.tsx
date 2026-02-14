@@ -19,7 +19,7 @@ export const StrategyCard = ({ strategy, onSelect, onFavorite, onDownload }: any
                 <p className="text-xs text-slate-500">by {strategy.creator}</p>
             </div>
             <button
-                onClick={onFavorite}
+                onClick={(e) => { e.stopPropagation(); onFavorite?.(e); }}
                 className="p-2 hover:bg-slate-800 rounded-lg transition-all"
             >
                 <Heart
