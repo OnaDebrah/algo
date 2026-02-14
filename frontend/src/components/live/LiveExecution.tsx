@@ -42,7 +42,6 @@ const LiveExecution = () => {
     const [isHistoryOpen, setIsHistoryOpen] = useState(false);
     const [selectedHistoryStrategy, setSelectedHistoryStrategy] = useState<{ id: number, name: string } | null>(null);
 
-    // Account info state
     const [accountInfo, setAccountInfo] = useState({
         cash: 0,
         equity: 0,
@@ -51,7 +50,6 @@ const LiveExecution = () => {
         unrealized_pnl: 0,
     });
 
-    // Risk parameters from settings
     const [riskParams, setRiskParams] = useState({
         max_position_pct: 10,
         stop_loss_pct: 2.5,
@@ -60,13 +58,11 @@ const LiveExecution = () => {
         slippage_tolerance: 0.05,
     });
 
-    // Load user settings to get configured broker and risk params
     useEffect(() => {
         const loadUserSettings = async () => {
             try {
                 const userSettings = await settings.get();
 
-                // Set risk parameters from settings
                 if (userSettings?.live_trading?.risk_management) {
                     setRiskParams({
                         max_position_pct: userSettings.live_trading?.risk_management?.max_position_size || 10,
@@ -78,9 +74,6 @@ const LiveExecution = () => {
                 }
 
                 if (userSettings?.live_trading?.default_broker) {
-                    // Map the string broker type from Settings to BrokerType enum
-                    // Settings saves: 'paper', 'alpaca', 'ibkr', 'td_ameritrade'
-                    // BrokerType enum has: 'paper', 'alpaca_paper', 'alpaca_live', 'ib_paper', 'ib_live'
                     const savedBroker = userSettings.live_trading.default_broker.toLowerCase();
 
                     let configuredBroker: BrokerType | undefined;
@@ -88,10 +81,8 @@ const LiveExecution = () => {
                     if (savedBroker === 'paper') {
                         configuredBroker = BrokerType.PAPER;
                     } else if (savedBroker === 'alpaca') {
-                        // Default to paper mode for Alpaca
                         configuredBroker = BrokerType.ALPACA_PAPER;
                     } else if (savedBroker === 'ibkr' || savedBroker === 'ib' || savedBroker === 'interactive_brokers') {
-                        // Default to paper mode for Interactive Brokers
                         configuredBroker = BrokerType.IB_PAPER;
                     }
 
@@ -265,7 +256,6 @@ const LiveExecution = () => {
             if (engineStatus === EngineStatus.RUNNING) {
                 await live.stopEngine();
             } else {
-                // When starting, pass selected strategy IDs
                 if (selectedStrategyIds.length === 0) {
                     setError("Please select at least one strategy to run");
                     return;
@@ -487,9 +477,6 @@ const LiveExecution = () => {
                                         const newBroker = e.target.value as BrokerType;
                                         setActiveBroker(newBroker);
 
-                                        // Convert BrokerType enum back to Settings format
-                                        // BrokerType enum: 'paper', 'alpaca_paper', 'alpaca_live', 'ib_paper', 'ib_live'
-                                        // Settings expects: 'paper', 'alpaca', 'ibkr'
                                         let settingsBrokerValue: string;
 
                                         if (newBroker === BrokerType.PAPER) {
@@ -544,7 +531,7 @@ const LiveExecution = () => {
                     <div className="bg-slate-900/50 border border-slate-800/50 rounded-2xl p-6">
                         <div className="flex items-center justify-between mb-4">
                             <h3 className="text-sm font-black text-slate-300 uppercase tracking-widest flex items-center gap-2">
-                                <PieChart size={16} className="text-violet-500" /> Active Strategies
+                                <PieChart size={16} className="text-violet-500" /> Active Strategies ({liveStrategies.length})
                             </h3>
                             <button
                                 onClick={loadLiveStrategies}
