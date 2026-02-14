@@ -34,7 +34,7 @@ class BrokerFactory:
             # Same client, different credentials
             return AlpacaClient()
 
-        elif broker_type == "ib" or broker_type == "interactive_brokers":
+        elif broker_type == "ib_live" or broker_type == "interactive_brokers":
             return IBClient()
 
         elif broker_type == "ib_paper" or broker_type == "ib_simulated":
