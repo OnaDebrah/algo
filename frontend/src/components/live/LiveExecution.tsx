@@ -42,11 +42,41 @@ const LiveExecution = () => {
     const [isHistoryOpen, setIsHistoryOpen] = useState(false);
     const [selectedHistoryStrategy, setSelectedHistoryStrategy] = useState<{ id: number, name: string } | null>(null);
 
-    // Load user settings to get configured broker
+    // Account info state
+    const [accountInfo, setAccountInfo] = useState({
+        cash: 0,
+        equity: 0,
+        buying_power: 0,
+        margin_used: 0,
+        unrealized_pnl: 0,
+    });
+
+    // Risk parameters from settings
+    const [riskParams, setRiskParams] = useState({
+        max_position_pct: 10,
+        stop_loss_pct: 2.5,
+        daily_loss_limit: 5,
+        cooldown_seconds: 60,
+        slippage_tolerance: 0.05,
+    });
+
+    // Load user settings to get configured broker and risk params
     useEffect(() => {
         const loadUserSettings = async () => {
             try {
                 const userSettings = await settings.get();
+
+                // Set risk parameters from settings
+                if (userSettings?.live_trading?.risk_management) {
+                    setRiskParams({
+                        max_position_pct: userSettings.live_trading?.risk_management?.max_position_size || 10,
+                        stop_loss_pct: userSettings.live_trading?.risk_management?.stop_loss_limit || 2.5,
+                        daily_loss_limit: userSettings.live_trading?.risk_management?.daily_loss_limit || 5,
+                        cooldown_seconds: 60, // Default
+                        slippage_tolerance: userSettings.backtest.slippage || 0.0,
+                    });
+                }
+
                 if (userSettings?.live_trading?.default_broker) {
                     // Map the string broker type from Settings to BrokerType enum
                     // Settings saves: 'paper', 'alpaca', 'ibkr', 'td_ameritrade'
@@ -85,6 +115,7 @@ const LiveExecution = () => {
             fetchStatus();
             if (isConnected) {
                 fetchOrders();
+                fetchAccountInfo();
             }
             if (selectedStrategyIds.length > 0) {
                 updateStrategyPerformance();
@@ -104,10 +135,29 @@ const LiveExecution = () => {
                 // Otherwise, preserve the user's configured preference from Settings
                 if (response.is_connected) {
                     setActiveBroker(response.active_broker);
+                    // Fetch account info immediately on connection
+                    fetchAccountInfo();
                 }
             }
         } catch (err) {
             console.error("Failed to fetch live status:", err);
+        }
+    };
+
+    const fetchAccountInfo = async () => {
+        try {
+            const response = await live.getAccount();
+            if (response) {
+                setAccountInfo({
+                    cash: response.cash || 0,
+                    equity: response.equity || 0,
+                    buying_power: response.buying_power || 0,
+                    margin_used: response.margin_used || 0,
+                    unrealized_pnl: response.unrealized_pnl || 0,
+                });
+            }
+        } catch (err) {
+            console.error("Failed to fetch account info:", err);
         }
     };
 
@@ -571,20 +621,31 @@ const LiveExecution = () => {
                             <h3 className="text-sm font-black text-slate-300 uppercase tracking-widest flex items-center gap-2">
                                 <Wallet size={16} className="text-emerald-500" /> Account
                             </h3>
+                            {isConnected && (
+                                <div className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${accountInfo.unrealized_pnl >= 0 ? 'bg-emerald-500/10 text-emerald-400' : 'bg-red-500/10 text-red-400'}`}>
+                                    P&L: {accountInfo.unrealized_pnl >= 0 ? '+' : ''}${accountInfo.unrealized_pnl.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                </div>
+                            )}
                         </div>
                         <div className="space-y-4">
                             <div>
-                                <p className="text-[9px] font-black text-slate-600 uppercase">Balance</p>
-                                <p className="text-2xl font-bold text-emerald-400">$50,000.00</p>
+                                <p className="text-[9px] font-black text-slate-600 uppercase">Equity</p>
+                                <p className="text-2xl font-bold text-emerald-400">
+                                    ${accountInfo.equity.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                </p>
                             </div>
                             <div className="grid grid-cols-2 gap-4 pt-4 border-t border-slate-800">
                                 <div>
                                     <p className="text-[9px] font-black text-slate-600 uppercase">Buying Power</p>
-                                    <p className="text-sm font-bold text-slate-300">$171,400</p>
+                                    <p className="text-sm font-bold text-slate-300">
+                                        ${accountInfo.buying_power.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                                    </p>
                                 </div>
                                 <div>
                                     <p className="text-[9px] font-black text-slate-600 uppercase">Margin Used</p>
-                                    <p className="text-sm font-bold text-slate-300">$0.00</p>
+                                    <p className="text-sm font-bold text-slate-300">
+                                        ${accountInfo.margin_used.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                    </p>
                                 </div>
                             </div>
                         </div>
@@ -711,21 +772,21 @@ const LiveExecution = () => {
                             <div className="space-y-4">
                                 <div className="flex justify-between items-center">
                                     <span className="text-xs text-slate-500 font-bold uppercase">Max Position Size</span>
-                                    <span className="text-xs font-mono text-slate-200">10% Portfolio</span>
+                                    <span className="text-xs font-mono text-slate-200">{riskParams.max_position_pct}% Portfolio</span>
                                 </div>
                                 <div className="flex justify-between items-center">
                                     <span className="text-xs text-slate-500 font-bold uppercase">Hard Stop Loss</span>
-                                    <span className="text-xs font-mono text-red-400">2.5% per Trade</span>
+                                    <span className="text-xs font-mono text-red-400">{riskParams.stop_loss_pct}% per Trade</span>
                                 </div>
                             </div>
                             <div className="space-y-4 border-l border-slate-800 pl-6">
                                 <div className="flex justify-between items-center">
-                                    <span className="text-xs text-slate-500 font-bold uppercase">Cooldown Period</span>
-                                    <span className="text-xs font-mono text-slate-200">60 Seconds</span>
+                                    <span className="text-xs text-slate-500 font-bold uppercase">Daily Loss Limit</span>
+                                    <span className="text-xs font-mono text-red-400">{riskParams.daily_loss_limit}% Portfolio</span>
                                 </div>
                                 <div className="flex justify-between items-center">
                                     <span className="text-xs text-slate-500 font-bold uppercase">Slippage Tolerance</span>
-                                    <span className="text-xs font-mono text-amber-400">0.05%</span>
+                                    <span className="text-xs font-mono text-amber-400">{riskParams.slippage_tolerance}%</span>
                                 </div>
                             </div>
                         </div>

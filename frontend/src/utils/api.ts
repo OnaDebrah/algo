@@ -102,6 +102,7 @@ import {
     PortfolioBacktestRequest, SharpeOptimizationRequest, TargetReturnRequest
 } from "@/types/optimise";
 import {
+    AccountResponse,
     ConnectRequest,
     ControlResponse, LiveStrategy,
     StrategyDetailsResponse,
@@ -481,6 +482,9 @@ export const live = {
 
     autoConnect: () =>
         client.post<{ status: string; broker?: string; message: string }>('/live/auto-connect'),
+
+    getAccount: () =>
+        client.get<AccountResponse>('/live/account'),
 };
 
 // ==================== SOCIAL ====================
