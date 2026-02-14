@@ -134,7 +134,7 @@ const VersionHistoryModal = ({ strategyId, strategyName, isOpen, onClose, onRoll
                                                     ))}
                                                     {Object.keys(v.parameters || {}).length > 4 && (
                                                         <div className="text-[10px] text-slate-600 italic">
-                                                            +{Object.keys(v.parameters).length - 4} more...
+                                                            +{Object.keys(v.parameters || {}).length - 4} more...
                                                         </div>
                                                     )}
                                                 </div>

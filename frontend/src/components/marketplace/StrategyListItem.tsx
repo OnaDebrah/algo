@@ -47,7 +47,7 @@ export const StrategyListItem = ({ strategy, onSelect, onFavorite, onDownload }:
         </div>
 
         <button
-            onClick={onFavorite}
+            onClick={(e) => { e.stopPropagation(); onFavorite?.(e); }}
             className="p-3 hover:bg-slate-800 rounded-lg transition-all"
         >
             <Heart

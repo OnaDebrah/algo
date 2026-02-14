@@ -4,8 +4,8 @@ from datetime import date, datetime, time, timedelta
 from typing import Any, Dict, List, Optional
 
 import pytz
-from models import UserSettings
 
+from backend.app.models import UserSettings
 from backend.app.services.brokers.base_client import BrokerClient
 
 logger = logging.getLogger(__name__)
@@ -32,7 +32,7 @@ class PaperTradingClient(BrokerClient):
         logger.info("Connecting to paper trading")
         self.connected = True
 
-        if settings.initial_capital:
+        if settings.initial_capital is not None:
             self.cash = float(settings.initial_capital)
 
         return True

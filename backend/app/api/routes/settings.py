@@ -32,10 +32,10 @@ async def get_or_create_settings(db: AsyncSession, user_id: int) -> UserSettings
     """Get existing settings or create default ones"""
     stmt = select(UserSettingsModel).where(UserSettingsModel.user_id == user_id)
     result = await db.execute(stmt)
-    settings_ = result.scalars().first()
+    user_settings = result.scalars().first()
 
-    if not settings_:
-        settings_ = UserSettingsModel(
+    if not user_settings:
+        user_settings = UserSettingsModel(
             user_id=user_id,
             # Backtest defaults
             data_source="yahoo",
@@ -59,11 +59,11 @@ async def get_or_create_settings(db: AsyncSession, user_id: int) -> UserSettings
             auto_refresh=True,
             refresh_interval=30,
         )
-        db.add(settings_)
+        db.add(user_settings)
         await db.commit()
-        await db.refresh(settings_)
+        await db.refresh(user_settings)
 
-    return settings_
+    return user_settings
 
 
 def model_to_schema(model: UserSettingsModel) -> UserSettings:
@@ -110,65 +110,65 @@ async def update_user_settings(
     settings_update: SettingsUpdate, current_user: User = Depends(get_current_active_user), db: AsyncSession = Depends(get_db)
 ):
     """Update user settings"""
-    settings = await get_or_create_settings(db, current_user.id)
+    user_settings = await get_or_create_settings(db, current_user.id)
 
     # Update backtest settings
     if settings_update.backtest:
         if settings_update.backtest.data_source:
-            settings.data_source = settings_update.backtest.data_source
+            user_settings.data_source = settings_update.backtest.data_source
         if settings_update.backtest.slippage is not None:
-            settings.slippage = settings_update.backtest.slippage
+            user_settings.slippage = settings_update.backtest.slippage
         if settings_update.backtest.commission is not None:
-            settings.commission = settings_update.backtest.commission
+            user_settings.commission = settings_update.backtest.commission
         if settings_update.backtest.initial_capital is not None:
-            settings.initial_capital = settings_update.backtest.initial_capital
+            user_settings.initial_capital = settings_update.backtest.initial_capital
 
     # Update live trading settings
     if settings_update.live_trading:
         if settings_update.live_trading.data_source:
-            settings.live_data_source = settings_update.live_trading.data_source
+            user_settings.live_data_source = settings_update.live_trading.data_source
         if settings_update.live_trading.default_broker:
-            settings.default_broker = settings_update.live_trading.default_broker
+            user_settings.default_broker = settings_update.live_trading.default_broker
         if settings_update.live_trading.auto_connect is not None:
-            settings.auto_connect_broker = settings_update.live_trading.auto_connect
+            user_settings.auto_connect_broker = settings_update.live_trading.auto_connect
 
         # Update broker credentials if provided
         if settings_update.live_trading.broker:
             broker = settings_update.live_trading.broker
             if broker.broker_type:
-                settings.default_broker = broker.broker_type
+                user_settings.default_broker = broker.broker_type
             if broker.api_key:
                 # TODO: Encrypt this in production
-                settings.broker_api_key = broker.api_key
+                user_settings.broker_api_key = broker.api_key
             if broker.api_secret:
                 # TODO: Encrypt this in production
-                settings.broker_api_secret = broker.api_secret
+                user_settings.broker_api_secret = broker.api_secret
             if broker.base_url:
-                settings.broker_base_url = broker.base_url
+                user_settings.broker_base_url = broker.base_url
 
             if broker.host:
-                settings.broker_host = broker.host
+                user_settings.broker_host = broker.host
             if broker.port:
-                settings.broker_port = broker.port
-                settings.broker_client_id = int(current_user.id % 32700)
+                user_settings.broker_port = broker.port
+                user_settings.broker_client_id = int(current_user.id % settings.DEFAULT_IB_CLIENT_ID_MODULUS)
             if broker.user_ib_account_id:
-                settings.user_ib_account_id = broker.user_ib_account_id
+                user_settings.user_ib_account_id = broker.user_ib_account_id
 
     # Update general settings
     if settings_update.general:
         if settings_update.general.theme:
-            settings.theme = settings_update.general.theme
+            user_settings.theme = settings_update.general.theme
         if settings_update.general.notifications is not None:
-            settings.notifications = settings_update.general.notifications
+            user_settings.notifications = settings_update.general.notifications
         if settings_update.general.auto_refresh is not None:
-            settings.auto_refresh = settings_update.general.auto_refresh
+            user_settings.auto_refresh = settings_update.general.auto_refresh
         if settings_update.general.refresh_interval is not None:
-            settings.refresh_interval = settings_update.general.refresh_interval
+            user_settings.refresh_interval = settings_update.general.refresh_interval
 
     await db.commit()
-    await db.refresh(settings)
+    await db.refresh(user_settings)
 
-    return model_to_schema(settings)
+    return model_to_schema(user_settings)
 
 
 @router.post("/reset", response_model=UserSettings)
@@ -200,8 +200,8 @@ async def get_broker_credentials(current_user: User = Depends(get_current_active
         "api_key": settings.broker_api_key,
         "api_secret": settings.broker_api_secret,
         "base_url": settings.broker_base_url,
-        "host": settings.broker_base_url,
-        "port": settings.broker_base_url,
+        "host": settings.broker_host,
+        "port": settings.broker_port,
         "client_id": settings.broker_client_id,
         "user_ib_account_id": settings.user_ib_account_id,
     }
