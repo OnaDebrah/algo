@@ -7,6 +7,7 @@ import BenchmarkComparison from "@/components/backtest/BenchmarkComparison";
 import RiskAnalysisModal from "@/components/backtest/RiskAnalysisModal";
 import PerformanceHeatmap from "@/components/backtest/PerformanceHeatmap";
 import FactorAttribution from "@/components/backtest/FactorAttribution";
+import TradeChart from "@/components/backtest/TradeChart";
 import { formatCurrency, formatPercent } from "@/utils/formatters";
 import { BacktestResult, EquityCurvePoint, Trade, WFAResponse } from "@/types/all_types";
 
@@ -317,6 +318,11 @@ const SingleBacktestResults: React.FC<SingleBacktestResultsProps> = ({ results, 
                             </ComposedChart>
                         </ResponsiveContainer>
                     </div>
+
+                    {/* Price Action & Trade Signals Chart */}
+                    {displayMetrics.price_data && displayMetrics.price_data.length > 0 && trades.length > 0 && (
+                        <TradeChart priceData={displayMetrics.price_data} trades={trades} />
+                    )}
 
                     {/* Benchmark Comparison Component */}
                     {displayMetrics.benchmark && <BenchmarkComparison benchmark={displayMetrics.benchmark} />}

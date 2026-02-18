@@ -7,6 +7,7 @@ import BenchmarkComparison from "@/components/backtest/BenchmarkComparison";
 import RiskAnalysisModal from "@/components/backtest/RiskAnalysisModal";
 import PerformanceHeatmap from "@/components/backtest/PerformanceHeatmap";
 import FactorAttribution from "@/components/backtest/FactorAttribution";
+import TradeChart from "@/components/backtest/TradeChart";
 import { formatCurrency, formatPercent } from "@/utils/formatters";
 import { BacktestResult, EquityCurvePoint, SymbolStats, Trade } from "@/types/all_types";
 
@@ -314,6 +315,11 @@ const MultiBacktestResults: React.FC<MultiBacktestResultsProps> = ({ results }) 
                             </ComposedChart>
                         </ResponsiveContainer>
                     </div>
+
+                    {/* Price Action & Trade Signals Chart */}
+                    {results.price_data && results.price_data.length > 0 && trades.length > 0 && (
+                        <TradeChart priceData={results.price_data} trades={trades} />
+                    )}
 
                     {results.benchmark && <BenchmarkComparison benchmark={results.benchmark} />}
                 </div>

@@ -141,6 +141,10 @@ export const useBacktestStore = create<BacktestState>((set, get) => ({
 
                     const singleResult: BacktestResult = {
                         ...result,
+                        // Map snake_case factor metrics from backend to camelCase
+                        alpha: result.alpha ?? (result as any).alpha ?? 0,
+                        beta: result.beta ?? (result as any).beta ?? 0,
+                        rSquared: (result as any).r_squared ?? result.rSquared ?? 0,
                         equity_curve: response.equity_curve ? response.equity_curve.map((equityCurvePoint: EquityCurvePoint) => ({
                             timestamp: formatDate(equityCurvePoint.timestamp),
                             equity: equityCurvePoint.equity,
@@ -269,6 +273,7 @@ export const useBacktestStore = create<BacktestState>((set, get) => ({
                             profit_pct: trade.profit_pct,
                             status: trade.profit !== null ? 'closed' : 'open'
                         })),
+                        price_data: response.price_data,
                         // Polyfill missing advanced metrics for Multi-Asset
                         sortino_ratio: 0,
                         calmar_ratio: 0,

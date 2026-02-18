@@ -1,11 +1,11 @@
 """Trading strategies"""
 
-# BaseStrategy must be imported first — subpackage strategies depend on it
+from .base_strategy import BaseStrategy  # isort: skip  # noqa: E402 — must be first (circular import guard)
+
 from backend.app.strategies.technical.macd_strategy import MACDStrategy
 from backend.app.strategies.technical.rsi_strategy import RSIStrategy
 from backend.app.strategies.technical.sma_crossover import SMACrossoverStrategy
 
-from .base_strategy import BaseStrategy
 from .dynamic_strategy import DynamicStrategy
 from .kama_strategy import KAMAStrategy
 from .ml_strategy import MLStrategy
