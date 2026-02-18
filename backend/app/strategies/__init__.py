@@ -1,5 +1,6 @@
 """Trading strategies"""
 
+# BaseStrategy must be imported first — subpackage strategies depend on it
 from backend.app.strategies.technical.macd_strategy import MACDStrategy
 from backend.app.strategies.technical.rsi_strategy import RSIStrategy
 from backend.app.strategies.technical.sma_crossover import SMACrossoverStrategy

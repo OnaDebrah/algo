@@ -16,10 +16,7 @@ class DynamicStrategy(BaseStrategy):
     """
 
     def __init__(self, blocks: list = None, root_block_id: str = "root", name: str = "Visual Strategy Builder", **kwargs):
-        params = {
-            "blocks": blocks or [],
-            "root_block_id": root_block_id
-        }
+        params = {"blocks": blocks or [], "root_block_id": root_block_id}
         super().__init__(name, params)
         self.blocks = {b["id"]: b for b in (blocks or [])}
         self.root_block_id = root_block_id
@@ -199,7 +196,7 @@ class DynamicStrategy(BaseStrategy):
                     else:
                         # Fallback to scalar
                         res = pd.Series(
-                            [ml_strat.generate_signal(data.iloc[:i + 1]) if i >= 30 else 0 for i in range(len(data))],
+                            [ml_strat.generate_signal(data.iloc[: i + 1]) if i >= 30 else 0 for i in range(len(data))],
                             index=data.index,
                         )
 
@@ -217,15 +214,15 @@ class DynamicStrategy(BaseStrategy):
                     buy = pd.Series(True, index=data.index)
                     sell = pd.Series(True, index=data.index)
                     for s in input_series:
-                        buy &= (s == 1)
-                        sell &= (s == -1)
+                        buy &= s == 1
+                        sell &= s == -1
                     res = buy.astype(int) - sell.astype(int)
                 elif op == "OR":
                     buy = pd.Series(False, index=data.index)
                     sell = pd.Series(False, index=data.index)
                     for s in input_series:
-                        buy |= (s == 1)
-                        sell |= (s == -1)
+                        buy |= s == 1
+                        sell |= s == -1
                     res = buy.astype(int) - sell.astype(int)
                 elif op == "NOT":
                     if inputs:
