@@ -7,9 +7,10 @@ from backend.app.core.data_fetcher import fetch_stock_data
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+
 async def test_providers():
     symbol = "AAPL"
-    
+
     # 1. Test Yahoo (Default)
     logger.info("--- Testing Yahoo Provider (Default) ---")
     settings.DATA_PROVIDER = "yahoo"
@@ -32,6 +33,7 @@ async def test_providers():
             logger.error("Polygon failed.")
     else:
         logger.info("Skipping Polygon test (no API Key set).")
+
 
 if __name__ == "__main__":
     asyncio.run(test_providers())

@@ -49,6 +49,7 @@ import { portfolio } from "@/utils/api";
 import BayesianOptimizerModal from "@/components/backtest/BayesianOptimizerModal";
 import { assetSuggestions } from "@/utils/suggestions";
 import KalmanFilterParameters from "@/components/backtest/KalmanFilterParameters";
+import StrategyInfoPopover from "@/components/backtest/StrategyInfoPopover";
 
 interface MultiAssetBacktestProps {
     config: MultiAssetConfig;
@@ -672,11 +673,14 @@ const MultiAssetBacktest: React.FC<MultiAssetBacktestProps> = ({
                                                             <span className={`text-[8px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded ${isSelected
                                                                 ? 'bg-violet-500/20 text-violet-300' : 'bg-slate-700/50 text-slate-500'
                                                             }`}>{strat.category}</span>
-                                                            {isSelected && (
-                                                                <div className="w-5 h-5 rounded-full bg-gradient-to-br from-violet-500 to-purple-500 flex items-center justify-center">
-                                                                    <Check size={10} className="text-white" strokeWidth={3} />
-                                                                </div>
-                                                            )}
+                                                            <div className="flex items-center gap-1">
+                                                                <StrategyInfoPopover strategy={strat} />
+                                                                {isSelected && (
+                                                                    <div className="w-5 h-5 rounded-full bg-gradient-to-br from-violet-500 to-purple-500 flex items-center justify-center">
+                                                                        <Check size={10} className="text-white" strokeWidth={3} />
+                                                                    </div>
+                                                                )}
+                                                            </div>
                                                         </div>
                                                         <p className="text-xs font-bold text-slate-200 mb-1 group-hover:text-violet-300 transition-colors line-clamp-1">{strat.name}</p>
                                                         <p className="text-[10px] text-slate-500 line-clamp-1">{strat.description}</p>
