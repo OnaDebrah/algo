@@ -4,11 +4,7 @@ Risk management system
 
 import logging
 
-from config import (
-    DEFAULT_MAX_DRAWDOWN,
-    DEFAULT_MAX_POSITION_SIZE,
-    DEFAULT_STOP_LOSS_PCT,
-)
+from backend.app.config import settings
 
 logger = logging.getLogger(__name__)
 
@@ -18,9 +14,9 @@ class RiskManager:
 
     def __init__(
         self,
-        max_position_size: float = DEFAULT_MAX_POSITION_SIZE,
-        stop_loss_pct: float = DEFAULT_STOP_LOSS_PCT,
-        max_drawdown: float = DEFAULT_MAX_DRAWDOWN,
+        max_position_size: float = settings.DEFAULT_MAX_POSITION_SIZE,
+        stop_loss_pct: float = settings.DEFAULT_STOP_LOSS_PCT,
+        max_drawdown: float = settings.DEFAULT_MAX_DRAWDOWN,
     ):
         """
         Initialize risk manager
@@ -46,7 +42,9 @@ class RiskManager:
         Returns:
             Number of shares to trade
         """
-        max_investment = portfolio_value * self.max_position_size
+        # max_position_size can be a percentage (e.g. 20 for 20%) or a fraction (e.g. 0.2)
+        fraction = self.max_position_size / 100.0 if self.max_position_size > 1 else self.max_position_size
+        max_investment = portfolio_value * fraction
         quantity = int(max_investment / entry_price)
         calculated_quantity = max(1, quantity)
 

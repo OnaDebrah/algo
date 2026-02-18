@@ -38,7 +38,7 @@ from backend.app.schemas.options import (
 )
 from backend.app.services.auth_service import AuthService
 from backend.app.services.market_service import get_market_service
-from backend.app.strategies.options_builder import OptionsStrategy
+from backend.app.strategies.options_builder import OptionsStrategy, OptionsStrategyBuilder, OptionType, create_preset_strategy
 from backend.app.strategies.options_strategies import OptionsChain
 
 logger = logging.getLogger(__name__)
@@ -168,7 +168,6 @@ async def get_option_chain(
         # Get the raw data from yfinance
         data = chain.get_chain(expiration=request.expiration)
 
-        # ✅ FIX: Properly structure the response
         import numpy as np
         import pandas as pd
 
@@ -370,8 +369,6 @@ async def analyze_strategy(
     """
     await AuthService.track_usage(db, current_user.id, "analyze_strategy", {"symbol": request.symbol})
     try:
-        from backend.app.strategies import OptionsStrategyBuilder, OptionType
-
         # Get current price
         ticker = yf.Ticker(request.symbol)
         hist = ticker.history(period="1d")
@@ -430,8 +427,6 @@ async def calculate_greeks(request: GreeksRequest, current_user: User = Depends(
     """
     await AuthService.track_usage(db, current_user.id, "calculate_greeks", {"symbol": request.symbol})
     try:
-        from streamlit.strategies import OptionsStrategyBuilder, OptionType
-
         # Get current price
         ticker = yf.Ticker(request.symbol)
         hist = ticker.history(period="1d")
@@ -471,8 +466,6 @@ async def compare_strategies(
     """
     await AuthService.track_usage(db, current_user.id, "compare_strategies", {"symbol": request.symbol})
     try:
-        from backend.app.strategies.options_builder import OptionsStrategyBuilder, OptionType, create_preset_strategy
-
         # Get current price
         ticker = yf.Ticker(request.symbol)
         hist = ticker.history(period="1d")

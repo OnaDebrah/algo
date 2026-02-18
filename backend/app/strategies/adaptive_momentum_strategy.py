@@ -11,7 +11,7 @@ class AdaptiveMomentumStrategy(CrossSectionalMomentumStrategy):
     """
 
     def __init__(self, regime_detector, **kwargs):
-        universe = kwargs.get("universe", [])
+        universe = kwargs.pop("universe", [])
         super().__init__(universe=universe, **kwargs)
         self.regime_detector = regime_detector
 

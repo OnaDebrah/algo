@@ -4,7 +4,7 @@ Simple Moving Average Crossover Strategy
 
 import pandas as pd
 
-from config import DEFAULT_SMA_LONG, DEFAULT_SMA_SHORT
+from streamlit.config import DEFAULT_SMA_LONG, DEFAULT_SMA_SHORT
 from streamlit.strategies.base_strategy import BaseStrategy
 
 

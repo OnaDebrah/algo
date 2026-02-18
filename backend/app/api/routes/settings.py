@@ -80,7 +80,7 @@ def model_to_schema(model: UserSettingsModel) -> UserSettings:
             auto_connect=model.auto_connect_broker or False,
             broker=BrokerSettings(
                 broker_type=model.default_broker or "paper",
-                api_key=model.broker_api_key,  # Never send actual keys to frontend
+                api_key=f"****{model.broker_api_key[-4:]}" if model.broker_api_key else None,  # Mask the key,  # Never send actual keys to frontend
                 api_secret=None,  # NEVER send secrets to frontend
                 base_url=model.broker_base_url,
                 host=model.broker_host,

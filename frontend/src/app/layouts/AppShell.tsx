@@ -18,6 +18,7 @@ import Sidebar from "@/app/layouts/Sidebar";
 import Header from "@/app/layouts/Header";
 import { User } from "@/types/all_types";
 import { api } from '@/utils/api';
+import { useNavigationStore } from '@/store/useNavigationStore';
 
 export type PageKey =
   | 'dashboard'
@@ -157,6 +158,17 @@ const AppShell: React.FC<AppShellProps> = () => {
   const handlePageChange = useCallback((page: PageKey) => {
     setCurrentPage(page);
   }, []);
+
+  // Listen for programmatic navigation from child components via store
+  const pendingPage = useNavigationStore(state => state.pendingPage);
+  const clearPending = useNavigationStore(state => state.clearPending);
+
+  useEffect(() => {
+    if (pendingPage) {
+      setCurrentPage(pendingPage);
+      clearPending();
+    }
+  }, [pendingPage, clearPending]);
 
   // Show loading state
   if (isLoading) {

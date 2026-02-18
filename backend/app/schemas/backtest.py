@@ -4,7 +4,12 @@ Backtest schemas
 
 from typing import Any, Dict, List, Optional
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
+
+
+class StrategyConfig(BaseModel):
+    strategy_key: str
+    parameters: Dict[str, Any]
 
 
 class BacktestRequest(BaseModel):
@@ -17,6 +22,9 @@ class BacktestRequest(BaseModel):
     commission_rate: float = 0.001
     slippage_rate: float = 0.0005
     ml_model_id: Optional[str] = None  # For ML strategies: ID of a deployed model to use
+    strategy_configs: Optional[Dict[str, StrategyConfig]] = None
+    start_date: Optional[str] = None
+    end_date: Optional[str] = None
 
 
 class BacktestResult(BaseModel):
@@ -43,6 +51,14 @@ class BacktestResult(BaseModel):
     volatility: Optional[float] = 0.0
     expectancy: Optional[float] = 0.0
     total_commission: Optional[float] = 0.0
+
+    # Factor Analysis
+    alpha: Optional[float] = 0.0
+    beta: Optional[float] = 0.0
+    r_squared: Optional[float] = 0.0
+
+    # Matrix Data (Year -> Month -> PctReturn)
+    monthly_returns_matrix: Optional[Dict[str, Dict[str, float]]] = None
 
 
 class EquityCurvePoint(BaseModel):
@@ -74,12 +90,6 @@ class BacktestResponse(BaseModel):
     trades: List[Trade]
     price_data: Optional[List[Dict]] = None
     benchmark: Optional[Dict] = None
-
-
-# Multi-asset backtest
-class StrategyConfig(BaseModel):
-    strategy_key: str
-    parameters: Dict[str, Any]
 
 
 class MultiAssetBacktestRequest(BaseModel):
@@ -191,3 +201,57 @@ class PairsValidationResponse(BaseModel):
     warnings: list[str]
     errors: list[str]
     lookback_days: int
+
+
+# Walk-Forward Analysis
+class ParamRange(BaseModel):
+    min: float
+    max: float
+    step: Optional[float] = None
+    type: str = Field("float", description="'int' or 'float'")
+
+
+class WFARequest(BaseModel):
+    symbol: str
+    strategy_key: str
+    param_ranges: Dict[str, ParamRange]
+    initial_capital: float = 100000
+    period: str = "2y"
+    interval: str = "1d"
+    is_window_days: int = 180
+    oos_window_days: int = 60
+    step_days: int = 60
+    anchored: bool = False
+    metric: str = "sharpe_ratio"
+    n_trials: int = 20
+    commission_rate: float = 0.001
+    slippage_rate: float = 0.0005
+
+
+class WFAFoldResult(BaseModel):
+    fold_index: int
+    is_start: str
+    is_end: str
+    oos_start: str
+    oos_end: str
+    best_params: Dict[str, Any]
+    is_metrics: BacktestResult
+    oos_metrics: BacktestResult
+    optimization_metadata: Dict[str, Any]
+
+
+class WFAResponse(BaseModel):
+    """Enhanced WFA response with robustness metrics"""
+
+    folds: List[WFAFoldResult]
+    aggregated_oos_metrics: BacktestResult
+    oos_equity_curve: List[EquityCurvePoint]
+    wfe: float
+    robustness_metrics: Dict[str, float] = {}
+    strategy_key: str
+    symbol: str
+    successful_folds: int = 0
+    total_folds: int = 0
+
+    class Config:
+        arbitrary_types_allowed = True

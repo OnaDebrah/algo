@@ -290,51 +290,6 @@ export const strategies: Strategy[] = [
         backtest_mode: 'multi',
     },
 
-    // OPTIONS
-    {
-        id: 'covered_call',
-        name: 'Covered Call',
-        category: 'Options Strategies',
-        description: 'Hold stock and sell call options to generate income. Limited upside, downside protected by premium.',
-        complexity: 'Intermediate',
-        time_horizon: 'Short to Medium-term',
-        best_for: ["Income generation", "Range-bound markets", "Conservative traders"],
-        parameters: { strategy_type: 'covered_call', strike_pct: 0.05, dte: 30 },
-        backtest_mode: 'single',
-    },
-    {
-        id: 'iron_condor',
-        name: 'Iron Condor',
-        category: 'Options Strategies',
-        description: 'Market-neutral options strategy. Profits when underlying stays within a range.',
-        complexity: 'Advanced',
-        time_horizon: 'Short-term',
-        best_for: ["Low volatility markets", "Income generation", "Range-bound stocks"],
-        parameters: { strategy_type: 'iron_condor', wing_width: 0.05, dte: 30 },
-        backtest_mode: 'single',
-    },
-    {
-        id: 'butterfly_spread',
-        name: 'Butterfly Spread',
-        category: 'Options Strategies',
-        description: 'Limited risk strategy with concentrated profit zone. Profits when price stays near middle strike.',
-        complexity: 'Advanced',
-        time_horizon: 'Short-term',
-        best_for: ["Neutral outlook", "Low volatility expected", "Precise targets"],
-        parameters: { strategy_type: 'butterfly_spread', wing_width: 0.03, dte: 30 },
-        backtest_mode: 'single',
-    },
-    {
-        id: 'straddle',
-        name: 'Long Straddle',
-        category: 'Options Strategies',
-        description: 'Profits from large moves in either direction. Buy ATM call and put. Volatility play.',
-        complexity: 'Intermediate',
-        time_horizon: 'Short-term',
-        best_for: ["Earnings events", "High expected volatility", "Direction unknown"],
-        parameters: { strategy_type: 'straddle', dte: 30, iv_threshold: 0.30 },
-        backtest_mode: 'single',
-    },
 
     // STATISTICAL ARBITRAGE - RISK PARITY
     {

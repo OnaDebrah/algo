@@ -7,13 +7,13 @@ from datetime import datetime
 import pandas as pd
 
 import streamlit as st
-from config import (
+from streamlit.alerts.alert_manager import AlertManager
+from streamlit.config import (
     DATABASE_PATH,
     DEFAULT_MAX_DRAWDOWN,
     DEFAULT_MAX_POSITION_SIZE,
     DEFAULT_STOP_LOSS_PCT,
 )
-from streamlit.alerts.alert_manager import AlertManager
 from streamlit.core.database import DatabaseManager
 from streamlit.core.risk_manager import RiskManager
 

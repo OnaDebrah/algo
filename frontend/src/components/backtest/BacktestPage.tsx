@@ -1,23 +1,13 @@
 'use client'
 import React, {useEffect, useState} from 'react';
-import {BarChart3, TrendingUp, Rocket, CheckCircle, AlertCircle} from 'lucide-react';
+import {AlertCircle, BarChart3, CheckCircle, Rocket, TrendingUp, Zap} from 'lucide-react';
 import MultiAssetBacktest from "@/components/backtest/MultiAssetBacktest";
 import SingleAssetBacktest from "@/components/backtest/SingleAssetBacktest";
+import WalkForwardAnalysis from "@/components/backtest/WalkForwardAnalysis";
 import {strategies} from "@/components/strategies/Strategies";
-import {
-    BacktestResult,
-    EquityCurvePoint,
-    MultiAssetConfig,
-    SingleAssetConfig,
-    Strategy,
-    StrategyInfo,
-    Trade,
-    DeploymentConfig,
-    BacktestResultToDeploy, UserSettings
-} from "@/types/all_types";
+import {BacktestResultToDeploy, DeploymentConfig, MultiAssetConfig, Strategy, StrategyInfo} from "@/types/all_types";
 
-import {backtest, strategy as strategyApi, live, settings as settingsApi} from "@/utils/api";
-import {formatDate} from "@/utils/formatters";
+import {live, strategy as strategyApi} from "@/utils/api";
 import DeploymentModal from "@/components/strategies/DeploymentModel";
 import {useBacktestStore} from "@/store/useBacktestStore";
 
@@ -26,6 +16,7 @@ const BacktestPage = () => {
         backtestMode, setBacktestMode,
         singleConfig, setSingleConfig,
         multiConfig, setMultiConfig,
+        singleResults, multiResults,
         results, isRunning, runBacktest
     } = useBacktestStore();
 
@@ -65,7 +56,7 @@ const BacktestPage = () => {
                 setStrategiesList(filtered);
             }
         };
-        fetchStrategies();
+        fetchStrategies().then();
     }, [backtestMode]);
 
     const addSymbol = () => {
@@ -86,7 +77,7 @@ const BacktestPage = () => {
     const removeSymbol = (symbolToRemove: string) => {
         setMultiConfig((prev: MultiAssetConfig) => {
             const newSymbols = prev.symbols.filter((s: string) => s !== symbolToRemove);
-            const newAllocations = {...prev.allocations};
+            const newAllocations = { ...prev.allocations };
             delete newAllocations[symbolToRemove];
             return {
                 ...prev,
@@ -96,8 +87,10 @@ const BacktestPage = () => {
         });
     };
 
+    const activeResults = backtestMode === 'single' ? singleResults : multiResults;
+
     const handleGoLive = () => {
-        if (!results) return;
+        if (!activeResults) return;
 
         const config = backtestMode === 'single' ? singleConfig : multiConfig;
         const backtestToDeploy: BacktestResultToDeploy = {
@@ -105,12 +98,12 @@ const BacktestPage = () => {
             strategy: backtestMode === 'single' ? config.strategy : multiConfig.strategy,
             symbols: backtestMode === 'single' ? [singleConfig.symbol] : multiConfig.symbols,
             parameters: backtestMode === 'single' ? singleConfig.params : multiConfig.params,
-            total_return_pct: results.total_return_pct,
-            sharpe_ratio: results.sharpe_ratio,
-            max_drawdown: results.max_drawdown,
-            total_trades: results.total_trades,
-            win_rate: results.win_rate,
-            initial_capital: results.initial_capital,
+            total_return_pct: activeResults.total_return_pct,
+            sharpe_ratio: activeResults.sharpe_ratio,
+            max_drawdown: activeResults.max_drawdown,
+            total_trades: activeResults.total_trades,
+            win_rate: activeResults.win_rate,
+            initial_capital: activeResults.initial_capital,
             period: config.period,
             interval: config.interval
         };
@@ -157,9 +150,9 @@ const BacktestPage = () => {
                             className={`px-5 py-2.5 rounded-lg text-sm font-semibold transition-all ${backtestMode === 'single'
                                 ? 'bg-gradient-to-r from-violet-600 to-fuchsia-600 text-white shadow-lg'
                                 : 'text-slate-400 hover:text-slate-200'
-                            }`}
+                                }`}
                         >
-                            <BarChart3 size={16} className="inline mr-2" strokeWidth={2}/>
+                            <BarChart3 size={16} className="inline mr-2" strokeWidth={2} />
                             Single Asset
                         </button>
                         <button
@@ -167,10 +160,20 @@ const BacktestPage = () => {
                             className={`px-5 py-2.5 rounded-lg text-sm font-semibold transition-all ${backtestMode === 'multi'
                                 ? 'bg-gradient-to-r from-violet-600 to-fuchsia-600 text-white shadow-lg'
                                 : 'text-slate-400 hover:text-slate-200'
-                            }`}
+                                }`}
                         >
-                            <TrendingUp size={16} className="inline mr-2" strokeWidth={2}/>
+                            <TrendingUp size={16} className="inline mr-2" strokeWidth={2} />
                             Multi-Asset
+                        </button>
+                        <button
+                            onClick={() => setBacktestMode('walkforward' as any)}
+                            className={`px-5 py-2.5 rounded-lg text-sm font-semibold transition-all ${backtestMode === ('walkforward' as any)
+                                ? 'bg-gradient-to-r from-violet-600 to-fuchsia-600 text-white shadow-lg'
+                                : 'text-slate-400 hover:text-slate-200'
+                                }`}
+                        >
+                            <Zap size={16} className="inline mr-2" strokeWidth={2} />
+                            Walk-Forward
                         </button>
                     </div>
                 </div>
@@ -183,29 +186,33 @@ const BacktestPage = () => {
                     strategies={strategiesList}
                     runBacktest={runBacktest}
                     isRunning={isRunning}
-                    results={results}
+                    results={singleResults}
                 />
-            ) : (
+            ) : backtestMode === 'multi' ? (
                 <MultiAssetBacktest
                     config={multiConfig}
                     setConfig={setMultiConfig}
                     strategies={strategiesList}
                     runBacktest={runBacktest}
                     isRunning={isRunning}
-                    results={results}
+                    results={multiResults}
                     addSymbol={addSymbol}
                     removeSymbol={removeSymbol}
                 />
+            ) : (
+                <WalkForwardAnalysis
+                    strategies={strategiesList}
+                />
             )}
 
-            {/* Go Live Button - Shows when results exist */}
-            {results && (
+            {/* Go Live Button - Shows when results exist for active mode */}
+            {activeResults && activeResults.sharpe_ratio >= 1 && activeResults.total_return >= 10.0 && (
                 <div className="fixed bottom-8 right-8 z-50">
                     <button
                         onClick={handleGoLive}
                         className="group relative px-8 py-4 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 rounded-2xl text-white font-bold text-lg shadow-2xl shadow-emerald-500/50 transition-all transform hover:scale-105 flex items-center gap-3"
                     >
-                        <Rocket size={24} className="group-hover:animate-bounce"/>
+                        <Rocket size={24} className="group-hover:animate-bounce" />
                         Go Live with This Strategy
                         <div
                             className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 rounded-full flex items-center justify-center">
@@ -219,7 +226,7 @@ const BacktestPage = () => {
             {deploymentStatus === 'success' && (
                 <div
                     className="fixed top-8 right-8 z-50 bg-emerald-500 text-white px-6 py-4 rounded-xl shadow-lg flex items-center gap-3 animate-in slide-in-from-right">
-                    <CheckCircle size={24}/>
+                    <CheckCircle size={24} />
                     <div>
                         <div className="font-bold">Strategy Deployed Successfully!</div>
                         <div className="text-sm opacity-90">Check Live Execution page for details</div>
@@ -230,7 +237,7 @@ const BacktestPage = () => {
             {deploymentStatus === 'error' && (
                 <div
                     className="fixed top-8 right-8 z-50 bg-red-500 text-white px-6 py-4 rounded-xl shadow-lg flex items-center gap-3 animate-in slide-in-from-right">
-                    <AlertCircle size={24}/>
+                    <AlertCircle size={24} />
                     <div>
                         <div className="font-bold">Deployment Failed</div>
                         <div className="text-sm opacity-90">Please try again or check settings</div>

@@ -1,5 +1,5 @@
 'use client'
-import React, {useEffect, useMemo, useState} from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
     BarChart3,
     BrainCircuit, CheckCircle,
@@ -39,11 +39,17 @@ import {
     XAxis,
     YAxis
 } from 'recharts';
-import {mlstudio} from '@/utils/api';
-import {MLModel, TrainingConfig, TrainingEpoch} from '@/types/all_types';
+import { mlstudio } from '@/utils/api';
+import { MLModel, TrainingConfig, TrainingEpoch, VisualBlock } from '@/types/all_types';
+import { useBacktestStore } from '@/store/useBacktestStore';
+import { useNavigationStore } from '@/store/useNavigationStore';
 import ModelRegistry from "@/components/mlstudio/ModelRegistry";
+import StrategyBuilder from "@/components/backtest/StrategyBuilder";
 
 const MLStudio = () => {
+    const navigateTo = useNavigationStore(state => state.navigateTo);
+    const setVisualStrategy = useBacktestStore(state => state.setVisualStrategy);
+
     const [isTraining, setIsTraining] = useState(false);
     const [trainingProgress, setTrainingProgress] = useState(0);
     const [showResults, setShowResults] = useState(false);
@@ -55,7 +61,7 @@ const MLStudio = () => {
     const [isDeploying, setIsDeploying] = useState(false);
     const [isLoadingModels, setIsLoadingModels] = useState(true);
 
-    const [activeTab, setActiveTab] = useState<'train' | 'registry' | 'deployed'>('train');
+    const [activeTab, setActiveTab] = useState<'train' | 'builder' | 'registry' | 'deployed'>('train');
     const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
     const [filterStatus, setFilterStatus] = useState<'all' | 'trained' | 'deployed'>('all');
     const [sortBy, setSortBy] = useState<'date' | 'accuracy' | 'training_time'>('date');
@@ -162,11 +168,11 @@ const MLStudio = () => {
     }, [models, filterStatus, sortBy, sortOrder, showInactive]);
 
     const deployedModels = useMemo(() =>
-            models.filter(m => m.status === 'deployed'),
+        models.filter(m => m.status === 'deployed'),
         [models]);
 
     const trainedModels = useMemo(() =>
-            models.filter(m => m.status === 'trained'),
+        models.filter(m => m.status === 'trained'),
         [models]);
 
     const handleTrain = async () => {
@@ -273,12 +279,12 @@ const MLStudio = () => {
             await mlstudio.undeployModel(modelId);
             setModels(prev => prev.map(model =>
                 model.id === modelId
-                    ? {...model, status: 'trained' as const}
+                    ? { ...model, status: 'trained' as const }
                     : model
             ));
 
             if (selectedModel?.id === modelId) {
-                setSelectedModel(prev => prev ? {...prev, status: 'trained' as const} : null);
+                setSelectedModel(prev => prev ? { ...prev, status: 'trained' as const } : null);
             }
         } catch (err) {
             console.error("Failed to undeploy:", err);
@@ -287,15 +293,15 @@ const MLStudio = () => {
 
     const handleToggleActive = async (modelId: string, isActive: boolean) => {
         try {
-            await mlstudio.updateModelStatus({modelId, isActive});
+            await mlstudio.updateModelStatus({ modelId, isActive });
             setModels(prev => prev.map(model =>
                 model.id === modelId
-                    ? {...model, isActive}
+                    ? { ...model, isActive }
                     : model
             ));
 
             if (selectedModel?.id === modelId) {
-                setSelectedModel(prev => prev ? {...prev, isActive} : null);
+                setSelectedModel(prev => prev ? { ...prev, isActive } : null);
             }
         } catch (err) {
             console.error("Failed to update model status:", err);
@@ -324,7 +330,7 @@ const MLStudio = () => {
         });
         setExpandedSection('config');
         setActiveTab('train');
-        window.scrollTo({top: 0, behavior: 'smooth'});
+        window.scrollTo({ top: 0, behavior: 'smooth' });
     };
 
     const handleExportModel = async (modelId: string) => {
@@ -346,15 +352,15 @@ const MLStudio = () => {
     const renderModelIcon = (type: MLModel['type']) => {
         switch (type) {
             case 'LSTM':
-                return <BrainCircuit size={16}/>;
+                return <BrainCircuit size={16} />;
             case 'Random Forest':
-                return <TreePine size={16}/>;
+                return <TreePine size={16} />;
             case 'Gradient Boosting':
-                return <TrendingUp size={16}/>;
+                return <TrendingUp size={16} />;
             case 'XGBoost':
-                return <Zap size={16}/>;
+                return <Zap size={16} />;
             default:
-                return <CpuIcon size={16}/>;
+                return <CpuIcon size={16} />;
         }
     };
 
@@ -373,11 +379,11 @@ const MLStudio = () => {
 
     // Feature engineering options
     const featureOptions = [
-        {id: 'ta', label: 'Technical Indicators', description: 'RSI, MACD, Moving Averages, Bollinger Bands'},
-        {id: 'vol', label: 'Volatility Metrics', description: 'ATR, Historical Volatility, Beta'},
-        {id: 'sentiment', label: 'Market Sentiment', description: 'News analysis, Social media trends'},
-        {id: 'volume', label: 'Volume Analysis', description: 'Volume profile, Order flow imbalance'},
-        {id: 'fundamental', label: 'Fundamental Data', description: 'P/E ratios, Earnings, Revenue growth'},
+        { id: 'ta', label: 'Technical Indicators', description: 'RSI, MACD, Moving Averages, Bollinger Bands' },
+        { id: 'vol', label: 'Volatility Metrics', description: 'ATR, Historical Volatility, Beta' },
+        { id: 'sentiment', label: 'Market Sentiment', description: 'News analysis, Social media trends' },
+        { id: 'volume', label: 'Volume Analysis', description: 'Volume profile, Order flow imbalance' },
+        { id: 'fundamental', label: 'Fundamental Data', description: 'P/E ratios, Earnings, Revenue growth' },
     ];
 
     return (
@@ -388,7 +394,7 @@ const MLStudio = () => {
                     <div>
                         <h1 className="text-2xl font-bold text-slate-100 flex items-center gap-3">
                             <div className="p-2 bg-gradient-to-br from-fuchsia-500/20 to-violet-500/20 rounded-xl">
-                                <Cpu className="text-fuchsia-400" size={24}/>
+                                <Cpu className="text-fuchsia-400" size={24} />
                             </div>
                             ML Strategy Studio
                         </h1>
@@ -398,12 +404,12 @@ const MLStudio = () => {
                     <div className="flex gap-3">
                         <button
                             className="px-4 py-2 bg-slate-800 hover:bg-slate-700 rounded-lg text-slate-300 text-sm font-medium flex items-center gap-2 transition-colors">
-                            <Upload size={16}/>
+                            <Upload size={16} />
                             Import Dataset
                         </button>
                         <button
                             className="px-4 py-2 bg-gradient-to-r from-fuchsia-600 to-violet-600 hover:from-fuchsia-500 hover:to-violet-500 rounded-lg text-white text-sm font-medium flex items-center gap-2 transition-all shadow-lg shadow-fuchsia-600/20">
-                            <Cloud size={16}/>
+                            <Cloud size={16} />
                             Cloud Training
                         </button>
                     </div>
@@ -416,8 +422,18 @@ const MLStudio = () => {
                         className={`px-6 py-3 text-sm font-medium border-b-2 transition-all ${activeTab === 'train' ? 'border-fuchsia-500 text-fuchsia-400' : 'border-transparent text-slate-500 hover:text-slate-300'}`}
                     >
                         <div className="flex items-center gap-2">
-                            <Play size={16}/>
+                            <Play size={16} />
                             Train Models
+                        </div>
+                    </button>
+                    <button
+                        onClick={() => setActiveTab('builder')}
+                        className={`px-6 py-3 text-sm font-medium border-b-2 transition-all ${activeTab === 'builder' ? 'border-fuchsia-500 text-fuchsia-400' : 'border-transparent text-slate-500 hover:text-slate-300'}`}
+                    >
+                        <div className="flex items-center gap-2">
+                            <Plus size={16} />
+                            Strategy Builder
+                            <span className="bg-fuchsia-500/20 text-fuchsia-400 text-[10px] px-1.5 py-0.5 rounded uppercase font-black ml-1">New</span>
                         </div>
                     </button>
                     <button
@@ -425,7 +441,7 @@ const MLStudio = () => {
                         className={`px-6 py-3 text-sm font-medium border-b-2 transition-all ${activeTab === 'registry' ? 'border-fuchsia-500 text-fuchsia-400' : 'border-transparent text-slate-500 hover:text-slate-300'}`}
                     >
                         <div className="flex items-center gap-2">
-                            <BarChart3 size={16}/>
+                            <BarChart3 size={16} />
                             Model Registry
                             <span className="bg-slate-800 text-slate-300 text-xs px-2 py-0.5 rounded-full">
                                 {models.length}
@@ -437,7 +453,7 @@ const MLStudio = () => {
                         className={`px-6 py-3 text-sm font-medium border-b-2 transition-all ${activeTab === 'deployed' ? 'border-fuchsia-500 text-fuchsia-400' : 'border-transparent text-slate-500 hover:text-slate-300'}`}
                     >
                         <div className="flex items-center gap-2">
-                            <CheckCircle size={16}/>
+                            <CheckCircle size={16} />
                             Deployed Models
                             <span className="bg-emerald-500/20 text-emerald-400 text-xs px-2 py-0.5 rounded-full">
                                 {deployedModels.length}
@@ -458,14 +474,14 @@ const MLStudio = () => {
                             className="bg-gradient-to-br from-slate-900/50 to-slate-950/50 border border-slate-800/50 rounded-2xl p-6">
                             <div className="flex items-center justify-between mb-6">
                                 <h3 className="text-lg font-bold text-slate-100 flex items-center gap-2">
-                                    <Settings2 className="text-fuchsia-400" size={20}/>
+                                    <Settings2 className="text-fuchsia-400" size={20} />
                                     Training Configuration
                                 </h3>
                                 <button
                                     onClick={() => setShowAdvanced(!showAdvanced)}
                                     className="text-xs text-slate-500 hover:text-slate-300 flex items-center gap-1 transition-colors"
                                 >
-                                    {showAdvanced ? <Minus size={14}/> : <Plus size={14}/>}
+                                    {showAdvanced ? <Minus size={14} /> : <Plus size={14} />}
                                     {showAdvanced ? 'Basic Mode' : 'Advanced Mode'}
                                 </button>
                             </div>
@@ -475,7 +491,7 @@ const MLStudio = () => {
                                 <div className="space-y-4">
                                     <div className="space-y-2">
                                         <label className="text-xs font-medium text-slate-400 flex items-center gap-2">
-                                            <Target size={12}/>
+                                            <Target size={12} />
                                             Symbol for Training
                                         </label>
                                         <div className="relative">
@@ -492,7 +508,7 @@ const MLStudio = () => {
                                                 {['AAPL', 'TSLA', 'MSFT', 'NVDA'].map((sym) => (
                                                     <button
                                                         key={sym}
-                                                        onClick={() => setConfig({...config, symbol: sym})}
+                                                        onClick={() => setConfig({ ...config, symbol: sym })}
                                                         className="text-xs px-2 py-1 bg-slate-800 hover:bg-slate-700 rounded-lg text-slate-400 hover:text-slate-200 transition-colors"
                                                     >
                                                         {sym}
@@ -504,18 +520,18 @@ const MLStudio = () => {
 
                                     <div className="space-y-2">
                                         <label className="text-xs font-medium text-slate-400 flex items-center gap-2">
-                                            <BrainCircuit size={12}/>
+                                            <BrainCircuit size={12} />
                                             Model Type
                                         </label>
                                         <div className="grid grid-cols-2 gap-2">
                                             {(['Random Forest', 'Gradient Boosting', 'LSTM', 'XGBoost'] as const).map((type) => (
                                                 <button
                                                     key={type}
-                                                    onClick={() => setConfig({...config, model_type: type})}
+                                                    onClick={() => setConfig({ ...config, model_type: type })}
                                                     className={`p-3 rounded-xl border transition-all ${config.model_type === type
                                                         ? 'bg-fuchsia-500/10 border-fuchsia-500/50 text-fuchsia-400'
                                                         : 'bg-slate-900/50 border-slate-800 text-slate-400 hover:border-slate-700'
-                                                    }`}
+                                                        }`}
                                                 >
                                                     <div className="flex items-center justify-center gap-2">
                                                         {renderModelIcon(type)}
@@ -528,18 +544,18 @@ const MLStudio = () => {
 
                                     <div className="space-y-2">
                                         <label className="text-xs font-medium text-slate-400 flex items-center gap-2">
-                                            <Clock size={12}/>
+                                            <Clock size={12} />
                                             Training Period
                                         </label>
                                         <div className="flex gap-2">
                                             {(['1M', '3M', '6M', '1Y', '5Y'] as const).map((period) => (
                                                 <button
                                                     key={period}
-                                                    onClick={() => setConfig({...config, training_period: period})}
+                                                    onClick={() => setConfig({ ...config, training_period: period })}
                                                     className={`px-3 py-2 rounded-lg text-xs transition-all ${config.training_period === period
                                                         ? 'bg-fuchsia-500 text-white'
                                                         : 'bg-slate-800 text-slate-400 hover:bg-slate-700'
-                                                    }`}
+                                                        }`}
                                                 >
                                                     {period}
                                                 </button>
@@ -552,7 +568,7 @@ const MLStudio = () => {
                                 <div className="space-y-4">
                                     <div className="space-y-2">
                                         <label className="text-xs font-medium text-slate-400 flex items-center gap-2">
-                                            <PieChart size={12}/>
+                                            <PieChart size={12} />
                                             Test Set Size: {config.test_size}%
                                         </label>
                                         <input
@@ -665,13 +681,13 @@ const MLStudio = () => {
                             {config.use_feature_engineering && (
                                 <div className="mt-6 p-4 bg-slate-950/50 border border-slate-800 rounded-xl">
                                     <div className="flex items-center gap-2 mb-3">
-                                        <Filter className="text-violet-500" size={14}/>
+                                        <Filter className="text-violet-500" size={14} />
                                         <span className="text-xs font-medium text-slate-400">Feature Engineering Pipeline</span>
                                     </div>
                                     <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
                                         {featureOptions.map((feat) => (
                                             <div key={feat.id}
-                                                 className="p-2 bg-slate-900/50 rounded-lg border border-slate-800">
+                                                className="p-2 bg-slate-900/50 rounded-lg border border-slate-800">
                                                 <div
                                                     className="text-[10px] font-medium text-fuchsia-400">{feat.label}</div>
                                                 <div className="text-[9px] text-slate-500 mt-1">{feat.description}</div>
@@ -688,7 +704,7 @@ const MLStudio = () => {
                                 className={`w-full mt-6 py-4 rounded-xl font-bold transition-all flex items-center justify-center gap-3 ${isTraining
                                     ? 'bg-slate-800 text-slate-400'
                                     : 'bg-gradient-to-r from-violet-600 to-violet-600 hover:from-violet-500 hover:to-violet-500 text-white shadow-xl shadow-fuchsia-600/20'
-                                }`}
+                                    }`}
                             >
                                 {isTraining ? (
                                     <>
@@ -698,7 +714,7 @@ const MLStudio = () => {
                                     </>
                                 ) : (
                                     <>
-                                        <Play size={18}/>
+                                        <Play size={18} />
                                         <span>Launch Training Session</span>
                                     </>
                                 )}
@@ -710,7 +726,7 @@ const MLStudio = () => {
                                     <div className="h-2 bg-slate-800 rounded-full overflow-hidden">
                                         <div
                                             className="h-full bg-gradient-to-r from-fuchsia-500 to-violet-500 transition-all duration-300"
-                                            style={{width: `${trainingProgress}%`}}
+                                            style={{ width: `${trainingProgress}%` }}
                                         />
                                     </div>
                                     <div className="flex justify-between text-xs text-slate-500 mt-2">
@@ -730,7 +746,7 @@ const MLStudio = () => {
                         <div
                             className="bg-gradient-to-br from-slate-900/50 to-slate-950/50 border border-slate-800/50 rounded-2xl p-6">
                             <h4 className="text-sm font-bold text-slate-300 mb-4 flex items-center gap-2">
-                                <Info className="text-fuchsia-400" size={16}/>
+                                <Info className="text-fuchsia-400" size={16} />
                                 Model Information
                             </h4>
                             <div className="space-y-4">
@@ -758,7 +774,7 @@ const MLStudio = () => {
                         {/* Quick Stats */}
                         {isLoadingModels ? (
                             <div className="bg-slate-900 p-6 rounded-2xl flex justify-center">
-                                <Loader2 className="animate-spin text-slate-500"/>
+                                <Loader2 className="animate-spin text-slate-500" />
                             </div>
                         ) : (
                             <div
@@ -795,6 +811,38 @@ const MLStudio = () => {
                                 </div>
                             </div>
                         )}
+                    </div>
+                </div>
+            )}
+
+            {activeTab === 'builder' && (
+                <div className="space-y-6">
+                    <StrategyBuilder
+                        models={models}
+                        isLoading={isLoadingModels}
+                        onSave={(config) => {
+                            // Send enriched blocks to backtest store
+                            setVisualStrategy(config.blocks);
+                            navigateTo('backtest');
+                        }}
+                    />
+
+                    <div className="bg-slate-900/30 border border-slate-800 p-6 rounded-2xl flex items-center justify-between">
+                        <div className="flex items-center gap-4">
+                            <div className="w-12 h-12 bg-fuchsia-500/10 rounded-xl flex items-center justify-center">
+                                <Target className="text-fuchsia-400" size={24} />
+                            </div>
+                            <div>
+                                <h4 className="text-sm font-bold text-white uppercase tracking-wider">Strategy Ready for Backtesting</h4>
+                                <p className="text-xs text-slate-500">Your visual logic will be converted to the &quot;Visual Strategy Builder&quot; engine automatically.</p>
+                            </div>
+                        </div>
+                        <button
+                            onClick={() => navigateTo('backtest')}
+                            className="px-6 py-3 bg-slate-800 hover:bg-slate-700 text-white rounded-xl text-sm font-bold transition-all border border-slate-700"
+                        >
+                            Go to Backtest →
+                        </button>
                     </div>
                 </div>
             )}
@@ -837,49 +885,49 @@ const MLStudio = () => {
                 <div className="space-y-6">
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                         {deployedModels.map((model) => (
-                                <div key={model.id}
-                                     className="bg-gradient-to-br from-slate-900/50 to-slate-950/50 border border-emerald-500/20 rounded-2xl p-6">
-                                    <div className="flex items-center justify-between mb-4">
-                                        <div className="flex items-center gap-3">
-                                            <div className="p-2 bg-emerald-500/20 rounded-lg">
-                                                {renderModelIcon(model.type)}
-                                            </div>
-                                            <div>
-                                                <div className="font-medium text-slate-100">{model.name}</div>
-                                                <div className="text-xs text-slate-500">{model.symbol}</div>
-                                            </div>
+                            <div key={model.id}
+                                className="bg-gradient-to-br from-slate-900/50 to-slate-950/50 border border-emerald-500/20 rounded-2xl p-6">
+                                <div className="flex items-center justify-between mb-4">
+                                    <div className="flex items-center gap-3">
+                                        <div className="p-2 bg-emerald-500/20 rounded-lg">
+                                            {renderModelIcon(model.type)}
                                         </div>
-                                        <div className="text-xs px-2 py-1 bg-emerald-500/20 text-emerald-400 rounded-full">
-                                            Active
+                                        <div>
+                                            <div className="font-medium text-slate-100">{model.name}</div>
+                                            <div className="text-xs text-slate-500">{model.symbol}</div>
                                         </div>
                                     </div>
-
-                                    <div className="space-y-3">
-                                        <div className="flex justify-between text-sm">
-                                            <span className="text-slate-500">Accuracy:</span>
-                                            <span
-                                                className="text-emerald-400 font-medium">{(model.accuracy * 100).toFixed(1)}%</span>
-                                        </div>
-                                        <div className="flex justify-between text-sm">
-                                            <span className="text-slate-500">Live P&L:</span>
-                                            <span className="text-emerald-400 font-medium">+2.4%</span>
-                                        </div>
-                                        <div className="flex justify-between text-sm">
-                                            <span className="text-slate-500">Trades Today:</span>
-                                            <span className="text-slate-300 font-medium">12</span>
-                                        </div>
-                                    </div>
-
-                                    <div className="mt-4 pt-4 border-t border-slate-800/50">
-                                        <button
-                                            onClick={() => handleUndeploy(model.id)}
-                                            className="w-full py-2 bg-amber-500/10 hover:bg-amber-500/20 rounded-lg text-amber-500 text-sm font-medium transition-colors border border-amber-500/20"
-                                        >
-                                            Stop Strategy
-                                        </button>
+                                    <div className="text-xs px-2 py-1 bg-emerald-500/20 text-emerald-400 rounded-full">
+                                        Active
                                     </div>
                                 </div>
-                            )
+
+                                <div className="space-y-3">
+                                    <div className="flex justify-between text-sm">
+                                        <span className="text-slate-500">Accuracy:</span>
+                                        <span
+                                            className="text-emerald-400 font-medium">{(model.accuracy * 100).toFixed(1)}%</span>
+                                    </div>
+                                    <div className="flex justify-between text-sm">
+                                        <span className="text-slate-500">Live P&L:</span>
+                                        <span className="text-emerald-400 font-medium">+2.4%</span>
+                                    </div>
+                                    <div className="flex justify-between text-sm">
+                                        <span className="text-slate-500">Trades Today:</span>
+                                        <span className="text-slate-300 font-medium">12</span>
+                                    </div>
+                                </div>
+
+                                <div className="mt-4 pt-4 border-t border-slate-800/50">
+                                    <button
+                                        onClick={() => handleUndeploy(model.id)}
+                                        className="w-full py-2 bg-amber-500/10 hover:bg-amber-500/20 rounded-lg text-amber-500 text-sm font-medium transition-colors border border-amber-500/20"
+                                    >
+                                        Stop Strategy
+                                    </button>
+                                </div>
+                            </div>
+                        )
                         )}
                     </div>
                 </div>
@@ -896,7 +944,7 @@ const MLStudio = () => {
                                 onClick={() => selectedModel && handleDelete(selectedModel.id)}
                                 className="px-4 py-2 bg-red-500/10 hover:bg-red-500/20 rounded-lg text-red-500 text-sm font-medium flex items-center gap-2 transition-colors border border-red-500/20"
                             >
-                                <Trash2 size={16}/>
+                                <Trash2 size={16} />
                                 Delete Model
                             </button>
                             {selectedModel.status !== 'deployed' && (
@@ -905,14 +953,14 @@ const MLStudio = () => {
                                     disabled={isDeploying}
                                     className="px-4 py-2 bg-emerald-500/10 hover:bg-emerald-500/20 rounded-lg text-emerald-500 text-sm font-medium flex items-center gap-2 transition-colors border border-emerald-500/20"
                                 >
-                                    {isDeploying ? <Loader2 size={16} className="animate-spin"/> :
-                                        <CheckCircle2 size={16}/>}
+                                    {isDeploying ? <Loader2 size={16} className="animate-spin" /> :
+                                        <CheckCircle2 size={16} />}
                                     Deploy Strategy
                                 </button>
                             )}
                             <button
                                 className="px-4 py-2 bg-gradient-to-r from-fuchsia-600 to-violet-600 hover:from-fuchsia-500 hover:to-violet-500 rounded-lg text-white text-sm font-medium flex items-center gap-2 transition-all shadow-lg shadow-fuchsia-600/20">
-                                <Maximize2 size={16}/>
+                                <Maximize2 size={16} />
                                 Compare Models
                             </button>
                         </div>
@@ -924,8 +972,8 @@ const MLStudio = () => {
                             className="bg-gradient-to-br from-slate-900/40 to-slate-950/40 border border-slate-800/50 p-5 rounded-2xl">
                             <p className="text-xs font-medium text-slate-500 mb-2">Training Accuracy</p>
                             <div className="flex items-end gap-2">
-                            <span
-                                className="text-2xl font-bold text-fuchsia-400">{(selectedModel.accuracy * 100).toFixed(1)}%</span>
+                                <span
+                                    className="text-2xl font-bold text-fuchsia-400">{(selectedModel.accuracy * 100).toFixed(1)}%</span>
                                 <span className="text-xs text-slate-500 mb-1">±2.3%</span>
                             </div>
                         </div>
@@ -933,8 +981,8 @@ const MLStudio = () => {
                             className="bg-gradient-to-br from-slate-900/40 to-slate-950/40 border border-slate-800/50 p-5 rounded-2xl">
                             <p className="text-xs font-medium text-slate-500 mb-2">Test Accuracy</p>
                             <div className="flex items-end gap-2">
-                            <span
-                                className="text-2xl font-bold text-violet-400">{(selectedModel.test_accuracy * 100).toFixed(1)}%</span>
+                                <span
+                                    className="text-2xl font-bold text-violet-400">{(selectedModel.test_accuracy * 100).toFixed(1)}%</span>
                                 <span className="text-xs text-slate-500 mb-1">±1.8%</span>
                             </div>
                         </div>
@@ -942,9 +990,9 @@ const MLStudio = () => {
                             className="bg-gradient-to-br from-slate-900/40 to-slate-950/40 border border-slate-800/50 p-5 rounded-2xl">
                             <p className="text-xs font-medium text-slate-500 mb-2">Overfit Score</p>
                             <div className="flex items-center justify-between">
-                            <span
-                                className="text-2xl font-bold text-emerald-400">{(selectedModel.overfit_score * 100).toFixed(1)}%</span>
-                                <CheckCircle2 className="text-emerald-500" size={20}/>
+                                <span
+                                    className="text-2xl font-bold text-emerald-400">{(selectedModel.overfit_score * 100).toFixed(1)}%</span>
+                                <CheckCircle2 className="text-emerald-500" size={20} />
                             </div>
                         </div>
                         <div
@@ -964,7 +1012,7 @@ const MLStudio = () => {
                             className="bg-gradient-to-br from-slate-900/50 to-slate-950/50 border border-slate-800/50 rounded-2xl p-6">
                             <div className="flex items-center justify-between mb-6">
                                 <h4 className="text-sm font-bold text-slate-300 flex items-center gap-2">
-                                    <BarChart3 className="text-fuchsia-500" size={18}/>
+                                    <BarChart3 className="text-fuchsia-500" size={18} />
                                     Feature Importance
                                 </h4>
                                 <span
@@ -973,12 +1021,12 @@ const MLStudio = () => {
                             <div className="h-[300px]">
                                 <ResponsiveContainer width="100%" height="100%">
                                     <BarChart data={selectedModel.feature_importance} layout="vertical">
-                                        <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" horizontal={false}/>
-                                        <XAxis type="number" domain={[0, 0.35]} hide/>
+                                        <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" horizontal={false} />
+                                        <XAxis type="number" domain={[0, 0.35]} hide />
                                         <YAxis
                                             dataKey="feature"
                                             type="category"
-                                            tick={{fill: '#94a3b8', fontSize: 10}}
+                                            tick={{ fill: '#94a3b8', fontSize: 10 }}
                                             width={80}
                                         />
                                         <Tooltip
@@ -1000,10 +1048,10 @@ const MLStudio = () => {
                                         <defs>
                                             {selectedModel.feature_importance.map((_, index) => (
                                                 <linearGradient key={`gradient-${index}`} id={`gradient-${index}`}
-                                                                x1="0"
-                                                                y1="0" x2="1" y2="0">
-                                                    <stop offset="0%" stopColor="#d946ef" stopOpacity={0.8}/>
-                                                    <stop offset="100%" stopColor="#ec4899" stopOpacity={0.8}/>
+                                                    x1="0"
+                                                    y1="0" x2="1" y2="0">
+                                                    <stop offset="0%" stopColor="#d946ef" stopOpacity={0.8} />
+                                                    <stop offset="100%" stopColor="#ec4899" stopOpacity={0.8} />
                                                 </linearGradient>
                                             ))}
                                         </defs>
@@ -1017,7 +1065,7 @@ const MLStudio = () => {
                             className="bg-gradient-to-br from-slate-900/50 to-slate-950/50 border border-slate-800/50 rounded-2xl p-6">
                             <div className="flex items-center justify-between mb-6">
                                 <h4 className="text-sm font-bold text-slate-300 flex items-center gap-2">
-                                    <LineChart className="text-cyan-500" size={18}/>
+                                    <LineChart className="text-cyan-500" size={18} />
                                     Training Progress
                                 </h4>
                                 {trainingMetrics.length > 1 && (
@@ -1034,14 +1082,14 @@ const MLStudio = () => {
                                     /* Multi-epoch chart: LSTM, GradientBoosting */
                                     <ResponsiveContainer width="100%" height="100%">
                                         <ComposedChart data={trainingMetrics}>
-                                            <CartesianGrid strokeDasharray="3 3" stroke="#1e293b"/>
-                                            <XAxis dataKey="epoch" stroke="#64748b" fontSize={10}/>
-                                            <YAxis stroke="#64748b" fontSize={10}/>
+                                            <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
+                                            <XAxis dataKey="epoch" stroke="#64748b" fontSize={10} />
+                                            <YAxis stroke="#64748b" fontSize={10} />
                                             <Tooltip contentStyle={{
                                                 backgroundColor: '#0f172a',
                                                 border: '1px solid #1e293b'
-                                            }}/>
-                                            <Legend/>
+                                            }} />
+                                            <Legend />
                                             <Area
                                                 type="monotone"
                                                 dataKey="loss"
@@ -1104,7 +1152,7 @@ const MLStudio = () => {
                                 ) : (
                                     /* Empty state */
                                     <div className="flex flex-col items-center justify-center h-full text-slate-500">
-                                        <BrainCircuit size={48} className="mb-3 opacity-30"/>
+                                        <BrainCircuit size={48} className="mb-3 opacity-30" />
                                         <p className="text-sm">Train a model to see metrics</p>
                                     </div>
                                 )}

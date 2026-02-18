@@ -3,6 +3,7 @@ Live Trading Routes with Broker Integration
 Uses BrokerFactory to support multiple brokers (Paper, Alpaca, IB, etc.)
 """
 
+import asyncio
 import logging
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
@@ -13,6 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.app.api.deps import get_current_user
 from backend.app.api.routes.live.live_trading_state import LiveTradingState
+from backend.app.api.routes.settings import get_or_create_settings
 from backend.app.database import AsyncSessionLocal, get_db
 from backend.app.models.backtest import BacktestRun
 from backend.app.models.live import (
@@ -104,44 +106,39 @@ async def connect_broker(
     """
     Connect to trading broker using saved settings or manual override
     """
+    user_settings = await get_or_create_settings(db, current_user.id)
 
     broker_type = None
-    credentials = {}
 
     if use_settings:
-        # Get credentials from user settings
-        user_broker = await get_user_broker_settings(db, current_user.id)
+        broker_type = user_settings.default_broker or "paper"
 
-        if user_broker:
-            broker_type = user_broker["broker_type"]
-
-            # Build credentials dict
-            if broker_type != "paper":
-                credentials = {"api_key": user_broker["api_key"], "api_secret": user_broker["api_secret"], "base_url": user_broker["base_url"]}
-            else:
-                credentials = {"initial_capital": user_broker["initial_capital"]}
-
-    # Override with request if provided
-    if request:
-        broker_type = request.broker or broker_type
-        if request.api_key:
-            credentials["api_key"] = request.api_key
-        if request.api_secret:
-            credentials["api_secret"] = request.api_secret
+    if request and request.broker:
+        broker_type = request.broker
 
     if not broker_type:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No broker configured. Please configure broker in Settings.")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No broker configured. Please configure broker in Settings.",
+        )
 
-    # Connect using broker factory
-    success = await trading_state.connect(broker_type, credentials)
+    success = await trading_state.connect(broker_type, user_settings)
 
     if not success:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Failed to connect to {broker_type}")
 
-    # Get account info
+    # Get account info with timeout to prevent hanging
     account_info = {}
     if trading_state.broker_client:
-        account_info = await trading_state.broker_client.get_account_info()
+        try:
+            # Add 5-second timeout to prevent hanging
+            account_info = await asyncio.wait_for(trading_state.broker_client.get_account_info(), timeout=5.0)
+        except asyncio.TimeoutError:
+            logger.warning("Account info fetch timed out, returning without account details")
+            account_info = {}
+        except Exception as e:
+            logger.error(f"Error fetching account info: {e}")
+            account_info = {}
 
     return {
         "status": "connected",
@@ -440,7 +437,7 @@ async def list_strategies(
     status_: Optional[str] = None, mode: Optional[str] = None, db: AsyncSession = Depends(get_db), current_user=Depends(get_current_user)
 ):
     """List all strategies for the current user"""
-    stmt = select(LiveStrategy).where(LiveStrategy.user_id == current_user.id)
+    stmt = select(LiveStrategy).where(LiveStrategy.user_id == current_user.id, ~LiveStrategy.is_deleted)
 
     if status_:
         try:
@@ -459,21 +456,7 @@ async def list_strategies(
     result = await db.execute(stmt)
     strategies = result.scalars().all()
 
-    return [
-        StrategyResponse(
-            id=s.id,
-            name=s.name,
-            strategy_key=s.strategy_key,
-            symbols=s.symbols,
-            status=s.status.value,
-            deployment_mode=s.deployment_mode.value,
-            current_equity=s.current_equity or s.initial_capital,
-            total_return_pct=s.total_return_pct or 0.0,
-            total_trades=s.total_trades or 0,
-            deployed_at=s.deployed_at.isoformat() if s.deployed_at else None,
-        )
-        for s in strategies
-    ]
+    return [StrategyResponse(**s.to_dict()) for s in strategies]
 
 
 @router.get("/strategy/{strategy_id}", response_model=StrategyDetailsResponse)
@@ -630,7 +613,8 @@ async def delete_strategy(strategy_id: int, db: AsyncSession = Depends(get_db), 
     if not strategy:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Strategy {strategy_id} not found")
 
-    # Soft delete
+    # Soft delete using is_deleted flag
+    strategy.is_deleted = True
     strategy.status = StrategyStatus.STOPPED
     strategy.stopped_at = datetime.now(timezone.utc)
 
@@ -640,7 +624,7 @@ async def delete_strategy(strategy_id: int, db: AsyncSession = Depends(get_db), 
 
     await db.commit()
 
-    return {"strategy_id": strategy_id, "message": "Strategy deleted successfully"}
+    return {"strategy_id": strategy_id, "message": "Strategy dropped from active list successfully"}
 
 
 @router.patch("/strategy/{strategy_id}", response_model=StrategyResponse)

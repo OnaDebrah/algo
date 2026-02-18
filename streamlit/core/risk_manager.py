@@ -4,7 +4,7 @@ Risk management system
 
 import logging
 
-from config import (
+from streamlit.config import (
     DEFAULT_MAX_DRAWDOWN,
     DEFAULT_MAX_POSITION_SIZE,
     DEFAULT_STOP_LOSS_PCT,

@@ -9,7 +9,7 @@ from typing import Dict, List
 
 import anthropic
 
-from config import ANTHROPIC_API_KEY
+from streamlit.config import ANTHROPIC_API_KEY
 
 logger = logging.getLogger(__name__)
 

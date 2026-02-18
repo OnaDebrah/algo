@@ -9,7 +9,7 @@ import pandas as pd
 import requests
 import yfinance as yf
 
-from config import USER_AGENT
+from streamlit.config import USER_AGENT
 
 logger = logging.getLogger(__name__)
 

@@ -3,13 +3,20 @@ Strategy Catalog and Categories
 Organize all trading strategies by type - Expanded Version
 """
 
+import logging
 from dataclasses import dataclass
 from enum import Enum
 from typing import Dict, List, Literal, Type
 
-from backend.app.strategies import BaseStrategy, KAMAStrategy, MACDStrategy, MLStrategy, MultiTimeframeKAMAStrategy
+from backend.app.strategies import (
+    BaseStrategy,
+    DynamicStrategy,
+    KAMAStrategy,
+    MACDStrategy,
+    MLStrategy,
+    MultiTimeframeKAMAStrategy,
+)
 from backend.app.strategies.adpative_trend_ff_strategy import AdaptiveTrendFollowingStrategy
-from backend.app.strategies.bb_mean_reversion import BollingerMeanReversionStrategy
 from backend.app.strategies.cs_momentum_strategy import CrossSectionalMomentumStrategy
 from backend.app.strategies.donchain_strategy import DonchianATRStrategy, DonchianChannelStrategy, FilteredDonchianStrategy
 from backend.app.strategies.kalman_filter_strategy import KalmanFilterStrategy
@@ -17,16 +24,15 @@ from backend.app.strategies.lstm_strategy import LSTMStrategy
 
 # ML Strategies
 from backend.app.strategies.ml.mc_ml_sentiment_strategy import MonteCarloMLSentimentStrategy
-from backend.app.strategies.options_strategies import OptionsStrategy
 from backend.app.strategies.pairs_trading_strategy import PairsTradingStrategy
 from backend.app.strategies.parabolic_sar import ParabolicSARStrategy
-from backend.app.strategies.rsi_strategy import RSIStrategy
-from backend.app.strategies.sma_crossover import SMACrossoverStrategy
 from backend.app.strategies.stat_arb.base_stat_arb import RiskParityStatArb
 from backend.app.strategies.stat_arb.sector_neutral import SectorNeutralStrategy
+from backend.app.strategies.technical.bb_mean_reversion import BollingerMeanReversionStrategy
+from backend.app.strategies.technical.rsi_strategy import RSIStrategy
+from backend.app.strategies.technical.sma_crossover import SMACrossoverStrategy
 
 # Statistical Arbitrage
-# from backend.app.strategies import SectorNeutralStrategy
 from backend.app.strategies.ts_momentum_strategy import TimeSeriesMomentumStrategy
 
 # Kalman Filter HFT (conditional on numba)
@@ -43,6 +49,8 @@ from backend.app.strategies.volatility.variance_risk_premium import VarianceRisk
 from backend.app.strategies.volatility.volatility_breakout import VolatilityBreakoutStrategy
 from backend.app.strategies.volatility.volatility_targeting import VolatilityTargetingStrategy
 
+logger = logging.getLogger(__name__)
+
 
 class StrategyCategory(Enum):
     """Strategy categories"""
@@ -55,7 +63,6 @@ class StrategyCategory(Enum):
     VOLATILITY = "Volatility"
     STATISTICAL_ARBITRAGE = "Statistical Arbitrage"
     PAIRS_TRADING = "Pairs Trading"
-    OPTIONS = "Options Strategies"
     PRICE_ACTION = "Price Action"
     ADAPTIVE = "Adaptive Strategies"
     HYBRID = "Hybrid"
@@ -88,6 +95,35 @@ class StrategyCatalog:
         """Build the strategy catalog"""
 
         catalog = {
+            "visual_builder": StrategyInfo(
+                name="Visual Strategy Builder",
+                class_type=DynamicStrategy,
+                category=StrategyCategory.HYBRID,
+                description="Custom strategy constructed using the visual Block Builder. Allows combining multiple ML models with technical filters and complex logic.",
+                complexity="Advanced",
+                time_horizon="Adaptive",
+                best_for=["Custom logic", "Multi-factor models", "Hybrid strategies"],
+                parameters={
+                    "blocks": {
+                        "default": [],
+                        "description": "JSON block configuration defining the strategy logic",
+                    },
+                    "root_block_id": {
+                        "default": "root",
+                        "description": "The ID of the block that generates the final signal",
+                    },
+                },
+                pros=[
+                    "Highly customizable",
+                    "No-code / Low-code approach",
+                    "Allows combining ML with classic indicators",
+                ],
+                cons=[
+                    "Complexity scales with number of blocks",
+                    "Requires careful logic design",
+                ],
+                backtest_mode="both",
+            ),
             # ============================================================
             # TECHNICAL INDICATORS - TREND FOLLOWING
             # ============================================================
@@ -782,7 +818,7 @@ class StrategyCatalog:
                     "Data-rich environments",
                 ],
                 parameters={
-                    "model_type": {"default": "random_forest", "range": None, "description": "Model type"},
+                    "strategy_type": {"default": "random_forest", "range": None, "description": "Model type"},
                     "n_estimators": {
                         "default": 100,
                         "range": (50, 500),
@@ -826,7 +862,7 @@ class StrategyCatalog:
                     "High accuracy needs",
                 ],
                 parameters={
-                    "model_type": {"default": "gradient_boosting", "range": None, "description": "Model type"},
+                    "strategy_type": {"default": "gradient_boosting", "range": None, "description": "Model type"},
                     "n_estimators": {
                         "default": 100,
                         "range": (50, 500),
@@ -870,7 +906,7 @@ class StrategyCatalog:
                     "Small datasets",
                 ],
                 parameters={
-                    "model_type": {"default": "svm", "range": None, "description": "Model type"},
+                    "strategy_type": {"default": "svm", "range": None, "description": "Model type"},
                     "test_size": {
                         "default": 0.2,
                         "range": (0.1, 0.4),
@@ -902,7 +938,7 @@ class StrategyCatalog:
                     "Linear relationships",
                 ],
                 parameters={
-                    "model_type": {"default": "logistic_regression", "range": None, "description": "Model type"},
+                    "strategy_type": {"default": "logistic_regression", "range": None, "description": "Model type"},
                     "test_size": {
                         "default": 0.2,
                         "range": (0.1, 0.4),
@@ -1040,165 +1076,6 @@ class StrategyCatalog:
                     "More complex than simple pairs trading",
                 ],
                 backtest_mode="multi",
-            ),
-            # ============================================================
-            # OPTIONS STRATEGIES
-            # ============================================================
-            "covered_call": StrategyInfo(
-                name="Covered Call",
-                class_type=OptionsStrategy,
-                category=StrategyCategory.OPTIONS,
-                description="Hold stock and sell call options to generate income. Limited upside, downside protected by premium.",
-                complexity="Intermediate",
-                time_horizon="Short to Medium-term",
-                best_for=[
-                    "Income generation",
-                    "Range-bound markets",
-                    "Conservative traders",
-                ],
-                parameters={
-                    "strategy_type": {"default": "covered_call", "range": None, "description": "Options strategy type"},
-                    "strike_pct": {
-                        "default": 0.05,
-                        "range": (0.01, 0.15),
-                        "description": "Strike price % above current",
-                    },
-                    "dte": {
-                        "default": 30,
-                        "range": (7, 90),
-                        "description": "Days to expiration",
-                    },
-                },
-                pros=[
-                    "Generates income",
-                    "Reduces cost basis",
-                    "Lower risk than naked long",
-                    "Consistent returns in flat markets",
-                ],
-                cons=[
-                    "Limited upside",
-                    "Still exposed to downside",
-                    "Opportunity cost if stock rallies",
-                    "Early assignment risk",
-                ],
-                backtest_mode="single",
-            ),
-            "iron_condor": StrategyInfo(
-                name="Iron Condor",
-                class_type=OptionsStrategy,
-                category=StrategyCategory.OPTIONS,
-                description="Market-neutral options strategy. Profits when underlying stays within a range. Limited risk and reward.",
-                complexity="Advanced",
-                time_horizon="Short-term",
-                best_for=[
-                    "Low volatility markets",
-                    "Income generation",
-                    "Range-bound stocks",
-                ],
-                parameters={
-                    "strategy_type": {"default": "iron_condor", "range": None, "description": "Options strategy type"},
-                    "wing_width": {
-                        "default": 0.05,
-                        "range": (0.03, 0.10),
-                        "description": "Width of wings (% of price)",
-                    },
-                    "dte": {
-                        "default": 30,
-                        "range": (14, 60),
-                        "description": "Days to expiration",
-                    },
-                },
-                pros=[
-                    "Defined risk",
-                    "High probability strategy",
-                    "Profits from time decay",
-                    "Market neutral",
-                ],
-                cons=[
-                    "Limited profit potential",
-                    "Requires careful management",
-                    "Pin risk near expiration",
-                    "Complex adjustments needed",
-                ],
-                backtest_mode="single",
-            ),
-            "butterfly_spread": StrategyInfo(
-                name="Butterfly Spread",
-                class_type=OptionsStrategy,
-                category=StrategyCategory.OPTIONS,
-                description="Limited risk strategy with concentrated profit zone. Profits when price stays near middle strike.",
-                complexity="Advanced",
-                time_horizon="Short-term",
-                best_for=[
-                    "Neutral outlook",
-                    "Low volatility expected",
-                    "Precise targets",
-                ],
-                parameters={
-                    "strategy_type": {"default": "butterfly_spread", "range": None, "description": "Options strategy type"},
-                    "wing_width": {
-                        "default": 0.03,
-                        "range": (0.02, 0.08),
-                        "description": "Distance between strikes",
-                    },
-                    "dte": {
-                        "default": 30,
-                        "range": (14, 60),
-                        "description": "Days to expiration",
-                    },
-                },
-                pros=[
-                    "Low cost to enter",
-                    "Defined max loss",
-                    "High reward/risk ratio at target",
-                    "Works in neutral markets",
-                ],
-                cons=[
-                    "Narrow profit zone",
-                    "Lower probability of max profit",
-                    "Time decay works against you early",
-                    "Complex to manage",
-                ],
-                backtest_mode="single",
-            ),
-            "straddle": StrategyInfo(
-                name="Long Straddle",
-                class_type=OptionsStrategy,
-                category=StrategyCategory.OPTIONS,
-                description="Profits from large moves in either direction. Buy ATM call and put. Volatility play.",
-                complexity="Intermediate",
-                time_horizon="Short-term",
-                best_for=[
-                    "Earnings events",
-                    "High expected volatility",
-                    "Direction unknown",
-                ],
-                parameters={
-                    "strategy_type": {"default": "straddle", "range": None, "description": "Options strategy type"},
-                    "dte": {
-                        "default": 30,
-                        "range": (7, 90),
-                        "description": "Days to expiration",
-                    },
-                    "iv_threshold": {
-                        "default": 0.30,
-                        "range": (0.20, 0.60),
-                        "description": "Implied volatility entry threshold",
-                    },
-                },
-                pros=[
-                    "Profits from big moves",
-                    "Direction doesn't matter",
-                    "Defined max loss",
-                    "Great for events",
-                ],
-                cons=[
-                    "Expensive to enter",
-                    "Needs significant move",
-                    "Time decay hurts",
-                    "IV crush risk after event",
-                ],
-                backtest_mode="single",
             ),
             # ============================================================
             # STATISTICAL ARBITRAGE - RISK PARITY
@@ -1443,10 +1320,22 @@ class StrategyCatalog:
         if not info:
             raise ValueError(f"Unknown strategy: {strategy_key}")
 
-        # Use defaults for missing parameters
+        # Use defaults for missing parameters and sanitize types
         params = {}
         for param_name, param_info in info.parameters.items():
-            params[param_name] = kwargs.get(param_name, param_info["default"])
+            val = kwargs.get(param_name, param_info.get("default"))
+
+            # Robust type conversion: if default is int, ensure val is int
+            # This handles cases like Bayesian optimization returning floats for windows
+            default_val = param_info.get("default")
+            if isinstance(default_val, int) and not isinstance(val, int) and val is not None:
+                try:
+                    # Capture float strings or direct floats
+                    val = int(float(val))
+                except (ValueError, TypeError):
+                    logger.warning(f"Failed to cast parameter {param_name} to int: {val}")
+
+            params[param_name] = val
 
         return info.class_type(**params)
 
