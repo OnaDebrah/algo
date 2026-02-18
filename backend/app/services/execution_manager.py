@@ -12,8 +12,8 @@ from sqlalchemy import select
 from backend.app.api.routes.settings import get_or_create_settings
 from backend.app.models import UserSettings
 from backend.app.models.live import LiveStrategy, StrategyStatus
-from backend.app.services.brokers.broker import BrokerClient, BrokerFactory
-from backend.app.services.strategy_executor import StrategyExecutor
+from backend.app.services.brokers.broker_service import BrokerClient, BrokerFactory
+from backend.app.services.strategy_executor_service import StrategyExecutor
 
 logger = logging.getLogger(__name__)
 

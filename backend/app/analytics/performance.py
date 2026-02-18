@@ -7,6 +7,7 @@ from typing import Dict, List
 
 import numpy as np
 import pandas as pd
+from scipy import stats
 
 
 def _sanitize_float(value, default=0.0, cap=999999.0):
@@ -44,7 +45,7 @@ def _sanitize_metrics(metrics: Dict) -> Dict:
     return sanitized
 
 
-def calculate_performance_metrics(trades: List[Dict], equity_curve: List[Dict], initial_capital: float) -> Dict:
+def calculate_performance_metrics(trades: List[Dict], equity_curve: List[Dict], initial_capital: float, benchmark_equity: List[Dict] = None) -> Dict:
     """
     Calculate comprehensive performance metrics
 
@@ -52,6 +53,7 @@ def calculate_performance_metrics(trades: List[Dict], equity_curve: List[Dict], 
         trades: List of trade dictionaries
         equity_curve: List of equity snapshots
         initial_capital: Starting capital
+        benchmark_equity: Benchmark equity
 
     Returns:
         Dictionary of performance metrics
@@ -102,7 +104,20 @@ def calculate_performance_metrics(trades: List[Dict], equity_curve: List[Dict], 
     # Calculate advanced risk metrics
     risk_metrics = calculate_risk_metrics(trades, equity_curve)
 
-    # Base metrics
+    # Create equity series for factor calculations
+    equity_df = pd.DataFrame(equity_curve)
+    equity_df["timestamp"] = pd.to_datetime(equity_df["timestamp"])
+    equity_df = equity_df.sort_values("timestamp")
+    equity_df["returns"] = equity_df["equity"].pct_change().dropna()
+
+    # Calculate monthly returns matrix
+    monthly_matrix = calculate_monthly_returns_matrix(equity_df)
+
+    # Beta, Alpha, R-Squared
+    factors = {"alpha": 0.0, "beta": 0.0, "r_squared": 0.0}
+    if benchmark_equity:
+        factors = calculate_factor_metrics(equity_df, benchmark_equity)
+
     metrics = {
         "total_return": total_return,
         "total_return_pct": total_return,
@@ -119,9 +134,10 @@ def calculate_performance_metrics(trades: List[Dict], equity_curve: List[Dict], 
         "profit_factor": profit_factor,
         "final_equity": final_equity,
         "initial_capital": initial_capital,
+        "monthly_returns_matrix": monthly_matrix,
+        **factors,
     }
 
-    # Merge risk metrics
     metrics.update(risk_metrics)
 
     return _sanitize_metrics(metrics)
@@ -196,44 +212,66 @@ def calculate_risk_metrics(trades: List[Dict], equity_curve: List[Dict]) -> Dict
     )
 
 
-def calculate_returns(trades: List[Dict]) -> Dict:
+def calculate_monthly_returns_matrix(equity_df: pd.DataFrame) -> Dict[str, Dict[str, float]]:
     """
-    Calculates daily, monthly, and cumulative returns from trade data.
+    Calculate a matrix of monthly percentage returns (Year -> Month -> Return%).
     """
-    if not trades:
-        return {"daily_returns": [], "monthly_returns": [], "cumulative_returns": []}
+    if equity_df.empty or "returns" not in equity_df.columns:
+        return {}
 
-    df = pd.DataFrame(trades)
-    df["executed_at"] = pd.to_datetime(df["executed_at"])
-    df = df.sort_values("executed_at")
+    # Resample to monthly returns
+    # We take the last equity of each month to calculate monthly pct change
+    monthly_equity = equity_df.set_index("timestamp")["equity"].resample("M").last()
+    monthly_returns = monthly_equity.pct_change().dropna()
 
-    # 2. Calculate Daily Returns
-    daily_pnl = df.groupby(df["executed_at"].dt.date)["profit"].sum().reset_index()
-    daily_pnl.columns = ["date", "pnl"]
+    # Add the first month's return (from initial capital if possible, or just 0)
+    # But pct_change() needs a previous value.
+    # Let's use the first available price point as the base for the first month.
 
-    # Calculate daily percentage returns
-    # Note: We use the cumulative total value to estimate the base for each day
-    df["cumulative_profit"] = df["profit"].cumsum()
-    # If initial capital isn't in this table, we derive it or assume a base
-    # For a more accurate pct, we'd need the equity curve,
-    # but here we'll provide the daily PnL series
-    daily_returns = [{"date": str(row["date"]), "return": float(row["pnl"])} for _, row in daily_pnl.iterrows()]
+    matrix = {}
+    for ts, ret in monthly_returns.items():
+        year = str(ts.year)
+        month = ts.strftime("%b")  # Jan, Feb, etc.
+        if year not in matrix:
+            matrix[year] = {}
+        matrix[year][month] = float(ret * 100)
 
-    # 3. Calculate Cumulative Returns
-    # Starting from 0, showing the growth of the account over time
-    df["cum_return"] = df["profit"].cumsum()
-    cumulative_returns = [{"date": row["executed_at"].isoformat(), "value": float(row["cum_return"])} for _, row in df.iterrows()]
+    return matrix
 
-    # 4. Calculate Monthly Returns (Heatmap Data)
-    # Pivot the data into Year/Month format
-    df["year"] = df["executed_at"].dt.year
-    df["month"] = df["executed_at"].dt.month
 
-    monthly_pnl = df.groupby(["year", "month"])["profit"].sum().reset_index()
+def calculate_factor_metrics(strategy_df: pd.DataFrame, benchmark_equity: List[Dict]) -> Dict:
+    """
+    Calculate Alpha, Beta, and R-Squared relative to a benchmark.
+    """
+    if not benchmark_equity or strategy_df.empty:
+        return {"alpha": 0.0, "beta": 0.0, "r_squared": 0.0}
 
-    monthly_returns = [{"year": int(row["year"]), "month": int(row["month"]), "return": float(row["profit"])} for _, row in monthly_pnl.iterrows()]
+    bench_df = pd.DataFrame(benchmark_equity)
+    bench_df["timestamp"] = pd.to_datetime(bench_df["timestamp"])
+    bench_df = bench_df.sort_values("timestamp")
+    bench_df["returns"] = bench_df["equity"].pct_change().dropna()
 
-    return {"daily_returns": daily_returns, "monthly_returns": monthly_returns, "cumulative_returns": cumulative_returns}
+    # Align returns on timestamps
+    combined = pd.merge(
+        strategy_df[["timestamp", "returns"]], bench_df[["timestamp", "returns"]], on="timestamp", suffixes=("_strat", "_bench")
+    ).dropna()
+
+    if len(combined) < 5:
+        return {"alpha": 0.0, "beta": 0.0, "r_squared": 0.0}
+
+    # Linear Regression: R_strat = alpha + beta * R_bench
+    slope, intercept, r_value, p_value, std_err = stats.linregress(combined["returns_bench"], combined["returns_strat"])
+
+    # Annualize Alpha (daily returns -> annual)
+    # Alpha is the intercept. Annual Alpha = (1 + intercept)^252 - 1
+    # But usually, it's simplified as intercept * 252
+    annual_alpha = intercept * 252
+
+    return {
+        "alpha": float(annual_alpha * 100),  # As percentage
+        "beta": float(slope),
+        "r_squared": float(r_value**2),
+    }
 
 
 def calculate_sharpe_ratio(returns: pd.Series, risk_free_rate: float = 0.0) -> float:

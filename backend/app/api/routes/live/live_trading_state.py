@@ -1,10 +1,11 @@
 import logging
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
+from typing import List, Optional
 
+from backend.app.models import UserSettings
 from backend.app.schemas.live import BrokerType, EngineStatus
 from backend.app.services.brokers.base_client import BrokerClient
-from backend.app.services.brokers.broker import BrokerFactory
+from backend.app.services.brokers.broker_service import BrokerFactory
 
 logger = logging.getLogger(__name__)
 
@@ -23,16 +24,13 @@ class LiveTradingState:
         self.broker_client: Optional[BrokerClient] = None
         self.broker_type: Optional[str] = None
 
-    async def connect(self, broker_type: str, credentials: Dict[str, Any] = None) -> bool:
+    async def connect(self, broker_type: str, user_settings: UserSettings) -> bool:
         """Connect to broker using factory"""
         try:
-            # Create broker client
             self.broker_client = BrokerFactory.create_broker(broker_type)
             self.broker_type = broker_type
 
-            # Connect with credentials
-            creds = credentials or {}
-            success = await self.broker_client.connect(creds)
+            success = await self.broker_client.connect(user_settings)
 
             if success:
                 self.is_connected = True

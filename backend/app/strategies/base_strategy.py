@@ -108,5 +108,4 @@ def normalize_signal(signal: Union[int, Dict]) -> Dict:
         # Already in dictionary format
         return {"signal": signal.get("signal", 0), "position_size": signal.get("position_size", 1.0), "metadata": signal.get("metadata", {})}
     else:
-        # Simple integer signal - normalize to dict
         return {"signal": int(signal), "position_size": 1.0, "metadata": {}}

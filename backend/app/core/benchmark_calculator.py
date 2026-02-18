@@ -177,7 +177,7 @@ class BenchmarkCalculator:
             "symbols": list(symbol_positions.keys()),
         }
 
-    def calculate_spy_benchmark(self, period: str, interval: str, commission_rate: float = 0.001) -> Dict:
+    async def calculate_spy_benchmark(self, period: str, interval: str, commission_rate: float = 0.001) -> Dict:
         """
         Calculate SPY buy-and-hold benchmark
 
@@ -192,7 +192,7 @@ class BenchmarkCalculator:
         from backend.app.core import fetch_stock_data
 
         try:
-            data = fetch_stock_data("SPY", period, interval)
+            data = await fetch_stock_data("SPY", period, interval)
             if data.empty:
                 raise ValueError("No SPY data available")
 

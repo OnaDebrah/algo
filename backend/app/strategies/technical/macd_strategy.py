@@ -4,8 +4,8 @@ Moving Average Convergence Divergence (MACD) Strategy
 
 import pandas as pd
 
+from backend.app.config import DEFAULT_MACD_FAST, DEFAULT_MACD_SIGNAL, DEFAULT_MACD_SLOW
 from backend.app.strategies import BaseStrategy
-from config import DEFAULT_MACD_FAST, DEFAULT_MACD_SIGNAL, DEFAULT_MACD_SLOW
 
 
 class MACDStrategy(BaseStrategy):
@@ -25,6 +25,11 @@ class MACDStrategy(BaseStrategy):
             slow: Slow EMA period
             signal: Signal line period
         """
+        # Ensure parameters are integers
+        fast = int(float(fast))
+        slow = int(float(slow))
+        signal = int(float(signal))
+
         params = {"fast": fast, "slow": slow, "signal": signal}
         super().__init__("MACD Strategy", params)
 

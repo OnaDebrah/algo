@@ -8,7 +8,7 @@ import logging
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 
 # Database settings
-DATABASE_PATH = "trading_platform.db"
+DATABASE_PATH = "../trading_platform.db"
 
 # Default trading parameters
 DEFAULT_INITIAL_CAPITAL = 100000
@@ -64,7 +64,7 @@ SUPPORTED_ASSET_CLASSES = [
 ANTHROPIC_API_KEY = ""
 
 # Database
-AUTH_DB_PATH = "auth.db"
+AUTH_DB_PATH = "../auth.db"
 
 # JWT Configuration
 JWT_SECRET_KEY = "b4b9dec99638d32897d5b2705755cba147659e02675d4615011951ce24f6aff1"

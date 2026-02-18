@@ -5,24 +5,31 @@ import { Activity, AlertTriangle, Calendar, Download, Target, TrendingDown, Tren
 import MetricCard from "@/components/backtest/MetricCard";
 import BenchmarkComparison from "@/components/backtest/BenchmarkComparison";
 import RiskAnalysisModal from "@/components/backtest/RiskAnalysisModal";
+import PerformanceHeatmap from "@/components/backtest/PerformanceHeatmap";
+import FactorAttribution from "@/components/backtest/FactorAttribution";
+import TradeChart from "@/components/backtest/TradeChart";
 import { formatCurrency, formatPercent } from "@/utils/formatters";
-import { BacktestResult, EquityCurvePoint, Trade } from "@/types/all_types";
+import { BacktestResult, EquityCurvePoint, Trade, WFAResponse } from "@/types/all_types";
 
 interface SingleBacktestResultsProps {
-    results: BacktestResult;
+    results?: BacktestResult;
+    wfaResponse?: WFAResponse;
 }
 
-const SingleBacktestResults: React.FC<SingleBacktestResultsProps> = ({ results }) => {
+const SingleBacktestResults: React.FC<SingleBacktestResultsProps> = ({ results, wfaResponse }) => {
     const [activeTab, setActiveTab] = useState<'overview' | 'tearsheet' | 'trades'>('overview');
     const [tradeFilter, setTradeFilter] = useState('all');
     const [showRiskAnalysis, setShowRiskAnalysis] = useState(false);
 
-    const trades = results.trades || [];
-    const equityCurve = results.equity_curve || [];
+    // Primary metrics source: WFA aggregated OOS metrics OR standard results
+    const displayMetrics = wfaResponse ? wfaResponse.aggregated_oos_metrics : results;
 
-    // ============================================================
-    // MONTHLY RETURNS CALCULATION
-    // ============================================================
+    // Safety check for empty data
+    if (!displayMetrics) return null;
+
+    const trades = displayMetrics.trades || [];
+    const equityCurve = wfaResponse ? wfaResponse.oos_equity_curve : (displayMetrics.equity_curve || []);
+
     const monthlyReturns = useMemo(() => {
         if (!equityCurve || equityCurve.length === 0) return [];
 
@@ -58,14 +65,11 @@ const SingleBacktestResults: React.FC<SingleBacktestResultsProps> = ({ results }
             .sort((a, b) => a.month.localeCompare(b.month));
     }, [equityCurve]);
 
-    // ============================================================
-    // DRAWDOWN CALCULATION
-    // ============================================================
     const drawdownData = useMemo(() => {
         if (!equityCurve || equityCurve.length === 0) return [];
 
         let peak = equityCurve[0].equity;
-        return equityCurve.map((point) => {
+        return equityCurve.map((point: EquityCurvePoint) => {
             peak = Math.max(peak, point.equity);
             const drawdown = ((point.equity - peak) / peak) * 100;
 
@@ -77,16 +81,13 @@ const SingleBacktestResults: React.FC<SingleBacktestResultsProps> = ({ results }
         });
     }, [equityCurve]);
 
-    // ============================================================
-    // ROLLING SHARPE RATIO CALCULATION (30-day window)
-    // ============================================================
     const rollingSharpe = useMemo(() => {
         if (!equityCurve || equityCurve.length < 30) return [];
 
         const window = 30;
         const riskFreeRate = 0;
 
-        return equityCurve.map((point, index) => {
+        return equityCurve.map((point: EquityCurvePoint, index: number) => {
             if (index < window) {
                 return {
                     timestamp: point.timestamp,
@@ -95,13 +96,13 @@ const SingleBacktestResults: React.FC<SingleBacktestResultsProps> = ({ results }
             }
 
             const windowData = equityCurve.slice(index - window, index + 1);
-            const returns = windowData.slice(1).map((p, i) =>
+            const returns = windowData.slice(1).map((p: EquityCurvePoint, i: number) =>
                 ((p.equity - windowData[i].equity) / windowData[i].equity) * 100
             );
 
-            const avgReturn = returns.reduce((sum, r) => sum + r, 0) / returns.length;
+            const avgReturn = returns.reduce((sum: number, r: number) => sum + r, 0) / returns.length;
             const stdDev = Math.sqrt(
-                returns.reduce((sum, r) => sum + Math.pow(r - avgReturn, 2), 0) / returns.length
+                returns.reduce((sum: number, r: number) => sum + Math.pow(r - avgReturn, 2), 0) / returns.length
             );
 
             const sharpe = stdDev !== 0 ? (avgReturn - riskFreeRate) / stdDev : 0;
@@ -110,18 +111,15 @@ const SingleBacktestResults: React.FC<SingleBacktestResultsProps> = ({ results }
                 timestamp: point.timestamp,
                 sharpe: sharpe * Math.sqrt(252) // Annualized
             };
-        }).filter(d => d.sharpe !== null);
+        }).filter((d: any) => d.sharpe !== null);
     }, [equityCurve]);
 
-    // ============================================================
-    // EQUITY CURVE DATA (with benchmark)
-    // ============================================================
     const equityChartData = useMemo(() => {
         const strategyData = equityCurve;
-        const benchmarkData = results.benchmark?.equity_curve || [];
+        const benchmarkData = displayMetrics.benchmark?.equity_curve || [];
 
-        return strategyData.map((point) => {
-            const benchmarkPoint = benchmarkData.find((bp) => bp.timestamp === point.timestamp);
+        return strategyData.map((point: EquityCurvePoint) => {
+            const benchmarkPoint = benchmarkData.find((bp: EquityCurvePoint) => bp.timestamp === point.timestamp);
 
             return {
                 timestamp: point.timestamp,
@@ -129,7 +127,7 @@ const SingleBacktestResults: React.FC<SingleBacktestResultsProps> = ({ results }
                 benchmark_equity: benchmarkPoint?.equity || null
             };
         });
-    }, [equityCurve, results.benchmark]);
+    }, [equityCurve, displayMetrics.benchmark]);
 
     return (
         <div className="space-y-6">
@@ -188,39 +186,68 @@ const SingleBacktestResults: React.FC<SingleBacktestResultsProps> = ({ results }
                     <div className="grid grid-cols-4 gap-6">
                         <MetricCard
                             title="Total Return"
-                            value={formatPercent(results.total_return)}
+                            value={formatPercent(displayMetrics.total_return)}
                             icon={TrendingUp}
                             trend="up"
                             color="emerald"
                         />
                         <MetricCard
                             title="Win Rate"
-                            value={`${results.win_rate.toFixed(1)}%`}
+                            value={`${displayMetrics.win_rate.toFixed(1)}%`}
                             icon={Target}
                             trend="up"
                             color="blue"
                         />
                         <MetricCard
                             title="Sharpe Ratio"
-                            value={results.sharpe_ratio.toFixed(2)}
+                            value={displayMetrics.sharpe_ratio.toFixed(2)}
                             icon={Activity}
                             trend="up"
                             color="violet"
                         />
                         <MetricCard
                             title="Max Drawdown"
-                            value={formatPercent(results.max_drawdown)}
+                            value={formatPercent(displayMetrics.max_drawdown)}
                             icon={TrendingDown}
                             trend="down"
                             color="red"
                         />
                     </div>
 
+                    {wfaResponse && (
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                            <div className="col-span-1 bg-gradient-to-br from-violet-900/40 to-slate-900 border border-violet-500/20 p-6 rounded-2xl flex flex-col justify-center">
+                                <div className="flex items-center gap-3 mb-2">
+                                    <div className="p-2 bg-violet-500/20 rounded-lg">
+                                        <Zap size={20} className="text-violet-400" />
+                                    </div>
+                                    <h4 className="text-sm font-bold text-slate-300 uppercase tracking-widest">W.F. Efficiency</h4>
+                                </div>
+                                <p className="text-4xl font-black text-white">
+                                    {(wfaResponse.wfe * 100).toFixed(1)}%
+                                </p>
+                                <p className="text-xs text-slate-500 mt-2">
+                                    Annualized OOS Return / Annualized IS Return
+                                </p>
+                            </div>
+                            <div className="col-span-2 bg-slate-900/50 border border-slate-800 p-6 rounded-2xl">
+                                <div className="flex items-center gap-2 mb-4">
+                                    <Shield size={16} className="text-blue-400" />
+                                    <h4 className="text-sm font-bold text-slate-300">Analysis Mode: Walk-Forward</h4>
+                                </div>
+                                <p className="text-sm text-slate-400 leading-relaxed text-italic">
+                                    This strategy has been validated across {wfaResponse.folds.length} Walk-Forward folds.
+                                    The metrics shown represent the performance of the strategy on data it has <span className="text-blue-400 font-bold">never seen before</span> during optimization.
+                                </p>
+                            </div>
+                        </div>
+                    )}
+
                     <div className="bg-gradient-to-br from-slate-900/90 to-slate-800/90 backdrop-blur-xl border border-slate-700/50 rounded-2xl p-6 shadow-xl">
                         <div className="flex justify-between items-center mb-6">
                             <div>
                                 <h3 className="text-xl font-semibold text-slate-100 italic">Equity Curve</h3>
-                                {results.benchmark && (
+                                {displayMetrics.benchmark && (
                                     <p className="text-xs text-slate-500 mt-1 uppercase font-bold tracking-widest">
                                         Strategy (Emerald) vs Benchmark (Blue)
                                     </p>
@@ -267,7 +294,7 @@ const SingleBacktestResults: React.FC<SingleBacktestResultsProps> = ({ results }
                                     }}
                                     labelStyle={{ color: '#94a3b8', fontWeight: 800, marginBottom: '8px', fontSize: '12px' }}
                                 />
-                                {results.benchmark && (
+                                {displayMetrics.benchmark && (
                                     <Area
                                         type="monotone"
                                         dataKey="benchmark_equity"
@@ -292,13 +319,26 @@ const SingleBacktestResults: React.FC<SingleBacktestResultsProps> = ({ results }
                         </ResponsiveContainer>
                     </div>
 
+                    {/* Price Action & Trade Signals Chart */}
+                    {displayMetrics.price_data && displayMetrics.price_data.length > 0 && trades.length > 0 && (
+                        <TradeChart priceData={displayMetrics.price_data} trades={trades} />
+                    )}
+
                     {/* Benchmark Comparison Component */}
-                    {results.benchmark && <BenchmarkComparison benchmark={results.benchmark} />}
+                    {displayMetrics.benchmark && <BenchmarkComparison benchmark={displayMetrics.benchmark} />}
                 </div>
             )}
 
             {activeTab === 'tearsheet' && (
                 <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                    {/* Factor Attribution (Market Alpha/Beta) */}
+                    {results && (
+                        <FactorAttribution
+                            alpha={results.alpha || 0}
+                            beta={results.beta || 0}
+                            rSquared={results.rSquared}
+                        />
+                    )}
                     {/* Advanced Risk Metrics Grid */}
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                         <div className="bg-slate-900 border border-slate-800 p-5 rounded-2xl">
@@ -306,8 +346,8 @@ const SingleBacktestResults: React.FC<SingleBacktestResultsProps> = ({ results }
                                 <Shield size={14} className="text-violet-400" />
                                 <p className="text-[10px] text-slate-500 font-black uppercase tracking-widest">Sortino Ratio</p>
                             </div>
-                            <p className={`text-2xl font-bold ${(results?.sortino_ratio || 0) > 1.5 ? 'text-emerald-400' : 'text-slate-200'}`}>
-                                {(results?.sortino_ratio || 0).toFixed(2)}
+                            <p className={`text-2xl font-bold ${(displayMetrics?.sortino_ratio || 0) > 1.5 ? 'text-emerald-400' : 'text-slate-200'}`}>
+                                {(displayMetrics?.sortino_ratio || 0).toFixed(2)}
                             </p>
                             <p className="text-[10px] text-slate-600 mt-1">Downside protection efficiency</p>
                         </div>
@@ -317,7 +357,7 @@ const SingleBacktestResults: React.FC<SingleBacktestResultsProps> = ({ results }
                                 <p className="text-[10px] text-slate-500 font-black uppercase tracking-widest">Calmar Ratio</p>
                             </div>
                             <p className="text-2xl font-bold text-slate-200">
-                                {(results?.calmar_ratio || 0).toFixed(2)}
+                                {(displayMetrics?.calmar_ratio || 0).toFixed(2)}
                             </p>
                             <p className="text-[10px] text-slate-600 mt-1">Return relative to drawdown</p>
                         </div>
@@ -327,7 +367,7 @@ const SingleBacktestResults: React.FC<SingleBacktestResultsProps> = ({ results }
                                 <p className="text-[10px] text-slate-500 font-black uppercase tracking-widest">VaR (95%)</p>
                             </div>
                             <p className="text-2xl font-bold text-red-500">
-                                {formatPercent(Math.abs(results?.var_95 || 0))}
+                                {formatPercent(Math.abs(displayMetrics?.var_95 || 0))}
                             </p>
                             <p className="text-[10px] text-slate-600 mt-1">Daily loss expectancy limit</p>
                         </div>
@@ -337,7 +377,7 @@ const SingleBacktestResults: React.FC<SingleBacktestResultsProps> = ({ results }
                                 <p className="text-[10px] text-slate-500 font-black uppercase tracking-widest">Annual Vol</p>
                             </div>
                             <p className="text-2xl font-bold text-slate-200">
-                                {formatPercent(results?.volatility || 0)}
+                                {formatPercent(displayMetrics?.volatility || 0)}
                             </p>
                             <p className="text-[10px] text-slate-600 mt-1">Annualized volatility (σ)</p>
                         </div>
@@ -403,35 +443,8 @@ const SingleBacktestResults: React.FC<SingleBacktestResultsProps> = ({ results }
                         </div>
                     </div>
 
-                    {/* Monthly Returns Heatmap / Table */}
-                    <div className="bg-slate-900 border border-slate-800 p-6 rounded-2xl">
-                        <div className="flex items-center gap-3 mb-6">
-                            <Calendar className="text-blue-400" size={20} />
-                            <h4 className="text-sm font-bold text-slate-300">Annual Return Breakdown</h4>
-                        </div>
-
-                        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
-                            {monthlyReturns.map((monthData) => {
-                                const [year, month] = monthData.month.split('-');
-                                const monthName = new Date(parseInt(year), parseInt(month) - 1).toLocaleDateString('en-US', { month: 'short', year: '2-digit' });
-
-                                return (
-                                    <div
-                                        key={monthData.month}
-                                        className={`p-4 border rounded-xl flex flex-col items-center justify-center transition-all hover:scale-105 ${monthData.return >= 0
-                                                ? 'bg-emerald-500/5 border-emerald-500/20'
-                                                : 'bg-red-500/5 border-red-500/20'
-                                            }`}
-                                    >
-                                        <p className="text-[10px] text-slate-500 font-bold mb-1 uppercase">{monthName}</p>
-                                        <p className={`text-sm font-black ${monthData.return >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                                            {monthData.return >= 0 ? '+' : ''}{monthData.return.toFixed(2)}%
-                                        </p>
-                                    </div>
-                                );
-                            })}
-                        </div>
-                    </div>
+                    {/* Monthly Returns Heatmap */}
+                    <PerformanceHeatmap monthlyReturns={displayMetrics.monthly_returns_matrix} />
                 </div>
             )}
 
@@ -474,12 +487,12 @@ const SingleBacktestResults: React.FC<SingleBacktestResultsProps> = ({ results }
                                 </thead>
                                 <tbody>
                                     {trades
-                                        .filter((trade) => {
+                                        .filter((trade: Trade) => {
                                             if (tradeFilter === 'wins') return (trade.profit || 0) > 0;
                                             if (tradeFilter === 'losses') return (trade.profit || 0) < 0;
                                             return true;
                                         })
-                                        .map((trade, index) => (
+                                        .map((trade: Trade, index: number) => (
                                             <tr key={index} className="border-b border-slate-800/40 hover:bg-slate-800/20 transition-colors group">
                                                 <td className="p-4">
                                                     <span className={`px-2 py-0.5 rounded text-[10px] font-bold tracking-tighter ${trade.order_type === 'BUY'
@@ -512,7 +525,7 @@ const SingleBacktestResults: React.FC<SingleBacktestResultsProps> = ({ results }
 
             {/* Detailed Risk Analysis Modal */}
             {showRiskAnalysis && (
-                <RiskAnalysisModal results={results} onClose={() => setShowRiskAnalysis(false)} />
+                <RiskAnalysisModal results={displayMetrics} onClose={() => setShowRiskAnalysis(false)} />
             )}
         </div>
     );

@@ -423,7 +423,7 @@ class AssetClassManager:
 
         return info.get(asset_class, {})
 
-    def fetch_data(
+    async def fetch_data(
         self,
         symbol: str,
         period: str,
@@ -450,7 +450,7 @@ class AssetClassManager:
         try:
             from backend.app.core import fetch_stock_data
 
-            data = fetch_stock_data(symbol, period, interval)
+            data = await fetch_stock_data(symbol, period, interval)
 
             if not data.empty:
                 # Add asset class metadata

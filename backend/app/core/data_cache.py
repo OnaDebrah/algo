@@ -5,7 +5,7 @@ Local Parquet-based caching service for market data
 import logging
 import os
 from datetime import datetime, timedelta, timezone
-from typing import Optional
+from typing import Any, Optional
 
 import pandas as pd
 
@@ -29,7 +29,14 @@ class DataCache:
         safe_symbol = symbol.replace("-", "_").replace("=", "_").replace(".", "_")
         return os.path.join(self.cache_dir, f"{safe_symbol}_{period}_{interval}.parquet")
 
-    def get(self, symbol: str, period: str, interval: str) -> Optional[pd.DataFrame]:
+    def get(
+        self,
+        symbol: str,
+        period: str,
+        interval: str,
+        start: Any = None,
+        end: Any = None,
+    ) -> Optional[pd.DataFrame]:
         """Retrieve data from cache if it exists and is not expired"""
         cache_path = self._get_cache_path(symbol, period, interval)
 
@@ -52,7 +59,7 @@ class DataCache:
 
         return None
 
-    def set(self, symbol: str, period: str, interval: str, data: pd.DataFrame):
+    def set(self, symbol: str, period: str, interval: str, data: pd.DataFrame, start: Any = None, end: Any = None):
         """Save data to local Parquet cache"""
         if data.empty:
             return

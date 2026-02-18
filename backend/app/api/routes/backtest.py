@@ -3,6 +3,7 @@ Backtest routes
 """
 
 import asyncio
+import logging
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -10,7 +11,7 @@ from sqlalchemy import desc, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from statsmodels.tsa.stattools import coint
 
-from backend.app.api.deps import check_permission, get_current_active_user, get_db
+from backend.app.api.deps import check_permission, get_current_active_user, get_current_user, get_db
 from backend.app.core import fetch_stock_data
 from backend.app.core.permissions import Permission
 from backend.app.models import BacktestRun
@@ -25,12 +26,16 @@ from backend.app.schemas.backtest import (
     OptionsBacktestResponse,
     PairsValidationRequest,
     PairsValidationResponse,
+    WFARequest,
+    WFAResponse,
 )
 from backend.app.services.auth_service import AuthService
 from backend.app.services.backtest_service import BacktestService
 from backend.app.services.market_service import get_market_service
+from backend.app.services.walk_forward_service import WalkForwardService
 from backend.app.utils.helpers import pairs
 
+logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/backtest", tags=["Backtest"])
 
 
@@ -55,7 +60,7 @@ async def run_multi_asset_backtest(
 ):
     """Run multi-asset backtest"""
     # Track usage
-    # await AuthService.track_usage(db, current_user.id, "run_backtest_multi", {"symbols": request.symbols})
+    await AuthService.track_usage(db, current_user.id, "run_backtest_multi", {"symbols": request.symbols})
 
     service = BacktestService(db)
     result = await service.run_multi_asset_backtest(request, current_user.id)
@@ -375,3 +380,23 @@ async def get_suggested_pairs():
     Get list of pre-validated pairs
     """
     return {"pairs": pairs}
+
+
+@router.post("/walk-forward", response_model=WFAResponse)
+async def walk_forward(request: WFARequest, db: AsyncSession = Depends(get_db), current_user=Depends(get_current_user)):
+    """
+    Run Walk-Forward Analysis on a strategy.
+
+    This performs iterative Optimization (In-Sample) and Validation (Out-of-Sample)
+    to verify strategy robustness and detect overfitting.
+    """
+    try:
+        service = WalkForwardService(db, current_user.id)
+        result = await service.run_wfa(request)
+        return result
+    except ValueError as e:
+        logger.error(f"WFA validation error: {e}")
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.error(f"WFA execution failed: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Internal server error during Walk-Forward Analysis")

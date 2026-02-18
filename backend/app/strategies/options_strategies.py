@@ -271,7 +271,7 @@ def get_strategy_description(strategy: OptionsStrategy) -> Dict[str, str]:
             "best_for": "Range-bound markets, high IV",
             "breakeven": "Two breakevens at short strikes +/- net premium",
         },
-        OptionsStrategy.STRADDLE: {
+        OptionsStrategy.LONG_STRADDLE: {
             "description": "Buy a call and put at same strike (usually ATM)",
             "outlook": "Expecting large move in either direction",
             "max_profit": "Unlimited",
@@ -295,7 +295,7 @@ def get_strategy_description(strategy: OptionsStrategy) -> Dict[str, str]:
             "best_for": "Low volatility; targeting a specific price pinpoint",
             "breakeven": "Lower strike + debit / Higher strike - debit",
         },
-        OptionsStrategy.STRANGLE: {
+        OptionsStrategy.LONG_STRANGLE: {
             "description": "Buy OTM call and OTM put at different strikes",
             "outlook": "Expecting very large move in either direction",
             "max_profit": "Unlimited",

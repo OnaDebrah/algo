@@ -4,7 +4,7 @@ Supports complex options strategies with Greeks calculation
 """
 
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Dict, List, Optional, Tuple
 
 import numpy as np
@@ -42,9 +42,18 @@ class OptionsStrategyBuilder:
     ):
         """Add an option leg to the strategy"""
 
-        if premium is None:
-            # Calculate theoretical premium
-            T = (expiry - datetime.now()).days / 365.0
+        if option_type == OptionType.STOCK:
+            # Stock legs have no expiry and premium is just the current price
+            if premium is None:
+                premium = self.current_price
+            expiry = None
+        elif premium is None:
+            now = datetime.now(timezone.utc)
+            expiry_naive = expiry.replace(tzinfo=None)
+            now_naive = now.replace(tzinfo=None)
+
+            # Calculate theoretical premium via Black-Scholes for option legs
+            T = (expiry_naive - now_naive).days / 365.0
 
             if volatility is None:
                 # Estimate IV from chain

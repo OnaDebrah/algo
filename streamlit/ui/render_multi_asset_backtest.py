@@ -2,8 +2,8 @@ import pandas as pd
 import plotly.graph_objects as go
 
 import streamlit as st
-from config import DEFAULT_INITIAL_CAPITAL
 from streamlit.alerts.alert_manager import AlertManager
+from streamlit.config import DEFAULT_INITIAL_CAPITAL
 from streamlit.core import fetch_stock_data
 from streamlit.core.database import DatabaseManager
 from streamlit.core.multi_asset_engine import MultiAssetEngine

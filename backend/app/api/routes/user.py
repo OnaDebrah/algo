@@ -29,7 +29,7 @@ async def get_current_user_info(current_user: User = Depends(get_current_active_
 @router.put("/me", response_model=UserResponse)
 async def update_current_user(user_update: UserUpdate, current_user: User = Depends(get_current_active_user), db: Session = Depends(get_db)):
     """Update current user information"""
-    update_data = user_update.dict(exclude_unset=True)
+    update_data = user_update.model_dump(exclude_unset=True)
 
     for field, value in update_data.items():
         if field == "password" and value:

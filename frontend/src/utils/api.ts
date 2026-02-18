@@ -1,4 +1,3 @@
-// api/index.ts
 import axios from 'axios';
 import {
     // Auth
@@ -93,7 +92,7 @@ import {
     // HTTP Error
     HTTPValidationError, RegimeData, RegimeHistoryResponse, PairsValidationRequest, PairsValidationResponse,
     LiveOrderPlacement, LiveOrderUpdate, MarketplaceFilterParams, AlertPreferences, Alert, DeploymentConfig,
-    BrokerConnectionResponse, MLModelStatusRequest, ModelPrediction, BrokerSettings
+    BrokerConnectionResponse, MLModelStatusRequest, ModelPrediction, BrokerSettings, WFARequest, WFAResponse
 } from '@/types/all_types';
 import {
     BaseOptimizationRequest, BlackLittermanRequest, BlackLittermanResponse,
@@ -102,6 +101,7 @@ import {
     PortfolioBacktestRequest, SharpeOptimizationRequest, TargetReturnRequest
 } from "@/types/optimise";
 import {
+    AccountResponse,
     ConnectRequest,
     ControlResponse, LiveStrategy,
     StrategyDetailsResponse,
@@ -227,6 +227,9 @@ export const backtest = {
      */
     bayesian: (request: any) =>
         client.post<any>('/optimise/bayesian', request),
+
+    walkForward: (request: WFARequest) =>
+        client.post<WFAResponse>('/backtest/walk-forward', request)
 };
 
 // ==================== PORTFOLIO ====================
@@ -481,6 +484,9 @@ export const live = {
 
     autoConnect: () =>
         client.post<{ status: string; broker?: string; message: string }>('/live/auto-connect'),
+
+    getAccount: () =>
+        client.get<AccountResponse>('/live/account'),
 };
 
 // ==================== SOCIAL ====================

@@ -4,8 +4,8 @@ Simple Moving Average Crossover Strategy
 
 import pandas as pd
 
+from backend.app.config import DEFAULT_SMA_LONG, DEFAULT_SMA_SHORT
 from backend.app.strategies import BaseStrategy
-from config import DEFAULT_SMA_LONG, DEFAULT_SMA_SHORT
 
 
 class SMACrossoverStrategy(BaseStrategy):
@@ -19,6 +19,10 @@ class SMACrossoverStrategy(BaseStrategy):
             short_window: Short-term moving average window
             long_window: Long-term moving average window
         """
+        # Ensure parameters are integers (handles floats from optimizers)
+        short_window = int(float(short_window))
+        long_window = int(float(long_window))
+
         params = {"short_window": short_window, "long_window": long_window}
         super().__init__("SMA Crossover", params)
 

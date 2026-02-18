@@ -11,7 +11,7 @@ from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 from sklearn.svm import SVC
 
-from config import DEFAULT_ML_TEST_SIZE, DEFAULT_ML_THRESHOLD
+from streamlit.config import DEFAULT_ML_TEST_SIZE, DEFAULT_ML_THRESHOLD
 from streamlit.strategies import BaseStrategy
 
 logger = logging.getLogger(__name__)

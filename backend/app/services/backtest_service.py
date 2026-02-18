@@ -1,5 +1,5 @@
 """
-Enhanced Backtest service with pairs trading support
+Backtest service with pairs trading support
 """
 
 import asyncio
@@ -166,11 +166,24 @@ class BacktestService:
             if strategy_info and strategy_info.backtest_mode == "multi":
                 raise ValueError(f"Strategy '{strategy_info.name}' requires multi-asset mode. " f"Please use the multi-asset backtest instead.")
 
-            # Fetch data
-            data = await asyncio.to_thread(fetch_stock_data, request.symbol, request.period, request.interval)
+            # Fetch data (ensure we have enough for warm-up)
+            # We fetch 'max' or the requested period, then slice manually to ensure history exists
+            full_data = await fetch_stock_data(request.symbol, "max" if request.start_date else request.period, request.interval)
 
-            if data.empty:
+            if full_data.empty:
                 raise ValueError(f"No data available for {request.symbol}")
+
+            # Slice data to target range + warm-up
+            if request.start_date:
+                try:
+                    target_idx = full_data.index.get_indexer([pd.Timestamp(request.start_date)], method="bfill")[0]
+                    warm_up_idx = max(0, target_idx - 250)
+                    data = full_data.iloc[warm_up_idx:].loc[: request.end_date]
+                except Exception as e:
+                    logger.warning(f"Metadata slicing failed: {e}")
+                    data = full_data
+            else:
+                data = full_data
 
             # Create strategy — for ML strategies, either load a deployed model or auto-train
             if request.strategy_key in ML_STRATEGY_KEYS:
@@ -212,10 +225,28 @@ class BacktestService:
                 slippage_rate=request.slippage_rate,
             )
 
-            await asyncio.to_thread(engine.run_backtest, request.symbol, data)
+            await asyncio.to_thread(
+                engine.run_backtest, request.symbol, data, start_timestamp=pd.Timestamp(request.start_date) if request.start_date else None
+            )
 
-            # Calculate metrics
-            metrics: dict = calculate_performance_metrics(engine.trades, engine.equity_curve, request.initial_capital)
+            # Calculate benchmark FIRST so we can pass its equity to factor metrics
+            benchmark_calc = BenchmarkCalculator(request.initial_capital)
+            benchmark = await benchmark_calc.calculate_spy_benchmark(
+                period=request.period, interval=request.interval, commission_rate=request.commission_rate
+            )
+
+            # Extract benchmark equity curve for alpha/beta/R² calculation
+            benchmark_equity = benchmark.get("equity_curve") if benchmark else None
+
+            # Calculate metrics (with benchmark for factor attribution)
+            metrics: dict = calculate_performance_metrics(
+                engine.trades, engine.equity_curve, request.initial_capital, benchmark_equity=benchmark_equity
+            )
+
+            if benchmark:
+                benchmark["comparison"] = benchmark_calc.compare_to_benchmark(metrics, benchmark)
+                # Sanitize benchmark to prevent inf/NaN JSON serialization errors
+                benchmark = _sanitize_value(benchmark)
 
             # Create equity curve
             equity_curve: list[EquityCurvePoint] = [
@@ -254,19 +285,25 @@ class BacktestService:
                 for t in engine.trades
             ]
 
-            # Calculate benchmark
-            benchmark_calc = BenchmarkCalculator(request.initial_capital)
-            benchmark = benchmark_calc.calculate_spy_benchmark(
-                period=request.period, interval=request.interval, commission_rate=request.commission_rate
-            )
-
-            if benchmark:
-                benchmark["comparison"] = benchmark_calc.compare_to_benchmark(metrics, benchmark)
-                # Sanitize benchmark to prevent inf/NaN JSON serialization errors
-                benchmark = _sanitize_value(benchmark)
-
-            # Sanitize price_data (engine.trades can contain NaN from pandas)
-            sanitized_price_data = _sanitize_value(engine.trades) if engine.trades else None
+            # Build OHLC price data for frontend chart (candlestick + trade markers)
+            ohlc_price_data = None
+            try:
+                ohlc_df = data[["Open", "High", "Low", "Close", "Volume"]].copy()
+                ohlc_df.index = ohlc_df.index.astype(str)
+                ohlc_price_data = [
+                    {
+                        "timestamp": ts,
+                        "open": float(row["Open"]),
+                        "high": float(row["High"]),
+                        "low": float(row["Low"]),
+                        "close": float(row["Close"]),
+                        "volume": float(row["Volume"]),
+                    }
+                    for ts, row in ohlc_df.iterrows()
+                ]
+                ohlc_price_data = _sanitize_value(ohlc_price_data)
+            except Exception as e:
+                logger.warning(f"Failed to build OHLC price data: {e}")
 
             # Update database with results
             if backtest_run:
@@ -275,7 +312,7 @@ class BacktestService:
                 update_data["trades"] = [t.model_dump() for t in trades]
                 await self.update_backtest_status(backtest_run.id, "completed", update_data)
 
-            return BacktestResponse(result=result, equity_curve=equity_curve, trades=trades, price_data=sanitized_price_data, benchmark=benchmark)
+            return BacktestResponse(result=result, equity_curve=equity_curve, trades=trades, price_data=ohlc_price_data, benchmark=benchmark)
 
         except Exception as e:
             logger.error(f"Backtest failed: {e}", exc_info=True)
@@ -327,11 +364,9 @@ class BacktestService:
                 logger.info("Running independent strategies backtest")
                 engine = await self._create_independent_engine(request)
 
-            # Run backtest
-            await asyncio.to_thread(engine.run_backtest, request.symbols, request.period, request.interval)
-
+            # Run backtest (run_backtest is async — must be awaited directly, not via to_thread)
+            await engine.run_backtest(request.symbols, request.period, request.interval)
             results = engine.get_results()
-
             # Create equity curve
             equity_curve = [
                 EquityCurvePoint(timestamp=str(point["timestamp"]), equity=point["equity"], cash=point["cash"]) for point in engine.equity_curve
@@ -372,7 +407,7 @@ class BacktestService:
 
             for symbol in request.symbols:
                 try:
-                    data = await asyncio.to_thread(fetch_stock_data, symbol, request.period, request.interval)
+                    data = await fetch_stock_data(symbol, request.period, request.interval)
                     if not data.empty:
                         data_dict[symbol] = data
                 except Exception as e:
@@ -392,8 +427,28 @@ class BacktestService:
                     # Sanitize benchmark to prevent inf/NaN JSON serialization errors
                     benchmark = _sanitize_value(benchmark)
 
-            # Sanitize price_data
-            sanitized_price_data = _sanitize_value(engine.trades) if engine.trades else None
+            # Build OHLC price data for frontend chart (use first symbol's data for multi-asset)
+            ohlc_price_data = None
+            try:
+                if data_dict:
+                    first_symbol = request.symbols[0]
+                    if first_symbol in data_dict:
+                        ohlc_df = data_dict[first_symbol][["Open", "High", "Low", "Close", "Volume"]].copy()
+                        ohlc_df.index = ohlc_df.index.astype(str)
+                        ohlc_price_data = [
+                            {
+                                "timestamp": ts,
+                                "open": float(row["Open"]),
+                                "high": float(row["High"]),
+                                "low": float(row["Low"]),
+                                "close": float(row["Close"]),
+                                "volume": float(row["Volume"]),
+                            }
+                            for ts, row in ohlc_df.iterrows()
+                        ]
+                        ohlc_price_data = _sanitize_value(ohlc_price_data)
+            except Exception as e:
+                logger.warning(f"Failed to build OHLC price data for multi-asset: {e}")
 
             # Update database
             if backtest_run:
@@ -403,7 +458,7 @@ class BacktestService:
                 await self.update_backtest_status(backtest_run.id, "completed", update_data)
 
             return MultiAssetBacktestResponse(
-                result=results, equity_curve=equity_curve, trades=trades, price_data=sanitized_price_data, benchmark=benchmark
+                result=results, equity_curve=equity_curve, trades=trades, price_data=ohlc_price_data, benchmark=benchmark
             )
 
         except Exception as e:

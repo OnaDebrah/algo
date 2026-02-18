@@ -49,7 +49,7 @@ async def detect_market_regime(
 
     try:
         # Fetch data
-        data = fetch_stock_data(symbol, period=period, interval="1d")
+        data = await fetch_stock_data(symbol, period=period, interval="1d")
 
         if data.empty:
             raise HTTPException(status_code=404, detail="No data available")
@@ -99,7 +99,7 @@ async def get_regime_history_data(
 
     try:
         # Fetch data
-        data = fetch_stock_data(symbol, period=period, interval="1d")
+        data = await fetch_stock_data(symbol, period=period, interval="1d")
 
         if data.empty:
             raise HTTPException(status_code=404, detail="No data available")
@@ -137,7 +137,7 @@ async def get_regime_report(
 
     try:
         # Fetch data
-        data = fetch_stock_data(symbol, period=period, interval="1d")
+        data = await fetch_stock_data(symbol, period=period, interval="1d")
 
         if data.empty:
             raise HTTPException(status_code=404, detail="No data available")
@@ -169,7 +169,7 @@ async def detect_batch_regimes(
 
     for symbol in symbols:
         try:
-            data = fetch_stock_data(symbol, period=period, interval="1d")
+            data = await fetch_stock_data(symbol, period=period, interval="1d")
 
             if not data.empty:
                 detector = get_detector(symbol)
@@ -207,7 +207,7 @@ async def train_ml_model(symbol: str, period: str = "5y", current_user: User = D
 
     try:
         # Fetch extended historical data for training
-        data = fetch_stock_data(symbol, period=period, interval="1d")
+        data = await fetch_stock_data(symbol, period=period, interval="1d")
 
         if data.empty or len(data) < 500:
             raise HTTPException(status_code=400, detail="Insufficient data for training (need at least 500 days)")
@@ -239,7 +239,7 @@ async def get_regime_change_warning(
 
     try:
         # Fetch data
-        data = fetch_stock_data(symbol, period=period, interval="1d")
+        data = await fetch_stock_data(symbol, period=period, interval="1d")
 
         if data.empty:
             raise HTTPException(status_code=404, detail="No data available")
@@ -299,7 +299,7 @@ async def get_strategy_allocation(
 
     try:
         # Fetch data
-        data = fetch_stock_data(symbol, period=period, interval="1d")
+        data = await fetch_stock_data(symbol, period=period, interval="1d")
 
         if data.empty:
             raise HTTPException(status_code=404, detail="No data available")
@@ -313,7 +313,7 @@ async def get_strategy_allocation(
         )
 
         # Get recommended allocation
-        allocation = detector.get_recommended_allocation(regime_info["regime"])
+        allocation = detector.get_strategy_allocation(regime_info["regime"], regime_info["confidence"])
 
         return AllocationResponse(
             symbol=symbol,
@@ -338,7 +338,7 @@ async def get_regime_strength(
 
     try:
         # Fetch data
-        data = fetch_stock_data(symbol, period=period, interval="1d")
+        data = await fetch_stock_data(symbol, period=period, interval="1d")
 
         if data.empty:
             raise HTTPException(status_code=404, detail="No data available")
@@ -396,7 +396,7 @@ async def get_transition_probabilities(symbol: str, period: str = "2y", current_
 
     try:
         # Fetch data
-        data = fetch_stock_data(symbol, period=period, interval="1d")
+        data = await fetch_stock_data(symbol, period=period, interval="1d")
 
         if data.empty:
             raise HTTPException(status_code=404, detail="No data available")
@@ -411,7 +411,7 @@ async def get_transition_probabilities(symbol: str, period: str = "2y", current_
         transition_matrix = detector.get_transition_probabilities()
 
         # Get expected duration
-        duration_info = detector.estimate_regime_duration()
+        duration_info = detector.predict_regime_duration()
 
         # Extract likely transitions for current regime
         likely_transitions = []
@@ -448,7 +448,7 @@ async def get_feature_analysis(symbol: str, period: str = "2y", current_user: Us
 
     try:
         # Fetch data
-        data = fetch_stock_data(symbol, period=period, interval="1d")
+        data = await fetch_stock_data(symbol, period=period, interval="1d")
 
         if data.empty:
             raise HTTPException(status_code=404, detail="No data available")
