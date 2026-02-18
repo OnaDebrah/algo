@@ -5,7 +5,7 @@ from typing import List, Optional
 from backend.app.models import UserSettings
 from backend.app.schemas.live import BrokerType, EngineStatus
 from backend.app.services.brokers.base_client import BrokerClient
-from backend.app.services.brokers.broker import BrokerFactory
+from backend.app.services.brokers.broker_service import BrokerFactory
 
 logger = logging.getLogger(__name__)
 

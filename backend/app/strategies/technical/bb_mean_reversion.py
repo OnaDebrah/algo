@@ -18,6 +18,9 @@ class BollingerMeanReversionStrategy(BaseStrategy):
             period: Moving average period
             std_dev: Standard deviations for bands
         """
+        # Ensure period is integer
+        period = int(float(period))
+
         params = {"period": period, "std_dev": std_dev}
         super().__init__("Bollinger Mean Reversion", params)
 

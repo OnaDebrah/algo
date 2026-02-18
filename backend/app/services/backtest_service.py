@@ -1,5 +1,5 @@
 """
-Enhanced Backtest service with pairs trading support
+Backtest service with pairs trading support
 """
 
 import asyncio
@@ -166,11 +166,24 @@ class BacktestService:
             if strategy_info and strategy_info.backtest_mode == "multi":
                 raise ValueError(f"Strategy '{strategy_info.name}' requires multi-asset mode. " f"Please use the multi-asset backtest instead.")
 
-            # Fetch data
-            data = await asyncio.to_thread(fetch_stock_data, request.symbol, request.period, request.interval)
+            # Fetch data (ensure we have enough for warm-up)
+            # We fetch 'max' or the requested period, then slice manually to ensure history exists
+            full_data = await fetch_stock_data(request.symbol, "max" if request.start_date else request.period, request.interval)
 
-            if data.empty:
+            if full_data.empty:
                 raise ValueError(f"No data available for {request.symbol}")
+
+            # Slice data to target range + warm-up
+            if request.start_date:
+                try:
+                    target_idx = full_data.index.get_indexer([pd.Timestamp(request.start_date)], method="bfill")[0]
+                    warm_up_idx = max(0, target_idx - 250)
+                    data = full_data.iloc[warm_up_idx:].loc[: request.end_date]
+                except Exception as e:
+                    logger.warning(f"Metadata slicing failed: {e}")
+                    data = full_data
+            else:
+                data = full_data
 
             # Create strategy — for ML strategies, either load a deployed model or auto-train
             if request.strategy_key in ML_STRATEGY_KEYS:
@@ -212,7 +225,9 @@ class BacktestService:
                 slippage_rate=request.slippage_rate,
             )
 
-            await asyncio.to_thread(engine.run_backtest, request.symbol, data)
+            await asyncio.to_thread(
+                engine.run_backtest, request.symbol, data, start_timestamp=pd.Timestamp(request.start_date) if request.start_date else None
+            )
 
             # Calculate metrics
             metrics: dict = calculate_performance_metrics(engine.trades, engine.equity_curve, request.initial_capital)
@@ -256,7 +271,7 @@ class BacktestService:
 
             # Calculate benchmark
             benchmark_calc = BenchmarkCalculator(request.initial_capital)
-            benchmark = benchmark_calc.calculate_spy_benchmark(
+            benchmark = await benchmark_calc.calculate_spy_benchmark(
                 period=request.period, interval=request.interval, commission_rate=request.commission_rate
             )
 
@@ -327,11 +342,9 @@ class BacktestService:
                 logger.info("Running independent strategies backtest")
                 engine = await self._create_independent_engine(request)
 
-            # Run backtest
-            await asyncio.to_thread(engine.run_backtest, request.symbols, request.period, request.interval)
-
+            # Run backtest (run_backtest is async — must be awaited directly, not via to_thread)
+            await engine.run_backtest(request.symbols, request.period, request.interval)
             results = engine.get_results()
-
             # Create equity curve
             equity_curve = [
                 EquityCurvePoint(timestamp=str(point["timestamp"]), equity=point["equity"], cash=point["cash"]) for point in engine.equity_curve
@@ -372,7 +385,7 @@ class BacktestService:
 
             for symbol in request.symbols:
                 try:
-                    data = await asyncio.to_thread(fetch_stock_data, symbol, request.period, request.interval)
+                    data = await fetch_stock_data(symbol, request.period, request.interval)
                     if not data.empty:
                         data_dict[symbol] = data
                 except Exception as e:

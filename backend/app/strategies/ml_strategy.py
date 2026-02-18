@@ -12,8 +12,8 @@ from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 from sklearn.svm import SVC
 
+from backend.app.config import DEFAULT_ML_TEST_SIZE, DEFAULT_ML_THRESHOLD
 from backend.app.strategies import BaseStrategy
-from config import DEFAULT_ML_TEST_SIZE, DEFAULT_ML_THRESHOLD
 
 logger = logging.getLogger(__name__)
 
@@ -24,7 +24,7 @@ class MLStrategy(BaseStrategy):
     def __init__(
         self,
         name: str = "ML Strategy",
-        model_type: str = "random_forest",
+        strategy_type: str = "random_forest",
         n_estimators: int = 100,
         max_depth: int = 10,
         test_size: float = DEFAULT_ML_TEST_SIZE,
@@ -35,14 +35,14 @@ class MLStrategy(BaseStrategy):
 
         Args:
             name: Strategy name
-            model_type: 'random_forest' or 'gradient_boosting'
+            strategy_type: 'random_forest' or 'gradient_boosting'
             n_estimators: Number of trees/boosting stages
             max_depth: Maximum tree depth
             test_size: Fraction of data for testing
             learning_rate: Learning rate (for gradient boosting)
         """
         self.name = name
-        self.model_type = model_type
+        self.strategy_type = strategy_type
         self.n_estimators = n_estimators
         self.max_depth = max_depth
         self.test_size = test_size
@@ -54,13 +54,13 @@ class MLStrategy(BaseStrategy):
 
         params = {
             "name": name,
-            "model_type": model_type,
+            "model_type": strategy_type,
             "n_estimators": n_estimators,
             "max_depth": max_depth,
             "test_size": test_size,
             "learning_rate": learning_rate,
         }
-        super().__init__(model_type, params)
+        super().__init__(strategy_type, params)
 
     def prepare_features(self, data: pd.DataFrame) -> pd.DataFrame:
         """Prepare technical indicators as features"""
@@ -160,11 +160,11 @@ class MLStrategy(BaseStrategy):
         X_train_scaled = self.scaler.fit_transform(X_train)
         X_test_scaled = self.scaler.transform(X_test)
 
-        if self.model_type == "random_forest":
+        if self.strategy_type == "random_forest":
             self.model = RandomForestClassifier(n_estimators=self.n_estimators, max_depth=self.max_depth, random_state=42)
-        elif self.model_type == "svm":
+        elif self.strategy_type == "svm":
             self.model = SVC(probability=True, kernel="rbf", random_state=42)
-        elif self.model_type == "logistic_regression":
+        elif self.strategy_type == "logistic_regression":
             self.model = LogisticRegression(random_state=42, max_iter=1000)
         else:
             self.model = GradientBoostingClassifier(
@@ -181,7 +181,6 @@ class MLStrategy(BaseStrategy):
 
         logger.info(f"Model trained - Train: {train_score:.2%}, Test: {test_score:.2%}")
 
-        # Build training history for the frontend chart
         training_history = self._build_training_history(X_train_scaled, y_train, X_test_scaled, y_test)
 
         return train_score, test_score, training_history

@@ -9,7 +9,7 @@
   "features": 1,
   "training_time": 1,
   "created": "2026-02-11T20:42:21.262696",
-  "status": "deployed",
+  "status": "trained",
   "feature_importance": [],
   "hyperparams": {
     "n_estimators": 0,

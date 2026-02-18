@@ -5,6 +5,8 @@ import { Activity, Target, TrendingDown, TrendingUp, Calendar, AlertTriangle, In
 import MetricCard from "@/components/backtest/MetricCard";
 import BenchmarkComparison from "@/components/backtest/BenchmarkComparison";
 import RiskAnalysisModal from "@/components/backtest/RiskAnalysisModal";
+import PerformanceHeatmap from "@/components/backtest/PerformanceHeatmap";
+import FactorAttribution from "@/components/backtest/FactorAttribution";
 import { formatCurrency, formatPercent } from "@/utils/formatters";
 import { BacktestResult, EquityCurvePoint, SymbolStats, Trade } from "@/types/all_types";
 
@@ -319,6 +321,14 @@ const MultiBacktestResults: React.FC<MultiBacktestResultsProps> = ({ results }) 
 
             {activeTab === 'tearsheet' && (
                 <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                    {/* Factor Attribution (Market Alpha/Beta) */}
+                    {results && (
+                        <FactorAttribution
+                            alpha={results.alpha || 0}
+                            beta={results.beta || 0}
+                            rSquared={results.rSquared}
+                        />
+                    )}
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                         <div className="bg-slate-900 border border-slate-800 p-5 rounded-2xl">
                             <div className="flex items-center gap-2 mb-2">
@@ -404,36 +414,8 @@ const MultiBacktestResults: React.FC<MultiBacktestResultsProps> = ({ results }) 
                         </div>
                     </div>
 
-                    {/* Monthly Returns */}
-                    <div className="bg-slate-900 border border-slate-800 p-6 rounded-2xl">
-                        <div className="flex items-center justify-between mb-6">
-                            <div className="flex items-center gap-3">
-                                <Calendar className="text-blue-400" size={20} />
-                                <h4 className="text-sm font-bold text-slate-300 uppercase tracking-widest">Annual Heatmap</h4>
-                            </div>
-                        </div>
-                        <div className="grid grid-cols-2 lg:grid-cols-6 gap-3">
-                            {monthlyReturns.map((monthData) => {
-                                const [year, month] = monthData.month.split('-');
-                                const monthName = new Date(parseInt(year), parseInt(month) - 1).toLocaleDateString('en-US', { month: 'short', year: '2-digit' });
-
-                                return (
-                                    <div
-                                        key={monthData.month}
-                                        className={`p-4 border rounded-xl flex flex-col items-center justify-center transition-all ${monthData.return >= 0
-                                                ? 'bg-emerald-500/5 border-emerald-500/20'
-                                                : 'bg-red-500/5 border-red-500/20'
-                                            }`}
-                                    >
-                                        <p className="text-[10px] text-slate-500 font-bold mb-1 uppercase">{monthName}</p>
-                                        <p className={`text-sm font-black ${monthData.return >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                                            {monthData.return >= 0 ? '+' : ''}{monthData.return.toFixed(2)}%
-                                        </p>
-                                    </div>
-                                );
-                            })}
-                        </div>
-                    </div>
+                    {/* Monthly Returns Heatmap */}
+                    <PerformanceHeatmap monthlyReturns={results.monthly_returns_matrix} />
                 </div>
             )}
 

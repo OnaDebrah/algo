@@ -35,6 +35,8 @@ class MLModel(BaseModel):
 
 
 class TrainingConfig(BaseModel):
+    model_config = {"protected_namespaces": ()}
+
     symbol: str
     model_type: str
     training_period: str

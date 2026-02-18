@@ -5,7 +5,8 @@ import {
     MultiAssetConfig,
     SingleAssetConfig,
     EquityCurvePoint,
-    Trade
+    Trade,
+    VisualBlock
 } from '@/types/all_types';
 import { backtest } from '@/utils/api';
 import { formatDate } from '@/utils/formatters';
@@ -22,9 +23,15 @@ interface BacktestState {
     multiConfig: MultiAssetConfig;
     setMultiConfig: (config: MultiAssetConfig | ((prev: MultiAssetConfig) => MultiAssetConfig)) => void;
 
-    // Execution
+    // Visual Strategy Builder
+    setVisualStrategy: (blocks: VisualBlock[]) => void;
+    clearVisualStrategy: () => void;
+
+    // Execution — separate results per mode
     isRunning: boolean;
-    results: BacktestResult | null;
+    singleResults: BacktestResult | null;
+    multiResults: BacktestResult | null;
+    results: BacktestResult | null;          // derived: points to active mode's results
     runBacktest: () => Promise<void>;
     resetResults: () => void;
 }
@@ -57,7 +64,10 @@ const DEFAULT_MULTI_CONFIG: MultiAssetConfig = {
 
 export const useBacktestStore = create<BacktestState>((set, get) => ({
     backtestMode: 'single',
-    setBacktestMode: (mode) => set({ backtestMode: mode }),
+    setBacktestMode: (mode) => set((state) => ({
+        backtestMode: mode,
+        results: mode === 'single' ? state.singleResults : state.multiResults
+    })),
 
     singleConfig: DEFAULT_SINGLE_CONFIG,
     setSingleConfig: (config) => set((state) => ({
@@ -69,14 +79,37 @@ export const useBacktestStore = create<BacktestState>((set, get) => ({
         multiConfig: typeof config === 'function' ? config(state.multiConfig) : config
     })),
 
+    setVisualStrategy: (blocks: VisualBlock[]) => set((state) => ({
+        singleConfig: {
+            ...state.singleConfig,
+            strategy: 'visual_builder',
+            params: {
+                blocks: blocks.map(b => ({ id: b.id, type: b.type, params: b.params, label: b.label })),
+                root_block_id: 'root',
+            },
+        }
+    })),
+
+    clearVisualStrategy: () => set((state) => ({
+        singleConfig: {
+            ...state.singleConfig,
+            strategy: DEFAULT_SINGLE_CONFIG.strategy,
+            params: {},
+        }
+    })),
+
     isRunning: false,
+    singleResults: null,
+    multiResults: null,
     results: null,
-    resetResults: () => set({ results: null }),
+    resetResults: () => set({ results: null, singleResults: null, multiResults: null }),
 
     runBacktest: async () => {
         const { backtestMode, singleConfig, multiConfig } = get();
 
-        set({ isRunning: true, results: null });
+        set({ isRunning: true, results: null,
+            ...(backtestMode === 'single' ? { singleResults: null } : { multiResults: null })
+        });
 
         try {
             if (backtestMode === 'single') {
@@ -106,33 +139,32 @@ export const useBacktestStore = create<BacktestState>((set, get) => ({
                         }))
                     } : undefined;
 
-                    set({
-                        results: {
-                            ...result,
-                            equity_curve: response.equity_curve ? response.equity_curve.map((equityCurvePoint: EquityCurvePoint) => ({
-                                timestamp: formatDate(equityCurvePoint.timestamp),
-                                equity: equityCurvePoint.equity,
-                                cash: equityCurvePoint.cash,
-                                drawdown: equityCurvePoint.drawdown
-                            })) : [],
-                            benchmark: formattedBenchmark,
-                            trades: (response.trades || []).map((trade: Trade) => ({
-                                id: trade.id || Math.random(),
-                                executed_at: formatDate(trade.executed_at),
-                                symbol: trade.symbol,
-                                order_type: trade.order_type,
-                                strategy: trade.strategy,
-                                quantity: trade.quantity,
-                                price: trade.price,
-                                commission: trade.commission,
-                                total: trade.price * trade.quantity,
-                                profit: trade.profit || 0,
-                                profit_pct: trade.profit_pct,
-                                status: trade.profit !== null ? 'closed' : 'open'
-                            })),
-                            price_data: response.price_data,
-                        }
-                    });
+                    const singleResult: BacktestResult = {
+                        ...result,
+                        equity_curve: response.equity_curve ? response.equity_curve.map((equityCurvePoint: EquityCurvePoint) => ({
+                            timestamp: formatDate(equityCurvePoint.timestamp),
+                            equity: equityCurvePoint.equity,
+                            cash: equityCurvePoint.cash,
+                            drawdown: equityCurvePoint.drawdown
+                        })) : [],
+                        benchmark: formattedBenchmark,
+                        trades: (response.trades || []).map((trade: Trade) => ({
+                            id: trade.id || Math.random(),
+                            executed_at: formatDate(trade.executed_at),
+                            symbol: trade.symbol,
+                            order_type: trade.order_type,
+                            strategy: trade.strategy,
+                            quantity: trade.quantity,
+                            price: trade.price,
+                            commission: trade.commission,
+                            total: trade.price * trade.quantity,
+                            profit: trade.profit || 0,
+                            profit_pct: trade.profit_pct,
+                            status: trade.profit !== null ? 'closed' : 'open'
+                        })),
+                        price_data: response.price_data,
+                    };
+                    set({ results: singleResult, singleResults: singleResult });
                 }
             } else {
                 // Multi-Asset Logic
@@ -206,48 +238,47 @@ export const useBacktestStore = create<BacktestState>((set, get) => ({
 
                 if (response) {
                     const result = response.result;
-                    set({
-                        results: {
-                            ...result,
-                            symbol_stats: result.symbol_stats || {},
-                            equity_curve: response.equity_curve ? response.equity_curve.map((equityCurvePoint: EquityCurvePoint) => ({
-                                timestamp: formatDate(equityCurvePoint.timestamp),
-                                equity: equityCurvePoint.equity,
-                                num_positions: 0,
-                                cash: equityCurvePoint.cash,
-                                drawdown: equityCurvePoint.drawdown
-                            })) : [],
-                            benchmark: response.benchmark ? {
-                                ...response.benchmark,
-                                equity_curve: response.benchmark.equity_curve.map((p: EquityCurvePoint) => ({
-                                    ...p,
-                                    timestamp: formatDate(p.timestamp)
-                                }))
-                            } : undefined,
-                            trades: (response.trades || []).map((trade: Trade) => ({
-                                id: trade.id || Math.random(),
-                                executed_at: new Date(trade.executed_at).toLocaleString(),
-                                symbol: trade.symbol,
-                                order_type: trade.order_type,
-                                strategy: trade.strategy,
-                                quantity: trade.quantity,
-                                price: trade.price,
-                                commission: trade.commission,
-                                total: trade.price * trade.quantity,
-                                profit: trade.profit || 0,
-                                profit_pct: trade.profit_pct,
-                                status: trade.profit !== null ? 'closed' : 'open'
-                            })),
-                            // Polyfill missing advanced metrics for Multi-Asset
-                            sortino_ratio: 0,
-                            calmar_ratio: 0,
-                            var_95: 0,
-                            cvar_95: 0,
-                            volatility: 0,
-                            expectancy: 0,
-                            total_commission: 0
-                        }
-                    });
+                    const multiResult: BacktestResult = {
+                        ...result,
+                        symbol_stats: result.symbol_stats || {},
+                        equity_curve: response.equity_curve ? response.equity_curve.map((equityCurvePoint: EquityCurvePoint) => ({
+                            timestamp: formatDate(equityCurvePoint.timestamp),
+                            equity: equityCurvePoint.equity,
+                            num_positions: 0,
+                            cash: equityCurvePoint.cash,
+                            drawdown: equityCurvePoint.drawdown
+                        })) : [],
+                        benchmark: response.benchmark ? {
+                            ...response.benchmark,
+                            equity_curve: response.benchmark.equity_curve.map((p: EquityCurvePoint) => ({
+                                ...p,
+                                timestamp: formatDate(p.timestamp)
+                            }))
+                        } : undefined,
+                        trades: (response.trades || []).map((trade: Trade) => ({
+                            id: trade.id || Math.random(),
+                            executed_at: new Date(trade.executed_at).toLocaleString(),
+                            symbol: trade.symbol,
+                            order_type: trade.order_type,
+                            strategy: trade.strategy,
+                            quantity: trade.quantity,
+                            price: trade.price,
+                            commission: trade.commission,
+                            total: trade.price * trade.quantity,
+                            profit: trade.profit || 0,
+                            profit_pct: trade.profit_pct,
+                            status: trade.profit !== null ? 'closed' : 'open'
+                        })),
+                        // Polyfill missing advanced metrics for Multi-Asset
+                        sortino_ratio: 0,
+                        calmar_ratio: 0,
+                        var_95: 0,
+                        cvar_95: 0,
+                        volatility: 0,
+                        expectancy: 0,
+                        total_commission: 0
+                    };
+                    set({ results: multiResult, multiResults: multiResult });
                 }
             }
         } catch (error) {

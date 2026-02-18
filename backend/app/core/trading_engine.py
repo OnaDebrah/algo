@@ -8,9 +8,9 @@ from typing import Dict, List
 
 import pandas as pd
 
+from backend.app.config import DEFAULT_INITIAL_CAPITAL
 from backend.app.core import DatabaseManager, RiskManager
 from backend.app.strategies import BaseStrategy
-from config import DEFAULT_INITIAL_CAPITAL
 
 logger = logging.getLogger(__name__)
 
@@ -50,7 +50,7 @@ class TradingEngine:
 
         logger.info(f"Trading engine initialized - Strategy: {strategy.name}, " f"Capital: ${initial_capital:,.2f}")
 
-    def execute_trade(self, symbol: str, signal: int, current_price: float, timestamp):
+    def execute_trade(self, symbol: str, signal: int, current_price: float, timestamp, start_timestamp=None):
         """
         Execute trade based on signal
 
@@ -59,7 +59,12 @@ class TradingEngine:
             signal: Trading signal (1: buy, -1: sell, 0: hold)
             current_price: Current market price
             timestamp: Trade timestamp
+            start_timestamp: Optional timestamp to start actual trading/equity tracking
         """
+        # Skip if before start_timestamp (Warm-up period)
+        if start_timestamp and timestamp < start_timestamp:
+            return
+
         # Buy signal
         if signal == 1 and self.position is None:
             # Apply slippage (buy higher)
@@ -143,27 +148,31 @@ class TradingEngine:
 
         self.equity_curve.append({"timestamp": timestamp, "equity": equity, "cash": self.cash})
 
-    def run_backtest_loop(self, symbol: str, data: pd.DataFrame):
+    def run_backtest_loop(self, symbol: str, data: pd.DataFrame, start_timestamp=None):
         """Original loop-based backtest (Fallback)"""
-        logger.info(f"Starting LOOP backtest - Symbol: {symbol}, data: {len(data)}")
+        logger.info(f"Starting LOOP backtest - Symbol: {symbol}, data: {len(data)}, start: {start_timestamp}")
         for i in range(len(data)):
             current_data = data.iloc[: i + 1]
             signal = self.strategy.generate_signal(current_data)
             current_price = data["Close"].iloc[i]
             timestamp = data.index[i]
-            self.execute_trade(symbol, signal, current_price, timestamp)
+            self.execute_trade(symbol, signal, current_price, timestamp, start_timestamp)
 
-    def run_backtest_vectorized(self, symbol: str, data: pd.DataFrame):
+    def run_backtest_vectorized(self, symbol: str, data: pd.DataFrame, start_timestamp=None):
         """Vectorized execution for 100x+ speedup"""
         import numpy as np
 
-        logger.info(f"Starting VECTORIZED backtest - Symbol: {symbol}")
+        logger.info(f"Starting VECTORIZED backtest - Symbol: {symbol}, start: {start_timestamp}")
 
         # 1. Get raw signals
         signals = self.strategy.generate_signals_vectorized(data)
 
-        # 2. Derive holding states (Long only parity with execute_trade)
-        # 1 for Long, 0 for Cash
+        # Apply start_timestamp mask
+        if start_timestamp:
+            signals.loc[signals.index < start_timestamp] = 0
+
+        # ... (rest of vectorized logic)
+        # 2. Derive holding states
         positions = signals.replace(0, np.nan).ffill().fillna(0)
         positions = positions.clip(lower=0)
 
@@ -174,25 +183,36 @@ class TradingEngine:
         entry_mask = (positions == 1) & (positions.shift(1) == 0)
         exit_mask = (positions == 0) & (positions.shift(1) == 1)
 
-        # 4. Strategy Returns (Signal at t affects return at t+1)
-        # Apply Risk Manager's position sizing factor (e.g. 0.1 for 10% exposure)
-        risk_factor = getattr(self.risk_manager, "max_position_size", 1.0)
+        # 4. Strategy Returns
+        # max_position_size may be a percentage (e.g. 20 for 20%) or fraction (e.g. 0.2)
+        raw_position_size = getattr(self.risk_manager, "max_position_size", 1.0)
+        risk_factor = raw_position_size / 100.0 if raw_position_size > 1 else raw_position_size
         strategy_returns = (positions.shift(1) * returns) * risk_factor
 
-        # Apply slippage & commission approximation
-        # Slippage/Commission applied on full position value (which is risk_factor % of portfolio)
         strategy_returns[entry_mask] -= self.slippage_rate * risk_factor
         strategy_returns[exit_mask] -= self.slippage_rate * risk_factor
         strategy_returns[trades_mask] -= self.commission_rate * risk_factor
 
         # 5. Calculate Equity
         strategy_returns = strategy_returns.fillna(0)
-        cumulative_growth = (1 + strategy_returns).cumprod()
+
+        # Only start cumulative growth from start_timestamp
+        if start_timestamp:
+            mask = strategy_returns.index >= start_timestamp
+            growth_slice = (1 + strategy_returns[mask]).cumprod()
+            cumulative_growth = pd.Series(1.0, index=strategy_returns.index)
+            cumulative_growth.update(growth_slice)
+        else:
+            cumulative_growth = (1 + strategy_returns).cumprod()
+
         equity_series = self.initial_capital * cumulative_growth
 
         # 6. Parity with UI expectations
         self.equity_curve = []
         for ts, eq in equity_series.items():
+            # Only include points from start_timestamp
+            if start_timestamp and ts < start_timestamp:
+                continue
             self.equity_curve.append(
                 {
                     "timestamp": ts,
@@ -201,30 +221,33 @@ class TradingEngine:
                 }
             )
 
-        # 7. Reconstruct trade list for UI (Only if indices exist)
+        # ... (reconstruct trade list based on mask)
         entry_indices = np.where(entry_mask)[0]
         exit_indices = np.where(exit_mask)[0]
 
         for i in range(min(len(entry_indices), len(exit_indices))):
             entry_idx = entry_indices[i]
             exit_idx = exit_indices[i]
+            ts_entry = data.index[entry_idx]
+
+            # Skip if before start_timestamp
+            if start_timestamp and ts_entry < start_timestamp:
+                continue
+
             entry_price = float(close.iloc[entry_idx] * (1 + self.slippage_rate))
             exit_price = float(close.iloc[exit_idx] * (1 - self.slippage_rate))
 
-            # Quantity based on risk manager formula: portfolio * size / price
-            # We use initial capital as an approximation for vectorized trade quantity
             quantity = float(int((self.initial_capital * risk_factor) / entry_price))
             if quantity <= 0:
                 quantity = 1.0
 
-            # Reconstruct trade data for the database
             trade_data = {
                 "symbol": symbol,
                 "order_type": "BUY",
                 "quantity": quantity,
                 "price": entry_price,
                 "side": "BUY",
-                "executed_at": str(data.index[entry_idx]),
+                "executed_at": str(ts_entry),
                 "strategy": self.strategy.name,
                 "total_value": entry_price * quantity,
                 "commission": float(entry_price * quantity * self.commission_rate),
@@ -251,20 +274,20 @@ class TradingEngine:
             }
             self.trades.append(sell_data)
 
-        logger.info(f"Vectorized backtest completed - Final equity: ${self.equity_curve[-1]['equity']:,.2f}")
+        logger.info(f"Vectorized backtest completed - Final equity: ${self.equity_curve[-1]['equity'] if self.equity_curve else 0:,.2f}")
 
-    def run_backtest(self, symbol: str, data: pd.DataFrame):
+    def run_backtest(self, symbol: str, data: pd.DataFrame, start_timestamp=None):
         """
         Run backtest (dispatches to vectorized or loop)
         """
         try:
             # Check if strategy supports vectorized signals
             if hasattr(self.strategy, "generate_signals_vectorized"):
-                return self.run_backtest_vectorized(symbol, data)
+                return self.run_backtest_vectorized(symbol, data, start_timestamp)
         except Exception as e:
             logger.warning(f"Vectorized backtest failed, falling back to loop: {e}")
 
-        return self.run_backtest_loop(symbol, data)
+        return self.run_backtest_loop(symbol, data, start_timestamp)
 
     def get_current_position(self) -> Dict:
         """Get current position details"""
