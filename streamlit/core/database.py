@@ -7,7 +7,7 @@ import sqlite3
 from datetime import datetime
 from typing import Dict, List, Optional
 
-from config import DATABASE_PATH
+from streamlit.config import DATABASE_PATH
 
 logger = logging.getLogger(__name__)
 

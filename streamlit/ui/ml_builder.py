@@ -6,7 +6,7 @@ import pandas as pd
 import plotly.express as px
 
 import streamlit as st
-from config import DEFAULT_ML_TEST_SIZE
+from streamlit.config import DEFAULT_ML_TEST_SIZE
 from streamlit.core.data_fetcher import fetch_stock_data
 from streamlit.strategies.lstm_strategy import LSTMStrategy
 from streamlit.strategies.ml_strategy import MLStrategy
