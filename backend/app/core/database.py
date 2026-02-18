@@ -33,7 +33,7 @@ class DatabaseManager:
         # Create connection pool for better performance
         try:
             self.connection_pool = pool.SimpleConnectionPool(minconn=1, maxconn=10, dsn=self.db_url)
-            logger.info("Database connection pool created successfully")
+            logger.debug("Database connection pool created successfully")
         except Exception as e:
             logger.error(f"Failed to create connection pool: {e}")
             raise
@@ -565,7 +565,7 @@ class DatabaseManager:
         """Close all connections in the pool"""
         if hasattr(self, "connection_pool"):
             self.connection_pool.closeall()
-            logger.info("Database connection pool closed")
+            logger.debug("Database connection pool closed")
 
     def __del__(self):
         """Cleanup on deletion"""

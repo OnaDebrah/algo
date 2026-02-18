@@ -105,3 +105,20 @@ class BayesianOptimizationResponse(BaseModel):
     metric: str
     n_completed: int
     n_failed: int
+
+
+class OptimizationRequest(BaseModel):
+    """Request schema for parameter optimization"""
+
+    symbol: str
+    strategy_key: str
+    interval: str
+    metric: str
+    initial_capital: float
+    commission_rate: float = 0.001
+    slippage_rate: float = 0.001
+    param_ranges: Dict[str, Dict[str, Any]] = {}
+    indicator_config: Dict[str, Any] = {"returns": True, "volatility": True, "moving_averages": True}
+
+    class Config:
+        arbitrary_types_allowed = True

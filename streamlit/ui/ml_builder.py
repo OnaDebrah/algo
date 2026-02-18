@@ -293,7 +293,7 @@ def _display_trained_models(ml_models: dict):
                 col1, col2, col3 = st.columns(3)
 
                 with col1:
-                    st.write(f"**Model Type:** {model.model_type.replace('_', ' ').title()}")
+                    st.write(f"**Model Type:** {model.strategy_type.replace('_', ' ').title()}")
                     st.write(f"**Status:** {'✅ Trained' if model.is_trained else '❌ Not Trained'}")
 
                 with col2:

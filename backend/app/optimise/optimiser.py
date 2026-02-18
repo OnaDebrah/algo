@@ -32,14 +32,14 @@ class PortfolioOptimizer:
         self.cov_matrix = None
         self.mean_returns = None
 
-    def fetch_data(self) -> pd.DataFrame:
+    async def fetch_data(self) -> pd.DataFrame:
         """Fetch historical data for all symbols"""
         from backend.app.core import fetch_stock_data
 
         prices = pd.DataFrame()
 
         for symbol in self.symbols:
-            data = fetch_stock_data(symbol, "2y", "1d")
+            data = await fetch_stock_data(symbol, "2y", "1d")
             if not data.empty:
                 prices[symbol] = data["Close"]
             else:

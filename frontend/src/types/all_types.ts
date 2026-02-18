@@ -66,6 +66,23 @@ export interface StrategyInfo {
     backtest_mode: 'single' | 'multi' | 'both';
 }
 
+// ==================== VISUAL STRATEGY BUILDER ====================
+
+export type BlockType = 'indicator' | 'ml_model' | 'logic' | 'risk' | 'output';
+
+export interface VisualBlock {
+    id: string;
+    type: BlockType;
+    params: Record<string, any>;
+    position?: { x: number; y: number };
+    label?: string;
+}
+
+export interface VisualStrategyConfig {
+    blocks: VisualBlock[];
+    root_block_id: string;
+}
+
 export interface StrategyConfig {
     strategy_type: string;
     parameters: Record<string, any>;
@@ -123,7 +140,10 @@ export interface BacktestResult {
     trades?: Trade[];
     price_data?: Record<string, any>[] | null;
     symbol_stats: Record<string, SymbolStats>;
-
+    monthly_returns_matrix?: Record<string, Record<string, number>>;
+    alpha?: number;
+    beta?: number;
+    rSquared?: number;
     // Advanced metrics
     sortino_ratio: number;
     calmar_ratio: number;
@@ -185,6 +205,12 @@ export interface DeployedMLModel {
     accuracy: number;
     test_accuracy: number;
     status: string;
+}
+
+export interface FactorAttributions {
+    alpha?: number;
+    beta?: number;
+    rSquared?: number;
 }
 
 // ==================== MULTI-ASSET BACKTEST ====================
@@ -289,6 +315,53 @@ export interface PairsValidationResponse {
     warnings: string[];
     errors: string[];
     lookback_days: number;
+}
+
+export interface ParamRange {
+    min: number;
+    max: number;
+    step?: number;
+    type: string;
+}
+
+export interface WFARequest {
+    symbol: string;
+    strategy_key: string;
+    param_ranges: Record<string, ParamRange>
+    initial_capital: number;
+    period: string;
+    interval: string;
+    is_window_days: number;
+    oos_window_days: number;
+    step_days: number;
+    anchored: boolean;
+    metric: string;
+    n_trials: number;
+    commission_rate: number;
+    slippage_rate: number;
+}
+
+export interface WFAFoldResult {
+    fold_index: number;
+    is_start: string;
+    is_end: string;
+    oos_start: string;
+    oos_end: string;
+    best_params: Record<string, any>;
+    is_metrics: BacktestResult;
+    oos_metrics: BacktestResult;
+}
+
+export interface WFAResponse {
+    folds: WFAFoldResult[];
+    aggregated_oos_metrics: BacktestResult;
+    oos_equity_curve: EquityCurvePoint[];
+    wfe: number;
+    robustness_metrics?: Record<string, number>;
+    strategy_key: string;
+    symbol: string;
+    successful_folds?: number;
+    total_folds?: number;
 }
 
 // ==================== OPTIONS BACKTEST ====================
@@ -1093,7 +1166,8 @@ export interface ModelPrediction {
 }
 
 export interface MLModelStatusRequest {
-    modelId: string, isActive: boolean
+    modelId: string,
+    isActive: boolean
 }
 
 export interface MLFeatureImportance {

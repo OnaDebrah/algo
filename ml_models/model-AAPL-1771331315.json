@@ -1,0 +1,73 @@
+{
+  "id": "model-AAPL-1771331315",
+  "name": "AAPL_random_forest_v1",
+  "type": "random_forest",
+  "symbol": "AAPL",
+  "accuracy": 1.0,
+  "test_accuracy": 1.0,
+  "overfit_score": 0.0,
+  "features": 16,
+  "training_time": 3,
+  "created": "2026-02-17T13:28:35.916032",
+  "status": "trained",
+  "feature_importance": [
+    {
+      "feature": "returns",
+      "importance": 0.0
+    },
+    {
+      "feature": "sma_5",
+      "importance": 0.0
+    },
+    {
+      "feature": "ema_5",
+      "importance": 0.0
+    },
+    {
+      "feature": "sma_10",
+      "importance": 0.0
+    },
+    {
+      "feature": "ema_10",
+      "importance": 0.0
+    },
+    {
+      "feature": "sma_20",
+      "importance": 0.0
+    },
+    {
+      "feature": "ema_20",
+      "importance": 0.0
+    },
+    {
+      "feature": "sma_50",
+      "importance": 0.0
+    },
+    {
+      "feature": "ema_50",
+      "importance": 0.0
+    },
+    {
+      "feature": "rsi",
+      "importance": 0.0
+    }
+  ],
+  "hyperparams": {
+    "n_estimators": 100,
+    "max_depth": 10,
+    "learning_rate": 0.001,
+    "lookback": 0,
+    "epochs": 0
+  },
+  "training_history": [
+    {
+      "epoch": 1,
+      "loss": 0.0,
+      "accuracy": 1.0,
+      "val_loss": 0.0,
+      "val_accuracy": 1.0
+    }
+  ],
+  "user_id": 1,
+  "model_path": "ml_models/model-AAPL-1771331315.pkl"
+}

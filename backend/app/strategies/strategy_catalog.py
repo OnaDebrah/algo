@@ -3,13 +3,20 @@ Strategy Catalog and Categories
 Organize all trading strategies by type - Expanded Version
 """
 
+import logging
 from dataclasses import dataclass
 from enum import Enum
 from typing import Dict, List, Literal, Type
 
-from backend.app.strategies import BaseStrategy, KAMAStrategy, MACDStrategy, MLStrategy, MultiTimeframeKAMAStrategy
+from backend.app.strategies import (
+    BaseStrategy,
+    DynamicStrategy,
+    KAMAStrategy,
+    MACDStrategy,
+    MLStrategy,
+    MultiTimeframeKAMAStrategy,
+)
 from backend.app.strategies.adpative_trend_ff_strategy import AdaptiveTrendFollowingStrategy
-from backend.app.strategies.bb_mean_reversion import BollingerMeanReversionStrategy
 from backend.app.strategies.cs_momentum_strategy import CrossSectionalMomentumStrategy
 from backend.app.strategies.donchain_strategy import DonchianATRStrategy, DonchianChannelStrategy, FilteredDonchianStrategy
 from backend.app.strategies.kalman_filter_strategy import KalmanFilterStrategy
@@ -20,13 +27,13 @@ from backend.app.strategies.ml.mc_ml_sentiment_strategy import MonteCarloMLSenti
 from backend.app.strategies.options_strategies import OptionsStrategy
 from backend.app.strategies.pairs_trading_strategy import PairsTradingStrategy
 from backend.app.strategies.parabolic_sar import ParabolicSARStrategy
-from backend.app.strategies.rsi_strategy import RSIStrategy
-from backend.app.strategies.sma_crossover import SMACrossoverStrategy
 from backend.app.strategies.stat_arb.base_stat_arb import RiskParityStatArb
 from backend.app.strategies.stat_arb.sector_neutral import SectorNeutralStrategy
+from backend.app.strategies.technical.bb_mean_reversion import BollingerMeanReversionStrategy
+from backend.app.strategies.technical.rsi_strategy import RSIStrategy
+from backend.app.strategies.technical.sma_crossover import SMACrossoverStrategy
 
 # Statistical Arbitrage
-# from backend.app.strategies import SectorNeutralStrategy
 from backend.app.strategies.ts_momentum_strategy import TimeSeriesMomentumStrategy
 
 # Kalman Filter HFT (conditional on numba)
@@ -42,6 +49,8 @@ from backend.app.strategies.volatility.variance_risk_premium import VarianceRisk
 # Volatility strategies
 from backend.app.strategies.volatility.volatility_breakout import VolatilityBreakoutStrategy
 from backend.app.strategies.volatility.volatility_targeting import VolatilityTargetingStrategy
+
+logger = logging.getLogger(__name__)
 
 
 class StrategyCategory(Enum):
@@ -88,6 +97,35 @@ class StrategyCatalog:
         """Build the strategy catalog"""
 
         catalog = {
+            "visual_builder": StrategyInfo(
+                name="Visual Strategy Builder",
+                class_type=DynamicStrategy,
+                category=StrategyCategory.HYBRID,
+                description="Custom strategy constructed using the visual Block Builder. Allows combining multiple ML models with technical filters and complex logic.",
+                complexity="Advanced",
+                time_horizon="Adaptive",
+                best_for=["Custom logic", "Multi-factor models", "Hybrid strategies"],
+                parameters={
+                    "blocks": {
+                        "default": [],
+                        "description": "JSON block configuration defining the strategy logic",
+                    },
+                    "root_block_id": {
+                        "default": "root",
+                        "description": "The ID of the block that generates the final signal",
+                    },
+                },
+                pros=[
+                    "Highly customizable",
+                    "No-code / Low-code approach",
+                    "Allows combining ML with classic indicators",
+                ],
+                cons=[
+                    "Complexity scales with number of blocks",
+                    "Requires careful logic design",
+                ],
+                backtest_mode="both",
+            ),
             # ============================================================
             # TECHNICAL INDICATORS - TREND FOLLOWING
             # ============================================================
@@ -782,7 +820,7 @@ class StrategyCatalog:
                     "Data-rich environments",
                 ],
                 parameters={
-                    "model_type": {"default": "random_forest", "range": None, "description": "Model type"},
+                    "strategy_type": {"default": "random_forest", "range": None, "description": "Model type"},
                     "n_estimators": {
                         "default": 100,
                         "range": (50, 500),
@@ -826,7 +864,7 @@ class StrategyCatalog:
                     "High accuracy needs",
                 ],
                 parameters={
-                    "model_type": {"default": "gradient_boosting", "range": None, "description": "Model type"},
+                    "strategy_type": {"default": "gradient_boosting", "range": None, "description": "Model type"},
                     "n_estimators": {
                         "default": 100,
                         "range": (50, 500),
@@ -870,7 +908,7 @@ class StrategyCatalog:
                     "Small datasets",
                 ],
                 parameters={
-                    "model_type": {"default": "svm", "range": None, "description": "Model type"},
+                    "strategy_type": {"default": "svm", "range": None, "description": "Model type"},
                     "test_size": {
                         "default": 0.2,
                         "range": (0.1, 0.4),
@@ -902,7 +940,7 @@ class StrategyCatalog:
                     "Linear relationships",
                 ],
                 parameters={
-                    "model_type": {"default": "logistic_regression", "range": None, "description": "Model type"},
+                    "strategy_type": {"default": "logistic_regression", "range": None, "description": "Model type"},
                     "test_size": {
                         "default": 0.2,
                         "range": (0.1, 0.4),
@@ -1443,10 +1481,22 @@ class StrategyCatalog:
         if not info:
             raise ValueError(f"Unknown strategy: {strategy_key}")
 
-        # Use defaults for missing parameters
+        # Use defaults for missing parameters and sanitize types
         params = {}
         for param_name, param_info in info.parameters.items():
-            params[param_name] = kwargs.get(param_name, param_info["default"])
+            val = kwargs.get(param_name, param_info.get("default"))
+
+            # Robust type conversion: if default is int, ensure val is int
+            # This handles cases like Bayesian optimization returning floats for windows
+            default_val = param_info.get("default")
+            if isinstance(default_val, int) and not isinstance(val, int) and val is not None:
+                try:
+                    # Capture float strings or direct floats
+                    val = int(float(val))
+                except (ValueError, TypeError):
+                    logger.warning(f"Failed to cast parameter {param_name} to int: {val}")
+
+            params[param_name] = val
 
         return info.class_type(**params)
 

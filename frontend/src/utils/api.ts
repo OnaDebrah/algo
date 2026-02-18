@@ -1,4 +1,3 @@
-// api/index.ts
 import axios from 'axios';
 import {
     // Auth
@@ -93,7 +92,7 @@ import {
     // HTTP Error
     HTTPValidationError, RegimeData, RegimeHistoryResponse, PairsValidationRequest, PairsValidationResponse,
     LiveOrderPlacement, LiveOrderUpdate, MarketplaceFilterParams, AlertPreferences, Alert, DeploymentConfig,
-    BrokerConnectionResponse, MLModelStatusRequest, ModelPrediction, BrokerSettings
+    BrokerConnectionResponse, MLModelStatusRequest, ModelPrediction, BrokerSettings, WFARequest, WFAResponse
 } from '@/types/all_types';
 import {
     BaseOptimizationRequest, BlackLittermanRequest, BlackLittermanResponse,
@@ -228,6 +227,9 @@ export const backtest = {
      */
     bayesian: (request: any) =>
         client.post<any>('/optimise/bayesian', request),
+
+    walkForward: (request: WFARequest) =>
+        client.post<WFAResponse>('/backtest/walk-forward', request)
 };
 
 // ==================== PORTFOLIO ====================

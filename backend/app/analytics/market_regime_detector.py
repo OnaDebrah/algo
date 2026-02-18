@@ -25,6 +25,8 @@ import pandas as pd
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.preprocessing import LabelEncoder, StandardScaler
 
+from backend.app.analytics.regimes.markov_regime_chain import MarkovRegimeChain
+
 warnings.filterwarnings("ignore")
 
 logger = logging.getLogger(__name__)
@@ -122,6 +124,7 @@ class MarketRegimeDetector:
         # Cache for expensive calculations
         self._feature_cache = {}
         self._cache_max_size = 100
+        self.markov_chain = MarkovRegimeChain()
 
     def calculate_features(
         self,
@@ -852,6 +855,68 @@ class MarketRegimeDetector:
             "std_duration": std_duration,
             "probability_end_next_week": prob_end_next_week,
             "sample_size": len(durations),
+        }
+
+    def get_transition_probabilities(self) -> Dict[str, Dict[str, float]]:
+        """
+        Get transition probabilities using Markov chain analysis
+
+        Returns:
+            Dictionary mapping from_regime -> to_regime -> probability
+        """
+        if len(self.regime_history) < 2:
+            logger.warning("Insufficient regime history for transition probabilities")
+            return self.markov_chain._empty_transition_matrix()
+
+        # Extract regime sequence
+        regime_sequence = [entry["regime"] for entry in self.regime_history]
+
+        # Fit Markov chain if needed or use cached
+        if self.markov_chain.transition_matrix is None:
+            self.markov_chain.fit(regime_sequence)
+        else:
+            # Update with new data
+            self.markov_chain.fit(regime_sequence)
+
+        return self.markov_chain.get_transition_probabilities()
+
+    def _predict_regime_duration(self) -> Dict[str, float]:
+        """
+        Predict expected duration of current regime
+
+        Returns:
+            Dictionary with duration statistics
+        """
+        if len(self.regime_history) < 1:
+            return {"expected_duration": 0, "median_duration": 0, "probability_end_next_week": 0}
+        current_regime = self.regime_history[-1]["regime"]
+
+        # Get expected duration from Markov chain
+        expected_duration = self.markov_chain.get_expected_duration(current_regime)
+
+        if expected_duration == float("inf"):
+            expected_duration = 30  # Cap at reasonable maximum
+
+        # Calculate current run length
+        current_run = 0
+        for entry in reversed(self.regime_history):
+            if entry["regime"] == current_regime:
+                current_run += 1
+            else:
+                break
+
+        # Calculate probability of ending within next week
+        if expected_duration <= current_run:
+            prob_end_next_week = 0.9
+        else:
+            # Simple geometric probability
+            p_self = self.markov_chain.get_regime_persistence().get(current_regime, 0.8)
+            prob_end_next_week = 1 - (p_self**5)
+
+        return {
+            "expected_duration": round(expected_duration, 2),
+            "median_duration": round(expected_duration * 0.7, 2),  # Approximate median
+            "probability_end_next_week": round(min(prob_end_next_week, 0.95), 3),
         }
 
     def _get_historical_durations(self, regime: str) -> List[int]:

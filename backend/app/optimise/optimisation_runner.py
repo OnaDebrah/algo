@@ -1,6 +1,6 @@
 """
-Improved Bayesian Optimization Endpoint
-Fixes connection management, error handling, and performance
+Bayesian Optimization Endpoint:
+Connection management, error handling, and performance
 """
 
 import asyncio

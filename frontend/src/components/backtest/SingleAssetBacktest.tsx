@@ -8,6 +8,8 @@ import {
     Calendar,
     Check,
     ChevronDown,
+    ChevronRight,
+    ChevronUp,
     Clock,
     Copy,
     DollarSign,
@@ -15,22 +17,21 @@ import {
     Eye,
     EyeOff,
     Filter,
+    FolderOpen,
     Grid,
     Info,
     List,
     Play,
-    Zap,
-    FolderOpen,
-    ChevronRight,
     RefreshCw,
     Save,
     Search,
     Settings,
+    Sparkles,
     Star,
     Target,
     TrendingUp,
-    Sparkles,
-    X
+    X,
+    Zap
 } from 'lucide-react';
 import SingleBacktestResults from "@/components/backtest/SingleBacktestResults";
 import StrategyParameterForm from "@/components/backtest/StrategyParameterForm";
@@ -41,6 +42,8 @@ import { BacktestResult, SingleAssetConfig, Strategy, PortfolioCreate, DeployedM
 import { formatCSVCell, formatCurrency } from "@/utils/formatters";
 import { portfolio, mlstudio } from "@/utils/api";
 import { assetSuggestions, quickSuggestions } from "@/utils/suggestions";
+import { useBacktestStore } from "@/store/useBacktestStore";
+import { useNavigationStore } from "@/store/useNavigationStore";
 
 interface SingleAssetBacktestProps {
     config: SingleAssetConfig;
@@ -70,8 +73,13 @@ const SingleAssetBacktest: React.FC<SingleAssetBacktestProps> = ({
     const [showOptimizer, setShowOptimizer] = useState(false);
     const [deployedModels, setDeployedModels] = useState<DeployedMLModel[]>([]);
     const [loadingModels, setLoadingModels] = useState(false);
+    const [expandedConfig, setExpandedConfig] = useState(!results);
 
-    // ML strategy keys that support deployed model loading
+    const clearVisualStrategy = useBacktestStore(state => state.clearVisualStrategy);
+    const navigateTo = useNavigationStore(state => state.navigateTo);
+    const isVisualBuilder = config.strategy === 'visual_builder';
+    const visualBlockCount = isVisualBuilder ? (config.params?.blocks?.length || 0) : 0;
+
     const ML_STRATEGY_KEYS = ['ml_random_forest', 'ml_gradient_boosting', 'ml_svm', 'ml_logistic', 'ml_lstm', 'mc_ml_sentiment'];
 
     const categories = useMemo(() =>
@@ -89,7 +97,6 @@ const SingleAssetBacktest: React.FC<SingleAssetBacktestProps> = ({
         [config.strategy]
     );
 
-    // Fetch deployed models when an ML strategy is selected
     useEffect(() => {
         if (isMLStrategy) {
             setLoadingModels(true);
@@ -103,7 +110,6 @@ const SingleAssetBacktest: React.FC<SingleAssetBacktestProps> = ({
                 })
                 .finally(() => setLoadingModels(false));
         } else {
-            // Clear ml_model_id when switching away from ML strategies
             if (config.ml_model_id) {
                 setConfig({ ...config, ml_model_id: undefined });
             }
@@ -128,7 +134,6 @@ const SingleAssetBacktest: React.FC<SingleAssetBacktestProps> = ({
         return filtered;
     }, [strategies, selectedCategory, searchQuery]);
 
-    // Update parameters
     const handleParamChange = (key: string, val: any) => {
         setConfig({
             ...config,
@@ -136,13 +141,10 @@ const SingleAssetBacktest: React.FC<SingleAssetBacktestProps> = ({
         });
     };
 
-    // Export Results handler
     const handleExport = () => {
         if (!results) return;
 
         const rows = [];
-
-        // 1. Summary Section
         rows.push(['Metric', 'Value'].map(formatCSVCell));
         rows.push(['Total Return', `${(results.total_return * 100).toFixed(2)}%`].map(formatCSVCell));
         rows.push(['Win Rate', `${results.win_rate.toFixed(2)}%`].map(formatCSVCell));
@@ -151,52 +153,36 @@ const SingleAssetBacktest: React.FC<SingleAssetBacktestProps> = ({
         rows.push(['Profit Factor', results.profit_factor?.toFixed(2) || 'N/A'].map(formatCSVCell));
         rows.push(['Total Trades', results.total_trades].map(formatCSVCell));
         rows.push([]);
-
-        // 2. Trades Header
         rows.push(['Symbol', 'Side', 'Date', 'Qty', 'Price', 'Commission', 'Profit', 'Profit %', 'Status'].map(formatCSVCell));
-
-        // 3. Trades Data
         if (results.trades) {
             results.trades.forEach(t => {
                 rows.push([
-                    t.symbol,
-                    t.order_type,
-                    t.executed_at,
-                    t.quantity,
-                    t.price.toFixed(2),
-                    t.commission.toFixed(2),
+                    t.symbol, t.order_type, t.executed_at, t.quantity,
+                    t.price.toFixed(2), t.commission.toFixed(2),
                     t.profit !== null && t.profit !== undefined ? t.profit.toFixed(2) : '0',
                     t.profit_pct !== null && t.profit_pct !== undefined ? `${t.profit_pct.toFixed(2)}%` : '0%',
                     t.profit !== null ? 'Closed' : 'Open'
                 ].map(formatCSVCell));
             });
         }
-
-        // 4. Generate CSV using Blob (Safe for large files)
         const csvString = rows.map(r => r.join(",")).join("\n");
         const blob = new Blob([csvString], { type: 'text/csv;charset=utf-8;' });
         const url = URL.createObjectURL(blob);
-
-        // 5. Download trigger
         const link = document.createElement("a");
         const filename = `backtest_${config.symbol}_${new Date().toISOString().slice(0, 10)}.csv`;
-
         link.href = url;
         link.setAttribute("download", filename);
         link.style.visibility = 'hidden';
-
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
-        URL.revokeObjectURL(url); // Clean up memory
+        URL.revokeObjectURL(url);
     };
 
     const handleSavePortfolio = async () => {
         try {
             setIsSaving(true);
             const portfolioName = `Single Backtest: ${config.symbol || 'Unnamed'} ${new Date().toLocaleDateString()}`;
-
-            // We store the configuration JSON in the description field
             const description = JSON.stringify({
                 type: 'single',
                 strategy: config.strategy,
@@ -207,15 +193,12 @@ const SingleAssetBacktest: React.FC<SingleAssetBacktestProps> = ({
                 riskLevel: config.riskLevel,
                 initialCapital: config.initialCapital
             });
-
             const data: PortfolioCreate = {
                 name: portfolioName,
                 initial_capital: config.initialCapital,
                 description: description
             };
-
             await portfolio.create(data);
-
             alert('Backtest Configuration Saved Successfully!');
         } catch (error) {
             console.error('Failed to save portfolio:', error);
@@ -226,840 +209,543 @@ const SingleAssetBacktest: React.FC<SingleAssetBacktestProps> = ({
     };
 
     return (
-        <div className="space-y-6">
-            {/* Header with Stats */}
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                <div className="flex items-center gap-4">
-                    <div
-                        className="p-3 bg-gradient-to-br from-violet-500/20 to-purple-500/20 rounded-2xl border border-violet-500/30 shadow-xl shadow-violet-500/10">
-                        <BarChart3 className="text-violet-400" size={28} strokeWidth={2} />
+        <div className="space-y-4">
+            {/* Visual Strategy Builder info card */}
+            {isVisualBuilder && (
+                <div className="bg-gradient-to-r from-fuchsia-900/30 via-violet-900/30 to-slate-900/30 border border-fuchsia-500/30 rounded-2xl p-4 flex items-center justify-between animate-in fade-in">
+                    <div className="flex items-center gap-4">
+                        <div className="p-2.5 bg-fuchsia-500/20 rounded-xl border border-fuchsia-500/30">
+                            <Brain size={20} className="text-fuchsia-400" />
+                        </div>
+                        <div>
+                            <h3 className="text-sm font-bold text-fuchsia-300 flex items-center gap-2">
+                                Visual Strategy Builder
+                                <span className="text-[10px] bg-fuchsia-500/20 text-fuchsia-400 px-2 py-0.5 rounded-full uppercase font-black">Active</span>
+                            </h3>
+                            <p className="text-xs text-slate-400 mt-0.5">
+                                {visualBlockCount > 0 ? `${visualBlockCount} blocks configured` : 'No blocks configured'}
+                            </p>
+                        </div>
                     </div>
-                    <div>
-                        <h2 className="text-2xl font-bold text-slate-100 tracking-tight">
-                            Single Asset <span className="text-slate-400 font-normal">Backtest</span>
-                        </h2>
-                        <p className="text-sm text-slate-500 font-medium mt-1">Test strategies on individual assets with
-                            precision</p>
-                    </div>
-                </div>
-
-                <div className="flex gap-3">
-                    <button
-                        onClick={handleSavePortfolio}
-                        disabled={isSaving}
-                        className="flex items-center gap-2 px-5 py-2.5 bg-slate-800/60 hover:bg-slate-700/60 border border-slate-700/50 text-slate-300 rounded-xl text-sm font-bold transition-all disabled:opacity-50">
-                        {isSaving ? <RefreshCw size={16} className="animate-spin" /> : <Save size={16} />}
-                        <span>{isSaving ? 'Saving...' : 'Save Setup'}</span>
-                    </button>
-                    <button
-                        className="flex items-center gap-2 px-5 py-2.5 bg-slate-800/60 hover:bg-slate-700/60 border border-slate-700/50 text-slate-300 rounded-xl text-sm font-bold transition-all">
-                        <Copy size={16} />
-                        <span>Duplicate</span>
-                    </button>
-                </div>
-            </div>
-
-            <div className="grid grid-cols-12 gap-6">
-                {/* LEFT: Configuration Panel */}
-                <div className="col-span-12 lg:col-span-8 space-y-6">
-                    {/* Asset & Basic Configuration Card */}
-                    <div
-                        className="bg-gradient-to-br from-slate-900/90 to-slate-800/90 backdrop-blur-xl border border-slate-700/50 rounded-2xl p-6 shadow-xl">
-                        <div className="flex items-center gap-3 mb-6">
-                            <div className="p-2 bg-violet-500/20 rounded-lg border border-violet-500/30">
-                                <Target className="text-violet-400" size={20} strokeWidth={2} />
-                            </div>
-                            <h3 className="text-sm font-bold text-slate-300">Asset & Basic Configuration</h3>
-                        </div>
-
-                        {/* Enhanced Symbol Input with Suggestions */}
-                        <div className="space-y-4 mb-6">
-                            <label className="text-xs font-bold text-slate-400 tracking-wide flex items-center gap-2">
-                                <Zap size={14} className="text-violet-400" />
-                                Asset Selection
-                            </label>
-                            <div className="flex gap-3">
-                                <div className="relative flex-1 group">
-                                    <Search
-                                        className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-600 group-focus-within:text-violet-500 transition-colors"
-                                        size={18}
-                                    />
-                                    <input
-                                        type="text"
-                                        value={config.symbol}
-                                        onChange={(e) => setConfig({ ...config, symbol: e.target.value.toUpperCase() })}
-                                        className="w-full pl-12 pr-4 py-3.5 bg-slate-800/50 border border-slate-700/50 rounded-xl focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20 outline-none transition-all text-slate-200 font-mono"
-                                        placeholder="Enter ticker (e.g. AAPL)"
-                                    />
-                                    {config.symbol && (
-                                        <button
-                                            onClick={() => setConfig({ ...config, symbol: '' })}
-                                            className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-600 hover:text-red-400 transition-colors"
-                                        >
-                                            <X size={18} />
-                                        </button>
-                                    )}
-                                </div>
-                                <div className="text-center">
-                                    <div
-                                        className="w-12 h-12 rounded-xl bg-gradient-to-br from-violet-500/20 to-purple-500/20 border border-violet-500/30 flex items-center justify-center">
-                                        <span className="font-mono font-bold text-violet-300">
-                                            {config.symbol.slice(0, 2) || '??'}
-                                        </span>
-                                    </div>
-                                    <p className="text-xs text-slate-600 mt-1 font-medium">Symbol</p>
-                                </div>
-                            </div>
-
-                            {/* Asset Suggestions */}
-                            <div className="flex flex-wrap gap-2">
-                                {assetSuggestions.map((asset) => (
-                                    <button
-                                        key={asset.symbol}
-                                        onClick={() => setConfig({ ...config, symbol: asset.symbol })}
-                                        className={`group relative overflow-hidden px-3 py-2 bg-gradient-to-br from-slate-800/50 to-slate-900/50 border rounded-lg transition-all ${config.symbol === asset.symbol
-                                            ? 'border-violet-500 bg-violet-500/10'
-                                            : 'border-slate-700/50 hover:border-violet-500/50'
-                                            }`}
-                                    >
-                                        <div
-                                            className={`absolute inset-0 bg-gradient-to-br ${asset.color} opacity-0 group-hover:opacity-10 transition-opacity`} />
-                                        <div className="relative flex items-center gap-2">
-                                            <div
-                                                className="w-6 h-6 rounded bg-gradient-to-br from-slate-700 to-slate-800 flex items-center justify-center">
-                                                <span
-                                                    className="text-xs font-bold text-slate-400">{asset.symbol.charAt(0)}</span>
-                                            </div>
-                                            <div className="text-left">
-                                                <p className="text-xs font-bold text-slate-300">{asset.symbol}</p>
-                                                <p className="text-[10px] text-slate-500">{asset.sector}</p>
-                                            </div>
-                                            {config.symbol === asset.symbol && (
-                                                <Check size={12} className="text-violet-400 ml-2" />
-                                            )}
-                                        </div>
-                                    </button>
-                                ))}
-                            </div>
-                        </div>
-
-                        {/* Quick Setup Suggestions */}
-                        <div className="mb-6">
-                            <label
-                                className="text-xs font-bold text-slate-400 tracking-wide flex items-center gap-2 mb-3">
-                                <Clock size={14} className="text-amber-400" />
-                                Quick Setup
-                            </label>
-                            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                                {quickSuggestions.map((suggestion) => (
-                                    <button
-                                        key={suggestion.label}
-                                        onClick={() => setConfig({
-                                            ...config,
-                                            period: suggestion.period,
-                                            interval: suggestion.interval,
-                                            initialCapital: suggestion.capital
-                                        })}
-                                        className="group p-3 bg-gradient-to-br from-slate-800/50 to-slate-900/50 border border-slate-700/50 hover:border-violet-500/50 rounded-xl transition-all text-left"
-                                    >
-                                        <p className="text-xs font-bold text-slate-300 group-hover:text-violet-300 transition-colors">
-                                            {suggestion.label}
-                                        </p>
-                                        <p className="text-[10px] text-slate-500 mt-1">
-                                            {suggestion.period} • {suggestion.interval}
-                                        </p>
-                                        <p className="text-[10px] text-slate-600 font-mono mt-1">
-                                            {formatCurrency(suggestion.capital)}
-                                        </p>
-                                    </button>
-                                ))}
-                            </div>
-                        </div>
-
-                        {/* Time & Data Configuration */}
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-                            <div className="space-y-3">
-                                <label
-                                    className="text-xs font-bold text-slate-400 tracking-wide flex items-center gap-2">
-                                    <Calendar size={14} className="text-violet-400" />
-                                    Time Period
-                                </label>
-                                <select
-                                    value={config.period}
-                                    onChange={(e) => setConfig({ ...config, period: e.target.value })}
-                                    className="w-full px-4 py-3.5 bg-slate-800/50 border border-slate-700/50 rounded-xl focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20 outline-none text-sm text-slate-200"
-                                >
-                                    <option value="1mo">1 Month</option>
-                                    <option value="3mo">3 Months</option>
-                                    <option value="6mo">6 Months</option>
-                                    <option value="1y">1 Year</option>
-                                    <option value="2y">2 Years</option>
-                                    <option value="5y">5 Years</option>
-                                    <option value="max">Max History</option>
-                                </select>
-                            </div>
-                            <div className="space-y-3">
-                                <label
-                                    className="text-xs font-bold text-slate-400 tracking-wide flex items-center gap-2">
-                                    <Activity size={14} className="text-violet-400" />
-                                    Data Interval
-                                </label>
-                                <select
-                                    value={config.interval}
-                                    onChange={(e) => setConfig({ ...config, interval: e.target.value })}
-                                    className="w-full px-4 py-3.5 bg-slate-800/50 border border-slate-700/50 rounded-xl focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20 outline-none text-sm text-slate-200"
-                                >
-                                    <option value="1m">1 Minute</option>
-                                    <option value="5m">5 Minutes</option>
-                                    <option value="15m">15 Minutes</option>
-                                    <option value="1h">1 Hour</option>
-                                    <option value="1d">1 Day</option>
-                                    <option value="1wk">1 Week</option>
-                                </select>
-                            </div>
-                            <div className="space-y-3">
-                                <label
-                                    className="text-xs font-bold text-slate-400 tracking-wide flex items-center gap-2">
-                                    <DollarSign size={14} className="text-emerald-400" />
-                                    Capital
-                                </label>
-                                <div className="relative">
-                                    <span
-                                        className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 font-bold">$</span>
-                                    <input
-                                        type="number"
-                                        value={config.initialCapital}
-                                        onChange={(e) => setConfig({
-                                            ...config,
-                                            initialCapital: parseInt(e.target.value)
-                                        })}
-                                        className="w-full pl-8 pr-4 py-3.5 bg-slate-800/50 border border-slate-700/50 rounded-xl focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20 outline-none text-slate-200 font-mono"
-                                        min="100"
-                                        step="100"
-                                    />
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* Advanced Options Toggle */}
+                    <div className="flex items-center gap-3">
                         <button
-                            onClick={() => setShowAdvanced(!showAdvanced)}
-                            className="flex items-center gap-2 text-xs font-bold text-slate-400 hover:text-violet-400 transition-colors mb-4"
+                            onClick={() => navigateTo('ml-studio')}
+                            className="px-4 py-2 bg-slate-800/60 hover:bg-slate-700/60 border border-slate-700/50 text-slate-300 rounded-xl text-xs font-bold transition-all"
                         >
-                            <ChevronDown
-                                size={14}
-                                className={`transition-transform ${showAdvanced ? 'rotate-180' : ''}`}
-                            />
-                            <span>Advanced Options</span>
+                            Edit in ML Studio
                         </button>
-
-                        {showAdvanced && (
-                            <div
-                                className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-4 border-t border-slate-700/50 animate-in fade-in">
-                                <div className="space-y-3">
-                                    <label className="text-xs font-bold text-slate-400 tracking-wide">Max Position
-                                        %</label>
-                                    <input
-                                        type="number"
-                                        value={config.maxPositionPct || 100}
-                                        onChange={(e) => setConfig({
-                                            ...config,
-                                            maxPositionPct: parseInt(e.target.value)
-                                        })}
-                                        className="w-full px-4 py-3.5 bg-slate-800/50 border border-slate-700/50 rounded-xl focus:border-violet-500 outline-none text-slate-200"
-                                        min="1"
-                                        max="100"
-                                    />
-                                </div>
-                                <div className="space-y-3">
-                                    <label className="text-xs font-bold text-slate-400 tracking-wide">Risk Level</label>
-                                    <select
-                                        value={config.riskLevel || 'medium'}
-                                        onChange={(e) => setConfig({ ...config, riskLevel: e.target.value })}
-                                        className="w-full px-4 py-3.5 bg-slate-800/50 border border-slate-700/50 rounded-xl focus:border-violet-500 outline-none text-sm text-slate-200"
-                                    >
-                                        <option value="low">Conservative</option>
-                                        <option value="medium">Moderate</option>
-                                        <option value="high">Aggressive</option>
-                                    </select>
-                                </div>
-                                <div className="space-y-3">
-                                    <label className="text-xs font-bold text-slate-400 tracking-wide">Commission</label>
-                                    <div className="relative">
-                                        <span
-                                            className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 font-bold">$</span>
-                                        <input
-                                            type="number"
-                                            value={config.commission || 0}
-                                            onChange={(e) => setConfig({
-                                                ...config,
-                                                commission: parseFloat(e.target.value)
-                                            })}
-                                            className="w-full pl-8 pr-4 py-3.5 bg-slate-800/50 border border-slate-700/50 rounded-xl focus:border-violet-500 outline-none text-slate-200"
-                                            min="0"
-                                            step="0.01"
-                                        />
-                                    </div>
-                                </div>
-                            </div>
-                        )}
+                        <button
+                            onClick={() => clearVisualStrategy()}
+                            className="px-4 py-2 bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 text-red-400 rounded-xl text-xs font-bold transition-all"
+                        >
+                            <X size={14} className="inline mr-1" />
+                            Clear
+                        </button>
                     </div>
+                </div>
+            )}
 
-                    {/* Strategy Selection Card */}
-                    <div
-                        className="bg-gradient-to-br from-slate-900/90 to-slate-800/90 backdrop-blur-xl border border-slate-700/50 rounded-2xl p-6 shadow-xl">
-                        <div
-                            className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
-                            <div className="flex items-center gap-3">
-                                <div className="p-2 bg-purple-500/20 rounded-lg border border-purple-500/30">
-                                    <TrendingUp className="text-purple-400" size={20} strokeWidth={2} />
-                                </div>
-                                <div>
-                                    <h4 className="text-sm font-bold text-slate-300">Strategy Selection</h4>
-                                    <p className="text-xs text-slate-500 font-medium mt-0.5">
-                                        {filteredStrategies.length} of {strategies.length} strategies
-                                    </p>
-                                </div>
-                            </div>
-
-                            <div className="flex gap-3">
-                                {/* Search Bar */}
-                                <div className="relative group">
-                                    <Search
-                                        className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-600 group-focus-within:text-violet-500 transition-colors"
-                                        size={16}
-                                    />
-                                    <input
-                                        type="text"
-                                        placeholder="Search strategies..."
-                                        value={searchQuery}
-                                        onChange={(e) => setSearchQuery(e.target.value)}
-                                        className="pl-10 pr-4 py-2.5 bg-slate-800/60 border border-slate-700/50 rounded-xl focus:border-violet-500 outline-none text-sm text-slate-200 w-48"
-                                    />
-                                </div>
-
-                                {/* Category Filter */}
-                                <div className="flex items-center space-x-2">
-                                    <Filter size={14} className="text-slate-600" />
-                                    <select
-                                        value={selectedCategory}
-                                        onChange={(e) => setSelectedCategory(e.target.value)}
-                                        className="px-4 py-2.5 bg-slate-800/60 border border-slate-700/50 rounded-xl text-xs font-bold text-slate-300 focus:border-violet-500 outline-none cursor-pointer"
-                                    >
-                                        {categories.map((cat) => (
-                                            <option key={cat} value={cat}>{cat}</option>
-                                        ))}
-                                    </select>
-                                </div>
-
-                                {/* View Toggle */}
-                                <div
-                                    className="flex bg-slate-800/60 border border-slate-700/50 rounded-xl overflow-hidden">
-                                    <button
-                                        onClick={() => setViewMode('grid')}
-                                        className={`px-3 py-2.5 transition-all ${viewMode === 'grid' ? 'bg-slate-800 text-slate-200' : 'text-slate-500 hover:text-slate-300'
-                                            }`}
-                                    >
-                                        <Grid size={16} />
-                                    </button>
-                                    <button
-                                        onClick={() => setViewMode('list')}
-                                        className={`px-3 py-2.5 transition-all ${viewMode === 'list' ? 'bg-slate-800 text-slate-200' : 'text-slate-500 hover:text-slate-300'
-                                            }`}
-                                    >
-                                        <List size={16} />
-                                    </button>
-                                </div>
+            {/* ════════════════════════════════════════════════════════════
+                COMPACT CONFIGURATION BAR
+               ════════════════════════════════════════════════════════════ */}
+            <div className="bg-gradient-to-br from-slate-900/95 to-slate-800/95 backdrop-blur-xl border border-slate-700/50 rounded-2xl shadow-xl overflow-hidden">
+                {/* Top row: key inputs + run button */}
+                <div className="p-5">
+                    <div className="flex items-end gap-4">
+                        {/* Asset */}
+                        <div className="flex-1 min-w-[140px] max-w-[200px]">
+                            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1.5 block">Asset</label>
+                            <div className="relative group">
+                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-600 group-focus-within:text-violet-500 transition-colors" size={14} />
+                                <input
+                                    type="text"
+                                    value={config.symbol}
+                                    onChange={(e) => setConfig({ ...config, symbol: e.target.value.toUpperCase() })}
+                                    className="w-full pl-9 pr-3 py-2.5 bg-slate-800/60 border border-slate-700/50 rounded-xl focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20 outline-none text-sm text-slate-200 font-mono"
+                                    placeholder="AAPL"
+                                />
                             </div>
                         </div>
 
-                        {/* Strategy Grid/List */}
-                        <div className={`
-                            ${viewMode === 'grid' ? 'grid grid-cols-2 md:grid-cols-3 gap-3' : 'space-y-2'}
-                            max-h-[400px] overflow-y-auto pr-2 custom-scrollbar
-                        `}>
-                            {filteredStrategies.map((strategy: Strategy) => {
-                                const isSelected = config.strategy === strategy.id;
-                                return (
-                                    <button
-                                        key={strategy.id}
-                                        onClick={() => setConfig({ ...config, strategy: strategy.id })}
-                                        className={`group relative overflow-hidden p-4 rounded-xl border transition-all text-left ${isSelected
-                                            ? 'border-violet-500 bg-gradient-to-br from-violet-500/10 to-purple-500/10 shadow-xl shadow-violet-500/20'
-                                            : 'border-slate-700/50 bg-slate-800/40 hover:border-slate-600/50 hover:bg-slate-800/60'
-                                            }`}
-                                    >
-                                        {isSelected && (
-                                            <div
-                                                className="absolute inset-0 bg-gradient-to-br from-violet-500/5 to-purple-500/5" />
-                                        )}
-                                        <div className="relative">
-                                            <div className="flex items-center justify-between mb-2">
-                                                <span
-                                                    className={`text-[9px] font-bold uppercase tracking-wider px-2 py-1 rounded ${isSelected
-                                                        ? 'bg-violet-500/20 text-violet-300 border border-violet-500/30'
-                                                        : 'bg-slate-700/50 text-slate-400'
-                                                        }`}>
-                                                    {strategy.category}
-                                                </span>
-                                                {isSelected && (
-                                                    <div
-                                                        className="w-6 h-6 rounded-full bg-gradient-to-br from-violet-500 to-purple-500 flex items-center justify-center">
-                                                        <Check size={12} className="text-white" strokeWidth={3} />
-                                                    </div>
-                                                )}
-                                            </div>
-                                            <p className="text-sm font-bold text-slate-200 mb-2 group-hover:text-violet-300 transition-colors">
-                                                {strategy.name}
-                                            </p>
-                                            <p className="text-xs text-slate-400 line-clamp-2 mb-3">{strategy.description}</p>
-                                            <div className="flex items-center justify-between">
-                                                <span
-                                                    className={`text-[10px] px-2.5 py-1 rounded-lg font-medium ${strategy.complexity === 'Advanced'
-                                                        ? 'bg-red-500/10 text-red-400 border border-red-500/20'
-                                                        : strategy.complexity === 'Intermediate'
-                                                            ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
-                                                            : 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
-                                                        }`}>
-                                                    {strategy.complexity}
-                                                </span>
-                                                <div className="flex items-center gap-1 text-amber-400">
-                                                    <Star size={10} fill="currentColor" />
-                                                    <span className="text-xs font-bold">{strategy.rating || 4.5}</span>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </button>
-                                );
-                            })}
+                        {/* Strategy dropdown */}
+                        <div className="flex-[2] min-w-[200px]">
+                            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1.5 block">Strategy</label>
+                            <select
+                                value={config.strategy}
+                                onChange={(e) => {
+                                    const strat = strategies.find(s => s.id === e.target.value);
+                                    setConfig({
+                                        ...config,
+                                        strategy: e.target.value,
+                                        params: typeof strat?.parameters === 'object' && !Array.isArray(strat?.parameters) ? strat.parameters : {}
+                                    });
+                                }}
+                                className="w-full px-3 py-2.5 bg-slate-800/60 border border-slate-700/50 rounded-xl focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20 outline-none text-sm text-slate-200 cursor-pointer"
+                            >
+                                {strategies.map(s => (
+                                    <option key={s.id} value={s.id}>{s.name}</option>
+                                ))}
+                            </select>
                         </div>
+
+                        {/* Period */}
+                        <div className="w-[120px]">
+                            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1.5 block">Period</label>
+                            <select
+                                value={config.period}
+                                onChange={(e) => setConfig({ ...config, period: e.target.value })}
+                                className="w-full px-3 py-2.5 bg-slate-800/60 border border-slate-700/50 rounded-xl focus:border-violet-500 outline-none text-sm text-slate-200"
+                            >
+                                <option value="1mo">1 Month</option>
+                                <option value="3mo">3 Months</option>
+                                <option value="6mo">6 Months</option>
+                                <option value="1y">1 Year</option>
+                                <option value="2y">2 Years</option>
+                                <option value="5y">5 Years</option>
+                                <option value="max">Max</option>
+                            </select>
+                        </div>
+
+                        {/* Interval */}
+                        <div className="w-[110px]">
+                            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1.5 block">Interval</label>
+                            <select
+                                value={config.interval}
+                                onChange={(e) => setConfig({ ...config, interval: e.target.value })}
+                                className="w-full px-3 py-2.5 bg-slate-800/60 border border-slate-700/50 rounded-xl focus:border-violet-500 outline-none text-sm text-slate-200"
+                            >
+                                <option value="1m">1m</option>
+                                <option value="5m">5m</option>
+                                <option value="15m">15m</option>
+                                <option value="1h">1h</option>
+                                <option value="1d">1D</option>
+                                <option value="1wk">1W</option>
+                            </select>
+                        </div>
+
+                        {/* Capital */}
+                        <div className="w-[140px]">
+                            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1.5 block">Capital</label>
+                            <div className="relative">
+                                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-sm font-bold">$</span>
+                                <input
+                                    type="number"
+                                    value={config.initialCapital}
+                                    onChange={(e) => setConfig({ ...config, initialCapital: parseInt(e.target.value) })}
+                                    className="w-full pl-7 pr-3 py-2.5 bg-slate-800/60 border border-slate-700/50 rounded-xl focus:border-violet-500 outline-none text-sm text-slate-200 font-mono"
+                                    min="100"
+                                    step="100"
+                                />
+                            </div>
+                        </div>
+
+                        {/* Run Button */}
+                        <button
+                            onClick={runBacktest}
+                            disabled={isRunning || !config.symbol}
+                            className="group relative overflow-hidden flex items-center gap-2.5 px-7 py-2.5 bg-gradient-to-r from-violet-600 via-purple-600 to-fuchsia-600 hover:from-violet-500 hover:via-purple-500 hover:to-fuchsia-500 disabled:from-slate-700 disabled:via-slate-700 disabled:to-slate-700 disabled:cursor-not-allowed rounded-xl font-bold transition-all shadow-xl shadow-violet-500/30 disabled:shadow-none text-white whitespace-nowrap"
+                        >
+                            <div className="absolute inset-0 bg-gradient-to-r from-white/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                            {isRunning ? (
+                                <>
+                                    <RefreshCw size={18} className="animate-spin relative z-10" strokeWidth={2.5} />
+                                    <span className="relative z-10">Running...</span>
+                                </>
+                            ) : (
+                                <>
+                                    <Play size={18} strokeWidth={2.5} className="relative z-10" />
+                                    <span className="relative z-10">Run Backtest</span>
+                                </>
+                            )}
+                        </button>
                     </div>
 
+                    {/* Param chips + quick actions row */}
+                    <div className="flex items-center justify-between mt-3 pt-3 border-t border-slate-700/30">
+                        <div className="flex items-center gap-2 flex-wrap">
+                            {/* Show key params as chips */}
+                            {selectedStrategy && config.params && Object.entries(config.params).slice(0, 4).map(([key, val]) => (
+                                <span key={key} className="text-[10px] font-mono font-bold text-slate-400 bg-slate-800/60 px-2.5 py-1 rounded-lg border border-slate-700/50">
+                                    {key}: {typeof val === 'number' ? val : String(val)}
+                                </span>
+                            ))}
+                            {selectedStrategy && (
+                                <span className={`text-[10px] font-bold px-2.5 py-1 rounded-lg ${
+                                    selectedStrategy.complexity === 'Advanced' || selectedStrategy.complexity === 'Expert'
+                                        ? 'bg-red-500/10 text-red-400 border border-red-500/20'
+                                        : selectedStrategy.complexity === 'Intermediate'
+                                            ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
+                                            : 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
+                                }`}>
+                                    {selectedStrategy.complexity}
+                                </span>
+                            )}
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                            <button
+                                onClick={handleSavePortfolio}
+                                disabled={isSaving}
+                                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-slate-400 hover:text-slate-200 bg-slate-800/40 hover:bg-slate-800/60 border border-slate-700/50 rounded-lg transition-all disabled:opacity-50"
+                            >
+                                {isSaving ? <RefreshCw size={12} className="animate-spin" /> : <Save size={12} />}
+                                Save
+                            </button>
+                            <button
+                                onClick={() => setShowLoadModal(true)}
+                                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-slate-400 hover:text-slate-200 bg-slate-800/40 hover:bg-slate-800/60 border border-slate-700/50 rounded-lg transition-all"
+                            >
+                                <FolderOpen size={12} />
+                                Load
+                            </button>
+                            <button
+                                onClick={handleExport}
+                                disabled={!results}
+                                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-slate-400 hover:text-slate-200 bg-slate-800/40 hover:bg-slate-800/60 border border-slate-700/50 rounded-lg transition-all disabled:opacity-50"
+                            >
+                                <Download size={12} />
+                                Export
+                            </button>
+                            <div className="w-px h-5 bg-slate-700/50 mx-1" />
+                            <button
+                                onClick={() => setExpandedConfig(!expandedConfig)}
+                                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-violet-400 hover:text-violet-300 bg-violet-500/10 hover:bg-violet-500/20 border border-violet-500/20 rounded-lg transition-all"
+                            >
+                                {expandedConfig ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+                                {expandedConfig ? 'Collapse' : 'Full Config'}
+                            </button>
+                        </div>
+                    </div>
                 </div>
 
-                {/* RIGHT: Strategy Intelligence & Action Panel */}
-                <div className="col-span-12 lg:col-span-4">
-                    <div className="sticky top-6 space-y-6">
-                        {/* Strategy Intelligence Card */}
-                        {selectedStrategy ? (
-                            <div
-                                className="bg-gradient-to-br from-violet-900/40 via-purple-900/40 to-slate-900/90 backdrop-blur-xl border border-violet-500/30 rounded-2xl p-6 shadow-2xl relative overflow-hidden">
-                                <div
-                                    className="absolute inset-0 bg-gradient-to-br from-violet-500/5 via-transparent to-purple-500/5" />
-                                <div className="relative">
-                                    <div className="flex items-center justify-between mb-4">
-                                        <div className="flex items-center gap-2">
-                                            <div
-                                                className="p-1.5 bg-gradient-to-br from-violet-500/30 to-purple-500/30 rounded border border-violet-500/50">
-                                                <Zap size={16} className="text-violet-300" strokeWidth={2} />
+                {/* ════════════════════════════════════════════════════════════
+                    EXPANDED CONFIGURATION (collapsible)
+                   ════════════════════════════════════════════════════════════ */}
+                {expandedConfig && (
+                    <div className="border-t border-slate-700/50 animate-in fade-in slide-in-from-top-2 duration-300">
+                        <div className="grid grid-cols-12 gap-6 p-6">
+                            {/* LEFT: Asset & Strategy Selection */}
+                            <div className="col-span-12 lg:col-span-6 space-y-6">
+                                {/* Asset Selection */}
+                                <div>
+                                    <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3 flex items-center gap-2">
+                                        <Target size={14} className="text-violet-400" />
+                                        Quick Asset Selection
+                                    </h4>
+                                    <div className="flex flex-wrap gap-2">
+                                        {assetSuggestions.map((asset) => (
+                                            <button
+                                                key={asset.symbol}
+                                                onClick={() => setConfig({ ...config, symbol: asset.symbol })}
+                                                className={`group relative overflow-hidden px-3 py-2 bg-gradient-to-br from-slate-800/50 to-slate-900/50 border rounded-lg transition-all ${config.symbol === asset.symbol
+                                                    ? 'border-violet-500 bg-violet-500/10'
+                                                    : 'border-slate-700/50 hover:border-violet-500/50'
+                                                }`}
+                                            >
+                                                <div className={`absolute inset-0 bg-gradient-to-br ${asset.color} opacity-0 group-hover:opacity-10 transition-opacity`} />
+                                                <div className="relative flex items-center gap-2">
+                                                    <span className="text-xs font-bold text-slate-300">{asset.symbol}</span>
+                                                    <span className="text-[10px] text-slate-500">{asset.sector}</span>
+                                                    {config.symbol === asset.symbol && <Check size={12} className="text-violet-400" />}
+                                                </div>
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                {/* Quick Setup Presets */}
+                                <div>
+                                    <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3 flex items-center gap-2">
+                                        <Clock size={14} className="text-amber-400" />
+                                        Quick Setup
+                                    </h4>
+                                    <div className="grid grid-cols-4 gap-2">
+                                        {quickSuggestions.map((suggestion) => (
+                                            <button
+                                                key={suggestion.label}
+                                                onClick={() => setConfig({
+                                                    ...config,
+                                                    period: suggestion.period,
+                                                    interval: suggestion.interval,
+                                                    initialCapital: suggestion.capital
+                                                })}
+                                                className="group p-2.5 bg-slate-800/40 border border-slate-700/50 hover:border-violet-500/50 rounded-lg transition-all text-left"
+                                            >
+                                                <p className="text-xs font-bold text-slate-300 group-hover:text-violet-300">{suggestion.label}</p>
+                                                <p className="text-[10px] text-slate-500 mt-0.5">{suggestion.period} &bull; {formatCurrency(suggestion.capital)}</p>
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                {/* Advanced Options */}
+                                <div>
+                                    <button
+                                        onClick={() => setShowAdvanced(!showAdvanced)}
+                                        className="flex items-center gap-2 text-xs font-bold text-slate-400 hover:text-violet-400 transition-colors"
+                                    >
+                                        <ChevronDown size={14} className={`transition-transform ${showAdvanced ? 'rotate-180' : ''}`} />
+                                        Advanced Options
+                                    </button>
+                                    {showAdvanced && (
+                                        <div className="grid grid-cols-3 gap-4 mt-3 animate-in fade-in">
+                                            <div className="space-y-2">
+                                                <label className="text-[10px] font-bold text-slate-500">Max Position %</label>
+                                                <input
+                                                    type="number"
+                                                    value={config.maxPositionPct || 100}
+                                                    onChange={(e) => setConfig({ ...config, maxPositionPct: parseInt(e.target.value) })}
+                                                    className="w-full px-3 py-2 bg-slate-800/50 border border-slate-700/50 rounded-lg focus:border-violet-500 outline-none text-sm text-slate-200"
+                                                    min="1" max="100"
+                                                />
                                             </div>
-                                            <h4 className="text-xs font-bold text-violet-400 uppercase tracking-wider">Strategy
-                                                Intelligence</h4>
-                                        </div>
-                                        <div className="flex items-center gap-1">
-                                            <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                                            <span className="text-[10px] text-emerald-400 font-bold">READY</span>
-                                        </div>
-                                    </div>
-
-                                    <h2 className="text-xl font-bold text-slate-100 mb-3">{selectedStrategy.name}</h2>
-                                    <p className="text-sm text-slate-400 leading-relaxed mb-6">
-                                        {selectedStrategy.description}
-                                    </p>
-
-                                    <div className="grid grid-cols-2 gap-3 mb-6">
-                                        <div className="bg-slate-800/40 p-3 rounded-xl border border-slate-700/50">
-                                            <p className="text-[10px] text-slate-500 font-bold uppercase mb-1">Horizon</p>
-                                            <p className="text-sm font-bold text-slate-200">{selectedStrategy.time_horizon}</p>
-                                        </div>
-                                        <div className="bg-slate-800/40 p-3 rounded-xl border border-slate-700/50">
-                                            <p className="text-[10px] text-slate-500 font-bold uppercase mb-1">Complexity</p>
-                                            <p className={`text-sm font-bold ${selectedStrategy.complexity === 'Advanced'
-                                                ? 'text-red-400'
-                                                : selectedStrategy.complexity === 'Intermediate'
-                                                    ? 'text-amber-400'
-                                                    : 'text-emerald-400'
-                                                }`}>
-                                                {selectedStrategy.complexity}
-                                            </p>
-                                        </div>
-                                    </div>
-
-                                    {selectedStrategy.best_for && selectedStrategy.best_for.length > 0 && (
-                                        <div className="mb-6">
-                                            <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3 flex items-center gap-2">
-                                                <Target size={14} className="text-violet-400" />
-                                                Optimal Market Conditions
-                                            </p>
-                                            <div className="flex flex-wrap gap-2">
-                                                {selectedStrategy.best_for.map((tag: string) => (
-                                                    <span
-                                                        key={tag}
-                                                        className="text-[10px] font-bold bg-gradient-to-r from-violet-500/10 to-purple-500/10 text-violet-300 px-3 py-1.5 rounded-lg border border-violet-500/20"
-                                                    >
-                                                        {tag}
-                                                    </span>
-                                                ))}
+                                            <div className="space-y-2">
+                                                <label className="text-[10px] font-bold text-slate-500">Risk Level</label>
+                                                <select
+                                                    value={config.riskLevel || 'medium'}
+                                                    onChange={(e) => setConfig({ ...config, riskLevel: e.target.value })}
+                                                    className="w-full px-3 py-2 bg-slate-800/50 border border-slate-700/50 rounded-lg focus:border-violet-500 outline-none text-sm text-slate-200"
+                                                >
+                                                    <option value="low">Conservative</option>
+                                                    <option value="medium">Moderate</option>
+                                                    <option value="high">Aggressive</option>
+                                                </select>
+                                            </div>
+                                            <div className="space-y-2">
+                                                <label className="text-[10px] font-bold text-slate-500">Commission</label>
+                                                <div className="relative">
+                                                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-xs">$</span>
+                                                    <input
+                                                        type="number"
+                                                        value={config.commission || 0}
+                                                        onChange={(e) => setConfig({ ...config, commission: parseFloat(e.target.value) })}
+                                                        className="w-full pl-6 pr-3 py-2 bg-slate-800/50 border border-slate-700/50 rounded-lg focus:border-violet-500 outline-none text-sm text-slate-200"
+                                                        min="0" step="0.01"
+                                                    />
+                                                </div>
                                             </div>
                                         </div>
                                     )}
+                                </div>
+                            </div>
 
-                                    {/* ML Model Selector - shown when an ML strategy is selected */}
-                                    {isMLStrategy && (
-                                        <div className="mb-6 pt-6 border-t border-violet-500/20">
-                                            <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3 flex items-center gap-2">
-                                                <Brain size={14} className="text-purple-400" />
-                                                Deployed Model
-                                            </p>
-                                            {loadingModels ? (
-                                                <div className="flex items-center gap-2 text-xs text-slate-500">
-                                                    <RefreshCw size={14} className="animate-spin" />
-                                                    Loading deployed models...
-                                                </div>
-                                            ) : deployedModels.length > 0 ? (
-                                                <div className="space-y-2">
-                                                    {/* Auto-train option (no model selected) */}
-                                                    <button
-                                                        onClick={() => setConfig({ ...config, ml_model_id: undefined })}
-                                                        className={`w-full p-3 rounded-xl border text-left transition-all ${
-                                                            !config.ml_model_id
-                                                                ? 'border-emerald-500 bg-emerald-500/10 shadow-lg shadow-emerald-500/20'
-                                                                : 'border-slate-700/50 bg-slate-800/40 hover:border-slate-600/50'
-                                                        }`}
-                                                    >
-                                                        <div className="flex items-center justify-between">
-                                                            <div>
-                                                                <p className="text-sm font-bold text-slate-200">Auto-Train on Data</p>
-                                                                <p className="text-[10px] text-slate-500 mt-0.5">
-                                                                    Train a fresh model on backtest data automatically
-                                                                </p>
-                                                            </div>
-                                                            {!config.ml_model_id && (
-                                                                <div className="w-6 h-6 rounded-full bg-gradient-to-br from-emerald-500 to-teal-500 flex items-center justify-center">
-                                                                    <Check size={12} className="text-white" strokeWidth={3} />
+                            {/* RIGHT: Strategy Library + Parameters */}
+                            <div className="col-span-12 lg:col-span-6 space-y-6">
+                                {/* Strategy Library */}
+                                <div>
+                                    <div className="flex items-center justify-between mb-3">
+                                        <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-2">
+                                            <TrendingUp size={14} className="text-purple-400" />
+                                            Strategy Library
+                                            <span className="text-slate-600 font-medium normal-case tracking-normal">
+                                                ({filteredStrategies.length})
+                                            </span>
+                                        </h4>
+                                        <div className="flex gap-2">
+                                            <div className="relative group">
+                                                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-600 group-focus-within:text-violet-500 transition-colors" size={13} />
+                                                <input
+                                                    type="text"
+                                                    placeholder="Search..."
+                                                    value={searchQuery}
+                                                    onChange={(e) => setSearchQuery(e.target.value)}
+                                                    className="pl-8 pr-3 py-1.5 bg-slate-800/60 border border-slate-700/50 rounded-lg focus:border-violet-500 outline-none text-xs text-slate-200 w-36"
+                                                />
+                                            </div>
+                                            <select
+                                                value={selectedCategory}
+                                                onChange={(e) => setSelectedCategory(e.target.value)}
+                                                className="px-3 py-1.5 bg-slate-800/60 border border-slate-700/50 rounded-lg text-xs font-bold text-slate-300 focus:border-violet-500 outline-none cursor-pointer"
+                                            >
+                                                {categories.map((cat) => (
+                                                    <option key={cat} value={cat}>{cat}</option>
+                                                ))}
+                                            </select>
+                                        </div>
+                                    </div>
+
+                                    <div className="grid grid-cols-3 gap-2 max-h-[250px] overflow-y-auto pr-1 custom-scrollbar">
+                                        {filteredStrategies.map((strategy: Strategy) => {
+                                            const isSelected = config.strategy === strategy.id;
+                                            return (
+                                                <button
+                                                    key={strategy.id}
+                                                    onClick={() => setConfig({
+                                                        ...config,
+                                                        strategy: strategy.id,
+                                                        params: typeof strategy.parameters === 'object' && !Array.isArray(strategy.parameters) ? strategy.parameters : {}
+                                                    })}
+                                                    className={`group relative overflow-hidden p-3 rounded-xl border transition-all text-left ${isSelected
+                                                        ? 'border-violet-500 bg-gradient-to-br from-violet-500/10 to-purple-500/10 shadow-lg shadow-violet-500/20'
+                                                        : 'border-slate-700/50 bg-slate-800/40 hover:border-slate-600/50 hover:bg-slate-800/60'
+                                                    }`}
+                                                >
+                                                    {isSelected && <div className="absolute inset-0 bg-gradient-to-br from-violet-500/5 to-purple-500/5" />}
+                                                    <div className="relative">
+                                                        <div className="flex items-center justify-between mb-1.5">
+                                                            <span className={`text-[8px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded ${isSelected
+                                                                ? 'bg-violet-500/20 text-violet-300' : 'bg-slate-700/50 text-slate-500'
+                                                            }`}>{strategy.category}</span>
+                                                            {isSelected && (
+                                                                <div className="w-5 h-5 rounded-full bg-gradient-to-br from-violet-500 to-purple-500 flex items-center justify-center">
+                                                                    <Check size={10} className="text-white" strokeWidth={3} />
                                                                 </div>
                                                             )}
                                                         </div>
+                                                        <p className="text-xs font-bold text-slate-200 mb-1 group-hover:text-violet-300 transition-colors line-clamp-1">{strategy.name}</p>
+                                                        <p className="text-[10px] text-slate-500 line-clamp-1">{strategy.description}</p>
+                                                    </div>
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+
+                                {/* Strategy Parameters + Optimizer in one row */}
+                                <div className="flex gap-4">
+                                    {/* Parameters */}
+                                    {selectedStrategy && selectedStrategy.parameters && Object.keys(selectedStrategy.parameters).length > 0 && (
+                                        <div className="flex-1 bg-slate-800/30 border border-slate-700/30 rounded-xl p-4">
+                                            <div className="flex items-center justify-between mb-3">
+                                                <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-2">
+                                                    <Settings size={12} className="text-purple-400" />
+                                                    Parameters
+                                                </h4>
+                                                <div className="flex gap-1.5">
+                                                    <button
+                                                        onClick={() => setShowParameters(!showParameters)}
+                                                        className="p-1.5 hover:bg-slate-700/50 rounded-lg text-slate-500 hover:text-violet-400 transition-all"
+                                                    >
+                                                        {showParameters ? <EyeOff size={12} /> : <Eye size={12} />}
                                                     </button>
-                                                    {/* Deployed model options */}
+                                                    <button
+                                                        onClick={() => setConfig({ ...config, params: selectedStrategy?.parameters })}
+                                                        className="p-1.5 hover:bg-slate-700/50 rounded-lg text-slate-500 hover:text-violet-400 transition-all"
+                                                    >
+                                                        <RefreshCw size={12} />
+                                                    </button>
+                                                </div>
+                                            </div>
+                                            {showParameters && (
+                                                <div className="max-h-[200px] overflow-y-auto custom-scrollbar">
+                                                    <StrategyParameterForm
+                                                        params={selectedStrategy.parameters}
+                                                        values={config.params || {}}
+                                                        onChange={handleParamChange}
+                                                    />
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
+
+                                    {/* ML Model Selector */}
+                                    {isMLStrategy && (
+                                        <div className="w-[240px] bg-slate-800/30 border border-slate-700/30 rounded-xl p-4">
+                                            <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-3 flex items-center gap-2">
+                                                <Brain size={12} className="text-purple-400" />
+                                                Model
+                                            </h4>
+                                            {loadingModels ? (
+                                                <div className="flex items-center gap-2 text-xs text-slate-500">
+                                                    <RefreshCw size={14} className="animate-spin" />
+                                                    Loading...
+                                                </div>
+                                            ) : (
+                                                <div className="space-y-1.5 max-h-[180px] overflow-y-auto">
+                                                    <button
+                                                        onClick={() => setConfig({ ...config, ml_model_id: undefined })}
+                                                        className={`w-full p-2 rounded-lg border text-left text-xs transition-all ${
+                                                            !config.ml_model_id
+                                                                ? 'border-emerald-500 bg-emerald-500/10'
+                                                                : 'border-slate-700/50 bg-slate-800/40 hover:border-slate-600/50'
+                                                        }`}
+                                                    >
+                                                        <p className="font-bold text-slate-200">Auto-Train</p>
+                                                        <p className="text-[10px] text-slate-500">Train fresh on data</p>
+                                                    </button>
                                                     {deployedModels.map((model) => (
                                                         <button
                                                             key={model.id}
                                                             onClick={() => setConfig({ ...config, ml_model_id: model.id })}
-                                                            className={`w-full p-3 rounded-xl border text-left transition-all ${
+                                                            className={`w-full p-2 rounded-lg border text-left text-xs transition-all ${
                                                                 config.ml_model_id === model.id
-                                                                    ? 'border-purple-500 bg-purple-500/10 shadow-lg shadow-purple-500/20'
+                                                                    ? 'border-purple-500 bg-purple-500/10'
                                                                     : 'border-slate-700/50 bg-slate-800/40 hover:border-slate-600/50'
                                                             }`}
                                                         >
-                                                            <div className="flex items-center justify-between">
-                                                                <div>
-                                                                    <p className="text-sm font-bold text-slate-200">{model.name}</p>
-                                                                    <p className="text-[10px] text-slate-500 mt-0.5">
-                                                                        {model.type} &bull; {model.symbol} &bull; Accuracy: {(model.test_accuracy * 100).toFixed(1)}%
-                                                                    </p>
-                                                                </div>
-                                                                {config.ml_model_id === model.id && (
-                                                                    <div className="w-6 h-6 rounded-full bg-gradient-to-br from-purple-500 to-fuchsia-500 flex items-center justify-center">
-                                                                        <Check size={12} className="text-white" strokeWidth={3} />
-                                                                    </div>
-                                                                )}
-                                                            </div>
+                                                            <p className="font-bold text-slate-200">{model.name}</p>
+                                                            <p className="text-[10px] text-slate-500">{(model.test_accuracy * 100).toFixed(1)}% acc</p>
                                                         </button>
                                                     ))}
-                                                </div>
-                                            ) : (
-                                                <div className="p-3 bg-emerald-500/10 border border-emerald-500/30 rounded-xl">
-                                                    <p className="text-xs font-bold text-emerald-400 mb-1">Auto-Train Mode</p>
-                                                    <p className="text-[10px] text-emerald-400/70 leading-relaxed">
-                                                        The model will be automatically trained on backtest data before generating signals.
-                                                        For better results, train and deploy a model in ML Studio first.
-                                                    </p>
                                                 </div>
                                             )}
                                         </div>
                                     )}
 
-                                    {/* Performance Metrics */}
-                                    <div className="pt-6 border-t border-violet-500/20">
-                                        <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">Expected
-                                            Performance</p>
-                                        <div className="grid grid-cols-3 gap-2">
-                                            <div className="text-center">
-                                                <p className="text-lg font-bold text-emerald-400">+{selectedStrategy.monthly_return || 4.2}%</p>
-                                                <p className="text-[9px] text-slate-600 font-bold">Monthly</p>
+                                    {/* Optimizer button */}
+                                    {selectedStrategy && !isMLStrategy && (
+                                        <div className="w-[180px] bg-gradient-to-br from-indigo-900/30 to-slate-900/30 border border-indigo-500/20 rounded-xl p-4 flex flex-col justify-between">
+                                            <div>
+                                                <h4 className="text-[10px] font-bold text-indigo-400 uppercase tracking-wider mb-2 flex items-center gap-2">
+                                                    <Sparkles size={12} />
+                                                    Optimizer
+                                                </h4>
+                                                <p className="text-[10px] text-slate-500 leading-relaxed">
+                                                    Find optimal parameters with Bayesian search
+                                                </p>
                                             </div>
-                                            <div className="text-center">
-                                                <p className="text-lg font-bold text-red-400">{selectedStrategy.drawdown || 8.5}%</p>
-                                                <p className="text-[9px] text-slate-600 font-bold">Drawdown</p>
-                                            </div>
-                                            <div className="text-center">
-                                                <p className="text-lg font-bold text-blue-400">{selectedStrategy.sharpe_ratio?.toFixed(2) || '1.45'}</p>
-                                                <p className="text-[9px] text-slate-600 font-bold">Sharpe</p>
-                                            </div>
+                                            <button
+                                                onClick={() => setShowOptimizer(true)}
+                                                className="mt-3 w-full py-2 bg-indigo-600/20 hover:bg-indigo-600/30 border border-indigo-500/50 text-indigo-300 rounded-lg text-[10px] font-black transition-all flex items-center justify-center gap-1.5"
+                                            >
+                                                <Zap size={12} fill="currentColor" />
+                                                LAUNCH
+                                            </button>
                                         </div>
-                                    </div>
-                                </div>
-                            </div>
-                        ) : (
-                            <div
-                                className="h-[400px] flex flex-col items-center justify-center p-12 border-2 border-dashed border-slate-700/50 rounded-2xl bg-gradient-to-br from-slate-900/30 to-slate-800/30 backdrop-blur-sm">
-                                <div
-                                    className="w-20 h-20 rounded-full bg-gradient-to-br from-slate-800 to-slate-900 border-2 border-dashed border-slate-700/50 flex items-center justify-center mb-6">
-                                    <Info size={32} className="text-slate-700" strokeWidth={1.5} />
-                                </div>
-                                <p className="text-sm font-bold text-slate-600 text-center">Select a Strategy</p>
-                                <p className="text-xs text-slate-700 text-center mt-2 max-w-[200px]">
-                                    Choose a strategy from the library to view detailed intelligence
-                                </p>
-                            </div>
-                        )}
-
-                        {/* Strategy Parameters Card */}
-                        {selectedStrategy && selectedStrategy.parameters && Object.keys(selectedStrategy.parameters).length > 0 && (
-                            <div
-                                className="bg-gradient-to-br from-slate-900/90 to-slate-800/90 backdrop-blur-xl border border-slate-700/50 rounded-2xl p-6 shadow-xl">
-                                <div className="flex items-center justify-between mb-6">
-                                    <div className="flex items-center gap-3">
-                                        <div className="p-2 bg-purple-500/20 rounded-lg border border-purple-500/30">
-                                            <Settings className="text-purple-400" size={20} strokeWidth={2} />
-                                        </div>
-                                        <div>
-                                            <h4 className="text-sm font-bold text-slate-300">Strategy Parameters</h4>
-                                            <p className="text-xs text-slate-500 font-medium mt-0.5">
-                                                Fine-tune {Object.keys(selectedStrategy.parameters).length} parameters
-                                            </p>
-                                        </div>
-                                    </div>
-                                    <div className="flex gap-2">
-                                        <button
-                                            onClick={() => setShowParameters(!showParameters)}
-                                            className="flex items-center gap-2 px-3 py-2 text-xs font-bold text-slate-500 hover:text-violet-400 transition-colors bg-slate-800/50 rounded-lg border border-slate-700/50"
-                                        >
-                                            {showParameters ? <Eye size={14} /> : <EyeOff size={14} />}
-                                            <span>{showParameters ? 'Hide' : 'Show'}</span>
-                                        </button>
-                                        <button
-                                            onClick={() => setConfig({ ...config, params: selectedStrategy?.parameters })}
-                                            className="flex items-center gap-2 px-3 py-2 text-xs font-bold text-slate-500 hover:text-violet-400 transition-colors bg-slate-800/50 rounded-lg border border-slate-700/50"
-                                        >
-                                            <RefreshCw size={14} />
-                                            <span>Reset</span>
-                                        </button>
-                                    </div>
-                                </div>
-
-                                {showParameters && (
-                                    <div className="animate-in fade-in">
-                                        <StrategyParameterForm
-                                            params={selectedStrategy.parameters}
-                                            values={config.params || {}}
-                                            onChange={handleParamChange}
-                                        />
-                                    </div>
-                                )}
-                            </div>
-                        )}
-
-                        {/* Bayesian Optimizer Access */}
-                        {selectedStrategy && (
-                            <div className="bg-gradient-to-br from-indigo-900/40 via-slate-900/90 to-slate-900/90 backdrop-blur-xl border border-indigo-500/30 rounded-2xl p-6 shadow-xl relative overflow-hidden group">
-                                <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
-                                    <Sparkles size={64} className="text-indigo-400" />
-                                </div>
-                                <div className="relative">
-                                    <div className="flex items-center gap-3 mb-4">
-                                        <div className="p-2 bg-indigo-500/20 rounded-lg border border-indigo-500/30">
-                                            <Sparkles className="text-indigo-400" size={20} strokeWidth={2} />
-                                        </div>
-                                        <h4 className="text-sm font-bold text-slate-300">Alpha Strategy Optimizer</h4>
-                                    </div>
-                                    <p className="text-xs text-slate-500 mb-6 leading-relaxed">
-                                        Use Bayesian optimization to find the mathematical "Sweet Spot" for your strategy parameters.
-                                        Replaces trial-and-error with statistical precision.
-                                    </p>
-                                    <button
-                                        onClick={() => setShowOptimizer(true)}
-                                        className="w-full py-3 bg-indigo-600/20 hover:bg-indigo-600/30 border border-indigo-500/50 hover:border-indigo-400 text-indigo-300 rounded-xl text-sm font-black transition-all flex items-center justify-center gap-2"
-                                    >
-                                        <Zap size={16} fill="currentColor" />
-                                        LAUNCH OPTIMIZER
-                                    </button>
-                                </div>
-                            </div>
-                        )}
-
-                        {/* Action Panel */}
-                        <div
-                            className="bg-gradient-to-br from-slate-900/90 to-slate-800/90 backdrop-blur-xl border border-slate-700/50 rounded-2xl p-6 shadow-xl">
-                            <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-4">Backtest
-                                Actions</h4>
-
-                            <button
-                                onClick={runBacktest}
-                                disabled={isRunning || !config.symbol}
-                                className="group relative overflow-hidden w-full flex items-center justify-center gap-3 px-6 py-4 mb-4 bg-gradient-to-r from-violet-600 via-purple-600 to-fuchsia-600 hover:from-violet-500 hover:via-purple-500 hover:to-fuchsia-500 disabled:from-slate-700 disabled:via-slate-700 disabled:to-slate-700 disabled:cursor-not-allowed rounded-xl font-bold transition-all shadow-xl shadow-violet-500/30 disabled:shadow-none text-white"
-                            >
-                                <div
-                                    className="absolute inset-0 bg-gradient-to-r from-white/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-                                {isRunning ? (
-                                    <>
-                                        <RefreshCw size={20} className="animate-spin relative z-10" strokeWidth={2.5} />
-                                        <span className="relative z-10">Running Analysis...</span>
-                                    </>
-                                ) : (
-                                    <>
-                                        <Play size={20} strokeWidth={2.5} className="relative z-10" />
-                                        <span className="relative z-10">Execute Backtest</span>
-                                    </>
-                                )}
-                            </button>
-
-                            <div className="space-y-3">
-                                <button
-                                    onClick={handleSavePortfolio}
-                                    disabled={isSaving}
-                                    className="w-full flex items-center justify-between p-3 bg-slate-800/40 hover:bg-slate-800/60 border border-slate-700/50 rounded-xl transition-all group disabled:opacity-50">
-                                    <div className="flex items-center gap-3">
-                                        <div className="p-2 bg-emerald-500/20 rounded-lg border border-emerald-500/30">
-                                            {isSaving ? (
-                                                <RefreshCw size={16} className="text-emerald-400 animate-spin" />
-                                            ) : (
-                                                <Save size={16} className="text-emerald-400" />
-                                            )}
-                                        </div>
-                                        <div className="text-left">
-                                            <p className="text-sm font-bold text-slate-200">
-                                                {isSaving ? 'Saving...' : 'Save Portfolio'}
-                                            </p>
-                                            <p className="text-xs text-slate-500">Store current configuration</p>
-                                        </div>
-                                    </div>
-                                    <ChevronDown size={16} className="text-slate-500 group-hover:text-violet-400" />
-                                </button>
-                                <button
-                                    onClick={() => setShowLoadModal(true)}
-                                    className="w-full flex items-center justify-between p-3 bg-slate-800/40 hover:bg-slate-800/60 border border-slate-700/50 rounded-xl transition-all group">
-                                    <div className="flex items-center gap-3">
-                                        <div className="p-2 bg-violet-500/20 rounded-lg border border-violet-500/30">
-                                            <FolderOpen size={16} className="text-violet-400" />
-                                        </div>
-                                        <div className="text-left">
-                                            <p className="text-sm font-bold text-slate-200">Load Config</p>
-                                            <p className="text-xs text-slate-500">Restore a saved setup</p>
-                                        </div>
-                                    </div>
-                                    <ChevronRight size={16} className="text-slate-500 group-hover:text-violet-400" />
-                                </button>
-                                <button
-                                    onClick={handleExport}
-                                    disabled={!results}
-                                    className="w-full flex items-center justify-between p-3 bg-slate-800/40 hover:bg-slate-800/60 border border-slate-700/50 rounded-xl transition-all group disabled:opacity-50 disabled:cursor-not-allowed"
-                                >
-                                    <div className="flex items-center gap-3">
-                                        <div className="p-2 bg-emerald-500/20 rounded-lg border border-emerald-500/30">
-                                            <Download size={16} className="text-emerald-400" />
-                                        </div>
-                                        <div className="text-left">
-                                            <p className="text-sm font-bold text-slate-200">Export Results</p>
-                                            <p className="text-xs text-slate-500">Download CSV/PDF</p>
-                                        </div>
-                                    </div>
-                                    <ChevronDown size={16} className="text-slate-500 group-hover:text-violet-400" />
-                                </button>
-                                <button
-                                    onClick={() => setShowRiskAnalysis(true)}
-                                    disabled={!results}
-                                    className="w-full flex items-center justify-between p-3 bg-slate-800/40 hover:bg-slate-800/60 border border-slate-700/50 rounded-xl transition-all group disabled:opacity-50 disabled:cursor-not-allowed"
-                                >
-                                    <div className="flex items-center gap-3">
-                                        <div className="p-2 bg-blue-500/20 rounded-lg border border-blue-500/30">
-                                            <AlertCircle size={16} className="text-blue-400" />
-                                        </div>
-                                        <div className="text-left">
-                                            <p className="text-sm font-bold text-slate-200">Risk Analysis</p>
-                                            <p className="text-xs text-slate-500">Detailed risk metrics</p>
-                                        </div>
-                                    </div>
-                                    <ChevronDown size={16} className="text-slate-500 group-hover:text-violet-400" />
-                                </button>
-                            </div>
-
-                            {/* Status Indicators */}
-                            <div className="mt-6 pt-6 border-t border-slate-700/50 space-y-2">
-                                <div className="flex items-center justify-between">
-                                    <div className="flex items-center gap-2">
-                                        <div
-                                            className={`w-2 h-2 rounded-full ${config.symbol ? 'bg-emerald-500' : 'bg-red-500'
-                                                }`} />
-                                        <span className="text-xs text-slate-500">Asset Selected</span>
-                                    </div>
-                                    <span className="text-xs font-bold text-slate-300">{config.symbol || 'None'}</span>
-                                </div>
-                                <div className="flex items-center justify-between">
-                                    <div className="flex items-center gap-2">
-                                        <div
-                                            className={`w-2 h-2 rounded-full ${config.strategy ? 'bg-emerald-500' : 'bg-red-500'
-                                                }`} />
-                                        <span className="text-xs text-slate-500">Strategy Ready</span>
-                                    </div>
-                                    <span className="text-xs font-bold text-slate-300">
-                                        {config.strategy ? 'Selected' : 'Pending'}
-                                    </span>
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* Quick Stats */}
-                        <div
-                            className="bg-gradient-to-br from-slate-900/90 to-slate-800/90 backdrop-blur-xl border border-slate-700/50 rounded-2xl p-6 shadow-xl">
-                            <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-4">Quick
-                                Stats</h4>
-                            <div className="space-y-3">
-                                <div className="flex items-center justify-between">
-                                    <span className="text-xs text-slate-500">Capital at Risk</span>
-                                    <span className="text-sm font-bold text-slate-200">
-                                        {formatCurrency(config.initialCapital * ((config.maxPositionPct || 100) / 100))}
-                                    </span>
-                                </div>
-                                <div className="flex items-center justify-between">
-                                    <span className="text-xs text-slate-500">Expected Return</span>
-                                    <span className="text-sm font-bold text-emerald-400">
-                                        +{selectedStrategy?.monthly_return || 4.2}%
-                                    </span>
-                                </div>
-                                <div className="flex items-center justify-between">
-                                    <span className="text-xs text-slate-500">Risk Level</span>
-                                    <span className={`text-sm font-bold ${config.riskLevel === 'high' ? 'text-red-400' :
-                                        config.riskLevel === 'medium' ? 'text-amber-400' :
-                                            'text-emerald-400'
-                                        }`}>
-                                        {config.riskLevel || 'medium'}
-                                    </span>
-                                </div>
-                                <div className="flex items-center justify-between">
-                                    <span className="text-xs text-slate-500">Data Points</span>
-                                    <span className="text-sm font-bold text-blue-400">~1,250</span>
+                                    )}
                                 </div>
                             </div>
                         </div>
                     </div>
-                </div>
+                )}
             </div>
 
-            {/* Results Section */}
+            {/* ════════════════════════════════════════════════════════════
+                RESULTS SECTION
+               ════════════════════════════════════════════════════════════ */}
             {results && (
-                <div className="pt-6 border-t border-slate-800/80 animate-in fade-in">
+                <div className="animate-in fade-in slide-in-from-bottom-3 duration-500">
                     <SingleBacktestResults results={results} />
                 </div>
             )}
 
-            {/* Risk Analysis Modal */}
+            {/* Empty state when no results */}
+            {!results && !isRunning && (
+                <div className="flex flex-col items-center justify-center py-20 border-2 border-dashed border-slate-800/50 rounded-2xl bg-slate-900/20">
+                    <div className="w-20 h-20 rounded-full bg-gradient-to-br from-slate-800 to-slate-900 border-2 border-dashed border-slate-700/50 flex items-center justify-center mb-6">
+                        <BarChart3 size={36} className="text-slate-700" strokeWidth={1.5} />
+                    </div>
+                    <p className="text-lg font-bold text-slate-600">Ready to Backtest</p>
+                    <p className="text-sm text-slate-700 text-center mt-2 max-w-md">
+                        Configure your asset, strategy, and parameters above, then click <strong className="text-violet-400">Run Backtest</strong> to analyze performance
+                    </p>
+                </div>
+            )}
+
+            {/* Running state */}
+            {isRunning && !results && (
+                <div className="flex flex-col items-center justify-center py-20 rounded-2xl bg-slate-900/20">
+                    <div className="w-16 h-16 rounded-full bg-gradient-to-br from-violet-500/20 to-purple-500/20 border border-violet-500/30 flex items-center justify-center mb-6 animate-pulse">
+                        <RefreshCw size={28} className="text-violet-400 animate-spin" />
+                    </div>
+                    <p className="text-lg font-bold text-slate-300">Running Backtest</p>
+                    <p className="text-sm text-slate-500 mt-2">Analyzing {config.symbol} with {selectedStrategy?.name || config.strategy}...</p>
+                </div>
+            )}
+
+            {/* ═══ MODALS ═══ */}
             {showRiskAnalysis && results && (
-                <RiskAnalysisModal
-                    results={results}
-                    onClose={() => setShowRiskAnalysis(false)}
-                />
+                <RiskAnalysisModal results={results} onClose={() => setShowRiskAnalysis(false)} />
             )}
 
             {showLoadModal && (
@@ -1081,7 +767,6 @@ const SingleAssetBacktest: React.FC<SingleAssetBacktestProps> = ({
                 />
             )}
 
-            {/* Modals */}
             {showOptimizer && selectedStrategy && (
                 <BayesianOptimizerModal
                     symbols={[config.symbol]}

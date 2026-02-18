@@ -102,7 +102,7 @@ class MultiAssetEngine:
 
         logger.info(f"Capital allocations: {self.allocations}")
 
-    def run_backtest(self, symbols: List[str], period: str, interval: str):
+    async def run_backtest(self, symbols: List[str], period: str, interval: str):
         """
         Run backtest across multiple assets
 
@@ -118,7 +118,7 @@ class MultiAssetEngine:
         # Fetch data for all symbols
         data_dict = {}
         for symbol in symbols:
-            data = fetch_stock_data(symbol, period, interval)
+            data = await fetch_stock_data(symbol, period, interval)
             if not data.empty:
                 data_dict[symbol] = data
             else:
@@ -365,6 +365,7 @@ class MultiAssetEngine:
         """Process independent strategies with vectorized signal lookup when available"""
         for symbol in aligned_data["symbols"]:
             if symbol not in self.strategies:
+                logger.debug(f"No strategy for {symbol}, skipping")
                 continue
 
             strategy = self.strategies[symbol]
@@ -384,6 +385,9 @@ class MultiAssetEngine:
                 normalized = normalize_signal(signal_info)
                 signal = normalized["signal"]
 
+            if signal != 0:
+                logger.info(f"Signal for {symbol} at index {index}: {signal} (price={current_price:.2f}, cash={self.cash:.2f})")
+
             # Execute trade
             self._execute_trade(symbol, signal, current_price, timestamp, strategy.name)
 
@@ -402,7 +406,11 @@ class MultiAssetEngine:
                 try:
                     signals = strategy.generate_signals_vectorized(full_data)
                     self._precomputed_signals[symbol] = signals
-                    logger.info(f"Pre-computed vectorized signals for {symbol} ({strategy.name})")
+                    buy_count = (signals == 1).sum()
+                    sell_count = (signals == -1).sum()
+                    logger.info(
+                        f"Pre-computed vectorized signals for {symbol} ({strategy.name}): {buy_count} buys, {sell_count} sells out of {len(signals)} bars"
+                    )
                 except Exception as e:
                     logger.warning(f"Vectorized signal failed for {symbol}: {e}, will use loop fallback")
 
@@ -506,7 +514,6 @@ class MultiAssetEngine:
                 "profit": profit,
                 "profit_pct": profit_pct,
             }
-
             self.trades.append(trade_data)
             logger.debug(
                 f"SELL: {position['quantity']} {symbol} @ ${execution_price:.2f} " f"(Net P&L: ${profit:.2f}, Fees: ${total_commissions:.2f})"
@@ -541,13 +548,10 @@ class MultiAssetEngine:
             }
         )
 
-    def get_results(self) -> MultiAssetBacktestResult:
+    def get_results(self, benchmark_equity: List[Dict] = None) -> MultiAssetBacktestResult:
         """Get backtest results"""
-
         symbol_stats = self._calculate_symbol_stats()
-
-        metrics = calculate_performance_metrics(self.trades, self.equity_curve, self.initial_capital)
-
+        metrics = calculate_performance_metrics(self.trades, self.equity_curve, self.initial_capital, benchmark_equity=benchmark_equity)
         num_symbols = len(self.pair_symbols) if self.pairs_mode else len(self.strategies)
 
         return MultiAssetBacktestResult(

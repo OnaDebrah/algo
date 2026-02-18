@@ -172,7 +172,7 @@ async def train_model(config: TrainingConfig, current_user: User = Depends(get_c
         # Fetch historical data
         # TrainingConfig uses 'training_period' (e.g. "1Y", "2Y") — map to fetch_stock_data's 'period'
         training_period = getattr(config, "training_period", "2y").lower()
-        data = fetch_stock_data(config.symbol, period=training_period, interval="1d")
+        data = await fetch_stock_data(config.symbol, period=training_period, interval="1d")
 
         if data.empty:
             raise HTTPException(status_code=400, detail=f"No data available for {config.symbol}")
@@ -191,7 +191,7 @@ async def train_model(config: TrainingConfig, current_user: User = Depends(get_c
             # Create and train ML strategy (sklearn-based)
             ml_strategy = MLStrategy(
                 name=f"{config.symbol}_{model_type_slug}",
-                model_type=model_type_slug,
+                strategy_type=model_type_slug,
                 n_estimators=config.n_estimators if hasattr(config, "n_estimators") else 100,
                 max_depth=config.max_depth if hasattr(config, "max_depth") else 10,
                 test_size=0.2,

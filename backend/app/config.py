@@ -71,9 +71,33 @@ class Settings(BaseSettings):
     DEFAULT_COMMISSION_RATE: float = float(os.getenv("DEFAULT_COMMISSION_RATE", "0.001"))
     DEFAULT_SLIPPAGE_RATE: float = float(os.getenv("DEFAULT_SLIPPAGE_RATE", "0.0005"))
     DEFAULT_IB_CLIENT_ID_MODULUS: int = int(os.getenv("DEFAULT_IB_CLIENT_ID_MODULUS", "32700"))
+    DEFAULT_MAX_POSITION_SIZE: int = int(os.getenv("DEFAULT_MAX_POSITION_SIZE", "20"))
+    DEFAULT_STOP_LOSS_PCT: float = float(os.getenv("DEFAULT_STOP_LOSS_PCT", "0.05"))
+    DEFAULT_MAX_DRAWDOWN: float = float(os.getenv("DEFAULT_MAX_DRAWDOWN", "0.10"))
+
+    # Strategy Specific Defaults
+    DEFAULT_SMA_SHORT: int = 20
+    DEFAULT_SMA_LONG: int = 50
+    DEFAULT_RSI_PERIOD: int = 14
+    DEFAULT_RSI_OVERBOUGHT: float = 70.0
+    DEFAULT_RSI_OVERSOLD: float = 30.0
+    DEFAULT_MACD_FAST: int = 12
+    DEFAULT_MACD_SLOW: int = 26
+    DEFAULT_MACD_SIGNAL: int = 9
+    DEFAULT_ML_TEST_SIZE: float = 0.2
+    DEFAULT_ML_THRESHOLD: float = 0.5
+    ML_MODELS_DIR: str = os.getenv("ML_MODELS_DIR", "ml_models")
 
     # Rate Limiting
     RATE_LIMIT_PER_MINUTE: int = int(os.getenv("RATE_LIMIT_PER_MINUTE", "60"))
+
+    # Market Data
+    DATA_PROVIDER: str = os.getenv("DATA_PROVIDER", "yahoo")  # 'yahoo', 'polygon', 'alpaca', or 'iex'
+    POLYGON_API_KEY: str = os.getenv("POLYGON_API_KEY", "")
+    IEX_API_KEY: str = os.getenv("IEX_API_KEY", "")
+    USER_AGENT: str = os.getenv(
+        "USER_AGENT", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
+    )
 
     # Alerts (SMTP)
     SMTP_SERVER: str = os.getenv("SMTP_SERVER", "smtp.gmail.com")
@@ -118,6 +142,27 @@ class Settings(BaseSettings):
 
 
 settings = Settings()
+
+# Export settings as globals for compatibility with legacy imports
+DEFAULT_INITIAL_CAPITAL = settings.DEFAULT_INITIAL_CAPITAL
+DEFAULT_COMMISSION_RATE = settings.DEFAULT_COMMISSION_RATE
+DEFAULT_SLIPPAGE_RATE = settings.DEFAULT_SLIPPAGE_RATE
+DEFAULT_MAX_POSITION_SIZE = settings.DEFAULT_MAX_POSITION_SIZE
+DEFAULT_STOP_LOSS_PCT = settings.DEFAULT_STOP_LOSS_PCT
+DEFAULT_MAX_DRAWDOWN = settings.DEFAULT_MAX_DRAWDOWN
+
+# Strategy Specific Defaults
+DEFAULT_SMA_SHORT = settings.DEFAULT_SMA_SHORT
+DEFAULT_SMA_LONG = settings.DEFAULT_SMA_LONG
+DEFAULT_RSI_PERIOD = settings.DEFAULT_RSI_PERIOD
+DEFAULT_RSI_OVERBOUGHT = settings.DEFAULT_RSI_OVERBOUGHT
+DEFAULT_RSI_OVERSOLD = settings.DEFAULT_RSI_OVERSOLD
+DEFAULT_MACD_FAST = settings.DEFAULT_MACD_FAST
+DEFAULT_MACD_SLOW = settings.DEFAULT_MACD_SLOW
+DEFAULT_MACD_SIGNAL = settings.DEFAULT_MACD_SIGNAL
+DEFAULT_ML_TEST_SIZE = settings.DEFAULT_ML_TEST_SIZE
+DEFAULT_ML_THRESHOLD = settings.DEFAULT_ML_THRESHOLD
+ML_MODELS_DIR = settings.ML_MODELS_DIR
 
 
 # Validation on import
