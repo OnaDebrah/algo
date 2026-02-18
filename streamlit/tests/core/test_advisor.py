@@ -5,7 +5,7 @@ Run this to test the integration
 
 import asyncio
 
-from config import ANTHROPIC_API_KEY
+from streamlit.config import ANTHROPIC_API_KEY
 from streamlit.core.ai_advisor_api import AIAdvisorAPI
 
 

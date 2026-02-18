@@ -4,7 +4,7 @@ Moving Average Convergence Divergence (MACD) Strategy
 
 import pandas as pd
 
-from config import DEFAULT_MACD_FAST, DEFAULT_MACD_SIGNAL, DEFAULT_MACD_SLOW
+from streamlit.config import DEFAULT_MACD_FAST, DEFAULT_MACD_SIGNAL, DEFAULT_MACD_SLOW
 from streamlit.strategies.base_strategy import BaseStrategy
 
 

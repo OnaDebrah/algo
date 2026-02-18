@@ -8,7 +8,7 @@ from typing import Dict, List
 
 import pandas as pd
 
-from config import DEFAULT_INITIAL_CAPITAL
+from streamlit.config import DEFAULT_INITIAL_CAPITAL
 from streamlit.core.database import DatabaseManager
 from streamlit.core.risk_manager import RiskManager
 from streamlit.strategies import BaseStrategy
