@@ -24,7 +24,6 @@ from backend.app.strategies.lstm_strategy import LSTMStrategy
 
 # ML Strategies
 from backend.app.strategies.ml.mc_ml_sentiment_strategy import MonteCarloMLSentimentStrategy
-from backend.app.strategies.options_strategies import OptionsStrategy
 from backend.app.strategies.pairs_trading_strategy import PairsTradingStrategy
 from backend.app.strategies.parabolic_sar import ParabolicSARStrategy
 from backend.app.strategies.stat_arb.base_stat_arb import RiskParityStatArb
@@ -64,7 +63,6 @@ class StrategyCategory(Enum):
     VOLATILITY = "Volatility"
     STATISTICAL_ARBITRAGE = "Statistical Arbitrage"
     PAIRS_TRADING = "Pairs Trading"
-    OPTIONS = "Options Strategies"
     PRICE_ACTION = "Price Action"
     ADAPTIVE = "Adaptive Strategies"
     HYBRID = "Hybrid"
@@ -1078,165 +1076,6 @@ class StrategyCatalog:
                     "More complex than simple pairs trading",
                 ],
                 backtest_mode="multi",
-            ),
-            # ============================================================
-            # OPTIONS STRATEGIES
-            # ============================================================
-            "covered_call": StrategyInfo(
-                name="Covered Call",
-                class_type=OptionsStrategy,
-                category=StrategyCategory.OPTIONS,
-                description="Hold stock and sell call options to generate income. Limited upside, downside protected by premium.",
-                complexity="Intermediate",
-                time_horizon="Short to Medium-term",
-                best_for=[
-                    "Income generation",
-                    "Range-bound markets",
-                    "Conservative traders",
-                ],
-                parameters={
-                    "strategy_type": {"default": "covered_call", "range": None, "description": "Options strategy type"},
-                    "strike_pct": {
-                        "default": 0.05,
-                        "range": (0.01, 0.15),
-                        "description": "Strike price % above current",
-                    },
-                    "dte": {
-                        "default": 30,
-                        "range": (7, 90),
-                        "description": "Days to expiration",
-                    },
-                },
-                pros=[
-                    "Generates income",
-                    "Reduces cost basis",
-                    "Lower risk than naked long",
-                    "Consistent returns in flat markets",
-                ],
-                cons=[
-                    "Limited upside",
-                    "Still exposed to downside",
-                    "Opportunity cost if stock rallies",
-                    "Early assignment risk",
-                ],
-                backtest_mode="single",
-            ),
-            "iron_condor": StrategyInfo(
-                name="Iron Condor",
-                class_type=OptionsStrategy,
-                category=StrategyCategory.OPTIONS,
-                description="Market-neutral options strategy. Profits when underlying stays within a range. Limited risk and reward.",
-                complexity="Advanced",
-                time_horizon="Short-term",
-                best_for=[
-                    "Low volatility markets",
-                    "Income generation",
-                    "Range-bound stocks",
-                ],
-                parameters={
-                    "strategy_type": {"default": "iron_condor", "range": None, "description": "Options strategy type"},
-                    "wing_width": {
-                        "default": 0.05,
-                        "range": (0.03, 0.10),
-                        "description": "Width of wings (% of price)",
-                    },
-                    "dte": {
-                        "default": 30,
-                        "range": (14, 60),
-                        "description": "Days to expiration",
-                    },
-                },
-                pros=[
-                    "Defined risk",
-                    "High probability strategy",
-                    "Profits from time decay",
-                    "Market neutral",
-                ],
-                cons=[
-                    "Limited profit potential",
-                    "Requires careful management",
-                    "Pin risk near expiration",
-                    "Complex adjustments needed",
-                ],
-                backtest_mode="single",
-            ),
-            "butterfly_spread": StrategyInfo(
-                name="Butterfly Spread",
-                class_type=OptionsStrategy,
-                category=StrategyCategory.OPTIONS,
-                description="Limited risk strategy with concentrated profit zone. Profits when price stays near middle strike.",
-                complexity="Advanced",
-                time_horizon="Short-term",
-                best_for=[
-                    "Neutral outlook",
-                    "Low volatility expected",
-                    "Precise targets",
-                ],
-                parameters={
-                    "strategy_type": {"default": "butterfly_spread", "range": None, "description": "Options strategy type"},
-                    "wing_width": {
-                        "default": 0.03,
-                        "range": (0.02, 0.08),
-                        "description": "Distance between strikes",
-                    },
-                    "dte": {
-                        "default": 30,
-                        "range": (14, 60),
-                        "description": "Days to expiration",
-                    },
-                },
-                pros=[
-                    "Low cost to enter",
-                    "Defined max loss",
-                    "High reward/risk ratio at target",
-                    "Works in neutral markets",
-                ],
-                cons=[
-                    "Narrow profit zone",
-                    "Lower probability of max profit",
-                    "Time decay works against you early",
-                    "Complex to manage",
-                ],
-                backtest_mode="single",
-            ),
-            "straddle": StrategyInfo(
-                name="Long Straddle",
-                class_type=OptionsStrategy,
-                category=StrategyCategory.OPTIONS,
-                description="Profits from large moves in either direction. Buy ATM call and put. Volatility play.",
-                complexity="Intermediate",
-                time_horizon="Short-term",
-                best_for=[
-                    "Earnings events",
-                    "High expected volatility",
-                    "Direction unknown",
-                ],
-                parameters={
-                    "strategy_type": {"default": "straddle", "range": None, "description": "Options strategy type"},
-                    "dte": {
-                        "default": 30,
-                        "range": (7, 90),
-                        "description": "Days to expiration",
-                    },
-                    "iv_threshold": {
-                        "default": 0.30,
-                        "range": (0.20, 0.60),
-                        "description": "Implied volatility entry threshold",
-                    },
-                },
-                pros=[
-                    "Profits from big moves",
-                    "Direction doesn't matter",
-                    "Defined max loss",
-                    "Great for events",
-                ],
-                cons=[
-                    "Expensive to enter",
-                    "Needs significant move",
-                    "Time decay hurts",
-                    "IV crush risk after event",
-                ],
-                backtest_mode="single",
             ),
             # ============================================================
             # STATISTICAL ARBITRAGE - RISK PARITY

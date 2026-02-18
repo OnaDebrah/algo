@@ -206,7 +206,7 @@ const BacktestPage = () => {
             )}
 
             {/* Go Live Button - Shows when results exist for active mode */}
-            {activeResults && activeResults.sharpe_ratio >= 1 && activeResults.total_return >= 0.1 && (
+            {activeResults && activeResults.sharpe_ratio >= 1 && activeResults.total_return >= 10.0 && (
                 <div className="fixed bottom-8 right-8 z-50">
                     <button
                         onClick={handleGoLive}
