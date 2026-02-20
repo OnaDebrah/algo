@@ -75,18 +75,19 @@ class YahooProvider(
                 fast_info = ticker.fast_info
                 current_price = fast_info.get("lastPrice", info.get("currentPrice", 0))
                 previous_close = fast_info.get("previous_close", info.get("previousClose", 0))
-            except Exception:
+            except Exception as e:
+                logger.error(f"Failed to get quote for {symbol}: {e}")
                 current_price = info.get("currentPrice", 0)
                 previous_close = info.get("previousClose", 0)
 
             change = current_price - previous_close if current_price and previous_close else 0
-            change_pct = (change / previous_close * 100) if previous_close else 0
+            change_pct = ((change / previous_close) * 100) if previous_close else 0
 
             return {
                 "symbol": symbol,
                 "price": current_price,
                 "change": change,
-                "changePct": change_pct,
+                "changePercent": change_pct,
                 "volume": info.get("volume", 0),
                 "marketCap": info.get("marketCap", 0),
                 "high": info.get("dayHigh", 0),

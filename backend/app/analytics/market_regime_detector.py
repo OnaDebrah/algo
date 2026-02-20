@@ -210,8 +210,13 @@ class MarketRegimeDetector:
         if len(self.regime_history) > 0:
             features["regime_persistence"] = self._calculate_regime_persistence()
 
-        # Drop NaN and cache
-        features_clean = features.dropna()
+        # Drop rows where CORE short-lookback features are NaN,
+        # but keep rows even if long-lookback features (trend_252d, hurst, etc.) are NaN
+        core_cols = [c for c in ["volatility_21d", "trend_21d", "trend_strength", "rsi", "z_score"] if c in features.columns]
+        if core_cols:
+            features_clean = features.dropna(subset=core_cols)
+        else:
+            features_clean = features.dropna()
 
         # Update cache
         self._update_cache(cache_key, features_clean)
@@ -511,13 +516,20 @@ class MarketRegimeDetector:
         if len(latest) == 0:
             return {"regime": "unknown", "confidence": 0.0, "scores": {}}
 
+        # NaN-safe accessor: pandas .get() returns NaN rather than the default
+        def _safe(key, default=0):
+            val = latest.get(key, default)
+            if pd.notna(val):
+                return float(val)
+            return float(default)
+
         # Initialize scores
         regime_scores = {regime: 0.0 for regime in self.regime_types}
 
         # 1. Trend-based classification
-        trend_21d = latest.get("trend_21d", 0)
-        trend_strength = latest.get("trend_strength", 0)
-        trend_direction = latest.get("trend_direction", 0)
+        trend_21d = _safe("trend_21d", 0)
+        trend_strength = _safe("trend_strength", 0)
+        trend_direction = _safe("trend_direction", 0)
 
         if abs(trend_21d) > self.trend_thresholds["strong_trend"] and trend_strength > 0.5:
             if trend_direction > 0:
@@ -528,7 +540,7 @@ class MarketRegimeDetector:
             regime_scores["mean_reverting"] += 0.3
 
         # 2. Volatility-based classification
-        volatility = latest.get("volatility_21d", 0.15)
+        volatility = _safe("volatility_21d", 0.15)
 
         if volatility > self.volatility_thresholds["crisis_vol"]:
             regime_scores["crisis"] += 0.5
@@ -538,9 +550,9 @@ class MarketRegimeDetector:
             regime_scores["low_volatility"] += 0.4
 
         # 3. Mean reversion indicators
-        hurst = latest.get("hurst_exponent", 0.5)
-        half_life = latest.get("half_life", 100)
-        z_score = latest.get("z_score", 0)
+        hurst = _safe("hurst_exponent", 0.5)
+        half_life = _safe("half_life", 100)
+        z_score = _safe("z_score", 0)
 
         if hurst < 0.5 and half_life < 20:
             regime_scores["mean_reverting"] += 0.3
@@ -549,7 +561,7 @@ class MarketRegimeDetector:
             regime_scores["mean_reverting"] += 0.2
 
         # 4. Market breadth
-        breadth = latest.get("advance_decline_ratio", 0.5)
+        breadth = _safe("advance_decline_ratio", 0.5)
         if 0.4 < breadth < 0.6:
             regime_scores["mean_reverting"] += 0.1
         elif breadth > 0.7:
@@ -558,7 +570,7 @@ class MarketRegimeDetector:
             regime_scores["trending_bear"] += 0.1
 
         # 5. Technical indicators
-        rsi = latest.get("rsi", 50)
+        rsi = _safe("rsi", 50)
         if rsi > 70:
             regime_scores["trending_bull"] += 0.1
         elif rsi < 30:
@@ -568,9 +580,9 @@ class MarketRegimeDetector:
         crisis_score = 0
         if volatility > self.volatility_thresholds["crisis_vol"]:
             crisis_score += 0.3
-        if latest.get("var_95", 0) < -0.20:
+        if _safe("var_95", 0) < -0.20:
             crisis_score += 0.2
-        if latest.get("kurtosis", 0) > 3:
+        if _safe("kurtosis", 0) > 3:
             crisis_score += 0.1
 
         if crisis_score > 0.4:
@@ -814,10 +826,12 @@ class MarketRegimeDetector:
         z_scores = []
         for feat in key_features:
             if feat in features.columns:
-                feat_values = features[feat]
+                feat_values = features[feat].dropna()
                 if len(feat_values) > 1 and feat_values.std() > 0:
-                    z = (feat_values.iloc[-1] - feat_values.mean()) / feat_values.std()
-                    z_scores.append(abs(z))
+                    latest_val = feat_values.iloc[-1]
+                    if pd.notna(latest_val):
+                        z = (latest_val - feat_values.mean()) / feat_values.std()
+                        z_scores.append(abs(z))
 
         return np.mean(z_scores) if z_scores else 0.0
 

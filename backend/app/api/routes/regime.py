@@ -58,15 +58,37 @@ async def detect_market_regime(
         detector = get_detector(symbol)
 
         # Detect regime - returns a comprehensive dict
-        regime_info = detector.detect_current_regime(
-            price_data=data, volume_data=data.get("Volume") if "Volume" in data.columns else None, update_history=True
-        )
+        volume_data = data.get("Volume") if "Volume" in data.columns else None
+
+        regime_info = detector.detect_current_regime(price_data=data, volume_data=volume_data, update_history=True)
+
+        # Compute real metrics from features (cached, no extra cost)
+        features = detector.calculate_features(price_data=data, volume_data=volume_data)
+        latest = features.iloc[-1] if len(features) > 0 else pd.Series()
+
+        # NaN-safe accessor
+        def _safe(key, default=0.0):
+            val = latest.get(key, default)
+            return float(val) if pd.notna(val) else float(default)
+
+        # Liquidity: normalise volume_ma_ratio (1.0 = average volume)
+        raw_vol_ratio = _safe("volume_ma_ratio", 1.0)
+        liquidity_score = round(min(max(raw_vol_ratio / 2.0, 0.0), 1.0), 3)
+
+        # Correlation: use avg_correlation if multi-asset, else proxy from vol + trend
+        raw_corr = latest.get("avg_correlation", None)
+        if raw_corr is not None and pd.notna(raw_corr):
+            correlation_index = round(float(min(max(raw_corr, 0.0), 1.0)), 3)
+        else:
+            vol = _safe("volatility_21d", 0.2)
+            trend = abs(_safe("trend_strength", 0))
+            correlation_index = round(min(max((vol + trend) / 2, 0.0), 1.0), 3)
 
         metrics = RegimeMetrics(
-            volatility=regime_info.get("scores", {}).get("volatility", 0),
-            trend_strength=regime_info.get("scores", {}).get("trend", 0),
-            liquidity_score=0.8,  # Mocked if not available
-            correlation_index=0.5,  # Mocked if not available
+            volatility=_safe("volatility_21d", 0.0),
+            trend_strength=_safe("trend_strength", 0.0),
+            liquidity_score=liquidity_score,
+            correlation_index=correlation_index,
         )
 
         current_regime = RegimeData(
@@ -395,19 +417,16 @@ async def get_transition_probabilities(symbol: str, period: str = "2y", current_
     await AuthService.track_usage(db, current_user.id, "get_transition_probabilities", {"symbol": symbol})
 
     try:
-        # Fetch data
         data = await fetch_stock_data(symbol, period=period, interval="1d")
 
         if data.empty:
             raise HTTPException(status_code=404, detail="No data available")
 
-        # Get detector instance
         detector = get_detector(symbol)
 
         # Ensure history is populated
         detector.detect_current_regime(price_data=data, volume_data=data.get("Volume") if "Volume" in data.columns else None, update_history=True)
 
-        # Get transition probabilities
         transition_matrix = detector.get_transition_probabilities()
 
         # Get expected duration
@@ -422,7 +441,6 @@ async def get_transition_probabilities(symbol: str, period: str = "2y", current_
                     if prob > 0.1:  # Only include significant probabilities
                         likely_transitions.append(TransitionProbability(from_regime=current_regime, to_regime=to_regime, probability=prob))
 
-        # Sort by probability
         likely_transitions.sort(key=lambda x: x.probability, reverse=True)
 
         return TransitionResponse(
@@ -453,22 +471,17 @@ async def get_feature_analysis(symbol: str, period: str = "2y", current_user: Us
         if data.empty:
             raise HTTPException(status_code=404, detail="No data available")
 
-        # Get detector instance
         detector = get_detector(symbol)
 
-        # Calculate features
         features = detector.calculate_features(price_data=data, volume_data=data.get("Volume") if "Volume" in data.columns else None)
 
-        # Get current regime
         regime_info = detector.detect_current_regime(
             price_data=data, volume_data=data.get("Volume") if "Volume" in data.columns else None, update_history=True
         )
 
-        # Get latest feature values
         if len(features) > 0:
             latest_features = features.iloc[-1]
 
-            # Key features to highlight
             key_features = [
                 "volatility_21d",
                 "trend_strength",
