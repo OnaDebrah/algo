@@ -7,11 +7,12 @@ from datetime import datetime, timedelta
 from fastapi import APIRouter, Depends, Query
 
 from backend.app.api.deps import get_current_active_user
-from backend.app.core import DatabaseManager
 from backend.app.models.user import User
+from backend.app.services.trading_service import TradingService
 
 router = APIRouter(prefix="/analytics", tags=["Analytics"])
-db = DatabaseManager()
+
+trading_service = TradingService
 
 
 @router.get("/performance/{portfolio_id}")
@@ -37,7 +38,7 @@ async def get_performance_analytics(
         start_date = None
 
     # Get equity curve
-    equity_curve = db.get_equity_curve(portfolio_id, start_date, end_date)
+    equity_curve = await trading_service.get_equity_curve(portfolio_id, start_date, end_date)
 
     # Calculate metrics
     from backend.app.analytics.performance import calculate_performance_metrics
@@ -49,7 +50,7 @@ async def get_performance_analytics(
         total_return_pct = (total_return / initial_equity) * 100
 
         # Get trades for the period
-        trades = db.get_trades(portfolio_id, start_date=start_date, end_date=end_date)
+        trades = await trading_service.get_trades(portfolio_id, start_date=start_date, end_date=end_date)
 
         metrics = calculate_performance_metrics(trades, equity_curve, initial_equity)
 
@@ -68,7 +69,7 @@ async def get_performance_analytics(
 async def get_returns_analysis(portfolio_id: int, current_user: User = Depends(get_current_active_user)):
     """Get returns analysis"""
     # Get all trades
-    trades = db.get_trades(portfolio_id)
+    trades = await trading_service.get_trades(portfolio_id)
 
     if not trades:
         return {"daily_returns": [], "monthly_returns": [], "cumulative_returns": []}
@@ -83,8 +84,8 @@ async def get_returns_analysis(portfolio_id: int, current_user: User = Depends(g
 @router.get("/risk/{portfolio_id}")
 async def get_risk_metrics(portfolio_id: int, current_user: User = Depends(get_current_active_user)):
     """Get risk metrics"""
-    trades = db.get_trades(portfolio_id)
-    equity_curve = db.get_equity_curve(portfolio_id)
+    trades = await trading_service.get_trades(portfolio_id)
+    equity_curve = await trading_service.get_equity_curve(portfolio_id)
 
     if not trades or not equity_curve:
         return {"volatility": 0, "beta": 0, "var_95": 0, "cvar_95": 0, "max_drawdown": 0, "sharpe_ratio": 0, "sortino_ratio": 0}
@@ -99,7 +100,7 @@ async def get_risk_metrics(portfolio_id: int, current_user: User = Depends(get_c
 @router.get("/drawdown/{portfolio_id}")
 async def get_drawdown_analysis(portfolio_id: int, current_user: User = Depends(get_current_active_user)):
     """Get drawdown analysis"""
-    equity_curve = db.get_equity_curve(portfolio_id)
+    equity_curve = await trading_service.get_equity_curve(portfolio_id)
 
     if not equity_curve:
         return {"drawdowns": [], "max_drawdown": 0, "max_drawdown_duration": 0}

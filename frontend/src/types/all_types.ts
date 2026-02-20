@@ -1299,6 +1299,7 @@ export interface StrategyAnalysisResponse {
 export interface StrategyAnalysis {
     id: string,
     name: string,
+    legs?: OptionLeg[],
     analysis: StrategyAnalysisResponse | null,
     greeks: GreeksResponse | null,
     riskMetrics: RiskMetricsResponse | null,

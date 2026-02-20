@@ -1,27 +1,13 @@
-"""
-Market Data Service
-
-Comprehensive market data service with:
-- Yahoo Finance as default data source
-- PostgreSQL caching for performance
-- Retry logic for reliability
-- Error handling and fallbacks
-- Support for multiple data sources (extensible for IB, Alpaca, etc.)
-- Comprehensive data types (quotes, historical, options, fundamentals)
-"""
-
 import asyncio
-import json
 import logging
-import time
 from datetime import datetime
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import Dict, List, Optional
 
-import yfinance as yf
-from psycopg2.extras import RealDictCursor
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from backend.app.core.database import DatabaseManager
+from backend.app.core.data.market_data_cache import MarketDataCache
+from backend.app.core.data.providers.providers import ProviderFactory
 from backend.app.utils.helpers import SECTOR_MAP
 
 logger = logging.getLogger(__name__)
@@ -31,306 +17,9 @@ class DataSource(Enum):
     """Supported data sources"""
 
     YAHOO = "yahoo"
-    INTERACTIVE_BROKERS = "ib"  # Future
-    ALPACA = "alpaca"  # Future
-    POLYGON = "polygon"  # Future
-
-
-class MarketDataCache:
-    """
-    Hybrid caching system with in-memory (hot) and database (cold) tiers
-
-    Strategy:
-    - In-memory: Fast access for quotes and recent data (60s TTL)
-    - Database: Persistent storage for historical and fundamental data (longer TTL)
-    """
-
-    def __init__(self, ttl_seconds: int = 60, use_db: bool = True, db_manager: DatabaseManager = None):
-        self.memory_cache: Dict[str, tuple[Any, float]] = {}
-        self.memory_ttl = ttl_seconds
-        self.db = db_manager or DatabaseManager()
-        self.use_db = use_db
-
-        if self.use_db:
-            self._init_db_cache()
-
-    def _init_db_cache(self):
-        """Initialize database cache table"""
-        conn = self.db.get_connection()
-        try:
-            cursor = conn.cursor()
-
-            cursor.execute("""
-                           CREATE TABLE IF NOT EXISTS market_data_cache (
-                                                                            cache_key TEXT PRIMARY KEY,
-                                                                            data_type TEXT NOT NULL,
-                                                                            data_json TEXT NOT NULL,
-                                                                            created_at DOUBLE PRECISION NOT NULL,
-                                                                            expires_at DOUBLE PRECISION NOT NULL,
-                                                                            access_count INTEGER DEFAULT 0,
-                                                                            last_accessed DOUBLE PRECISION
-                           )
-                           """)
-
-            # Create index for faster expiration queries
-            cursor.execute("""
-                           CREATE INDEX IF NOT EXISTS idx_market_cache_expires_at
-                               ON market_data_cache(expires_at)
-                           """)
-
-            conn.commit()
-
-            logger.info("Database cache initialized")
-        except Exception as e:
-            conn.rollback()
-            logger.warning(f"Database cache initialization failed: {e}. Using memory-only cache.")
-            self.use_db = False
-            raise
-        finally:
-            cursor.close()
-            self.db.return_connection(conn)
-
-    def get(self, key: str, data_type: str = "quote") -> Optional[Any]:
-        """
-        Get cached value from memory or database
-
-        Args:
-            key: Cache key
-            data_type: Type of data (quote, historical, fundamentals, etc.)
-        """
-        # Try memory cache first (fastest)
-        if key in self.memory_cache:
-            value, timestamp = self.memory_cache[key]
-            if time.time() - timestamp < self.memory_ttl:
-                logger.debug(f"Memory cache hit: {key}")
-                return value
-            else:
-                del self.memory_cache[key]
-
-        # Try database cache (persistent)
-        if self.use_db:
-            conn = self.db.get_connection()
-            try:
-                cursor = conn.cursor(cursor_factory=RealDictCursor)
-
-                cursor.execute(
-                    """
-                    SELECT data_json, expires_at, access_count
-                    FROM market_data_cache
-                    WHERE cache_key = %s AND expires_at > %s
-                    """,
-                    (key, time.time()),
-                )
-
-                row = cursor.fetchone()
-
-                if row:
-                    data_json = row["data_json"]
-                    access_count = row["access_count"]
-                    value = json.loads(data_json)
-
-                    # Update access statistics
-                    cursor.execute(
-                        """
-                        UPDATE market_data_cache
-                        SET access_count = %s, last_accessed = %s
-                        WHERE cache_key = %s
-                        """,
-                        (access_count + 1, time.time(), key),
-                    )
-
-                    conn.commit()
-                    conn.close()
-
-                    # Promote to memory cache for faster subsequent access
-                    self.memory_cache[key] = (value, time.time())
-
-                    logger.debug(f"Database cache hit: {key}")
-                    return value
-
-            except Exception as e:
-                conn.rollback()
-                logger.error(f"Database cache read error: {e}. Using memory-only cache.")
-                raise
-            finally:
-                cursor.close()
-                self.db.return_connection(conn)
-
-        return None
-
-    def set(self, key: str, value: Any, data_type: str = "quote", ttl_override: Optional[int] = None):
-        """
-        Set cache value in both memory and database
-
-        Args:
-            key: Cache key
-            value: Data to cache
-            data_type: Type of data (determines TTL strategy)
-            ttl_override: Override default TTL in seconds
-        """
-        current_time = time.time()
-
-        # Always set in memory cache for fast access
-        self.memory_cache[key] = (value, current_time)
-
-        # Set in database for persistence (with longer TTL for certain data types)
-        if self.use_db:
-            conn = self.db.get_connection()
-            try:
-                # Determine TTL based on data type
-                if ttl_override:
-                    ttl = ttl_override
-                elif data_type == "quote":
-                    ttl = 60  # 1 minute for quotes
-                elif data_type == "historical":
-                    ttl = 3600  # 1 hour for historical data
-                elif data_type == "fundamentals":
-                    ttl = 86400  # 24 hours for fundamentals
-                elif data_type == "options":
-                    ttl = 300  # 5 minutes for options
-                else:
-                    ttl = self.memory_ttl
-
-                expires_at = current_time + ttl
-
-                cursor = conn.cursor()
-
-                cursor.execute(
-                    """
-                    INSERT INTO market_data_cache
-                    (cache_key, data_type, data_json, created_at, expires_at, access_count, last_accessed)
-                    VALUES (%s, %s, %s, %s, %s, 0, %s)
-                        ON CONFLICT (cache_key)
-                    DO UPDATE SET
-                        data_json = EXCLUDED.data_json,
-                                                   created_at = EXCLUDED.created_at,
-                                                   expires_at = EXCLUDED.expires_at,
-                                                   access_count = 0,
-                                                   last_accessed = EXCLUDED.last_accessed
-                    """,
-                    (key, data_type, json.dumps(value), current_time, expires_at, current_time),
-                )
-
-                conn.commit()
-
-                logger.debug(f"Cached to database: {key} (TTL: {ttl}s)")
-
-            except Exception as e:
-                conn.rollback()
-                logger.error(f"Database cache write failed: {e}. Using memory-only cache.")
-                raise
-            finally:
-                cursor.close()
-                self.db.return_connection(conn)
-
-    def clear(self, data_type: Optional[str] = None):
-        """
-        Clear cached data
-
-        Args:
-            data_type: If specified, only clear this type. Otherwise clear all.
-        """
-        # Clear memory cache
-        if data_type:
-            keys_to_remove = [k for k in self.memory_cache.keys() if k.startswith(data_type)]
-            for key in keys_to_remove:
-                del self.memory_cache[key]
-        else:
-            self.memory_cache.clear()
-
-        # Clear database cache
-        if self.use_db:
-            conn = self.db.get_connection()
-            try:
-                cursor = conn.cursor()
-
-                if data_type:
-                    cursor.execute("DELETE FROM market_data_cache WHERE data_type = %s", (data_type,))
-                else:
-                    cursor.execute("DELETE FROM market_data_cache")
-
-                conn.commit()
-
-                logger.info(f"Database cache cleared: {data_type or 'all'}")
-
-            except Exception as e:
-                conn.rollback()
-                logger.error(f"Database cache clear error: {e}. ")
-                raise
-            finally:
-                cursor.close()
-                self.db.return_connection(conn)
-
-    def cleanup_expired(self):
-        """Remove expired entries from database"""
-        if self.use_db:
-            conn = self.db.get_connection()
-            try:
-                cursor = conn.cursor()
-
-                cursor.execute("DELETE FROM market_data_cache WHERE expires_at < %s", (time.time(),))
-                deleted = cursor.rowcount
-
-                conn.commit()
-
-                if deleted > 0:
-                    logger.info(f"Cleaned up {deleted} expired cache entries")
-
-            except Exception as e:
-                conn.rollback()
-                logger.error(f"Cache cleanup error: {e}.")
-                raise
-            finally:
-                cursor.close()
-                self.db.return_connection(conn)
-
-    def get_stats(self) -> Dict:
-        """Get cache statistics"""
-        stats = {"memory_entries": len(self.memory_cache), "database_enabled": self.use_db}
-
-        if self.use_db:
-            conn = self.db.get_connection()
-            try:
-                cursor = conn.cursor(cursor_factory=RealDictCursor)
-
-                cursor.execute(
-                    """
-                    SELECT COUNT(*) as count, COALESCE(SUM(access_count), 0) as total_accesses
-                    FROM market_data_cache
-                    WHERE expires_at > %s
-                    """,
-                    (time.time(),),
-                )
-                row = cursor.fetchone()
-
-                stats["database_entries"] = row["count"] if row else 0
-                stats["total_accesses"] = row["total_accesses"] if row else 0
-
-                # Get breakdown by data type
-                cursor.execute(
-                    """
-                    SELECT data_type, COUNT(*) as count, AVG(access_count) as avg_accesses
-                    FROM market_data_cache
-                    WHERE expires_at > %s
-                    GROUP BY data_type
-                    """,
-                    (time.time(),),
-                )
-
-                stats["by_type"] = {
-                    row["data_type"]: {"count": row["count"], "avg_accesses": float(row["avg_accesses"]) if row["avg_accesses"] else 0}
-                    for row in cursor.fetchall()
-                }
-
-                conn.close()
-            except Exception as e:
-                logger.error(f"Error getting cache stats: {e}.")
-                raise
-            finally:
-                cursor.close()
-                self.db.return_connection(conn)
-
-        return stats
+    INTERACTIVE_BROKERS = "ib"
+    ALPACA = "alpaca"
+    POLYGON = "polygon"
 
 
 class MarketService:
@@ -338,7 +27,7 @@ class MarketService:
     Market data service
 
     Features:
-    - Multiple data source support (Yahoo Finance default)
+    - Multiple data source support via ProviderFactory
     - Intelligent caching
     - Retry logic with exponential backoff
     - Comprehensive error handling
@@ -349,18 +38,19 @@ class MarketService:
         self.data_source = data_source
         self.cache = MarketDataCache(ttl_seconds=cache_ttl)
         self.max_retries = max_retries
+        self._provider = ProviderFactory()
 
         logger.info(f"MarketService initialized with {data_source.value} data source")
 
-    async def _retry_with_backoff(self, func, *args, **kwargs):
-        """Execute function with exponential backoff retry logic"""
+    async def _retry_with_backoff(self, coro_func, *args, **kwargs):
+        """Execute an async function with exponential backoff retry logic"""
         for attempt in range(self.max_retries):
             try:
-                return await asyncio.to_thread(func, *args, **kwargs)
+                return await coro_func(*args, **kwargs)
             except Exception as e:
                 # Special handling for 429 Too Many Requests
                 if "429" in str(e) or "Too Many Requests" in str(e):
-                    wait_time = (2**attempt) + 1  # Standard backoff + 1s jitter
+                    wait_time = (2**attempt) + 1
                 else:
                     wait_time = 2**attempt
 
@@ -375,86 +65,28 @@ class MarketService:
     # QUOTE DATA
     # ============================================================
 
-    async def get_quote(self, symbol: str, use_cache: bool = True) -> Dict:
-        """
-        Get real-time quote for a symbol
-
-        Args:
-            symbol: Stock symbol
-            use_cache: Whether to use cached data
-
-        Returns:
-            Dictionary with quote data
-        """
+    async def get_quote(self, db: AsyncSession, symbol: str, use_cache: bool = True) -> Dict:
+        """Get real-time quote for a symbol"""
         cache_key = f"quote_{symbol}"
 
         if use_cache:
-            cached = self.cache.get(cache_key, "quote")
+            cached = await self.cache.get(db, cache_key)
             if cached:
                 return cached
 
-        def _fetch():
-            ticker = yf.Ticker(symbol)
-            info = ticker.info
-
-            # Get fast info for real-time data
-            try:
-                fast_info = ticker.fast_info
-                current_price = fast_info.get("lastPrice", info.get("currentPrice", 0))
-                previous_close = fast_info.get("previous_close", info.get("previousClose", 0))
-            except Exception:
-                current_price = info.get("currentPrice", 0)
-                previous_close = info.get("previousClose", 0)
-
-            change = current_price - previous_close if current_price and previous_close else 0
-            change_pct = (change / previous_close * 100) if previous_close else 0
-
-            quote = {
-                "symbol": symbol,
-                "price": current_price,
-                "change": change,
-                "changePct": change_pct,
-                "volume": info.get("volume", 0),
-                "marketCap": info.get("marketCap", 0),
-                "high": info.get("dayHigh", 0),
-                "low": info.get("dayLow", 0),
-                "open": info.get("open", 0),
-                "previousClose": previous_close,
-                "bid": info.get("bid", 0),
-                "ask": info.get("ask", 0),
-                "bidSize": info.get("bidSize", 0),
-                "askSize": info.get("askSize", 0),
-                "fiftyTwoWeekHigh": info.get("fiftyTwoWeekHigh", 0),
-                "fiftyTwoWeekLow": info.get("fiftyTwoWeekLow", 0),
-                "avgVolume": info.get("averageVolume", 0),
-                "timestamp": datetime.now().isoformat(),
-            }
-
-            return quote
-
         try:
-            quote = await self._retry_with_backoff(_fetch)
-            self.cache.set(cache_key, quote, "quote")
+            quote = await self._retry_with_backoff(self._provider.get_quote, symbol)
+            await self.cache.set(db, cache_key, quote, "quote")
             return quote
         except Exception as e:
             logger.error(f"Error fetching quote for {symbol}: {str(e)}")
             raise
 
-    async def get_quotes(self, symbols: List[str], use_cache: bool = True) -> List[Dict]:
-        """
-        Get quotes for multiple symbols concurrently
-
-        Args:
-            symbols: List of stock symbols
-            use_cache: Whether to use cached data
-
-        Returns:
-            List of quote dictionaries
-        """
-        tasks = [self.get_quote(symbol, use_cache) for symbol in symbols]
+    async def get_quotes(self, db: AsyncSession, symbols: List[str], use_cache: bool = True) -> List[Dict]:
+        """Get quotes for multiple symbols concurrently"""
+        tasks = [self.get_quote(db, symbol, use_cache) for symbol in symbols]
         results = await asyncio.gather(*tasks, return_exceptions=True)
 
-        # Filter out exceptions and log them
         quotes = []
         for symbol, result in zip(symbols, results):
             if isinstance(result, Exception):
@@ -470,57 +102,38 @@ class MarketService:
 
     async def get_historical_data(
         self,
+        db: AsyncSession,
         symbol: str,
         period: str = "1mo",
         interval: str = "1d",
         start: Optional[str] = None,
         end: Optional[str] = None,
-        use_cache: bool = False,  # Historical data changes less frequently
+        use_cache: bool = False,
     ) -> Dict:
-        """
-        Get historical OHLCV data
-
-        Args:
-            symbol: Stock symbol
-            period: Data period (1d, 5d, 1mo, 3mo, 6mo, 1y, 2y, 5y, 10y, ytd, max)
-            interval: Data interval (1m, 2m, 5m, 15m, 30m, 60m, 90m, 1h, 1d, 5d, 1wk, 1mo, 3mo)
-            start: Start date (YYYY-MM-DD)
-            end: End date (YYYY-MM-DD)
-            use_cache: Whether to use cached data
-
-        Returns:
-            Dictionary with historical data
-        """
+        """Get historical OHLCV data"""
         cache_key = f"hist_{symbol}_{period}_{interval}_{start}_{end}"
 
         if use_cache:
-            cached = self.cache.get(cache_key, "historical")
+            cached = await self.cache.get(db, cache_key)
             if cached:
                 return cached
 
-        def _fetch():
-            ticker = yf.Ticker(symbol)
-
-            if start and end:
-                hist = ticker.history(start=start, end=end, interval=interval)
-            else:
-                hist = ticker.history(period=period, interval=interval)
+        try:
+            hist = await self._retry_with_backoff(self._provider.fetch_data, symbol, period, interval, start, end)
 
             if hist.empty:
                 raise ValueError(f"No historical data available for {symbol}")
 
-            return {
+            data = {
                 "symbol": symbol,
                 "period": period,
                 "interval": interval,
                 "data": hist.reset_index().to_dict(orient="records"),
-                "dataframe": hist,  # Include raw dataframe for internal use
+                "dataframe": hist,
             }
 
-        try:
-            data = await self._retry_with_backoff(_fetch)
             if use_cache:
-                self.cache.set(cache_key, data, "historical")
+                await self.cache.set(db, cache_key, data, "historical")
             return data
         except Exception as e:
             logger.error(f"Error fetching historical data for {symbol}: {str(e)}")
@@ -531,42 +144,26 @@ class MarketService:
     # ============================================================
 
     async def get_option_chain(self, symbol: str, expiration: Optional[str] = None) -> Dict:
-        """
-        Get option chain data
+        """Get option chain data"""
+        try:
+            if expiration is None:
+                # Get available expirations first
+                expirations = await self._retry_with_backoff(self._provider.get_option_expirations, symbol)
+                if not expirations:
+                    raise ValueError(f"No options available for {symbol}")
+                expiration = expirations[0]
 
-        Args:
-            symbol: Stock symbol
-            expiration: Specific expiration date (YYYY-MM-DD), or None for nearest
-
-        Returns:
-            Dictionary with option chain data
-        """
-
-        def _fetch():
-            ticker = yf.Ticker(symbol)
-
-            # Get available expirations
-            expirations = ticker.options
-            if not expirations:
-                raise ValueError(f"No options available for {symbol}")
-
-            # Use specified expiration or nearest
-            exp_date = expiration if expiration and expiration in expirations else expirations[0]
-
-            # Get option chain
-            opt_chain = ticker.option_chain(exp_date)
+            chain = await self._retry_with_backoff(self._provider.get_option_chain, symbol, expiration)
 
             return {
                 "symbol": symbol,
-                "expiration": exp_date,
-                "available_expirations": list(expirations),
-                "calls": opt_chain.calls.to_dict(orient="records"),
-                "puts": opt_chain.puts.to_dict(orient="records"),
-                "underlying_price": ticker.info.get("currentPrice", 0),
+                "expiration": expiration,
+                "available_expirations": chain.get("expirations", [expiration]),
+                "calls": chain["calls"].to_dict(orient="records") if hasattr(chain["calls"], "to_dict") else chain["calls"],
+                "puts": chain["puts"].to_dict(orient="records") if hasattr(chain["puts"], "to_dict") else chain["puts"],
+                "underlying_price": chain.get("underlying_price", 0),
             }
 
-        try:
-            return await self._retry_with_backoff(_fetch)
         except Exception as e:
             logger.error(f"Error fetching option chain for {symbol}: {str(e)}")
             raise
@@ -575,24 +172,15 @@ class MarketService:
     # FUNDAMENTAL DATA
     # ============================================================
 
-    async def get_fundamentals(self, symbol: str) -> Dict:
-        """
-        Get fundamental data for a symbol
-
-        Args:
-            symbol: Stock symbol
-
-        Returns:
-            Dictionary with fundamental data
-        """
+    async def get_fundamentals(self, db: AsyncSession, symbol: str) -> Dict:
+        """Get fundamental data for a symbol"""
         cache_key = f"fundamentals_{symbol}"
-        cached = self.cache.get(cache_key, "fundamentals")
+        cached = await self.cache.get(db, cache_key)
         if cached:
             return cached
 
-        def _fetch():
-            ticker = yf.Ticker(symbol)
-            info = ticker.info
+        try:
+            info = await self._retry_with_backoff(self._provider.get_ticker_info, symbol)
 
             fundamentals = {
                 "symbol": symbol,
@@ -622,12 +210,8 @@ class MarketService:
                 "timestamp": datetime.now().isoformat(),
             }
 
+            await self.cache.set(db, cache_key, fundamentals, "fundamentals")
             return fundamentals
-
-        try:
-            data = await self._retry_with_backoff(_fetch)
-            self.cache.set(cache_key, data, "fundamentals")
-            return data
         except Exception as e:
             logger.error(f"Error fetching fundamentals for {symbol}: {str(e)}")
             raise
@@ -637,35 +221,21 @@ class MarketService:
     # ============================================================
 
     async def get_news(self, symbol: str, limit: int = 10) -> List[Dict]:
-        """
-        Get news for a symbol
-
-        Args:
-            symbol: Stock symbol
-            limit: Maximum number of news items
-
-        Returns:
-            List of news dictionaries
-        """
-
-        def _fetch():
-            ticker = yf.Ticker(symbol)
-            news = ticker.news
+        """Get news for a symbol"""
+        try:
+            news = await self._retry_with_backoff(self._provider.get_news, symbol, limit)
 
             return [
                 {
                     "title": item.get("title", ""),
                     "publisher": item.get("publisher", ""),
                     "link": item.get("link", ""),
-                    "published": datetime.fromtimestamp(item.get("providerPublishTime", 0)).isoformat(),
+                    "published": datetime.fromtimestamp(item.get("providerPublishTime", 0)).isoformat() if item.get("providerPublishTime") else "",
                     "type": item.get("type", ""),
                     "thumbnail": item.get("thumbnail", {}).get("resolutions", [{}])[0].get("url", "") if item.get("thumbnail") else "",
                 }
-                for item in news[:limit]
+                for item in news
             ]
-
-        try:
-            return await self._retry_with_backoff(_fetch)
         except Exception as e:
             logger.error(f"Error fetching news for {symbol}: {str(e)}")
             return []
@@ -675,106 +245,71 @@ class MarketService:
     # ============================================================
 
     async def search_symbols(self, query: str, limit: int = 10) -> List[Dict]:
-        """
-        Search for symbols
-
-        Args:
-            query: Search query
-            limit: Maximum results
-
-        Returns:
-            List of matching symbols
-        """
-
-        def _search():
-            # Try exact match first
-            try:
-                ticker = yf.Ticker(query.upper())
-                info = ticker.info
-
-                if info.get("symbol"):
-                    return [
-                        {
-                            "symbol": info.get("symbol", query.upper()),
-                            "name": info.get("longName", query),
-                            "type": info.get("quoteType", "EQUITY"),
-                            "exchange": info.get("exchange", ""),
-                            "currency": info.get("currency", "USD"),
-                            "market_cap": info.get("marketCap", 0),
-                        }
-                    ]
-            except Exception:
-                pass
-
-            return []
-
+        """Search for symbols"""
         try:
-            return await asyncio.to_thread(_search)
+            info = await self._provider.get_ticker_info(query.upper())
+
+            if info.get("symbol"):
+                return [
+                    {
+                        "symbol": info.get("symbol", query.upper()),
+                        "name": info.get("longName", query),
+                        "type": info.get("quoteType", "EQUITY"),
+                        "exchange": info.get("exchange", ""),
+                        "currency": info.get("currency", "USD"),
+                        "market_cap": info.get("marketCap", 0),
+                    }
+                ]
         except Exception as e:
             logger.error(f"Error searching symbols for '{query}': {str(e)}")
-            return []
+
+        return []
 
     # ============================================================
     # UTILITY METHODS
     # ============================================================
 
-    def clear_cache(self, data_type: Optional[str] = None):
+    def clear_cache(self, db: AsyncSession, data_type: Optional[str] = None):
         """Clear cached data"""
-        self.cache.clear(data_type)
+        self.cache.clear(db, data_type)
         logger.info(f"Market data cache cleared: {data_type or 'all'}")
 
-    def cleanup_cache(self):
+    def cleanup_cache(self, db: AsyncSession):
         """Cleanup expired cache entries"""
-        self.cache.cleanup_expired()
+        self.cache.cleanup_expired(db=db)
 
-    def get_cache_stats(self) -> Dict:
+    async def get_cache_stats(self, db: AsyncSession) -> Dict:
         """Get cache statistics"""
-        return self.cache.get_stats()
+        return await self.cache.get_stats(db)
 
     async def validate_symbol(self, symbol: str) -> bool:
-        """
-        Validate if a symbol exists
-
-        Args:
-            symbol: Stock symbol
-
-        Returns:
-            True if symbol is valid
-        """
+        """Validate if a symbol exists"""
         try:
-            ticker = yf.Ticker(symbol)
-            info = await asyncio.to_thread(lambda: ticker.info)
+            info = await self._provider.get_ticker_info(symbol)
             return bool(info.get("symbol") or info.get("longName"))
         except Exception:
             return False
 
-    async def get_market_status(self) -> Dict:
-        """
-        Get market status (open/closed)
-
-        Returns:
-            Dictionary with market status
-        """
-        # Use SPY as proxy for US market
+    async def get_market_status(self, db: AsyncSession) -> Dict:
+        """Get market status (open/closed)"""
         try:
-            quote = await self.get_quote("SPY")
+            quote = await self.get_quote(db, "SPY")
             return {
-                "is_open": True,  # Simplified - would need more logic for actual market hours
+                "is_open": True,
                 "last_update": quote["timestamp"],
                 "market": "US",
             }
-        except Exception:
+        except Exception as e:
+            logger.error(f"Failed to get market status {e}")
             return {"is_open": False, "last_update": datetime.now().isoformat(), "market": "US"}
 
     async def get_sector(self, symbol: str) -> str:
         """Get sector for a symbol"""
-        # First check our map
         if symbol in SECTOR_MAP:
             return SECTOR_MAP[symbol]
 
         try:
-            ticker = yf.Ticker(symbol)
-            info = ticker.info
+            info = await self._provider.get_ticker_info(symbol)
             return info.get("sector", "Unknown")
         except Exception:
             return "Unknown"

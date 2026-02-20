@@ -372,7 +372,7 @@ class WalkForwardService:
                 strategy=strategy,
                 initial_capital=capital,
                 risk_manager=RiskManager(),
-                db_manager=self.backtest_service.db_manager,
+                db=self.backtest_service.trading_service,
                 commission_rate=request.commission_rate,
                 slippage_rate=request.slippage_rate,
             )

@@ -1,9 +1,9 @@
 import {Activity, Calculator, Layers, Loader2, Plus, Settings, Target, X} from "lucide-react";
 import {CartesianGrid, Line, LineChart, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis} from "recharts";
 import React from "react";
-import {formatCurrency, formatPercent} from "@/utils/formatters";
+import {formatCurrency, formatPercent, toPrecision} from "@/utils/formatters";
 import {getGreekColor} from "@/components/optionsdesk/utils/colors";
-import {GreeksChartData, OptionLeg} from "@/types/all_types";
+import {GreeksChartData, OptionLeg, StrategyAnalysisResponse} from "@/types/all_types";
 
 interface BuilderTabProps {
     customLegs: OptionLeg[],
@@ -18,6 +18,7 @@ interface BuilderTabProps {
     greeksChartData: GreeksChartData[],
     currentPrice: number,
     isLoading: boolean,
+    analysisResult?: StrategyAnalysisResponse | null,
 }
 
 const BuilderTab: React.FC<BuilderTabProps> = ({
@@ -33,6 +34,7 @@ const BuilderTab: React.FC<BuilderTabProps> = ({
                                                    greeksChartData,
                                                    currentPrice,
                                                    isLoading,
+                                                   analysisResult,
                                                }: BuilderTabProps) => {
     return (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -179,7 +181,7 @@ const BuilderTab: React.FC<BuilderTabProps> = ({
                                     <Tooltip formatter={(value) => [formatCurrency(Number(value)), 'Profit']}
                                              contentStyle={{backgroundColor: '#1f2937', borderColor: '#4b5563'}}
                                              labelStyle={{color: '#d1d5db'}}/>
-                                    <ReferenceLine x={currentPrice} stroke="#f59e0b" strokeDasharray="3 3"/>
+                                    <ReferenceLine x={toPrecision(currentPrice)} stroke="#f59e0b" strokeDasharray="3 3"/>
                                     <ReferenceLine y={0} stroke="#6b7280"/>
                                     <Line type="monotone" dataKey="profit" stroke="#8b5cf6" strokeWidth={2}
                                           dot={false}/>
@@ -238,10 +240,11 @@ const BuilderTab: React.FC<BuilderTabProps> = ({
                         </h4>
                         <div className="space-y-3">
                             {(() => {
-                                const totalDelta = customLegs.reduce((sum, leg) => sum + (leg.delta || 0) * leg.quantity, 0);
-                                const totalGamma = customLegs.reduce((sum, leg) => sum + (leg.gamma || 0) * leg.quantity, 0);
-                                const totalTheta = customLegs.reduce((sum, leg) => sum + (leg.theta || 0) * leg.quantity, 0);
-                                const totalVega = customLegs.reduce((sum, leg) => sum + (leg.vega || 0) * leg.quantity, 0);
+                                // Greeks on each leg are already computed for signed quantity (long=+, short=-)
+                                const totalDelta = customLegs.reduce((sum, leg) => sum + (leg.delta || 0), 0);
+                                const totalGamma = customLegs.reduce((sum, leg) => sum + (leg.gamma || 0), 0);
+                                const totalTheta = customLegs.reduce((sum, leg) => sum + (leg.theta || 0), 0);
+                                const totalVega = customLegs.reduce((sum, leg) => sum + (leg.vega || 0), 0);
 
                                 return (
                                     <>
@@ -308,6 +311,75 @@ const BuilderTab: React.FC<BuilderTabProps> = ({
                         </h4>
                         <div className="space-y-3">
                             {(() => {
+                                // Use backend analysis data when available, fallback to client-side
+                                if (analysisResult) {
+                                    const totalCost = analysisResult.initial_cost;
+                                    const breakevens = analysisResult.breakeven_points || [];
+                                    const breakEvenUp = breakevens.length > 0 ? Math.max(...breakevens) : 0;
+                                    const breakEvenDown = breakevens.length > 1 ? Math.min(...breakevens) : breakEvenUp;
+
+                                    return (
+                                        <>
+                                            <div className="p-3 bg-slate-800/50 rounded-lg">
+                                                <div className="text-xs text-slate-400 mb-1">Net Cost/Credit</div>
+                                                <div
+                                                    className={`text-xl font-bold ${totalCost > 0 ? 'text-red-400' : 'text-emerald-400'}`}>
+                                                    {totalCost > 0 ? '-' : '+'}{formatCurrency(Math.abs(totalCost))}
+                                                </div>
+                                            </div>
+                                            <div className="p-3 bg-slate-800/50 rounded-lg">
+                                                <div className="text-xs text-slate-400 mb-1">Max Profit</div>
+                                                <div className="text-lg font-bold text-emerald-400">
+                                                    {analysisResult.max_profit_condition === 'Unlimited (upside)' || analysisResult.max_profit_condition === 'Unlimited (downside)'
+                                                        ? 'Unlimited'
+                                                        : formatCurrency(analysisResult.max_profit)}
+                                                </div>
+                                                <div className="text-xs text-slate-500">{analysisResult.max_profit_condition}</div>
+                                            </div>
+                                            <div className="p-3 bg-slate-800/50 rounded-lg">
+                                                <div className="text-xs text-slate-400 mb-1">Max Loss</div>
+                                                <div className="text-lg font-bold text-red-400">
+                                                    {analysisResult.max_loss_condition === 'Unlimited (upside)' || analysisResult.max_loss_condition === 'Unlimited (downside)'
+                                                        ? 'Unlimited'
+                                                        : formatCurrency(Math.abs(analysisResult.max_loss))}
+                                                </div>
+                                                <div className="text-xs text-slate-500">{analysisResult.max_loss_condition}</div>
+                                            </div>
+                                            {breakevens.length > 0 && (
+                                                <>
+                                                    <div className="p-3 bg-slate-800/50 rounded-lg">
+                                                        <div className="text-xs text-slate-400 mb-1">Upper Break-even</div>
+                                                        <div className="text-lg font-bold text-blue-400">
+                                                            ${breakEvenUp.toFixed(2)}
+                                                        </div>
+                                                        <div className="text-xs text-slate-500">
+                                                            {((breakEvenUp - currentPrice) / currentPrice * 100).toFixed(2)}% from current
+                                                        </div>
+                                                    </div>
+                                                    {breakevens.length > 1 && (
+                                                        <div className="p-3 bg-slate-800/50 rounded-lg">
+                                                            <div className="text-xs text-slate-400 mb-1">Lower Break-even</div>
+                                                            <div className="text-lg font-bold text-blue-400">
+                                                                ${breakEvenDown.toFixed(2)}
+                                                            </div>
+                                                            <div className="text-xs text-slate-500">
+                                                                {((breakEvenDown - currentPrice) / currentPrice * 100).toFixed(2)}% from current
+                                                            </div>
+                                                        </div>
+                                                    )}
+                                                    <div className="p-3 bg-emerald-900/20 border border-emerald-500/30 rounded-lg">
+                                                        <div className="text-xs text-slate-400 mb-1">Prob. of Profit</div>
+                                                        <div className="text-sm font-bold text-emerald-400">
+                                                            {(analysisResult.probability_of_profit * 100).toFixed(1)}%
+                                                        </div>
+                                                    </div>
+                                                </>
+                                            )}
+                                        </>
+                                    );
+                                }
+
+                                // Fallback: client-side estimation from leg premiums
                                 const totalCost = customLegs.reduce((sum, leg) => {
                                     const multiplier = leg.position === 'long' ? 1 : -1;
                                     return sum + (leg.premium || 0) * leg.quantity * multiplier * 100;
@@ -320,37 +392,32 @@ const BuilderTab: React.FC<BuilderTabProps> = ({
                                 return (
                                     <>
                                         <div className="p-3 bg-slate-800/50 rounded-lg">
-                                            <div className="text-xs text-slate-400 mb-1">Net Cost/Credit</div>
+                                            <div className="text-xs text-slate-400 mb-1">Net Cost/Credit (est.)</div>
                                             <div
                                                 className={`text-xl font-bold ${totalCost < 0 ? 'text-red-400' : 'text-emerald-400'}`}>
                                                 {totalCost < 0 ? '-' : '+'}{formatCurrency(Math.abs(totalCost))}
                                             </div>
                                         </div>
                                         <div className="p-3 bg-slate-800/50 rounded-lg">
-                                            <div className="text-xs text-slate-400 mb-1">Upper Break-even</div>
+                                            <div className="text-xs text-slate-400 mb-1">Upper Break-even (est.)</div>
                                             <div className="text-lg font-bold text-blue-400">
                                                 ${breakEvenUp.toFixed(2)}
                                             </div>
                                             <div className="text-xs text-slate-500">
-                                                {((breakEvenUp - currentPrice) / currentPrice * 100).toFixed(2)}% from
-                                                current
+                                                {((breakEvenUp - currentPrice) / currentPrice * 100).toFixed(2)}% from current
                                             </div>
                                         </div>
                                         <div className="p-3 bg-slate-800/50 rounded-lg">
-                                            <div className="text-xs text-slate-400 mb-1">Lower Break-even</div>
+                                            <div className="text-xs text-slate-400 mb-1">Lower Break-even (est.)</div>
                                             <div className="text-lg font-bold text-blue-400">
                                                 ${breakEvenDown.toFixed(2)}
                                             </div>
                                             <div className="text-xs text-slate-500">
-                                                {((breakEvenDown - currentPrice) / currentPrice * 100).toFixed(2)}% from
-                                                current
+                                                {((breakEvenDown - currentPrice) / currentPrice * 100).toFixed(2)}% from current
                                             </div>
                                         </div>
-                                        <div className="p-3 bg-emerald-900/20 border border-emerald-500/30 rounded-lg">
-                                            <div className="text-xs text-slate-400 mb-1">Profitable Range</div>
-                                            <div className="text-sm font-bold text-emerald-400">
-                                                ${breakEvenDown.toFixed(2)} - ${breakEvenUp.toFixed(2)}
-                                            </div>
+                                        <div className="p-3 bg-amber-900/20 border border-amber-500/30 rounded-lg">
+                                            <div className="text-xs text-amber-400">Click &quot;Analyze Strategy&quot; for accurate break-evens</div>
                                         </div>
                                     </>
                                 );
@@ -414,7 +481,7 @@ const BuilderTab: React.FC<BuilderTabProps> = ({
                             {strikeOptimizer.strikes.slice(0, 3).map((strike: any, idx: number) => (
                                 <div key={idx} className="p-2 bg-slate-800/50 rounded-lg">
                                     <div className="flex justify-between items-center">
-                                        <span className="text-sm text-slate-300">${strike.strike}</span>
+                                        <span className="text-sm text-slate-300">${toPrecision(strike.strike)}</span>
                                         <span className="text-xs text-emerald-400">
                                                         {formatPercent(strike.prob_itm)} ITM
                                                     </span>
