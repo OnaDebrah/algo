@@ -9,7 +9,8 @@ from typing import Dict, List
 import pandas as pd
 
 from backend.app.config import DEFAULT_INITIAL_CAPITAL
-from backend.app.core import DatabaseManager, RiskManager
+from backend.app.core import RiskManager
+from backend.app.services.trading_service import TradingService
 from backend.app.strategies import BaseStrategy
 
 logger = logging.getLogger(__name__)
@@ -23,7 +24,7 @@ class TradingEngine:
         strategy: BaseStrategy,
         initial_capital: float = DEFAULT_INITIAL_CAPITAL,
         risk_manager: RiskManager = None,
-        db_manager: DatabaseManager = None,
+        trading_service: TradingService = None,
         commission_rate: float = 0.0,
         slippage_rate: float = 0.0,
     ):
@@ -34,7 +35,7 @@ class TradingEngine:
             strategy: Trading strategy to use
             initial_capital: Starting capital
             risk_manager: Risk management system
-            db_manager: Database manager
+            trading_service: Database manager
         """
         self.strategy = strategy
         self.initial_capital = initial_capital
@@ -44,7 +45,7 @@ class TradingEngine:
         self.equity_curve: List[Dict] = []
 
         self.risk_manager = risk_manager or RiskManager()
-        self.db = db_manager or DatabaseManager()
+        self.trading_service = trading_service or TradingService()
         self.commission_rate = commission_rate
         self.slippage_rate = slippage_rate
 
@@ -98,7 +99,7 @@ class TradingEngine:
                 }
 
                 self.trades.append(trade_data)
-                self.db.save_trade(trade_data)
+                self.trading_service.save_trade(trade_data)
 
                 logger.info(f"BUY: {quantity} {symbol} @ ${slipped_price:.2f} " f"(Cost: ${total_cost:.2f}, Comm: ${commission:.2f})")
 
@@ -132,7 +133,7 @@ class TradingEngine:
             }
 
             self.trades.append(trade_data)
-            self.db.save_trade(trade_data)
+            self.trading_service.save_trade(trade_data)
 
             logger.info(
                 f"SELL: {self.position['quantity']} {symbol} @ ${slipped_price:.2f} "

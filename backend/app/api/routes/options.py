@@ -3,12 +3,12 @@ from datetime import datetime, timedelta
 
 import numpy as np
 import pandas as pd
-import yfinance as yf
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.app.analytics.options_analytics import OptionsAnalytics
 from backend.app.api.deps import get_current_active_user
+from backend.app.core.data.providers.providers import ProviderFactory
 from backend.app.core.options_engine import OptionsBacktestEngine, backtest_options_strategy
 from backend.app.database import get_db
 from backend.app.models import User
@@ -49,63 +49,68 @@ market_service = get_market_service()
 
 options_engine = OptionsBacktestEngine()
 
+_provider = ProviderFactory()
 
-def fetch_real_option_chain(symbol: str) -> ChainResponse:
-    """Fetch real option chain data from yfinance"""
+
+async def fetch_real_option_chain(symbol: str) -> ChainResponse:
+    """Fetch real option chain data via the provider layer"""
     try:
-        ticker = yf.Ticker(symbol)
-
-        hist = ticker.history(period="1d")
-        if hist.empty:
+        # Get current price
+        quote = await _provider.get_quote(symbol)
+        current_price = quote.get("price", 0.0)
+        if not current_price:
             raise ValueError(f"No price data available for {symbol}")
 
-        current_price = hist["Close"].iloc[-1]
-
         # Get expiration dates
-        expirations = ticker.options
+        expirations = await _provider.get_option_expirations(symbol)
         if not expirations:
             raise ValueError(f"No options data available for {symbol}")
 
         expiration_dates = list(expirations[:5])  # First 5 expirations
 
         # Get calls and puts for the first expiration
-        opt_chain = ticker.option_chain(expirations[0])
+        chain_data = await _provider.get_option_chain(symbol, expirations[0])
+
+        calls_df = chain_data.get("calls", pd.DataFrame())
+        puts_df = chain_data.get("puts", pd.DataFrame())
 
         # Convert calls to dict format
         calls = []
-        for _, row in opt_chain.calls.iterrows():
-            calls.append(
-                {
-                    "strike": float(row["strike"]),
-                    "bid": float(row.get("bid", 0)),
-                    "ask": float(row.get("ask", 0)),
-                    "volume": int(row.get("volume", 0)) if pd.notna(row.get("volume")) else 0,
-                    "openInterest": int(row.get("openInterest", 0)) if pd.notna(row.get("openInterest")) else 0,
-                    "impliedVolatility": float(row.get("impliedVolatility", 0.3)),
-                    "delta": float(row.get("delta", 0.5)) if "delta" in row else 0.5,
-                    "gamma": float(row.get("gamma", 0.05)) if "gamma" in row else 0.05,
-                    "theta": float(row.get("theta", -0.1)) if "theta" in row else -0.1,
-                    "vega": float(row.get("vega", 0.2)) if "vega" in row else 0.2,
-                }
-            )
+        if not calls_df.empty:
+            for _, row in calls_df.iterrows():
+                calls.append(
+                    {
+                        "strike": float(row["strike"]),
+                        "bid": float(row.get("bid", 0)),
+                        "ask": float(row.get("ask", 0)),
+                        "volume": int(row.get("volume", 0)) if pd.notna(row.get("volume")) else 0,
+                        "openInterest": int(row.get("openInterest", 0)) if pd.notna(row.get("openInterest")) else 0,
+                        "impliedVolatility": float(row.get("impliedVolatility", 0.3)),
+                        "delta": float(row.get("delta", 0.5)) if "delta" in row else 0.5,
+                        "gamma": float(row.get("gamma", 0.05)) if "gamma" in row else 0.05,
+                        "theta": float(row.get("theta", -0.1)) if "theta" in row else -0.1,
+                        "vega": float(row.get("vega", 0.2)) if "vega" in row else 0.2,
+                    }
+                )
 
         # Convert puts to dict format
         puts = []
-        for _, row in opt_chain.puts.iterrows():
-            puts.append(
-                {
-                    "strike": float(row["strike"]),
-                    "bid": float(row.get("bid", 0)),
-                    "ask": float(row.get("ask", 0)),
-                    "volume": int(row.get("volume", 0)) if pd.notna(row.get("volume")) else 0,
-                    "openInterest": int(row.get("openInterest", 0)) if pd.notna(row.get("openInterest")) else 0,
-                    "impliedVolatility": float(row.get("impliedVolatility", 0.3)),
-                    "delta": float(row.get("delta", -0.5)) if "delta" in row else -0.5,
-                    "gamma": float(row.get("gamma", 0.05)) if "gamma" in row else 0.05,
-                    "theta": float(row.get("theta", -0.1)) if "theta" in row else -0.1,
-                    "vega": float(row.get("vega", 0.2)) if "vega" in row else 0.2,
-                }
-            )
+        if not puts_df.empty:
+            for _, row in puts_df.iterrows():
+                puts.append(
+                    {
+                        "strike": float(row["strike"]),
+                        "bid": float(row.get("bid", 0)),
+                        "ask": float(row.get("ask", 0)),
+                        "volume": int(row.get("volume", 0)) if pd.notna(row.get("volume")) else 0,
+                        "openInterest": int(row.get("openInterest", 0)) if pd.notna(row.get("openInterest")) else 0,
+                        "impliedVolatility": float(row.get("impliedVolatility", 0.3)),
+                        "delta": float(row.get("delta", -0.5)) if "delta" in row else -0.5,
+                        "gamma": float(row.get("gamma", 0.05)) if "gamma" in row else 0.05,
+                        "theta": float(row.get("theta", -0.1)) if "theta" in row else -0.1,
+                        "vega": float(row.get("vega", 0.2)) if "vega" in row else 0.2,
+                    }
+                )
 
         return ChainResponse(symbol=symbol, current_price=float(current_price), expiration_dates=expiration_dates, calls=calls, puts=puts)
 
@@ -163,13 +168,7 @@ async def get_option_chain(
     current_user: User = Depends(get_current_active_user),
 ):
     try:
-        chain = OptionsChain(request.symbol)
-
-        # Get the raw data from yfinance
-        data = chain.get_chain(expiration=request.expiration)
-
-        import numpy as np
-        import pandas as pd
+        chain = OptionsChain(request.symbol, provider_factory=_provider)
 
         def clean_value(val):
             """Clean NaN and Inf values"""
@@ -179,17 +178,20 @@ async def get_option_chain(
 
         # If no expiration provided, return available dates only
         if request.expiration is None:
-            # Get all available expiration dates
-            ticker = yf.Ticker(request.symbol)
-            expiration_dates = ticker.options if hasattr(ticker, "options") else []
+            # Get all available expiration dates via provider
+            expirations = await _provider.get_option_expirations(request.symbol)
+            quote = await _provider.get_quote(request.symbol)
 
             return {
                 "symbol": request.symbol,
-                "current_price": clean_value(ticker.info.get("currentPrice", 0)),
-                "expiration_dates": list(expiration_dates),
+                "current_price": clean_value(quote.get("price", 0)),
+                "expiration_dates": list(expirations),
                 "calls": [],
                 "puts": [],
             }
+
+        # Get the raw data via the provider-backed OptionsChain
+        data = await chain.get_chain(expiration=request.expiration)
 
         # If expiration is provided, return full chain data
         if isinstance(data, dict) and "calls" in data and "puts" in data:
@@ -208,7 +210,7 @@ async def get_option_chain(
                         "volume": int(row.get("volume", 0)) if pd.notna(row.get("volume")) else 0,
                         "openInterest": int(row.get("openInterest", 0)) if pd.notna(row.get("openInterest")) else 0,
                         "impliedVolatility": clean_value(row.get("impliedVolatility", 0)),
-                        "delta": clean_value(row.get("delta", 0)),  # May need calculation
+                        "delta": clean_value(row.get("delta", 0)),
                         "gamma": clean_value(row.get("gamma", 0)),
                         "theta": clean_value(row.get("theta", 0)),
                         "vega": clean_value(row.get("vega", 0)),
@@ -235,10 +237,10 @@ async def get_option_chain(
                     }
                 )
 
-            # Get current price and available dates
-            ticker = yf.Ticker(request.symbol)
-            current_price = clean_value(ticker.info.get("currentPrice", 0))
-            expiration_dates = list(ticker.options) if hasattr(ticker, "options") else [request.expiration]
+            # Get current price and available dates via provider
+            quote = await _provider.get_quote(request.symbol)
+            current_price = clean_value(quote.get("price", 0))
+            expiration_dates = data.get("expiration_dates", [request.expiration])
 
             return {
                 "symbol": request.symbol,
@@ -265,10 +267,9 @@ async def run_backtest(request: BacktestRequest, current_user: User = Depends(ge
     Run options strategy backtest using historical data
     """
     try:
-        # Try to fetch real historical data
+        # Try to fetch real historical data via the provider layer
         try:
-            ticker = yf.Ticker(request.symbol)
-            data = ticker.history(start=request.start_date, end=request.end_date)
+            data = await _provider.fetch_data(request.symbol, "max", "1d", start=request.start_date, end=request.end_date)
 
             if data.empty:
                 raise ValueError("No historical data available")
@@ -315,6 +316,7 @@ async def run_backtest(request: BacktestRequest, current_user: User = Depends(ge
             raise ValueError("Backtest engine not found in results")
 
         equity_curve_data = []
+        peak_equity = 0.0
         for e in engine.equity_curve:
             date_val = e["date"]
             if hasattr(date_val, "isoformat"):
@@ -322,7 +324,10 @@ async def run_backtest(request: BacktestRequest, current_user: User = Depends(ge
             else:
                 date_str = str(date_val)
 
-            equity_curve_data.append({"date": date_str, "equity": float(e["equity"])})
+            eq = float(e["equity"])
+            peak_equity = max(peak_equity, eq)
+            dd = ((eq - peak_equity) / peak_equity * 100) if peak_equity > 0 else 0.0
+            equity_curve_data.append({"date": date_str, "equity": eq, "drawdown": round(dd, 2)})
 
         trades_data = []
         for t in engine.trades:
@@ -336,18 +341,25 @@ async def run_backtest(request: BacktestRequest, current_user: User = Depends(ge
                 {"date": date_str, "type": t["type"], "price": float(t["price"]), "pnl": float(t.get("pnl", 0)), "strategy": t["strategy"]}
             )
 
+        def safe_float(val, default=0.0):
+            """Clamp inf/nan to JSON-safe values"""
+            v = float(val)
+            if np.isinf(v) or np.isnan(v):
+                return default
+            return v
+
         # Transform results for API response
         return BacktestResult(
             total_trades=int(results["total_trades"]),
             winning_trades=int(results["winning_trades"]),
             losing_trades=int(results["losing_trades"]),
-            win_rate=float(results["win_rate"]),
-            total_return=float(results["total_return"]),
-            max_drawdown=float(results["max_drawdown"]),
-            sharpe_ratio=float(results["sharpe_ratio"]),
-            profit_factor=float(results["profit_factor"]),
-            total_profit=float(results["total_profit"]),
-            total_loss=float(results["total_loss"]),
+            win_rate=safe_float(results["win_rate"]),
+            total_return=safe_float(results["total_return"]),
+            max_drawdown=safe_float(results["max_drawdown"]),
+            sharpe_ratio=safe_float(results["sharpe_ratio"]),
+            profit_factor=safe_float(results["profit_factor"]),
+            total_profit=safe_float(results["total_profit"]),
+            total_loss=safe_float(results["total_loss"]),
             equity_curve=equity_curve_data,
             trades=trades_data,
         )
@@ -369,13 +381,11 @@ async def analyze_strategy(
     """
     await AuthService.track_usage(db, current_user.id, "analyze_strategy", {"symbol": request.symbol})
     try:
-        # Get current price
-        ticker = yf.Ticker(request.symbol)
-        hist = ticker.history(period="1d")
-        if hist.empty:
+        # Get current price via provider
+        quote = await _provider.get_quote(request.symbol)
+        current_price = quote.get("price", 0.0)
+        if not current_price:
             raise HTTPException(status_code=400, detail=f"No price data for {request.symbol}")
-
-        current_price = float(hist["Close"].iloc[-1])
 
         # Build strategy
         builder = OptionsStrategyBuilder(request.symbol)
@@ -427,13 +437,11 @@ async def calculate_greeks(request: GreeksRequest, current_user: User = Depends(
     """
     await AuthService.track_usage(db, current_user.id, "calculate_greeks", {"symbol": request.symbol})
     try:
-        # Get current price
-        ticker = yf.Ticker(request.symbol)
-        hist = ticker.history(period="1d")
-        if hist.empty:
+        # Get current price via provider
+        quote = await _provider.get_quote(request.symbol)
+        current_price = quote.get("price", 0.0)
+        if not current_price:
             raise HTTPException(status_code=400, detail=f"No price data for {request.symbol}")
-
-        current_price = float(hist["Close"].iloc[-1])
 
         # Build strategy
         builder = OptionsStrategyBuilder(request.symbol)
@@ -466,13 +474,11 @@ async def compare_strategies(
     """
     await AuthService.track_usage(db, current_user.id, "compare_strategies", {"symbol": request.symbol})
     try:
-        # Get current price
-        ticker = yf.Ticker(request.symbol)
-        hist = ticker.history(period="1d")
-        if hist.empty:
+        # Get current price via provider
+        quote = await _provider.get_quote(request.symbol)
+        current_price = quote.get("price", 0.0)
+        if not current_price:
             raise HTTPException(status_code=400, detail=f"No price data for {request.symbol}")
-
-        current_price = float(hist["Close"].iloc[-1])
 
         comparisons = []
 
@@ -489,7 +495,14 @@ async def compare_strategies(
                 strategy_enum = OptStrat[strategy_type.upper()]
                 expiration = datetime.fromisoformat(strategy_config.get("expiration", (datetime.now() + timedelta(days=30)).isoformat()))
 
-                builder = create_preset_strategy(strategy_enum, request.symbol, current_price, expiration, **strategy_config.get("params", {}))
+                builder = create_preset_strategy(
+                    strategy_enum,
+                    request.symbol,
+                    current_price,
+                    expiration,
+                    volatility=strategy_config.get("volatility", 0.3),
+                    **strategy_config.get("params", {}),
+                )
             else:
                 # Custom strategy from legs
                 builder = OptionsStrategyBuilder(request.symbol)

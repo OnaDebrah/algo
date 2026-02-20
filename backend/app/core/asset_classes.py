@@ -9,7 +9,8 @@ from enum import Enum
 from typing import Dict, List, Optional
 
 import pandas as pd
-import yfinance as yf
+
+from backend.app.core.data.providers.providers import ProviderFactory
 
 logger = logging.getLogger(__name__)
 
@@ -128,7 +129,7 @@ class AssetClassManager:
         # Default to stock
         return AssetClass.STOCK
 
-    def get_asset_info(self, symbol: str) -> AssetInfo:
+    async def get_asset_info(self, symbol: str) -> AssetInfo:
         """
         Get detailed information about an asset
 
@@ -140,10 +141,9 @@ class AssetClassManager:
         """
         asset_class = self.detect_asset_class(symbol)
 
-        # Try to fetch info from yfinance
         try:
-            ticker = yf.Ticker(symbol)
-            info = ticker.info
+            factory = ProviderFactory()
+            info = await factory.get_ticker_info(symbol)
 
             return AssetInfo(
                 symbol=symbol,
@@ -306,7 +306,7 @@ class AssetClassManager:
 
         return popular.get(asset_class, [])
 
-    def validate_symbol(self, symbol: str) -> tuple[bool, str]:
+    async def validate_symbol(self, symbol: str) -> tuple[bool, str]:
         """
         Validate if symbol exists and is tradeable
 
@@ -317,8 +317,8 @@ class AssetClassManager:
             Tuple of (is_valid, message)
         """
         try:
-            ticker = yf.Ticker(symbol)
-            data = ticker.history(period="5d")
+            factory = ProviderFactory()
+            data = await factory.fetch_data(symbol, "5d", "1d")
 
             if data.empty:
                 return False, f"No data available for {symbol}"

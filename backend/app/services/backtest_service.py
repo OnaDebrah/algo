@@ -16,7 +16,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from backend.app.analytics.performance import calculate_performance_metrics
 from backend.app.core.benchmark_calculator import BenchmarkCalculator
 from backend.app.core.data_fetcher import fetch_stock_data
-from backend.app.core.database import DatabaseManager
 from backend.app.core.multi_asset_engine import MultiAssetEngine
 from backend.app.core.risk_manager import RiskManager
 from backend.app.core.trading_engine import TradingEngine
@@ -30,6 +29,7 @@ from backend.app.schemas.backtest import (
     MultiAssetBacktestResponse,
     Trade,
 )
+from backend.app.services.trading_service import TradingService
 from backend.app.strategies.strategy_catalog import get_catalog
 
 logger = logging.getLogger(__name__)
@@ -69,9 +69,9 @@ class BacktestService:
             db: AsyncSession for SQLAlchemy (BacktestRun model)
         """
         self.catalog = get_catalog()
-        self.db_manager = DatabaseManager()  # For trades/performance (psycopg2)
+        self.trading_service = TradingService()
         self.risk_manager = RiskManager()
-        self.db = db  # For BacktestRun model (SQLAlchemy async)
+        self.db = db
 
     async def create_backtest_run(
         self,
@@ -220,7 +220,7 @@ class BacktestService:
                 strategy=strategy,
                 initial_capital=request.initial_capital,
                 risk_manager=self.risk_manager,
-                db_manager=self.db_manager,
+                trading_service=self.trading_service,
                 commission_rate=request.commission_rate,
                 slippage_rate=request.slippage_rate,
             )
@@ -532,7 +532,6 @@ class BacktestService:
             strategies=pairs_strategy,
             initial_capital=request.initial_capital,
             risk_manager=self.risk_manager,
-            db=self.db_manager,
             allocation_method=request.allocation_method,
             commission_rate=request.commission_rate,
             slippage_rate=request.slippage_rate,
@@ -559,7 +558,6 @@ class BacktestService:
             strategies=strategies,
             initial_capital=request.initial_capital,
             risk_manager=self.risk_manager,
-            db=self.db_manager,
             allocation_method=request.allocation_method,
             commission_rate=request.commission_rate,
             slippage_rate=request.slippage_rate,
