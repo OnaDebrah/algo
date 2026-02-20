@@ -23,8 +23,8 @@ import {
     XAxis,
     YAxis
 } from "recharts";
-import React, {useEffect, useState} from "react";
-import {formatCurrency} from "@/utils/formatters";
+import React, { useEffect, useState } from "react";
+import { formatCurrency } from "@/utils/formatters";
 import {
     AllocationResponse,
     CurrentRegimeResponse,
@@ -35,8 +35,8 @@ import {
     StrategyTemplate,
     TransitionResponse
 } from "@/types/all_types";
-import {STRATEGY_TEMPLATES} from "@/components/optionsdesk/contants/strategyTemplates";
-import {regime, options} from "@/utils/api";
+import { STRATEGY_TEMPLATES } from "@/components/optionsdesk/contants/strategyTemplates";
+import { regime, options } from "@/utils/api";
 
 interface ForecastTabProps {
     selectedSymbol: string;
@@ -90,19 +90,13 @@ const ForecastTab: React.FC<ForecastTabProps> = ({
     const fetchAllData = async () => {
         setLoading(true);
         try {
-            const [regimeRes, strengthRes, transitionRes, featuresRes, allocationRes, mcRes] = await Promise.allSettled([
-                regime.detect(selectedSymbol, {period: '1y'}),
-                regime.getStrength(selectedSymbol, {period: '1y'}),
-                regime.getTransitions(selectedSymbol, {period: '1y'}),
-                regime.getFeatures(selectedSymbol, {period: '1y'}),
-                regime.getAllocation(selectedSymbol, {period: '1y'}),
-                options.runMonteCarlo({
-                    current_price: currentPrice,
-                    volatility: 0.2,
-                    days: 30,
-                    num_simulations: 10000,
-                    drift: 0.08
-                }),
+            // Phase 1: fetch regime data first so we can derive MC inputs
+            const [regimeRes, strengthRes, transitionRes, featuresRes, allocationRes] = await Promise.allSettled([
+                regime.detect(selectedSymbol, { period: '2y' }),
+                regime.getStrength(selectedSymbol, { period: '2y' }),
+                regime.getTransitions(selectedSymbol, { period: '2y' }),
+                regime.getFeatures(selectedSymbol, { period: '2y' }),
+                regime.getAllocation(selectedSymbol, { period: '2y' }),
             ]);
 
             if (regimeRes.status === 'fulfilled') setRegimeData(regimeRes.value);
@@ -110,7 +104,30 @@ const ForecastTab: React.FC<ForecastTabProps> = ({
             if (transitionRes.status === 'fulfilled') setTransitionData(transitionRes.value);
             if (featuresRes.status === 'fulfilled') setFeaturesData(featuresRes.value);
             if (allocationRes.status === 'fulfilled') setAllocationData(allocationRes.value);
-            if (mcRes.status === 'fulfilled') setMonteCarloData(mcRes.value);
+
+            // Phase 2: derive Monte Carlo inputs from regime detection
+            const detectedVol = regimeRes.status === 'fulfilled'
+                ? regimeRes.value.current_regime?.metrics?.volatility
+                : null;
+            const detectedTrend = regimeRes.status === 'fulfilled'
+                ? regimeRes.value.current_regime?.metrics?.trend_strength
+                : null;
+
+            const mcVol = (detectedVol && detectedVol > 0) ? detectedVol : 0.2;
+            const mcDrift = detectedTrend != null ? detectedTrend * 0.1 : 0.05;
+
+            try {
+                const mcRes = await options.runMonteCarlo({
+                    current_price: currentPrice,
+                    volatility: mcVol,
+                    days: 30,
+                    num_simulations: 10000,
+                    drift: mcDrift,
+                });
+                setMonteCarloData(mcRes);
+            } catch (mcError) {
+                console.error('Monte Carlo simulation failed:', mcError);
+            }
         } catch (error) {
             console.error('Failed to fetch forecast data:', error);
         } finally {
@@ -134,12 +151,12 @@ const ForecastTab: React.FC<ForecastTabProps> = ({
 
     // Build allocation pie data
     const allocationPieData = allocationData ? [
-        {name: 'Trend Following', value: allocationData.allocation.trend_following},
-        {name: 'Momentum', value: allocationData.allocation.momentum},
-        {name: 'Volatility', value: allocationData.allocation.volatility_strategies},
-        {name: 'Mean Reversion', value: allocationData.allocation.mean_reversion},
-        {name: 'Stat Arb', value: allocationData.allocation.statistical_arbitrage},
-        {name: 'Cash', value: allocationData.allocation.cash},
+        { name: 'Trend Following', value: allocationData.allocation.trend_following },
+        { name: 'Momentum', value: allocationData.allocation.momentum },
+        { name: 'Volatility', value: allocationData.allocation.volatility_strategies },
+        { name: 'Mean Reversion', value: allocationData.allocation.mean_reversion },
+        { name: 'Stat Arb', value: allocationData.allocation.statistical_arbitrage },
+        { name: 'Cash', value: allocationData.allocation.cash },
     ].filter(d => d.value > 0) : [];
 
     // Build feature importance bar data
@@ -160,7 +177,7 @@ const ForecastTab: React.FC<ForecastTabProps> = ({
         const max = Math.max(...prices);
         const bucketCount = 20;
         const bucketSize = (max - min) / bucketCount;
-        const buckets: {price: string; count: number; midPrice: number}[] = [];
+        const buckets: { price: string; count: number; midPrice: number }[] = [];
         for (let i = 0; i < bucketCount; i++) {
             const lo = min + i * bucketSize;
             const hi = lo + bucketSize;
@@ -175,8 +192,8 @@ const ForecastTab: React.FC<ForecastTabProps> = ({
     })();
 
     // Recommended strategies based on regime
-    const getRecommendedStrategies = (): {strategy: StrategyTemplate; reason: string}[] => {
-        const results: {strategy: StrategyTemplate; reason: string}[] = [];
+    const getRecommendedStrategies = (): { strategy: StrategyTemplate; reason: string }[] => {
+        const results: { strategy: StrategyTemplate; reason: string }[] = [];
         const find = (id: string) => STRATEGY_TEMPLATES.find(s => s.id === id);
 
         const metrics = regimeData?.current_regime?.metrics;
@@ -184,40 +201,40 @@ const ForecastTab: React.FC<ForecastTabProps> = ({
 
         if (regimeName.includes('bull')) {
             const cc = find('covered_call');
-            if (cc) results.push({strategy: cc, reason: 'Generate income in bullish trend'});
+            if (cc) results.push({ strategy: cc, reason: 'Generate income in bullish trend' });
             const vcs = find('vertical_call_spread');
-            if (vcs) results.push({strategy: vcs, reason: 'Defined-risk bullish exposure'});
+            if (vcs) results.push({ strategy: vcs, reason: 'Defined-risk bullish exposure' });
             if (vol > 0.3) {
                 const pp = find('protective_put');
-                if (pp) results.push({strategy: pp, reason: 'Hedge against volatile pullbacks'});
+                if (pp) results.push({ strategy: pp, reason: 'Hedge against volatile pullbacks' });
             }
         } else if (regimeName.includes('bear')) {
             const vps = find('vertical_put_spread');
-            if (vps) results.push({strategy: vps, reason: 'Defined-risk bearish exposure'});
+            if (vps) results.push({ strategy: vps, reason: 'Defined-risk bearish exposure' });
             const pp = find('protective_put');
-            if (pp) results.push({strategy: pp, reason: 'Protect long positions'});
+            if (pp) results.push({ strategy: pp, reason: 'Protect long positions' });
             const collar = find('collar');
-            if (collar) results.push({strategy: collar, reason: 'Cap downside while keeping upside'});
+            if (collar) results.push({ strategy: collar, reason: 'Cap downside while keeping upside' });
         } else if (regimeName === 'neutral' || regimeName === 'recovery') {
             const ic = find('iron_condor');
-            if (ic) results.push({strategy: ic, reason: 'Profit from range-bound market'});
+            if (ic) results.push({ strategy: ic, reason: 'Profit from range-bound market' });
             const bf = find('butterfly_spread');
-            if (bf) results.push({strategy: bf, reason: 'Target specific price at expiration'});
+            if (bf) results.push({ strategy: bf, reason: 'Target specific price at expiration' });
             const csp = find('cash_secured_put');
-            if (csp) results.push({strategy: csp, reason: 'Acquire stock at discount'});
+            if (csp) results.push({ strategy: csp, reason: 'Acquire stock at discount' });
         } else if (regimeName.includes('volatil') || regimeName === 'crisis') {
             const straddle = find('long_straddle');
-            if (straddle) results.push({strategy: straddle, reason: 'Profit from large moves in either direction'});
+            if (straddle) results.push({ strategy: straddle, reason: 'Profit from large moves in either direction' });
             const strangle = find('long_strangle');
-            if (strangle) results.push({strategy: strangle, reason: 'Lower-cost volatility play'});
+            if (strangle) results.push({ strategy: strangle, reason: 'Lower-cost volatility play' });
             const pp = find('protective_put');
-            if (pp) results.push({strategy: pp, reason: 'Protect against continued downside'});
+            if (pp) results.push({ strategy: pp, reason: 'Protect against continued downside' });
         }
 
         // Fallback
         if (results.length === 0) {
             const ic = find('iron_condor');
-            if (ic) results.push({strategy: ic, reason: 'Neutral strategy for uncertain markets'});
+            if (ic) results.push({ strategy: ic, reason: 'Neutral strategy for uncertain markets' });
         }
 
         return results.slice(0, 4);
@@ -233,7 +250,7 @@ const ForecastTab: React.FC<ForecastTabProps> = ({
                 <div className="lg:col-span-2 bg-gradient-to-br from-purple-900/30 to-pink-900/20 border border-purple-500/30 rounded-xl p-6">
                     <div className="flex items-center justify-between mb-4">
                         <h3 className="text-sm font-bold text-slate-300 flex items-center gap-2">
-                            <BrainCircuit size={16} className="text-purple-400"/>
+                            <BrainCircuit size={16} className="text-purple-400" />
                             Market Regime — {selectedSymbol}
                         </h3>
                         <button
@@ -241,13 +258,13 @@ const ForecastTab: React.FC<ForecastTabProps> = ({
                             disabled={isAnyLoading}
                             className="p-1.5 rounded-lg hover:bg-slate-700/50 text-slate-400 hover:text-slate-200 transition-colors disabled:opacity-50"
                         >
-                            <RefreshCw size={14} className={isAnyLoading ? 'animate-spin' : ''}/>
+                            <RefreshCw size={14} className={isAnyLoading ? 'animate-spin' : ''} />
                         </button>
                     </div>
 
                     {isAnyLoading && !regimeData ? (
                         <div className="flex items-center justify-center py-8 text-slate-500 gap-2">
-                            <Loader2 size={20} className="animate-spin"/>
+                            <Loader2 size={20} className="animate-spin" />
                             <span>Analyzing market conditions...</span>
                         </div>
                     ) : (
@@ -255,7 +272,7 @@ const ForecastTab: React.FC<ForecastTabProps> = ({
                             <div className="flex items-center gap-4">
                                 <div
                                     className="text-3xl font-black"
-                                    style={{color: regimeColor}}
+                                    style={{ color: regimeColor }}
                                 >
                                     {regimeName.includes('bull') ? '📈' : regimeName.includes('bear') ? '📉' : regimeName === 'crisis' ? '🚨' : '➖'}{' '}
                                     {regimeLabel}
@@ -271,7 +288,7 @@ const ForecastTab: React.FC<ForecastTabProps> = ({
                                     <div className="mt-1 h-1.5 bg-slate-700 rounded-full overflow-hidden">
                                         <div
                                             className="h-full bg-purple-500 rounded-full transition-all"
-                                            style={{width: `${confidence * 100}%`}}
+                                            style={{ width: `${confidence * 100}%` }}
                                         />
                                     </div>
                                 </div>
@@ -283,7 +300,7 @@ const ForecastTab: React.FC<ForecastTabProps> = ({
                                     <div className="mt-1 h-1.5 bg-slate-700 rounded-full overflow-hidden">
                                         <div
                                             className={`h-full rounded-full transition-all ${healthScore >= 0.7 ? 'bg-emerald-500' : healthScore >= 0.4 ? 'bg-amber-500' : 'bg-red-500'}`}
-                                            style={{width: `${healthScore * 100}%`}}
+                                            style={{ width: `${healthScore * 100}%` }}
                                         />
                                     </div>
                                 </div>
@@ -335,14 +352,14 @@ const ForecastTab: React.FC<ForecastTabProps> = ({
                 {/* Regime Strength */}
                 <div className="bg-slate-900/50 border border-slate-800/50 rounded-xl p-6">
                     <h4 className="text-sm font-bold text-slate-300 mb-4 flex items-center gap-2">
-                        <Zap size={16} className="text-amber-400"/>
+                        <Zap size={16} className="text-amber-400" />
                         Regime Strength
                     </h4>
                     {strengthData ? (
                         <div className="space-y-3">
                             <div className="relative w-24 h-24 mx-auto">
                                 <svg viewBox="0 0 100 100" className="w-full h-full -rotate-90">
-                                    <circle cx="50" cy="50" r="42" fill="none" stroke="#334155" strokeWidth="8"/>
+                                    <circle cx="50" cy="50" r="42" fill="none" stroke="#334155" strokeWidth="8" />
                                     <circle
                                         cx="50" cy="50" r="42" fill="none"
                                         stroke={strengthData.strength >= 0.7 ? '#10b981' : strengthData.strength >= 0.4 ? '#f59e0b' : '#ef4444'}
@@ -368,7 +385,7 @@ const ForecastTab: React.FC<ForecastTabProps> = ({
                         </div>
                     ) : (
                         <div className="flex items-center justify-center py-8 text-slate-600">
-                            <Loader2 size={16} className="animate-spin"/>
+                            <Loader2 size={16} className="animate-spin" />
                         </div>
                     )}
                 </div>
@@ -376,7 +393,7 @@ const ForecastTab: React.FC<ForecastTabProps> = ({
                 {/* Transition Probabilities */}
                 <div className="bg-slate-900/50 border border-slate-800/50 rounded-xl p-6">
                     <h4 className="text-sm font-bold text-slate-300 mb-4 flex items-center gap-2">
-                        <Clock size={16} className="text-blue-400"/>
+                        <Clock size={16} className="text-blue-400" />
                         Regime Outlook
                     </h4>
                     {transitionData ? (
@@ -402,9 +419,9 @@ const ForecastTab: React.FC<ForecastTabProps> = ({
                                     {transitionItems.map((t, i) => (
                                         <div key={i} className="flex items-center gap-2 text-xs">
                                             <span className="text-slate-400">{REGIME_LABELS[t.from_regime] || t.from_regime}</span>
-                                            <ArrowRight size={10} className="text-slate-600"/>
+                                            <ArrowRight size={10} className="text-slate-600" />
                                             <span className="text-slate-300 font-medium">{REGIME_LABELS[t.to_regime] || t.to_regime}</span>
-                                            <span className="ml-auto font-bold" style={{color: REGIME_COLORS[t.to_regime] || '#6b7280'}}>
+                                            <span className="ml-auto font-bold" style={{ color: REGIME_COLORS[t.to_regime] || '#6b7280' }}>
                                                 {(t.probability * 100).toFixed(0)}%
                                             </span>
                                         </div>
@@ -414,7 +431,7 @@ const ForecastTab: React.FC<ForecastTabProps> = ({
                         </div>
                     ) : (
                         <div className="flex items-center justify-center py-8 text-slate-600">
-                            <Loader2 size={16} className="animate-spin"/>
+                            <Loader2 size={16} className="animate-spin" />
                         </div>
                     )}
                 </div>
@@ -425,26 +442,25 @@ const ForecastTab: React.FC<ForecastTabProps> = ({
                 {/* AI Strategy Recommendations */}
                 <div className="bg-gradient-to-br from-emerald-900/20 to-teal-900/10 border border-emerald-500/20 rounded-xl p-6">
                     <h4 className="text-sm font-bold text-slate-300 mb-4 flex items-center gap-2">
-                        <Target size={16} className="text-emerald-400"/>
+                        <Target size={16} className="text-emerald-400" />
                         AI Strategy Recommendations
                     </h4>
                     <p className="text-xs text-slate-500 mb-4">
-                        Based on current <span className="font-medium" style={{color: regimeColor}}>{regimeLabel}</span> regime
+                        Based on current <span className="font-medium" style={{ color: regimeColor }}>{regimeLabel}</span> regime
                     </p>
                     <div className="space-y-3">
-                        {recommendedStrategies.map(({strategy, reason}, idx) => {
+                        {recommendedStrategies.map(({ strategy, reason }, idx) => {
                             const alreadyAdded = selectedStrategies.some(s => s.id === strategy.id);
                             return (
                                 <div key={idx} className="flex items-center gap-3 p-3 bg-slate-800/40 rounded-lg border border-slate-700/30 hover:border-emerald-500/30 transition-colors">
                                     <div className="flex-1 min-w-0">
                                         <div className="text-sm font-bold text-slate-200 flex items-center gap-2">
                                             {strategy.name}
-                                            <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${
-                                                strategy.risk === 'Defined' ? 'bg-emerald-500/20 text-emerald-400' :
+                                            <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${strategy.risk === 'Defined' ? 'bg-emerald-500/20 text-emerald-400' :
                                                 strategy.risk === 'Low' ? 'bg-blue-500/20 text-blue-400' :
-                                                strategy.risk === 'Unlimited' ? 'bg-red-500/20 text-red-400' :
-                                                'bg-amber-500/20 text-amber-400'
-                                            }`}>
+                                                    strategy.risk === 'Unlimited' ? 'bg-red-500/20 text-red-400' :
+                                                        'bg-amber-500/20 text-amber-400'
+                                                }`}>
                                                 {strategy.risk} Risk
                                             </span>
                                         </div>
@@ -466,7 +482,7 @@ const ForecastTab: React.FC<ForecastTabProps> = ({
                 {/* Monte Carlo Price Distribution */}
                 <div className="bg-slate-900/50 border border-slate-800/50 rounded-xl p-6">
                     <h4 className="text-sm font-bold text-slate-300 mb-4 flex items-center gap-2">
-                        <BarChart3 size={16} className="text-blue-400"/>
+                        <BarChart3 size={16} className="text-blue-400" />
                         30-Day Price Simulation (10K paths)
                     </h4>
                     {monteCarloData ? (
@@ -474,12 +490,12 @@ const ForecastTab: React.FC<ForecastTabProps> = ({
                             <div className="h-48 mb-4">
                                 <ResponsiveContainer width="100%" height="100%">
                                     <BarChart data={mcDistribution}>
-                                        <CartesianGrid strokeDasharray="3 3" stroke="#1e293b"/>
-                                        <XAxis dataKey="price" stroke="#64748b" tick={{fontSize: 10}} interval="preserveStartEnd"/>
-                                        <YAxis stroke="#64748b" tick={{fontSize: 10}}/>
+                                        <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
+                                        <XAxis dataKey="price" stroke="#64748b" tick={{ fontSize: 10 }} interval="preserveStartEnd" />
+                                        <YAxis stroke="#64748b" tick={{ fontSize: 10 }} />
                                         <Tooltip
-                                            contentStyle={{backgroundColor: '#1e293b', borderColor: '#334155', fontSize: 12}}
-                                            labelStyle={{color: '#94a3b8'}}
+                                            contentStyle={{ backgroundColor: '#1e293b', borderColor: '#334155', fontSize: 12 }}
+                                            labelStyle={{ color: '#94a3b8' }}
                                             formatter={(value) => [`${value ?? 0} paths`, 'Count']}
                                         />
                                         <Bar dataKey="count" radius={[2, 2, 0, 0]}>
@@ -522,7 +538,7 @@ const ForecastTab: React.FC<ForecastTabProps> = ({
                         </>
                     ) : (
                         <div className="flex items-center justify-center py-16 text-slate-600">
-                            <Loader2 size={16} className="animate-spin"/>
+                            <Loader2 size={16} className="animate-spin" />
                         </div>
                     )}
                 </div>
@@ -533,24 +549,24 @@ const ForecastTab: React.FC<ForecastTabProps> = ({
                 {/* Feature Importance */}
                 <div className="bg-slate-900/50 border border-slate-800/50 rounded-xl p-6">
                     <h4 className="text-sm font-bold text-slate-300 mb-4 flex items-center gap-2">
-                        <Activity size={16} className="text-purple-400"/>
+                        <Activity size={16} className="text-purple-400" />
                         Key Market Drivers
                     </h4>
                     {featureBarData.length > 0 ? (
                         <div className="h-64">
                             <ResponsiveContainer width="100%" height="100%">
-                                <BarChart data={featureBarData} layout="vertical" margin={{left: 10}}>
-                                    <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" horizontal={false}/>
-                                    <XAxis type="number" stroke="#64748b" tick={{fontSize: 10}} domain={[0, 100]}/>
-                                    <YAxis type="category" dataKey="name" stroke="#64748b" tick={{fontSize: 10}} width={100}/>
+                                <BarChart data={featureBarData} layout="vertical" margin={{ left: 10 }}>
+                                    <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" horizontal={false} />
+                                    <XAxis type="number" stroke="#64748b" tick={{ fontSize: 10 }} domain={[0, 100]} />
+                                    <YAxis type="category" dataKey="name" stroke="#64748b" tick={{ fontSize: 10 }} width={100} />
                                     <Tooltip
-                                        contentStyle={{backgroundColor: '#1e293b', borderColor: '#334155', fontSize: 12}}
-                                        labelStyle={{color: '#94a3b8'}}
+                                        contentStyle={{ backgroundColor: '#1e293b', borderColor: '#334155', fontSize: 12 }}
+                                        labelStyle={{ color: '#94a3b8' }}
                                         formatter={(value) => [`${value ?? 0}%`, 'Importance']}
                                     />
                                     <Bar dataKey="importance" radius={[0, 4, 4, 0]}>
                                         {featureBarData.map((_, index) => (
-                                            <Cell key={index} fill={`hsl(${270 - index * 20}, 70%, 60%)`} fillOpacity={0.8}/>
+                                            <Cell key={index} fill={`hsl(${270 - index * 20}, 70%, 60%)`} fillOpacity={0.8} />
                                         ))}
                                     </Bar>
                                 </BarChart>
@@ -558,7 +574,7 @@ const ForecastTab: React.FC<ForecastTabProps> = ({
                         </div>
                     ) : (
                         <div className="flex items-center justify-center py-16 text-slate-600">
-                            {loading ? <Loader2 size={16} className="animate-spin"/> : <span className="text-sm">No feature data available</span>}
+                            {loading ? <Loader2 size={16} className="animate-spin" /> : <span className="text-sm">No feature data available</span>}
                         </div>
                     )}
                 </div>
@@ -566,7 +582,7 @@ const ForecastTab: React.FC<ForecastTabProps> = ({
                 {/* Strategy Allocation */}
                 <div className="bg-slate-900/50 border border-slate-800/50 rounded-xl p-6">
                     <h4 className="text-sm font-bold text-slate-300 mb-4 flex items-center gap-2">
-                        <Shield size={16} className="text-amber-400"/>
+                        <Shield size={16} className="text-amber-400" />
                         Recommended Allocation
                     </h4>
                     {allocationPieData.length > 0 ? (
@@ -584,11 +600,11 @@ const ForecastTab: React.FC<ForecastTabProps> = ({
                                             dataKey="value"
                                         >
                                             {allocationPieData.map((_, index) => (
-                                                <Cell key={index} fill={ALLOCATION_COLORS[index % ALLOCATION_COLORS.length]}/>
+                                                <Cell key={index} fill={ALLOCATION_COLORS[index % ALLOCATION_COLORS.length]} />
                                             ))}
                                         </Pie>
                                         <Tooltip
-                                            contentStyle={{backgroundColor: '#1e293b', borderColor: '#334155', fontSize: 12}}
+                                            contentStyle={{ backgroundColor: '#1e293b', borderColor: '#334155', fontSize: 12 }}
                                             formatter={(value) => [`${(Number(value ?? 0) * 100).toFixed(0)}%`, 'Weight']}
                                         />
                                     </PieChart>
@@ -599,7 +615,7 @@ const ForecastTab: React.FC<ForecastTabProps> = ({
                                     <div key={idx} className="flex items-center gap-2">
                                         <div
                                             className="w-3 h-3 rounded-full flex-shrink-0"
-                                            style={{backgroundColor: ALLOCATION_COLORS[idx % ALLOCATION_COLORS.length]}}
+                                            style={{ backgroundColor: ALLOCATION_COLORS[idx % ALLOCATION_COLORS.length] }}
                                         />
                                         <span className="text-xs text-slate-400 flex-1">{item.name}</span>
                                         <span className="text-xs font-bold text-slate-300">
@@ -611,7 +627,7 @@ const ForecastTab: React.FC<ForecastTabProps> = ({
                         </div>
                     ) : (
                         <div className="flex items-center justify-center py-16 text-slate-600">
-                            {loading ? <Loader2 size={16} className="animate-spin"/> : <span className="text-sm">No allocation data available</span>}
+                            {loading ? <Loader2 size={16} className="animate-spin" /> : <span className="text-sm">No allocation data available</span>}
                         </div>
                     )}
                 </div>
@@ -621,7 +637,7 @@ const ForecastTab: React.FC<ForecastTabProps> = ({
             {regimeData?.historical_regimes && regimeData.historical_regimes.length > 0 && (
                 <div className="bg-slate-900/50 border border-slate-800/50 rounded-xl p-6">
                     <h4 className="text-sm font-bold text-slate-300 mb-4 flex items-center gap-2">
-                        <TrendingUp size={16} className="text-slate-400"/>
+                        <TrendingUp size={16} className="text-slate-400" />
                         Recent Regime History
                     </h4>
                     <div className="flex gap-1 h-8 rounded-lg overflow-hidden">
@@ -629,7 +645,7 @@ const ForecastTab: React.FC<ForecastTabProps> = ({
                             <div
                                 key={idx}
                                 className="flex-1 transition-colors hover:opacity-80 cursor-default"
-                                style={{backgroundColor: REGIME_COLORS[r.name] || '#374151'}}
+                                style={{ backgroundColor: REGIME_COLORS[r.name] || '#374151' }}
                                 title={`${REGIME_LABELS[r.name] || r.name} (${(r.confidence * 100).toFixed(0)}% confidence)`}
                             />
                         ))}
@@ -639,7 +655,7 @@ const ForecastTab: React.FC<ForecastTabProps> = ({
                         <div className="flex gap-3 flex-wrap justify-center">
                             {Object.entries(REGIME_LABELS).slice(0, 5).map(([key, label]) => (
                                 <span key={key} className="flex items-center gap-1 text-[10px] text-slate-500">
-                                    <span className="w-2 h-2 rounded-full" style={{backgroundColor: REGIME_COLORS[key]}}/>
+                                    <span className="w-2 h-2 rounded-full" style={{ backgroundColor: REGIME_COLORS[key] }} />
                                     {label}
                                 </span>
                             ))}

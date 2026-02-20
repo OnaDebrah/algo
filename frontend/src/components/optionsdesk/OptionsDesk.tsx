@@ -1,6 +1,6 @@
 'use client'
-import React, {useEffect, useState} from 'react';
-import {Loader2} from "lucide-react";
+import React, { useEffect, useState } from 'react';
+import { Loader2 } from "lucide-react";
 import {
     BacktestConfig,
     ChainRequest,
@@ -40,8 +40,8 @@ import VolatilityTab from './tabs/VolatilityTab';
 import RiskTab from './tabs/RiskTab';
 import ForecastTab from './tabs/ForecastTab';
 import Tabs from "@/components/optionsdesk/tabs/Tabs";
-import {market, options, regime} from "@/utils/api";
-import {toPrecision} from "@/utils/formatters";
+import { market, options, regime } from "@/utils/api";
+import { toPrecision } from "@/utils/formatters";
 
 const OptionsDesk = () => {
     const [selectedSymbol, setSelectedSymbol] = useState('SPY');
@@ -60,7 +60,7 @@ const OptionsDesk = () => {
     const [monteCarloDistribution, setMonteCarloDistribution] = useState<any>(null);
     const [riskMetrics, setRiskMetrics] = useState<any>(null);
     const [portfolioStats, setPortfolioStats] = useState<any>(null);
-    const [strikeOptimizer, setStrikeOptimizer] = useState<StrikeOptimizerResponse | null >(null);
+    const [strikeOptimizer, setStrikeOptimizer] = useState<StrikeOptimizerResponse | null>(null);
     const [customAnalysisResult, setCustomAnalysisResult] = useState<StrategyAnalysisResponse | null>(null);
     const [backtestResults, setBacktestResults] = useState<any>(null);
     const [equityData, setEquityData] = useState<any[]>([]);
@@ -158,7 +158,7 @@ const OptionsDesk = () => {
 
     const fetchMLForecast = async () => {
         try {
-            const regimeData = await regime.detect(selectedSymbol, {period: '1y'});
+            const regimeData = await regime.detect(selectedSymbol, { period: '2y' });
 
             let direction: 'bullish' | 'bearish' | 'neutral' = 'neutral';
             if (regimeData.current_regime.confidence >= 3 || regimeData.current_regime.metrics.volatility >= .5) {
@@ -170,13 +170,15 @@ const OptionsDesk = () => {
             const confidence = regimeData.current_regime.confidence || 0.8;
 
             const historicalData: HistoricalDataPoint[] = await market.getHistorical(selectedSymbol, {
-                period: '1y',
+                period: '2y',
                 interval: '1d'
             });
-            const recentPrices = historicalData.slice(-30).map(d => d.close);
+            const recentPrices = historicalData.slice(-30).map((d: HistoricalDataPoint) => d.close);
             const avgPrice = recentPrices.reduce((a, b) => a + b, 0) / recentPrices.length;
             const volatility = Math.sqrt(recentPrices.reduce((sum, p) => sum + Math.pow(p - avgPrice, 2), 0) / recentPrices.length);
             //TODO add more metrics...
+            const annualisedVol = (volatility / avgPrice) * Math.sqrt(252);
+
             const forecast: MLForecast = {
                 direction,
                 confidence,
@@ -190,11 +192,11 @@ const OptionsDesk = () => {
                     median: currentPrice,
                     high: currentPrice + volatility
                 },
-                timeline: {
-                    short: '1-2 weeks',
-                    medium: '1-3 months',
-                    long: '3-6 months'
-                }
+                timeline: annualisedVol > 0.4
+                    ? { short: '1-5 days', medium: '1-4 weeks', long: '1-3 months' }
+                    : annualisedVol > 0.2
+                        ? { short: '1-2 weeks', medium: '1-3 months', long: '3-6 months' }
+                        : { short: '2-4 weeks', medium: '2-4 months', long: '6-12 months' }
             };
             setMlForecast(forecast);
         } catch (error) {
@@ -601,7 +603,7 @@ const OptionsDesk = () => {
                     />
                 )}
 
-                <Tabs activeTab={activeTab} setActiveTab={setActiveTab}/>
+                <Tabs activeTab={activeTab} setActiveTab={setActiveTab} />
 
                 {activeTab === 'ml' && (
                     <ForecastTab
@@ -685,7 +687,7 @@ const OptionsDesk = () => {
                 {isLoading && (
                     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
                         <div className="bg-slate-900 p-6 rounded-xl border border-slate-800 flex items-center gap-3">
-                            <Loader2 className="animate-spin text-amber-400" size={24}/>
+                            <Loader2 className="animate-spin text-amber-400" size={24} />
                             <span className="text-slate-300">Processing...</span>
                         </div>
                     </div>
