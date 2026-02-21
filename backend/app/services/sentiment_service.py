@@ -2,9 +2,8 @@ import json
 import logging
 from typing import Dict, List, Optional
 
-import yfinance as yf
-
 from backend.app.config import settings
+from backend.app.core.data.providers.providers import ProviderFactory
 
 logger = logging.getLogger(__name__)
 
@@ -34,9 +33,9 @@ class SentimentService:
         logger.info(f"Fetching sentiment for {ticker}")
 
         try:
-            # 1. Fetch news from yfinance
-            stock = yf.Ticker(ticker)
-            news = stock.news
+            # 1. Fetch news via provider layer
+            provider = ProviderFactory()
+            news = await provider.get_news(ticker, limit=10)
 
             if not news:
                 return {"score": 0.0, "label": "Neutral", "summary": "No recent news found for this ticker.", "headlines": []}

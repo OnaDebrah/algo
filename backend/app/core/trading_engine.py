@@ -7,9 +7,11 @@ from datetime import datetime
 from typing import Dict, List
 
 import pandas as pd
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.app.config import DEFAULT_INITIAL_CAPITAL
-from backend.app.core import DatabaseManager, RiskManager
+from backend.app.core import RiskManager
+from backend.app.services.trading_service import TradingService
 from backend.app.strategies import BaseStrategy
 
 logger = logging.getLogger(__name__)
@@ -23,9 +25,10 @@ class TradingEngine:
         strategy: BaseStrategy,
         initial_capital: float = DEFAULT_INITIAL_CAPITAL,
         risk_manager: RiskManager = None,
-        db_manager: DatabaseManager = None,
+        trading_service: TradingService = None,
         commission_rate: float = 0.0,
         slippage_rate: float = 0.0,
+        db: AsyncSession = None,
     ):
         """
         Initialize trading engine
@@ -34,7 +37,7 @@ class TradingEngine:
             strategy: Trading strategy to use
             initial_capital: Starting capital
             risk_manager: Risk management system
-            db_manager: Database manager
+            trading_service: Database manager
         """
         self.strategy = strategy
         self.initial_capital = initial_capital
@@ -44,13 +47,13 @@ class TradingEngine:
         self.equity_curve: List[Dict] = []
 
         self.risk_manager = risk_manager or RiskManager()
-        self.db = db_manager or DatabaseManager()
+        self.trading_service = trading_service or TradingService()
         self.commission_rate = commission_rate
         self.slippage_rate = slippage_rate
-
+        self.db = db
         logger.info(f"Trading engine initialized - Strategy: {strategy.name}, " f"Capital: ${initial_capital:,.2f}")
 
-    def execute_trade(self, symbol: str, signal: int, current_price: float, timestamp, start_timestamp=None):
+    async def execute_trade(self, symbol: str, signal: int, current_price: float, timestamp, start_timestamp=None):
         """
         Execute trade based on signal
 
@@ -98,7 +101,7 @@ class TradingEngine:
                 }
 
                 self.trades.append(trade_data)
-                self.db.save_trade(trade_data)
+                await self.trading_service.save_trade(self.db, trade_data)
 
                 logger.info(f"BUY: {quantity} {symbol} @ ${slipped_price:.2f} " f"(Cost: ${total_cost:.2f}, Comm: ${commission:.2f})")
 
@@ -132,7 +135,7 @@ class TradingEngine:
             }
 
             self.trades.append(trade_data)
-            self.db.save_trade(trade_data)
+            await self.trading_service.save_trade(self.db, trade_data)
 
             logger.info(
                 f"SELL: {self.position['quantity']} {symbol} @ ${slipped_price:.2f} "
@@ -148,7 +151,7 @@ class TradingEngine:
 
         self.equity_curve.append({"timestamp": timestamp, "equity": equity, "cash": self.cash})
 
-    def run_backtest_loop(self, symbol: str, data: pd.DataFrame, start_timestamp=None):
+    async def run_backtest_loop(self, symbol: str, data: pd.DataFrame, start_timestamp=None):
         """Original loop-based backtest (Fallback)"""
         logger.info(f"Starting LOOP backtest - Symbol: {symbol}, data: {len(data)}, start: {start_timestamp}")
         for i in range(len(data)):
@@ -156,7 +159,7 @@ class TradingEngine:
             signal = self.strategy.generate_signal(current_data)
             current_price = data["Close"].iloc[i]
             timestamp = data.index[i]
-            self.execute_trade(symbol, signal, current_price, timestamp, start_timestamp)
+            await self.execute_trade(symbol, signal, current_price, timestamp, start_timestamp)
 
     def run_backtest_vectorized(self, symbol: str, data: pd.DataFrame, start_timestamp=None):
         """Vectorized execution for 100x+ speedup"""
@@ -276,7 +279,7 @@ class TradingEngine:
 
         logger.info(f"Vectorized backtest completed - Final equity: ${self.equity_curve[-1]['equity'] if self.equity_curve else 0:,.2f}")
 
-    def run_backtest(self, symbol: str, data: pd.DataFrame, start_timestamp=None):
+    async def run_backtest(self, symbol: str, data: pd.DataFrame, start_timestamp=None):
         """
         Run backtest (dispatches to vectorized or loop)
         """
@@ -287,7 +290,7 @@ class TradingEngine:
         except Exception as e:
             logger.warning(f"Vectorized backtest failed, falling back to loop: {e}")
 
-        return self.run_backtest_loop(symbol, data, start_timestamp)
+        return await self.run_backtest_loop(symbol, data, start_timestamp)
 
     def get_current_position(self) -> Dict:
         """Get current position details"""

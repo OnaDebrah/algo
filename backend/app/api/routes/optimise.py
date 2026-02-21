@@ -43,7 +43,7 @@ async def optimize_sharpe(request: PortfolioRequest, risk_free_rate: float = Que
     """
     try:
         optimizer = PortfolioOptimizer(request.symbols, request.lookback_days)
-        optimizer.fetch_data()
+        await optimizer.fetch_data()
         result = optimizer.optimize_sharpe(risk_free_rate)
         return OptimizationResponse(**result)
     except Exception as e:
@@ -61,7 +61,7 @@ async def optimize_min_volatility(request: PortfolioRequest):
     """
     try:
         optimizer = PortfolioOptimizer(request.symbols, request.lookback_days)
-        optimizer.fetch_data()
+        await optimizer.fetch_data()
         result = optimizer.optimize_min_volatility()
         return OptimizationResponse(**result)
     except Exception as e:
@@ -80,7 +80,7 @@ async def optimize_target_return(request: TargetReturnRequest):
     """
     try:
         optimizer = PortfolioOptimizer(request.symbols, request.lookback_days)
-        optimizer.fetch_data()
+        await optimizer.fetch_data()
         result = optimizer.optimize_target_return(request.target_return)
         return OptimizationResponse(**result)
     except Exception as e:
@@ -98,7 +98,7 @@ async def equal_weight_portfolio(request: PortfolioRequest):
     """
     try:
         optimizer = PortfolioOptimizer(request.symbols, request.lookback_days)
-        optimizer.fetch_data()
+        await optimizer.fetch_data()
         result = optimizer.equal_weight_portfolio()
         return OptimizationResponse(**result)
     except Exception as e:
@@ -116,7 +116,7 @@ async def risk_parity_portfolio(request: PortfolioRequest):
     """
     try:
         optimizer = PortfolioOptimizer(request.symbols, request.lookback_days)
-        optimizer.fetch_data()
+        await optimizer.fetch_data()
         result = optimizer.risk_parity_portfolio()
         return OptimizationResponse(**result)
     except Exception as e:
@@ -136,7 +136,7 @@ async def black_litterman_optimization(request: BlackLittermanRequest):
     """
     try:
         optimizer = PortfolioOptimizer(request.symbols, request.lookback_days)
-        optimizer.fetch_data()
+        await optimizer.fetch_data()
         result = optimizer.black_litterman(request.views, request.confidence)
         return OptimizationResponse(**result)
     except Exception as e:
@@ -157,7 +157,7 @@ async def generate_efficient_frontier(request: EfficientFrontierRequest):
     """
     try:
         optimizer = PortfolioOptimizer(request.symbols, request.lookback_days)
-        optimizer.fetch_data()
+        await optimizer.fetch_data()
         frontier_df = optimizer.efficient_frontier(request.num_portfolios)
 
         # Convert DataFrame to list of dicts
@@ -208,7 +208,7 @@ async def compare_strategies(request: PortfolioRequest):
     """
     try:
         optimizer = PortfolioOptimizer(request.symbols, request.lookback_days)
-        optimizer.fetch_data()
+        await optimizer.fetch_data()
 
         strategies = {
             "max_sharpe": optimizer.optimize_sharpe(),
