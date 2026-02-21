@@ -221,7 +221,7 @@ class OptionsBacktestEngine:
             margin_requirement = abs(stock_cost) * 0.20 + options_cost + commission
             capital_needed = margin_requirement
         else:
-            capital_needed = abs(total_cost) + commission
+            capital_needed = abs(total_cost)
 
         # Check if we can afford it
         if capital_needed > self.capital:

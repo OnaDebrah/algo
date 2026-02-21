@@ -1,18 +1,17 @@
 from datetime import datetime
 from typing import Dict, List
 
-from fastapi import Depends
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from backend.app.database import bulk_create, get_db
+from backend.app.database import bulk_create
 from backend.app.models import Portfolio, Position, Trade
 from backend.app.models.performance_history import PerformanceHistory
 
 
 class TradingService:
     @staticmethod
-    async def save_trade(trade_data: Dict, portfolio_id: int = 1, db: AsyncSession = Depends(get_db)) -> int:
+    async def save_trade(db: AsyncSession, trade_data: Dict, portfolio_id: int = 1) -> int:
         """Save trade to database using AsyncSession"""
         # Calculate total value if missing
         if "total_value" not in trade_data:
@@ -31,7 +30,7 @@ class TradingService:
         return new_trade.id
 
     @staticmethod
-    async def save_trades_bulk(trades: List[Dict], portfolio_id: int, db: AsyncSession = Depends(get_db)):
+    async def save_trades_bulk(db: AsyncSession, trades: List[Dict], portfolio_id: int):
         """Save multiple trades using the bulk_create helper from database.py"""
         for t in trades:
             t["portfolio_id"] = portfolio_id
@@ -39,7 +38,7 @@ class TradingService:
 
     @staticmethod
     async def get_trades(
-        portfolio_id: int = 1, limit: int = 100, start_date: datetime = None, end_date: datetime = None, db: AsyncSession = Depends(get_db)
+        db: AsyncSession, portfolio_id: int = 1, limit: int = 100, start_date: datetime = None, end_date: datetime = None
     ) -> List[Trade]:
         """Retrieve trades using SQLAlchemy select"""
         stmt = select(Trade).where(Trade.portfolio_id == portfolio_id)
@@ -55,7 +54,7 @@ class TradingService:
 
     @staticmethod
     async def get_equity_curve(
-        portfolio_id: int, start_date: datetime = None, end_date: datetime = None, db: AsyncSession = Depends(get_db)
+        db: AsyncSession, portfolio_id: int, start_date: datetime = None, end_date: datetime = None
     ) -> List[PerformanceHistory]:
         """Retrieve equity curve from database"""
         stmt = select(PerformanceHistory).where(PerformanceHistory.portfolio_id == portfolio_id)
@@ -70,13 +69,18 @@ class TradingService:
         return list(result.scalars().all())
 
     @staticmethod
-    async def save_performance(portfolio_id: int, equity: float, cash: float, total_return: float, db: AsyncSession = Depends(get_db)):
+    async def save_performance(db: AsyncSession, portfolio_id: int, equity: float, cash: float, total_return: float):
         """Save performance snapshot"""
         perf = PerformanceHistory(portfolio_id=portfolio_id, timestamp=datetime.now(), equity=equity, cash=cash, total_return=total_return)
         db.add(perf)
 
     @staticmethod
-    async def create_portfolio(name: str, initial_capital: float, user_id: int = 1, db: AsyncSession = Depends(get_db)) -> int:
+    async def create_portfolio(
+        db: AsyncSession,
+        name: str,
+        initial_capital: float,
+        user_id: int = 1,
+    ) -> int:
         """Create new portfolio with error handling for existing names"""
         # Try to find existing
         stmt = select(Portfolio).where(Portfolio.name == name)
@@ -92,7 +96,7 @@ class TradingService:
         return new_portfolio.id
 
     @staticmethod
-    async def get_header_metrics(portfolio_id: int = 1, db: AsyncSession = Depends(get_db)) -> Dict:
+    async def get_header_metrics(db: AsyncSession, portfolio_id: int = 1) -> Dict:
         """Gather dashboard metrics using async aggregation functions"""
         res_cap = await db.execute(select(Portfolio.current_capital).where(Portfolio.id == portfolio_id))
         nav = res_cap.scalar() or 0.0

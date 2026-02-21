@@ -14,4 +14,4 @@ class PerformanceHistory(Base):
     total_return = Column(Numeric)
     created_at = Column(DateTime, server_default=func.now())
 
-    __table_args__ = (Index("idx_performance_portfolio_timestamp", "portfolio_id", timestamp.desc()),)
+    __table_args__ = (Index("idx_performance_portfolio_timestamp", portfolio_id, timestamp.desc()),)

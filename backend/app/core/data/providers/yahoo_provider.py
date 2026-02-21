@@ -73,8 +73,8 @@ class YahooProvider(
             # Get fast info for real-time data
             try:
                 fast_info = ticker.fast_info
-                current_price = fast_info.get("lastPrice", info.get("currentPrice", 0))
-                previous_close = fast_info.get("previous_close", info.get("previousClose", 0))
+                current_price = fast_info.last_price or info.get("currentPrice", 0)
+                previous_close = fast_info.previous_close or info.get("previousClose", 0)
             except Exception as e:
                 logger.error(f"Failed to get quote for {symbol}: {e}")
                 current_price = info.get("currentPrice", 0)

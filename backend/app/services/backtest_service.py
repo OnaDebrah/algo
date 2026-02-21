@@ -223,11 +223,10 @@ class BacktestService:
                 trading_service=self.trading_service,
                 commission_rate=request.commission_rate,
                 slippage_rate=request.slippage_rate,
+                db=self.db,
             )
 
-            await asyncio.to_thread(
-                engine.run_backtest, request.symbol, data, start_timestamp=pd.Timestamp(request.start_date) if request.start_date else None
-            )
+            await engine.run_backtest(request.symbol, data, start_timestamp=pd.Timestamp(request.start_date) if request.start_date else None)
 
             # Calculate benchmark FIRST so we can pass its equity to factor metrics
             benchmark_calc = BenchmarkCalculator(request.initial_capital)

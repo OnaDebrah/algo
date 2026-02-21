@@ -269,14 +269,14 @@ class MarketService:
     # UTILITY METHODS
     # ============================================================
 
-    def clear_cache(self, db: AsyncSession, data_type: Optional[str] = None):
+    async def clear_cache(self, db: AsyncSession, data_type: Optional[str] = None):
         """Clear cached data"""
-        self.cache.clear(db, data_type)
+        await self.cache.clear(db, data_type)
         logger.info(f"Market data cache cleared: {data_type or 'all'}")
 
-    def cleanup_cache(self, db: AsyncSession):
+    async def cleanup_cache(self, db: AsyncSession):
         """Cleanup expired cache entries"""
-        self.cache.cleanup_expired(db=db)
+        await self.cache.cleanup_expired(db=db)
 
     async def get_cache_stats(self, db: AsyncSession) -> Dict:
         """Get cache statistics"""
