@@ -76,7 +76,6 @@ class MultiAssetEngine:
         self.commission_rate = commission_rate
         self.slippage_rate = slippage_rate
 
-        # Calculate capital allocation per symbol
         self._calculate_allocations()
 
     def _calculate_allocations(self):

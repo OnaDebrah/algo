@@ -1,4 +1,3 @@
-import asyncio
 import logging
 from datetime import datetime
 from typing import Any, Dict, List, Optional, Tuple
@@ -279,7 +278,7 @@ class WalkForwardService:
 
             # Run optimization WITHOUT internal validation split.
             # WFA already has dedicated OOS windows for validation —
-            # an additional 80/20 split inside IS is redundant and
+            # an additional 80/20 split inside 'IS' is redundant and
             # shrinks the effective trading window, causing slow
             # strategies (e.g. SMA Crossover) to produce zero trades.
             result = await optimizer.optimize_in_sample(
@@ -372,12 +371,13 @@ class WalkForwardService:
                 strategy=strategy,
                 initial_capital=capital,
                 risk_manager=RiskManager(),
-                db=self.backtest_service.trading_service,
+                trading_service=self.backtest_service.trading_service,
                 commission_rate=request.commission_rate,
                 slippage_rate=request.slippage_rate,
+                db=self.db,
             )
 
-            await asyncio.to_thread(engine.run_backtest, request.symbol, data, start_timestamp=start_timestamp)
+            await engine.run_backtest(request.symbol, data, start_timestamp=start_timestamp)
 
             if not engine.trades:
                 logger.debug("No trades generated in this period")
