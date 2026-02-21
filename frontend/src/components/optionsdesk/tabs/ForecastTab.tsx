@@ -401,7 +401,7 @@ const ForecastTab: React.FC<ForecastTabProps> = ({
                             <div className="p-3 bg-slate-800/50 rounded-lg">
                                 <div className="text-xs text-slate-500 mb-1">Expected Duration</div>
                                 <div className="text-lg font-bold text-slate-200">
-                                    {transitionData.expected_duration} days
+                                    {Math.abs(transitionData.expected_duration)} days
                                 </div>
                                 <div className="text-xs text-slate-500">
                                     Median: {transitionData.median_duration} days
