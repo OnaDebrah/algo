@@ -446,7 +446,7 @@ async def get_transition_probabilities(symbol: str, period: str = "2y", current_
         return TransitionResponse(
             symbol=symbol,
             current_regime=detector.regime_history[-1]["regime"] if detector.regime_history else "unknown",
-            expected_duration=duration_info["expected_duration"] if duration_info else 0,
+            expected_duration=round(duration_info["expected_duration"]) if duration_info else 0,
             median_duration=duration_info["median_duration"] if duration_info else 0,
             probability_end_next_week=duration_info["probability_end_next_week"] if duration_info else 0,
             likely_transitions=likely_transitions[:5],  # Top 5

@@ -77,7 +77,7 @@ class MarketRegimeDetector:
             self.regime_types = [
                 "trending_bull",
                 "trending_bear",
-                "Mean Reverting",
+                "mean_reverting",
                 "high_volatility",
                 "low_volatility",
                 "crisis",
@@ -867,7 +867,7 @@ class MarketRegimeDetector:
             "expected_duration": mean_duration,
             "median_duration": median_duration,
             "std_duration": std_duration,
-            "probability_end_next_week": prob_end_next_week,
+            "probability_end_next_week": round(prob_end_next_week),
             "sample_size": len(durations),
         }
 
