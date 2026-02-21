@@ -77,7 +77,7 @@ class MarketRegimeDetector:
             self.regime_types = [
                 "trending_bull",
                 "trending_bear",
-                "mean_reverting",
+                "Mean Reverting",
                 "high_volatility",
                 "low_volatility",
                 "crisis",
@@ -843,7 +843,7 @@ class MarketRegimeDetector:
             Dict with duration predictions or None
         """
         if len(self.regime_history) < 10:
-            return None
+            return self._predict_regime_duration()
 
         current_regime = self.regime_history[-1]["regime"]
 
@@ -851,7 +851,7 @@ class MarketRegimeDetector:
         durations = self._get_historical_durations(current_regime)
 
         if not durations or len(durations) < 3:
-            return None
+            return self._predict_regime_duration()
 
         # Calculate statistics
         mean_duration = np.mean(durations)
@@ -896,7 +896,7 @@ class MarketRegimeDetector:
 
     def _predict_regime_duration(self) -> Dict[str, float]:
         """
-        Predict expected duration of current regime
+        Predict expected duration of current regime using Markov transitions
 
         Returns:
             Dictionary with duration statistics
@@ -904,6 +904,10 @@ class MarketRegimeDetector:
         if len(self.regime_history) < 1:
             return {"expected_duration": 0, "median_duration": 0, "probability_end_next_week": 0}
         current_regime = self.regime_history[-1]["regime"]
+
+        # Calculate/update Markov chain if necessary
+        regime_sequence = [entry["regime"] for entry in self.regime_history]
+        self.markov_chain.fit(regime_sequence)
 
         # Get expected duration from Markov chain
         expected_duration = self.markov_chain.get_expected_duration(current_regime)
@@ -928,6 +932,7 @@ class MarketRegimeDetector:
             prob_end_next_week = 1 - (p_self**5)
 
         return {
+            "current_regime": current_regime,
             "expected_duration": round(expected_duration, 2),
             "median_duration": round(expected_duration * 0.7, 2),  # Approximate median
             "probability_end_next_week": round(min(prob_end_next_week, 0.95), 3),
@@ -1053,6 +1058,37 @@ class MarketRegimeDetector:
 
         return allocation
 
+    def _backfill_history(self, features: pd.DataFrame):
+        """Backfill regime history using pre-calculated features"""
+        if len(self.regime_history) > 0 or len(features) == 0:
+            return
+
+        # Take up to 500 days of history
+        historical_features = features.iloc[-500:-1]  # Exclude current day
+
+        for i in range(len(historical_features)):
+            row_df = historical_features.iloc[i : i + 1]
+            if self.use_ml and self.classifier is not None:
+                # We skip ML ensemble for backfill as it needs full scaled features,
+                # statistical is sufficient for historical transition probabilities
+                regime_info = self.detect_regime_statistical(row_df)
+            else:
+                regime_info = self.detect_regime_statistical(row_df)
+
+            allocation = self.get_strategy_allocation(regime_info["regime"], regime_info["confidence"])
+
+            self.regime_history.append(
+                {
+                    "timestamp": row_df.index[0],
+                    "regime": regime_info["regime"],
+                    "confidence": regime_info["confidence"],
+                    "allocation": allocation,
+                    "strength": 0.0,
+                    "statistical_regime": regime_info.get("statistical_regime"),
+                    "ml_regime": regime_info.get("ml_regime"),
+                }
+            )
+
     def detect_current_regime(
         self,
         price_data: Union[pd.Series, pd.DataFrame],
@@ -1081,6 +1117,10 @@ class MarketRegimeDetector:
                 "method": "insufficient_data",
             }
 
+        # Backfill history if empty (requires at least 10 rows to build Markov chain)
+        if update_history and len(self.regime_history) == 0:
+            self._backfill_history(features)
+
         # Detect regime
         if self.use_ml and self.classifier is not None:
             regime_info = self.detect_regime_ensemble(features)
@@ -1090,27 +1130,31 @@ class MarketRegimeDetector:
         # Get strategy allocation
         allocation = self.get_strategy_allocation(regime_info["regime"], regime_info["confidence"])
 
+        # Update history before calculating duration/warning so they can use the latest info
+        current_ts = price_data.index[-1] if hasattr(price_data, "index") else len(price_data)
+
+        if update_history:
+            # Prevent duplicate entries for the same timestamp from parallel API calls
+            if not self.regime_history or self.regime_history[-1]["timestamp"] != current_ts:
+                history_entry = {
+                    "timestamp": current_ts,
+                    "regime": regime_info["regime"],
+                    "confidence": regime_info["confidence"],
+                    "allocation": allocation,
+                    # calculate_regime_strength is slow, but we do it for the current day
+                    "strength": self.calculate_regime_strength(features),
+                    "statistical_regime": regime_info.get("statistical_regime"),
+                    "ml_regime": regime_info.get("ml_regime"),
+                }
+                self.regime_history.append(history_entry)
+
+                if len(self.regime_history) > 1000:
+                    self.regime_history = self.regime_history[-1000:]
+
         # Calculate additional metrics
         regime_strength = self.calculate_regime_strength(features)
         duration_pred = self.predict_regime_duration()
         warning = self.detect_regime_change_warning(features)
-
-        # Update history
-        if update_history:
-            history_entry = {
-                "timestamp": (price_data.index[-1] if hasattr(price_data, "index") else len(price_data)),
-                "regime": regime_info["regime"],
-                "confidence": regime_info["confidence"],
-                "allocation": allocation,
-                "strength": regime_strength,
-                "statistical_regime": regime_info.get("statistical_regime"),
-                "ml_regime": regime_info.get("ml_regime"),
-            }
-            self.regime_history.append(history_entry)
-
-            # Keep only recent history
-            if len(self.regime_history) > 1000:
-                self.regime_history = self.regime_history[-1000:]
 
         # Compile full results
         regime_info["strategy_allocation"] = allocation
