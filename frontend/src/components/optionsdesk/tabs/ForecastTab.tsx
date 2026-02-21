@@ -63,9 +63,14 @@ const REGIME_LABELS: Record<string, string> = {
     'bull_volatile': 'Bullish (High Vol)',
     'bear_quiet': 'Bearish (Low Vol)',
     'bear_volatile': 'Bearish (High Vol)',
+    'trending_bull': 'Trending Bull',
+    'trending_bear': 'Trending Bear',
+    'mean_reverting': 'Mean Reverting',
+    'transition': 'Transition',
     'neutral': 'Neutral',
     'crisis': 'Crisis',
     'recovery': 'Recovery',
+    "low_volatility": 'Low Volatility',
     'high_volatility': 'High Volatility',
 };
 
@@ -294,13 +299,13 @@ const ForecastTab: React.FC<ForecastTabProps> = ({
                                 </div>
                                 <div className="p-3 bg-slate-800/50 rounded-lg">
                                     <div className="text-xs text-slate-500 mb-1">Market Health</div>
-                                    <div className={`text-xl font-bold ${healthScore >= 0.7 ? 'text-emerald-400' : healthScore >= 0.4 ? 'text-amber-400' : 'text-red-400'}`}>
-                                        {(healthScore * 100).toFixed(0)}%
+                                    <div className={`text-xl font-bold ${healthScore >= 70 ? 'text-emerald-400' : healthScore >= 40 ? 'text-amber-400' : 'text-red-400'}`}>
+                                        {(healthScore).toFixed(0)}%
                                     </div>
                                     <div className="mt-1 h-1.5 bg-slate-700 rounded-full overflow-hidden">
                                         <div
-                                            className={`h-full rounded-full transition-all ${healthScore >= 0.7 ? 'bg-emerald-500' : healthScore >= 0.4 ? 'bg-amber-500' : 'bg-red-500'}`}
-                                            style={{ width: `${healthScore * 100}%` }}
+                                            className={`h-full rounded-full transition-all ${healthScore >= 70 ? 'bg-emerald-500' : healthScore >= 40 ? 'bg-amber-500' : 'bg-red-500'}`}
+                                            style={{ width: `${healthScore}%` }}
                                         />
                                     </div>
                                 </div>
