@@ -6,7 +6,7 @@ import {
     SingleAssetConfig,
     EquityCurvePoint,
     Trade,
-    VisualBlock
+    VisualBlock, MultiAssetBacktestResult
 } from '@/types/all_types';
 import { backtest } from '@/utils/api';
 import { formatDate } from '@/utils/formatters';
@@ -31,7 +31,7 @@ interface BacktestState {
     isRunning: boolean;
     singleResults: BacktestResult | null;
     multiResults: BacktestResult | null;
-    results: BacktestResult | null;          // derived: points to active mode's results
+    results: BacktestResult | null;
     runBacktest: () => Promise<void>;
     resetResults: () => void;
 }
@@ -141,10 +141,9 @@ export const useBacktestStore = create<BacktestState>((set, get) => ({
 
                     const singleResult: BacktestResult = {
                         ...result,
-                        // Map snake_case factor metrics from backend to camelCase
                         alpha: result.alpha ?? (result as any).alpha ?? 0,
                         beta: result.beta ?? (result as any).beta ?? 0,
-                        rSquared: (result as any).r_squared ?? result.rSquared ?? 0,
+                        r_squared: (result as any).r_squared ?? result.r_squared ?? 0,
                         equity_curve: response.equity_curve ? response.equity_curve.map((equityCurvePoint: EquityCurvePoint) => ({
                             timestamp: formatDate(equityCurvePoint.timestamp),
                             equity: equityCurvePoint.equity,
@@ -167,6 +166,13 @@ export const useBacktestStore = create<BacktestState>((set, get) => ({
                             status: trade.profit !== null ? 'closed' : 'open'
                         })),
                         price_data: response.price_data,
+                        sortino_ratio: response.result.sortino_ratio,
+                        calmar_ratio: response.result.calmar_ratio,
+                        var_95: response.result.var_95,
+                        cvar_95: response.result.cvar_95,
+                        volatility: response.result.volatility,
+                        expectancy: response.result.expectancy,
+                        total_commission: response.result.total_commission
                     };
                     set({ results: singleResult, singleResults: singleResult });
                 }
@@ -244,6 +250,9 @@ export const useBacktestStore = create<BacktestState>((set, get) => ({
                     const result = response.result;
                     const multiResult: BacktestResult = {
                         ...result,
+                        alpha: result.alpha ?? (result as any).alpha ?? 0,
+                        beta: result.beta ?? (result as any).beta ?? 0,
+                        r_squared: (result as any).r_squared ?? result.r_squared ?? 0,
                         symbol_stats: result.symbol_stats || {},
                         equity_curve: response.equity_curve ? response.equity_curve.map((equityCurvePoint: EquityCurvePoint) => ({
                             timestamp: formatDate(equityCurvePoint.timestamp),
@@ -274,14 +283,13 @@ export const useBacktestStore = create<BacktestState>((set, get) => ({
                             status: trade.profit !== null ? 'closed' : 'open'
                         })),
                         price_data: response.price_data,
-                        // Polyfill missing advanced metrics for Multi-Asset
-                        sortino_ratio: 0,
-                        calmar_ratio: 0,
-                        var_95: 0,
-                        cvar_95: 0,
-                        volatility: 0,
-                        expectancy: 0,
-                        total_commission: 0
+                        sortino_ratio: response.result.sortino_ratio,
+                        calmar_ratio: response.result.calmar_ratio,
+                        var_95: response.result.var_95,
+                        cvar_95: response.result.cvar_95,
+                        volatility: response.result.volatility,
+                        expectancy: response.result.expectancy,
+                        total_commission: response.result.total_commission
                     };
                     set({ results: multiResult, multiResults: multiResult });
                 }

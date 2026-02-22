@@ -184,6 +184,7 @@ export const backtest = {
     runSingle: async (request: SingleBacktestRequest): Promise<SingleBacktestResponse> => {
         return client.post<SingleBacktestResponse>('/backtest/single', request);
     },
+
     runMulti: async (request: MultiAssetBacktestRequest): Promise<MultiAssetBacktestResponse> => {
         return client.post<MultiAssetBacktestResponse>('/backtest/multi', request);
     },

@@ -277,6 +277,7 @@ def create_preset_strategy(
     current_price: float,
     expiration: datetime,
     volatility: float = 0.3,
+    risk_free_rate: float = 0.05,
     **kwargs,
 ) -> OptionsStrategyBuilder:
     """

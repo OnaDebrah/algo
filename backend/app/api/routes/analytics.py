@@ -53,8 +53,9 @@ async def get_performance_analytics(
         total_return_pct = (total_return / initial_equity) * 100
 
         trades = await trading_service.get_trades(db, portfolio_id, start_date=start_date, end_date=end_date)
+        trades_dicts = [trade.to_dict() for trade in trades]
 
-        metrics = calculate_performance_metrics(trades, equity_curve, initial_equity)
+        metrics = calculate_performance_metrics(trades_dicts, equity_curve, initial_equity)
 
         return {
             "period": period,

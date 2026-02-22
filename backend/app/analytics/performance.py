@@ -195,10 +195,9 @@ def calculate_risk_metrics(trades: List[Dict], equity_curve: List[Dict]) -> Dict
 
     return _sanitize_metrics(
         {
-            "volatility": float(volatility),
-            "beta": 1.0,  # Placeholder for future benchmark comparison
-            "var_95": float(var_95),
-            "cvar_95": float(cvar_95),
+            "volatility": float(volatility * 100) if volatility else 0.0,
+            "var_95": float(var_95 * 100) if var_95 else 0.0,
+            "cvar_95": float(cvar_95 * 100) if cvar_95 else 0.0,
             "max_drawdown": float(max_dd),
             "sharpe_ratio": float(sharpe),
             "sortino_ratio": float(sortino),

@@ -200,7 +200,9 @@ class OptionsBacktestEngine:
         # Create strategy with custom strikes based on rules
         kwargs = self._get_strategy_strikes(price, entry_rules)
 
-        builder = create_preset_strategy(strategy_type, symbol, price, expiration, volatility=volatility, **kwargs)
+        builder = create_preset_strategy(
+            strategy_type, symbol, price, expiration, volatility=volatility, risk_free_rate=self.risk_free_rate, **kwargs
+        )
 
         # Calculate cost
         cost = builder.get_initial_cost()
