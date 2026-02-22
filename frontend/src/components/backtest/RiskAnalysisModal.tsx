@@ -1,210 +1,14 @@
-// import React, { useMemo } from 'react';
-// import { BacktestResult, Trade } from "@/types/all_types";
-// import { formatCurrency, formatPercent } from "@/utils/formatters";
-// import { X, AlertTriangle, TrendingDown, Activity, ArrowUp, ArrowDown } from 'lucide-react';
-//
-// interface RiskAnalysisModalProps {
-//     results: BacktestResult;
-//     onClose: () => void;
-// }
-//
-// const RiskAnalysisModal: React.FC<RiskAnalysisModalProps> = ({ results, onClose }) => {
-//
-//     const metrics = useMemo(() => {
-//         if (!results || !results.trades) return null;
-//
-//         const trades = results.trades;
-//         const profits = trades.map(t => t.profit || 0).filter(p => p !== 0);
-//
-//         const negativeReturns = profits.filter(p => p < 0);
-//         const downsideDeviation = Math.sqrt(
-//             negativeReturns.reduce((acc, val) => acc + Math.pow(val, 2), 0) / (trades.length || 1)
-//         );
-//         const sortinoRatio = results.sortino_ratio
-//
-//         const calmarRatio = results.calmar_ratio
-//
-//         let maxConsecutiveWins = 0;
-//         let maxConsecutiveLosses = 0;
-//         let currentWins = 0;
-//         let currentLosses = 0;
-//
-//         trades.forEach(t => {
-//             if ((t.profit || 0) > 0) {
-//                 currentWins++;
-//                 currentLosses = 0;
-//                 maxConsecutiveWins = Math.max(maxConsecutiveWins, currentWins);
-//             } else if ((t.profit || 0) < 0) {
-//                 currentLosses++;
-//                 currentWins = 0;
-//                 maxConsecutiveLosses = Math.max(maxConsecutiveLosses, currentLosses);
-//             }
-//         });
-//
-//         const bestTrade = Math.max(...profits);
-//         const worstTrade = Math.min(...profits);
-//
-//         const valueAtRisk = results.var_95
-//
-//         return {
-//             sortinoRatio,
-//             calmarRatio,
-//             maxConsecutiveWins,
-//             maxConsecutiveLosses,
-//             bestTrade,
-//             worstTrade,
-//             valueAtRisk,
-//             downsideDeviation
-//         };
-//     }, [results]);
-//
-//     if (!metrics) return null;
-//
-//     return (
-//         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
-//             <div className="bg-slate-900 border border-slate-700/50 rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-//                 <div className="flex items-center justify-between p-6 border-b border-slate-800">
-//                     <div className="flex items-center gap-3">
-//                         <div className="p-2 bg-blue-500/20 rounded-lg border border-blue-500/30">
-//                             <AlertTriangle size={20} className="text-blue-400" />
-//                         </div>
-//                         <div>
-//                             <h3 className="text-lg font-bold text-slate-100">Risk Analysis</h3>
-//                             <p className="text-xs text-slate-500">Advanced risk metrics & distribution</p>
-//                         </div>
-//                     </div>
-//                     <button
-//                         onClick={onClose}
-//                         className="p-2 hover:bg-slate-800 rounded-lg text-slate-500 hover:text-slate-300 transition-colors"
-//                     >
-//                         <X size={20} />
-//                     </button>
-//                 </div>
-//
-//                 <div className="p-6 space-y-6">
-//                     {/* Primary Risk Ratios */}
-//                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-//                         <div className="p-4 bg-slate-800/40 rounded-xl border border-slate-700/50">
-//                             <p className="text-xs text-slate-500 font-bold uppercase mb-1">Sortino Ratio</p>
-//                             <p className={`text-xl font-bold ${metrics.sortinoRatio > 1 ? 'text-emerald-400' : 'text-slate-200'}`}>
-//                                 {metrics.sortinoRatio.toFixed(2)}
-//                             </p>
-//                             <p className="text-[10px] text-slate-500 mt-1">Return / Downside Dev</p>
-//                         </div>
-//                         <div className="p-4 bg-slate-800/40 rounded-xl border border-slate-700/50">
-//                             <p className="text-xs text-slate-500 font-bold uppercase mb-1">Calmar Ratio</p>
-//                             <p className={`text-xl font-bold ${metrics.calmarRatio > 1 ? 'text-emerald-400' : 'text-slate-200'}`}>
-//                                 {metrics.calmarRatio.toFixed(2)}
-//                             </p>
-//                             <p className="text-[10px] text-slate-500 mt-1">Return / Max Drawdown</p>
-//                         </div>
-//                         <div className="p-4 bg-slate-800/40 rounded-xl border border-slate-700/50">
-//                             <p className="text-xs text-slate-500 font-bold uppercase mb-1">Profit Factor</p>
-//                             <p className={`text-xl font-bold ${results.profit_factor > 1.5 ? 'text-emerald-400' : results.profit_factor > 1 ? 'text-blue-400' : 'text-red-400'}`}>
-//                                 {results.profit_factor.toFixed(2)}
-//                             </p>
-//                             <p className="text-[10px] text-slate-500 mt-1">Gross Profit / Gross Loss</p>
-//                         </div>
-//                         <div className="p-4 bg-slate-800/40 rounded-xl border border-slate-700/50">
-//                             <p className="text-xs text-slate-500 font-bold uppercase mb-1">Value at Risk (95%)</p>
-//                             <p className="text-xl font-bold text-red-400">
-//                                 {formatCurrency(metrics.valueAtRisk)}
-//                             </p>
-//                             <p className="text-[10px] text-slate-500 mt-1">Worst 5% Trade Exp.</p>
-//                         </div>
-//                     </div>
-//
-//                     {/* Streak Analysis */}
-//                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-//                         <div className="p-5 bg-gradient-to-br from-slate-800/40 to-slate-900/40 rounded-xl border border-slate-700/50">
-//                             <div className="flex items-center gap-2 mb-4">
-//                                 <Activity size={16} className="text-violet-400" />
-//                                 <h4 className="text-sm font-bold text-slate-300">Streak Analysis</h4>
-//                             </div>
-//                             <div className="flex justify-between items-center mb-3">
-//                                 <span className="text-xs text-slate-500">Max Consecutive Wins</span>
-//                                 <span className="text-sm font-bold text-emerald-400 flex items-center gap-1">
-//                                     <ArrowUp size={12} /> {metrics.maxConsecutiveWins}
-//                                 </span>
-//                             </div>
-//                             <div className="w-full bg-slate-700/30 h-1.5 rounded-full mb-4">
-//                                 <div
-//                                     className="bg-emerald-500 h-1.5 rounded-full"
-//                                     style={{ width: `${Math.min((metrics.maxConsecutiveWins / 10) * 100, 100)}%` }}
-//                                 />
-//                             </div>
-//
-//                             <div className="flex justify-between items-center mb-3">
-//                                 <span className="text-xs text-slate-500">Max Consecutive Losses</span>
-//                                 <span className="text-sm font-bold text-red-400 flex items-center gap-1">
-//                                     <ArrowDown size={12} /> {metrics.maxConsecutiveLosses}
-//                                 </span>
-//                             </div>
-//                             <div className="w-full bg-slate-700/30 h-1.5 rounded-full">
-//                                 <div
-//                                     className="bg-red-500 h-1.5 rounded-full"
-//                                     style={{ width: `${Math.min((metrics.maxConsecutiveLosses / 10) * 100, 100)}%` }}
-//                                 />
-//                             </div>
-//                         </div>
-//
-//                         {/* Extreme Trades */}
-//                         <div className="p-5 bg-gradient-to-br from-slate-800/40 to-slate-900/40 rounded-xl border border-slate-700/50">
-//                             <div className="flex items-center gap-2 mb-4">
-//                                 <TrendingDown size={16} className="text-amber-400" />
-//                                 <h4 className="text-sm font-bold text-slate-300">Extreme Events</h4>
-//                             </div>
-//
-//                             <div className="space-y-4">
-//                                 <div className="flex justify-between items-center bg-white/[0.02] p-2.5 rounded-lg border border-white/5">
-//                                     <span className="text-xs text-slate-500">Best Trade</span>
-//                                     <span className="text-sm font-mono font-bold text-emerald-400">
-//                                         +{formatCurrency(metrics.bestTrade)}
-//                                     </span>
-//                                 </div>
-//                                 <div className="flex justify-between items-center bg-white/[0.02] p-2.5 rounded-lg border border-white/5">
-//                                     <span className="text-xs text-slate-500">Worst Trade</span>
-//                                     <span className="text-sm font-mono font-bold text-red-400">
-//                                         {formatCurrency(metrics.worstTrade)}
-//                                     </span>
-//                                 </div>
-//                                 <div className="flex justify-between items-center bg-white/[0.02] p-2.5 rounded-lg border border-white/5">
-//                                     <span className="text-xs text-slate-500">Avg Trade</span>
-//                                     <span className={`text-sm font-mono font-bold ${results.avg_profit >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-//                                         {results.avg_profit >= 0 ? '+' : ''}{formatCurrency(results.avg_profit)}
-//                                     </span>
-//                                 </div>
-//                             </div>
-//                         </div>
-//                     </div>
-//                 </div>
-//
-//                 <div className="p-6 border-t border-slate-800 bg-slate-900/50 flex justify-end">
-//                     <button
-//                         onClick={onClose}
-//                         className="px-6 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 text-sm font-bold rounded-xl transition-colors"
-//                     >
-//                         Close Analysis
-//                     </button>
-//                 </div>
-//             </div>
-//         </div>
-//     );
-// };
-//
-// export default RiskAnalysisModal;
-
-import React, { useMemo } from 'react';
-import { BacktestResult } from "@/types/all_types";
-import { formatCurrency, formatPercent } from "@/utils/formatters";
-import { X, AlertTriangle, TrendingDown, Activity, ArrowUp, ArrowDown, BarChart3, PieChart, Gauge, Target } from 'lucide-react';
+import React, {useMemo} from 'react';
+import {BacktestResult} from "@/types/all_types";
+import {formatCurrency, formatPercent} from "@/utils/formatters";
+import {Activity, AlertTriangle, BarChart3, Gauge, PieChart, Target, TrendingDown, X} from 'lucide-react';
 
 interface RiskAnalysisModalProps {
     results: BacktestResult;
     onClose: () => void;
 }
 
-const RiskAnalysisModal: React.FC<RiskAnalysisModalProps> = ({ results, onClose }) => {
+const RiskAnalysisModal: React.FC<RiskAnalysisModalProps> = ({results, onClose}) => {
 
     const metrics = useMemo(() => {
         if (!results || !results.trades) return null;
@@ -270,66 +74,109 @@ const RiskAnalysisModal: React.FC<RiskAnalysisModalProps> = ({ results, onClose 
 
             const maxFavorableExcursion = Math.max(...profits);
 
+            let tradeFrequency = 0;
             if (equityCurve.length > 1) {
                 const firstDate = new Date(equityCurve[0].timestamp);
                 const lastDate = new Date(equityCurve[equityCurve.length - 1].timestamp);
                 const totalDays = Math.ceil((lastDate.getTime() - firstDate.getTime()) / (1000 * 60 * 60 * 24));
 
-                // Estimate days in position (simplified)
-                const positionDays = closedTrades.reduce((sum, trade) => {
-                    // This would need proper position duration calculation
-                    return sum + 1; // Simplified
-                }, 0);
-
-                const timeInMarket = totalDays > 0 ? (positionDays / totalDays) * 100 : 0;
-
-                let maxConsecutiveWins = 0;
-                let maxConsecutiveLosses = 0;
-                let currentWins = 0;
-                let currentLosses = 0;
-
-                trades.forEach(t => {
-                    if ((t.profit || 0) > 0) {
-                        currentWins++;
-                        currentLosses = 0;
-                        maxConsecutiveWins = Math.max(maxConsecutiveWins, currentWins);
-                    } else if ((t.profit || 0) < 0) {
-                        currentLosses++;
-                        currentWins = 0;
-                        maxConsecutiveLosses = Math.max(maxConsecutiveLosses, currentLosses);
+                const parseDate = (timestamp: string): Date => {
+                    try {
+                        // Handle format like "2025-05-07T00:00:00-04:00"
+                        return new Date(timestamp);
+                    } catch {
+                        return new Date();
                     }
-                });
-
-                return {
-                    sortinoRatio: result.sortino_ratio,
-                    calmarRatio: result.calmar_ratio,
-                    profitFactor,
-                    valueAtRisk: result.var_95,
-                    maxConsecutiveWins: maxConsecutiveWins,
-                    maxConsecutiveLosses: maxConsecutiveLosses,
-                    bestTrade: Math.max(...profits),
-                    worstTrade: Math.min(...profits),
-                    gainToPainRatio,
-                    riskRewardRatio,
-                    ulcerIndex,
-                    recoveryFactor,
-                    tailRatio,
-                    skewness,
-                    kurtosis,
-                    winLossRatio,
-                    avgWin: result.avg_win,
-                    avgLoss: result.avg_loss,
-                    maxAdverseExcursion,
-                    maxFavorableExcursion,
-                    timeInMarket,
-                    cvar: result.cvar_95,
-                    expectancy: result.expectancy,
-                    volatility: result.volatility,
-                    alpha: result.alpha,
-                    beta: result.beta,
-                    rSquared: result.r_squared
                 };
+
+                const positionDays = (() => {
+                    const openPositions: Map<string, Date> = new Map();
+                    let totalDays = 0;
+
+                    const sortedTrades = [...closedTrades].sort((a, b) =>
+                        parseDate(a.executed_at).getTime() - parseDate(b.executed_at).getTime()
+                    );
+
+                    sortedTrades.forEach(trade => {
+                        const tradeDate = parseDate(trade.executed_at);
+                        const symbol = trade.symbol;
+
+                        if (trade.order_type === 'BUY') {
+                            openPositions.set(symbol, tradeDate);
+                        } else if (trade.order_type === 'SELL' && openPositions.has(symbol)) {
+                            const entryDate = openPositions.get(symbol)!;
+                            const daysInPosition = Math.ceil(
+                                (tradeDate.getTime() - entryDate.getTime()) / (1000 * 60 * 60 * 24)
+                            );
+
+                            totalDays += Math.max(1, daysInPosition); // At least 1 day
+                            openPositions.delete(symbol);
+                        }
+                    });
+
+                    // Handle any positions still open at the end
+                    if (openPositions.size > 0 && equityCurve.length > 0) {
+                        const lastDate = parseDate(equityCurve[equityCurve.length - 1].timestamp);
+
+                        openPositions.forEach((entryDate, symbol) => {
+                            const daysInPosition = Math.ceil(
+                                (lastDate.getTime() - entryDate.getTime()) / (1000 * 60 * 60 * 24)
+                            );
+                            totalDays += Math.max(1, daysInPosition);
+                        });
+                    }
+
+                    return totalDays;
+                })();
+
+                tradeFrequency = totalDays > 0 ? (positionDays / totalDays) * 100 : 0;
             }
+            let maxConsecutiveWins = 0;
+            let maxConsecutiveLosses = 0;
+            let currentWins = 0;
+            let currentLosses = 0;
+
+            trades.forEach(t => {
+                if ((t.profit || 0) > 0) {
+                    currentWins++;
+                    currentLosses = 0;
+                    maxConsecutiveWins = Math.max(maxConsecutiveWins, currentWins);
+                } else if ((t.profit || 0) < 0) {
+                    currentLosses++;
+                    currentWins = 0;
+                    maxConsecutiveLosses = Math.max(maxConsecutiveLosses, currentLosses);
+                }
+            });
+
+            return {
+                sortinoRatio: result.sortino_ratio,
+                calmarRatio: result.calmar_ratio,
+                profitFactor,
+                valueAtRisk: result.var_95,
+                maxConsecutiveWins: maxConsecutiveWins,
+                maxConsecutiveLosses: maxConsecutiveLosses,
+                bestTrade: Math.max(...profits),
+                worstTrade: Math.min(...profits),
+                gainToPainRatio,
+                riskRewardRatio,
+                ulcerIndex,
+                recoveryFactor,
+                tailRatio,
+                skewness,
+                kurtosis,
+                winLossRatio,
+                avgWin: result.avg_win,
+                avgLoss: result.avg_loss,
+                maxAdverseExcursion,
+                maxFavorableExcursion,
+                tradeFrequency: tradeFrequency,
+                cvar: result.cvar_95,
+                expectancy: result.expectancy,
+                volatility: result.volatility,
+                alpha: result.alpha,
+                beta: result.beta,
+                rSquared: result.r_squared
+            };
         }
 
         return null;
@@ -338,12 +185,15 @@ const RiskAnalysisModal: React.FC<RiskAnalysisModalProps> = ({ results, onClose 
     if (!metrics) return null;
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200 overflow-y-auto">
-            <div className="bg-slate-900 border border-slate-700/50 rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto">
-                <div className="flex items-center justify-between p-6 border-b border-slate-800 sticky top-0 bg-slate-900 z-10">
+        <div
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200 overflow-y-auto">
+            <div
+                className="bg-slate-900 border border-slate-700/50 rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+                <div
+                    className="flex items-center justify-between p-6 border-b border-slate-800 sticky top-0 bg-slate-900 z-10">
                     <div className="flex items-center gap-3">
                         <div className="p-2 bg-blue-500/20 rounded-lg border border-blue-500/30">
-                            <AlertTriangle size={20} className="text-blue-400" />
+                            <AlertTriangle size={20} className="text-blue-400"/>
                         </div>
                         <div>
                             <h3 className="text-lg font-bold text-slate-100">Advanced Risk Analysis</h3>
@@ -354,7 +204,7 @@ const RiskAnalysisModal: React.FC<RiskAnalysisModalProps> = ({ results, onClose 
                         onClick={onClose}
                         className="p-2 hover:bg-slate-800 rounded-lg text-slate-500 hover:text-slate-300 transition-colors"
                     >
-                        <X size={20} />
+                        <X size={20}/>
                     </button>
                 </div>
 
@@ -362,7 +212,7 @@ const RiskAnalysisModal: React.FC<RiskAnalysisModalProps> = ({ results, onClose 
                     {/* Primary Risk Ratios */}
                     <div>
                         <h4 className="text-sm font-bold text-slate-400 mb-3 flex items-center gap-2">
-                            <Gauge size={16} className="text-blue-400" />
+                            <Gauge size={16} className="text-blue-400"/>
                             Risk-Adjusted Return Metrics
                         </h4>
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -383,7 +233,7 @@ const RiskAnalysisModal: React.FC<RiskAnalysisModalProps> = ({ results, onClose 
                             <div className="p-4 bg-slate-800/40 rounded-xl border border-slate-700/50">
                                 <p className="text-xs text-slate-500 font-bold uppercase mb-1">Recovery Factor</p>
                                 <p className={`text-xl font-bold ${metrics.recoveryFactor > 2 ? 'text-emerald-400' : 'text-slate-200'}`}>
-                                    {metrics.recoveryFactor.toFixed(2)}
+                                    {metrics.recoveryFactor === Infinity ? '∞' : metrics.recoveryFactor.toFixed(2)}
                                 </p>
                                 <p className="text-[10px] text-slate-500 mt-1">Return / Max DD</p>
                             </div>
@@ -400,7 +250,7 @@ const RiskAnalysisModal: React.FC<RiskAnalysisModalProps> = ({ results, onClose 
                     {/* Trade Efficiency Metrics */}
                     <div>
                         <h4 className="text-sm font-bold text-slate-400 mb-3 flex items-center gap-2">
-                            <Target size={16} className="text-emerald-400" />
+                            <Target size={16} className="text-emerald-400"/>
                             Trade Efficiency
                         </h4>
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -441,7 +291,7 @@ const RiskAnalysisModal: React.FC<RiskAnalysisModalProps> = ({ results, onClose 
                     {/* Drawdown & Risk Metrics */}
                     <div>
                         <h4 className="text-sm font-bold text-slate-400 mb-3 flex items-center gap-2">
-                            <TrendingDown size={16} className="text-red-400" />
+                            <TrendingDown size={16} className="text-red-400"/>
                             Drawdown & Risk Metrics
                         </h4>
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -469,7 +319,7 @@ const RiskAnalysisModal: React.FC<RiskAnalysisModalProps> = ({ results, onClose 
                             <div className="p-4 bg-slate-800/40 rounded-xl border border-slate-700/50">
                                 <p className="text-xs text-slate-500 font-bold uppercase mb-1">Volatility</p>
                                 <p className="text-xl font-bold text-slate-200">
-                                    {formatPercent(metrics.volatility / 100)}
+                                    {formatPercent(metrics.volatility * 100)}
                                 </p>
                                 <p className="text-[10px] text-slate-500 mt-1">Annualized</p>
                             </div>
@@ -479,7 +329,7 @@ const RiskAnalysisModal: React.FC<RiskAnalysisModalProps> = ({ results, onClose 
                     {/* Statistical Distribution */}
                     <div>
                         <h4 className="text-sm font-bold text-slate-400 mb-3 flex items-center gap-2">
-                            <BarChart3 size={16} className="text-violet-400" />
+                            <BarChart3 size={16} className="text-violet-400"/>
                             Return Distribution
                         </h4>
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -510,9 +360,9 @@ const RiskAnalysisModal: React.FC<RiskAnalysisModalProps> = ({ results, onClose 
                                 <p className="text-[10px] text-slate-500 mt-1">95% / 5%</p>
                             </div>
                             <div className="p-4 bg-slate-800/40 rounded-xl border border-slate-700/50">
-                                <p className="text-xs text-slate-500 font-bold uppercase mb-1">Time in Market</p>
+                                <p className="text-xs text-slate-500 font-bold uppercase mb-1">Trade Frequency</p>
                                 <p className="text-xl font-bold text-slate-200">
-                                    {metrics.timeInMarket.toFixed(1)}%
+                                    {metrics.tradeFrequency.toFixed(1)}%
                                 </p>
                                 <p className="text-[10px] text-slate-500 mt-1">Exposure Time</p>
                             </div>
@@ -523,7 +373,7 @@ const RiskAnalysisModal: React.FC<RiskAnalysisModalProps> = ({ results, onClose 
                     {metrics.alpha !== undefined && (
                         <div>
                             <h4 className="text-sm font-bold text-slate-400 mb-3 flex items-center gap-2">
-                                <PieChart size={16} className="text-indigo-400" />
+                                <PieChart size={16} className="text-indigo-400"/>
                                 Market Correlation
                             </h4>
                             <div className="grid grid-cols-3 gap-4">
@@ -546,7 +396,7 @@ const RiskAnalysisModal: React.FC<RiskAnalysisModalProps> = ({ results, onClose 
                                 <div className="p-4 bg-slate-800/40 rounded-xl border border-slate-700/50">
                                     <p className="text-xs text-slate-500 font-bold uppercase mb-1">R-Squared</p>
                                     <p className="text-xl font-bold text-slate-200">
-                                        {((metrics.rSquared || 0)* 100).toFixed(1)}%
+                                        {((metrics.rSquared || 0) * 100).toFixed(1)}%
                                     </p>
                                     <p className="text-[10px] text-slate-500 mt-1">Market Correlation</p>
                                 </div>
@@ -556,9 +406,10 @@ const RiskAnalysisModal: React.FC<RiskAnalysisModalProps> = ({ results, onClose 
 
                     {/* Extreme Trades & Streaks */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div className="p-5 bg-gradient-to-br from-slate-800/40 to-slate-900/40 rounded-xl border border-slate-700/50">
+                        <div
+                            className="p-5 bg-gradient-to-br from-slate-800/40 to-slate-900/40 rounded-xl border border-slate-700/50">
                             <div className="flex items-center gap-2 mb-4">
-                                <Activity size={16} className="text-violet-400" />
+                                <Activity size={16} className="text-violet-400"/>
                                 <h4 className="text-sm font-bold text-slate-300">Streak Analysis</h4>
                             </div>
 
@@ -573,7 +424,7 @@ const RiskAnalysisModal: React.FC<RiskAnalysisModalProps> = ({ results, onClose 
                                     <div className="w-full bg-slate-700/30 h-2 rounded-full">
                                         <div
                                             className="bg-emerald-500 h-2 rounded-full"
-                                            style={{ width: `${Math.min((metrics.maxConsecutiveWins / 10) * 100, 100)}%` }}
+                                            style={{width: `${Math.min((metrics.maxConsecutiveWins / 10) * 100, 100)}%`}}
                                         />
                                     </div>
                                 </div>
@@ -588,39 +439,44 @@ const RiskAnalysisModal: React.FC<RiskAnalysisModalProps> = ({ results, onClose 
                                     <div className="w-full bg-slate-700/30 h-2 rounded-full">
                                         <div
                                             className="bg-red-500 h-2 rounded-full"
-                                            style={{ width: `${Math.min((metrics.maxConsecutiveLosses / 10) * 100, 100)}%` }}
+                                            style={{width: `${Math.min((metrics.maxConsecutiveLosses / 10) * 100, 100)}%`}}
                                         />
                                     </div>
                                 </div>
                             </div>
                         </div>
 
-                        <div className="p-5 bg-gradient-to-br from-slate-800/40 to-slate-900/40 rounded-xl border border-slate-700/50">
+                        <div
+                            className="p-5 bg-gradient-to-br from-slate-800/40 to-slate-900/40 rounded-xl border border-slate-700/50">
                             <div className="flex items-center gap-2 mb-4">
-                                <TrendingDown size={16} className="text-amber-400" />
+                                <TrendingDown size={16} className="text-amber-400"/>
                                 <h4 className="text-sm font-bold text-slate-300">Extreme Events</h4>
                             </div>
 
                             <div className="space-y-3">
-                                <div className="flex justify-between items-center bg-white/[0.02] p-3 rounded-lg border border-white/5">
+                                <div
+                                    className="flex justify-between items-center bg-white/[0.02] p-3 rounded-lg border border-white/5">
                                     <span className="text-xs text-slate-500">Best Trade</span>
                                     <span className="text-sm font-mono font-bold text-emerald-400">
                                         +{formatCurrency(metrics.bestTrade)}
                                     </span>
                                 </div>
-                                <div className="flex justify-between items-center bg-white/[0.02] p-3 rounded-lg border border-white/5">
+                                <div
+                                    className="flex justify-between items-center bg-white/[0.02] p-3 rounded-lg border border-white/5">
                                     <span className="text-xs text-slate-500">Worst Trade</span>
                                     <span className="text-sm font-mono font-bold text-red-400">
                                         {formatCurrency(metrics.worstTrade)}
                                     </span>
                                 </div>
-                                <div className="flex justify-between items-center bg-white/[0.02] p-3 rounded-lg border border-white/5">
+                                <div
+                                    className="flex justify-between items-center bg-white/[0.02] p-3 rounded-lg border border-white/5">
                                     <span className="text-xs text-slate-500">Max Favorable Excursion</span>
                                     <span className="text-sm font-mono font-bold text-emerald-400">
                                         +{formatCurrency(metrics.maxFavorableExcursion)}
                                     </span>
                                 </div>
-                                <div className="flex justify-between items-center bg-white/[0.02] p-3 rounded-lg border border-white/5">
+                                <div
+                                    className="flex justify-between items-center bg-white/[0.02] p-3 rounded-lg border border-white/5">
                                     <span className="text-xs text-slate-500">Max Adverse Excursion</span>
                                     <span className="text-sm font-mono font-bold text-red-400">
                                         {formatCurrency(metrics.maxAdverseExcursion)}
