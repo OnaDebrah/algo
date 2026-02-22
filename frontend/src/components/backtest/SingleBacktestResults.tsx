@@ -24,7 +24,6 @@ const SingleBacktestResults: React.FC<SingleBacktestResultsProps> = ({ results, 
     // Primary metrics source: WFA aggregated OOS metrics OR standard results
     const displayMetrics = wfaResponse ? wfaResponse.aggregated_oos_metrics : results;
 
-    // Safety check for empty data
     if (!displayMetrics) return null;
 
     const trades = displayMetrics.trades || [];
@@ -334,9 +333,9 @@ const SingleBacktestResults: React.FC<SingleBacktestResultsProps> = ({ results, 
                     {/* Factor Attribution (Market Alpha/Beta) */}
                     {results && (
                         <FactorAttribution
-                            alpha={results.alpha || 0}
-                            beta={results.beta || 0}
-                            rSquared={results.rSquared}
+                            alpha={results?.alpha || 0}
+                            beta={results?.beta || 0}
+                            rSquared={results?.r_squared || 0}
                         />
                     )}
                     {/* Advanced Risk Metrics Grid */}

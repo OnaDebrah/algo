@@ -1,29 +1,17 @@
 'use client'
 
 import {
-    Activity,
-    AlertCircle,
     BarChart3,
-    Calendar,
     Check,
     ChevronDown,
-    ChevronRight,
     ChevronUp,
-    Copy,
     Cpu,
     Database,
-    DollarSign,
     Download,
     Eye,
     EyeOff,
-    Filter,
     FolderOpen,
-    Grid,
-    HelpCircle,
-    Info,
     Layers,
-    List,
-    Lock,
     PieChart,
     Play,
     PlusCircle,
@@ -31,23 +19,25 @@ import {
     Save,
     Search,
     Settings,
-    Shield,
-    Sliders,
     Sparkles,
-    Star,
-    Target,
     X,
     Zap
 } from "lucide-react";
-import React, { useMemo, useState } from "react";
+import React, {useMemo, useState} from "react";
 import StrategyParameterForm from "@/components/backtest/StrategyParameterForm";
 import MultiBacktestResults from "@/components/backtest/MultiBacktestResults";
 import RiskAnalysisModal from "@/components/backtest/RiskAnalysisModal";
 import LoadConfigModal from "@/components/backtest/LoadConfigModal";
-import { BacktestResult, MultiAssetConfig, Strategy, PortfolioCreate } from "@/types/all_types";
-import { portfolio } from "@/utils/api";
+import {
+    BacktestResult,
+    MultiAssetBacktestResponse,
+    MultiAssetConfig,
+    PortfolioCreate,
+    Strategy
+} from "@/types/all_types";
+import {portfolio} from "@/utils/api";
 import BayesianOptimizerModal from "@/components/backtest/BayesianOptimizerModal";
-import { assetSuggestions } from "@/utils/suggestions";
+import {assetSuggestions} from "@/utils/suggestions";
 import KalmanFilterParameters from "@/components/backtest/KalmanFilterParameters";
 import StrategyInfoPopover from "@/components/backtest/StrategyInfoPopover";
 
@@ -759,7 +749,7 @@ const MultiAssetBacktest: React.FC<MultiAssetBacktestProps> = ({
                ════════════════════════════════════════════════════════════ */}
             {results && (
                 <div className="animate-in fade-in slide-in-from-bottom-3 duration-500">
-                    <MultiBacktestResults results={results} />
+                    <MultiBacktestResults results={results } />
                 </div>
             )}
 

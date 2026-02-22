@@ -244,10 +244,8 @@ class BacktestService:
 
             if benchmark:
                 benchmark["comparison"] = benchmark_calc.compare_to_benchmark(metrics, benchmark)
-                # Sanitize benchmark to prevent inf/NaN JSON serialization errors
                 benchmark = _sanitize_value(benchmark)
 
-            # Create equity curve
             equity_curve: list[EquityCurvePoint] = [
                 EquityCurvePoint(timestamp=str(point["timestamp"]), equity=point["equity"], cash=point["cash"]) for point in engine.equity_curve
             ]
@@ -363,10 +361,9 @@ class BacktestService:
                 logger.info("Running independent strategies backtest")
                 engine = await self._create_independent_engine(request)
 
-            # Run backtest (run_backtest is async — must be awaited directly, not via to_thread)
             await engine.run_backtest(request.symbols, request.period, request.interval)
-            results = engine.get_results()
-            # Create equity curve
+            results = None
+
             equity_curve = [
                 EquityCurvePoint(timestamp=str(point["timestamp"]), equity=point["equity"], cash=point["cash"]) for point in engine.equity_curve
             ]
@@ -421,10 +418,12 @@ class BacktestService:
                     commission_rate=request.commission_rate,
                 )
 
-                if benchmark:
-                    benchmark["comparison"] = benchmark_calc.compare_to_benchmark(results.model_dump(), benchmark)
-                    # Sanitize benchmark to prevent inf/NaN JSON serialization errors
-                    benchmark = _sanitize_value(benchmark)
+            benchmark_equity = benchmark.get("equity_curve") if benchmark else None
+            results = engine.get_results(benchmark_equity)
+
+            if benchmark:
+                benchmark["comparison"] = benchmark_calc.compare_to_benchmark(results.model_dump(), benchmark)
+                benchmark = _sanitize_value(benchmark)
 
             # Build OHLC price data for frontend chart (use first symbol's data for multi-asset)
             ohlc_price_data = None

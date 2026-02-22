@@ -9,19 +9,22 @@ import PerformanceHeatmap from "@/components/backtest/PerformanceHeatmap";
 import FactorAttribution from "@/components/backtest/FactorAttribution";
 import TradeChart from "@/components/backtest/TradeChart";
 import { formatCurrency, formatPercent } from "@/utils/formatters";
-import { BacktestResult, EquityCurvePoint, SymbolStats, Trade } from "@/types/all_types";
+import {BacktestResult, EquityCurvePoint, MultiAssetBacktestResponse, SymbolStats, Trade} from "@/types/all_types";
 
 interface MultiBacktestResultsProps {
     results: BacktestResult;
 }
 
-const MultiBacktestResults: React.FC<MultiBacktestResultsProps> = ({ results }) => {
+const MultiBacktestResults: React.FC<MultiBacktestResultsProps> = ({ results }: MultiBacktestResultsProps) => {
     const [activeTab, setActiveTab] = useState<'overview' | 'tearsheet' | 'trades'>('overview');
     const [tradeFilter, setTradeFilter] = useState('all');
     const [showRiskAnalysis, setShowRiskAnalysis] = useState(false);
+    const displayMetrics = results;
 
-    const trades = results.trades || [];
-    const equityCurve = results.equity_curve || [];
+    if (!displayMetrics) return null;
+
+    const trades = displayMetrics.trades || [];
+    const equityCurve = displayMetrics.equity_curve || [];
 
     // ============================================================
     // MONTHLY RETURNS CALCULATION
@@ -121,7 +124,7 @@ const MultiBacktestResults: React.FC<MultiBacktestResultsProps> = ({ results }) 
     // ============================================================
     const equityChartData = useMemo(() => {
         const strategyData = equityCurve;
-        const benchmarkData = results.benchmark?.equity_curve || [];
+        const benchmarkData = displayMetrics.benchmark?.equity_curve || [];
 
         return strategyData.map((point) => {
             const benchmarkPoint = benchmarkData.find((bp) => bp.timestamp === point.timestamp);
@@ -132,7 +135,7 @@ const MultiBacktestResults: React.FC<MultiBacktestResultsProps> = ({ results }) 
                 benchmark_equity: benchmarkPoint?.equity || null
             };
         });
-    }, [equityCurve, results.benchmark]);
+    }, [equityCurve, displayMetrics.benchmark]);
 
     return (
         <div className="space-y-6">
@@ -191,28 +194,28 @@ const MultiBacktestResults: React.FC<MultiBacktestResultsProps> = ({ results }) 
                     <div className="grid grid-cols-4 gap-6">
                         <MetricCard
                             title="Total Return"
-                            value={formatPercent(results.total_return)}
+                            value={formatPercent(displayMetrics?.total_return ?? 0)}
                             icon={TrendingUp}
                             trend="up"
                             color="emerald"
                         />
                         <MetricCard
                             title="Win Rate"
-                            value={`${results.win_rate.toFixed(1)}%`}
+                            value={`${(displayMetrics?.win_rate ?? 0).toFixed(1)}%`}
                             icon={Target}
                             trend="up"
                             color="blue"
                         />
                         <MetricCard
                             title="Sharpe Ratio"
-                            value={results.sharpe_ratio.toFixed(2)}
+                            value={(displayMetrics?.sharpe_ratio ?? 0).toFixed(2)}
                             icon={Activity}
                             trend="up"
                             color="violet"
                         />
                         <MetricCard
                             title="Max Drawdown"
-                            value={formatPercent(results.max_drawdown)}
+                            value={formatPercent(displayMetrics?.max_drawdown ?? 0)}
                             icon={TrendingDown}
                             trend="down"
                             color="red"
@@ -227,11 +230,11 @@ const MultiBacktestResults: React.FC<MultiBacktestResultsProps> = ({ results }) 
                                 Asset Allocation Performance
                             </h3>
                             <span className="text-[10px] text-slate-500 font-black uppercase tracking-widest bg-slate-800/50 px-3 py-1 rounded-full border border-slate-700/50">
-                                {Object.keys(results.symbol_stats || {}).length} Active Assets
+                                {Object.keys(displayMetrics?.symbol_stats || {}).length} Active Assets
                             </span>
                         </div>
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                            {Object.entries(results.symbol_stats || {}).map(([symbol, stats]: [string, SymbolStats]) => (
+                            {Object.entries(displayMetrics?.symbol_stats || {}).map(([symbol, stats]: [string, SymbolStats]) => (
                                 <div
                                     key={symbol}
                                     className="p-4 bg-slate-800/40 border border-slate-700/50 rounded-xl hover:bg-slate-800/60 transition-all border-l-4 border-l-violet-500"
@@ -263,9 +266,9 @@ const MultiBacktestResults: React.FC<MultiBacktestResultsProps> = ({ results }) 
                         <div className="flex justify-between items-center mb-6">
                             <div>
                                 <h3 className="text-xl font-semibold text-slate-100">Portfolio Equity Curve</h3>
-                                {results.benchmark && (
+                                {displayMetrics.benchmark && (
                                     <p className="text-xs text-slate-500 mt-1 uppercase font-bold tracking-widest">
-                                        Multi-Asset Strategy (Violet) vs {results.benchmark.symbol} (Blue)
+                                        Multi-Asset Strategy (Violet) vs {displayMetrics.benchmark.symbol} (Blue)
                                     </p>
                                 )}
                             </div>
@@ -293,7 +296,7 @@ const MultiBacktestResults: React.FC<MultiBacktestResultsProps> = ({ results }) 
                                         return [formatCurrency(value), name];
                                     }}
                                 />
-                                {results.benchmark && (
+                                {displayMetrics.benchmark && (
                                     <Area
                                         type="monotone"
                                         dataKey="benchmark_equity"
@@ -317,22 +320,22 @@ const MultiBacktestResults: React.FC<MultiBacktestResultsProps> = ({ results }) 
                     </div>
 
                     {/* Price Action & Trade Signals Chart */}
-                    {results.price_data && results.price_data.length > 0 && trades.length > 0 && (
-                        <TradeChart priceData={results.price_data} trades={trades} />
+                    {displayMetrics.price_data && displayMetrics.price_data.length > 0 && trades.length > 0 && (
+                        <TradeChart priceData={displayMetrics.price_data} trades={trades} />
                     )}
 
-                    {results.benchmark && <BenchmarkComparison benchmark={results.benchmark} />}
+                    {displayMetrics.benchmark && <BenchmarkComparison benchmark={displayMetrics.benchmark} />}
                 </div>
             )}
 
             {activeTab === 'tearsheet' && (
                 <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
                     {/* Factor Attribution (Market Alpha/Beta) */}
-                    {results && (
+                    {displayMetrics && (
                         <FactorAttribution
-                            alpha={results.alpha || 0}
-                            beta={results.beta || 0}
-                            rSquared={results.rSquared}
+                            alpha={displayMetrics.alpha ?? 0}
+                            beta={displayMetrics.beta ?? 0}
+                            rSquared={displayMetrics.r_squared ?? 0}
                         />
                     )}
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -342,7 +345,7 @@ const MultiBacktestResults: React.FC<MultiBacktestResultsProps> = ({ results }) 
                                 <p className="text-[10px] text-slate-500 font-black uppercase tracking-widest">Sortino Ratio</p>
                             </div>
                             <p className="text-2xl font-bold text-slate-200">
-                                {(results?.sortino_ratio || 0).toFixed(2)}
+                                {(displayMetrics?.sortino_ratio ?? 0).toFixed(2)}
                             </p>
                         </div>
                         <div className="bg-slate-900 border border-slate-800 p-5 rounded-2xl">
@@ -351,7 +354,7 @@ const MultiBacktestResults: React.FC<MultiBacktestResultsProps> = ({ results }) 
                                 <p className="text-[10px] text-slate-500 font-black uppercase tracking-widest">Calmar Ratio</p>
                             </div>
                             <p className="text-2xl font-bold text-slate-200">
-                                {(results?.calmar_ratio || 0).toFixed(2)}
+                                {(displayMetrics?.calmar_ratio ?? 0).toFixed(2)}
                             </p>
                         </div>
                         <div className="bg-slate-900 border border-slate-800 p-5 rounded-2xl">
@@ -360,7 +363,7 @@ const MultiBacktestResults: React.FC<MultiBacktestResultsProps> = ({ results }) 
                                 <p className="text-[10px] text-slate-500 font-black uppercase tracking-widest">VaR (95%)</p>
                             </div>
                             <p className="text-2xl font-bold text-red-500">
-                                {formatPercent(Math.abs(results?.var_95 || 0))}
+                                {formatPercent(Math.abs(displayMetrics?.var_95 ?? 0))}
                             </p>
                         </div>
                         <div className="bg-slate-900 border border-slate-800 p-5 rounded-2xl">
@@ -369,7 +372,7 @@ const MultiBacktestResults: React.FC<MultiBacktestResultsProps> = ({ results }) 
                                 <p className="text-[10px] text-slate-500 font-black uppercase tracking-widest">Portfolio Vol</p>
                             </div>
                             <p className="text-2xl font-bold text-slate-200">
-                                {formatPercent(results?.volatility || 0)}
+                                {formatPercent(displayMetrics?.volatility ?? 0)}
                             </p>
                         </div>
                     </div>
@@ -421,7 +424,7 @@ const MultiBacktestResults: React.FC<MultiBacktestResultsProps> = ({ results }) 
                     </div>
 
                     {/* Monthly Returns Heatmap */}
-                    <PerformanceHeatmap monthlyReturns={results.monthly_returns_matrix} />
+                    <PerformanceHeatmap monthlyReturns={displayMetrics.monthly_returns_matrix ?? {}} />
                 </div>
             )}
 
@@ -490,7 +493,7 @@ const MultiBacktestResults: React.FC<MultiBacktestResultsProps> = ({ results }) 
             )}
 
             {showRiskAnalysis && (
-                <RiskAnalysisModal results={results} onClose={() => setShowRiskAnalysis(false)} />
+                <RiskAnalysisModal results={displayMetrics} onClose={() => setShowRiskAnalysis(false)} />
             )}
         </div>
     );

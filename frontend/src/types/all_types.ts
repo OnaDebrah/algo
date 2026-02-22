@@ -143,7 +143,7 @@ export interface BacktestResult {
     monthly_returns_matrix?: Record<string, Record<string, number>>;
     alpha?: number;
     beta?: number;
-    rSquared?: number;
+    r_squared?: number;
     // Advanced metrics
     sortino_ratio: number;
     calmar_ratio: number;
@@ -271,6 +271,17 @@ export interface MultiAssetBacktestResult {
     profit_factor: number;
     final_equity: number;
     initial_capital: number;
+    sortino_ratio: number;
+    calmar_ratio: number;
+    var_95: number;
+    cvar_95: number;
+    volatility: number;
+    expectancy: number;
+    total_commission: number;
+    alpha?: number;
+    beta?: number;
+    r_squared?: number;
+    monthly_returns_matrix?: Record<string, Record<string, number>>;
     symbol_stats: Record<string, SymbolStats>;
     num_symbols: number;
 }

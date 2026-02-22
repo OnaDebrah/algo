@@ -13,6 +13,9 @@ class TradingService:
     @staticmethod
     async def save_trade(db: AsyncSession, trade_data: Dict, portfolio_id: int = 1) -> int:
         """Save trade to database using AsyncSession"""
+        """Save trade to database using AsyncSession"""
+        trade_data = trade_data.copy()
+
         # Calculate total value if missing
         if "total_value" not in trade_data:
             trade_data["total_value"] = trade_data["quantity"] * trade_data["price"]
