@@ -6,7 +6,7 @@ import pandas as pd
 import requests
 
 from backend.app.config import settings
-from backend.app.core.data.base_provider import DataProvider
+from backend.app.core.data.providers.base_provider import DataProvider
 
 logger = logging.getLogger(__name__)
 

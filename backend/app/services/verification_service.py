@@ -5,7 +5,6 @@ from typing import Dict
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from backend.app.core.marketplace import StrategyMarketplace
 from backend.app.models.backtest import BacktestRun
 from backend.app.models.live import LiveStrategy
 
@@ -20,7 +19,6 @@ class VerificationService:
 
     def __init__(self, db: AsyncSession):
         self.db = db
-        self.marketplace = StrategyMarketplace()
 
     async def verify_live_strategy(self, strategy_id: int) -> Dict:
         """

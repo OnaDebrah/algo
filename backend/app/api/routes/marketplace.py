@@ -6,7 +6,6 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.app.api.deps import get_current_active_user
-from backend.app.core.marketplace import BacktestResults, StrategyListing as CoreListing, StrategyMarketplace
 from backend.app.database import get_db
 from backend.app.models import User
 from backend.app.models.backtest import BacktestRun
@@ -18,37 +17,37 @@ from backend.app.schemas.marketplace import (
     StrategyPublishRequest,
     StrategyReviewSchema,
 )
+from backend.app.services.marketplace_service import BacktestResults, MarketplaceService, StrategyListing
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/marketplace", tags=["Marketplace"])
 
-_marketplace: Optional[StrategyMarketplace] = None
+_marketplace: Optional[MarketplaceService] = None
 
 
-def get_marketplace() -> StrategyMarketplace:
+def get_marketplace() -> MarketplaceService:
     """Get or initialize the marketplace instance (Lazy Initialization)"""
     global _marketplace
     if _marketplace is None:
-        _marketplace = StrategyMarketplace()
+        _marketplace = MarketplaceService()
     return _marketplace
 
 
-def convert_core_to_schema(core_listing, marketplace: StrategyMarketplace = None, user_id: int = None) -> StrategyListingSchema:
-    """Convert core StrategyListing to API schema"""
+async def convert_core_to_schema(
+    core_listing, db: AsyncSession, marketplace: MarketplaceService = None, user_id: int = None
+) -> StrategyListingSchema:
+    """Convert a MarketplaceStrategy ORM object to the API schema."""
     is_fav = False
     if marketplace and user_id and core_listing.id:
         try:
-            is_fav = marketplace.is_favorite(core_listing.id, user_id)
+            is_fav = await marketplace.is_favorite(db, core_listing.id, user_id)
         except Exception:
             is_fav = False
 
     # Use user-provided pros/cons if available, otherwise auto-generate
     pros = core_listing.pros if core_listing.pros else _generate_pros(core_listing)
     cons = core_listing.cons if core_listing.cons else _generate_cons(core_listing)
-
-    # Get backtest results for additional metrics
-    br = core_listing.backtest_results
 
     return StrategyListingSchema(
         id=core_listing.id if core_listing.id else "unknown",
@@ -67,14 +66,16 @@ def convert_core_to_schema(core_listing, marketplace: StrategyMarketplace = None
         sharpe_ratio=core_listing.sharpe_ratio,
         win_rate=core_listing.win_rate,
         num_trades=core_listing.num_trades,
-        avg_win=br.avg_win if br else 0.0,
-        avg_loss=br.avg_loss if br else 0.0,
-        profit_factor=br.profit_factor if br else 0.0,
-        volatility=br.volatility if br else 0.0,
-        sortino_ratio=br.sortino_ratio if br else 0.0,
-        calmar_ratio=br.calmar_ratio if br else 0.0,
-        var_95=br.var_95 if br else 0.0,
-        initial_capital=br.initial_capital if br else 10000.0,
+        # These extended metrics default to 0 since MarketplaceStrategy ORM
+        # doesn't store them — they come from the full backtest detail view
+        avg_win=0.0,
+        avg_loss=0.0,
+        profit_factor=0.0,
+        volatility=0.0,
+        sortino_ratio=0.0,
+        calmar_ratio=0.0,
+        var_95=0.0,
+        initial_capital=10000.0,
         total_downloads=core_listing.downloads,
         tags=core_listing.tags if core_listing.tags else [],
         best_for=core_listing.tags[:3] if core_listing.tags else [],
@@ -136,10 +137,12 @@ async def get_strategies(
     sort_by: str = Query("sharpe_ratio"),
     limit: int = Query(50),
     current_user: User = Depends(get_current_active_user),
-    marketplace: StrategyMarketplace = Depends(get_marketplace),
+    marketplace: MarketplaceService = Depends(get_marketplace),
+    db: AsyncSession = Depends(get_db),
 ):
     """Browse marketplace strategies"""
-    core_listings = marketplace.browse_strategies(
+    core_listings = await marketplace.browse_strategies(
+        db,
         category=None if category == "All" else category,
         complexity=None if complexity == "All" else complexity,
         min_sharpe=min_sharpe,
@@ -149,60 +152,63 @@ async def get_strategies(
         sort_by=sort_by,
         limit=limit,
     )
-    return [convert_core_to_schema(listing, marketplace, current_user.id) for listing in core_listings]
+    return [await convert_core_to_schema(listing, db, marketplace, current_user.id) for listing in core_listings]
 
 
 @router.get("/{strategy_id}", response_model=StrategyListingDetailedSchema)
 async def get_strategy_details(
-    strategy_id: int, current_user: User = Depends(get_current_active_user), marketplace: StrategyMarketplace = Depends(get_marketplace)
+    strategy_id: int,
+    current_user: User = Depends(get_current_active_user),
+    marketplace: MarketplaceService = Depends(get_marketplace),
+    db: AsyncSession = Depends(get_db),
 ):
     """Get detailed information about a specific strategy including backtest results"""
 
-    core_listings = marketplace.browse_strategies(limit=200)
+    core_listings = await marketplace.browse_strategies(db, limit=200)
     target_listing = next((listing for listing in core_listings if listing.id == strategy_id), None)
 
     if not target_listing:
         raise HTTPException(status_code=404, detail="Strategy not found")
 
     # Load full backtest data for the detail view
-    backtest_data = marketplace.get_strategy_backtest(strategy_id)
+    backtest_data = await marketplace.get_strategy_backtest(strategy_id, db)
 
-    # Inject backtest results into listing so convert_core_to_schema has full metrics
+    # Build the base schema from the ORM listing
+    base_schema = await convert_core_to_schema(target_listing, db, marketplace, current_user.id)
+    detailed_schema = StrategyListingDetailedSchema(**base_schema.model_dump())
+
+    # Populate full backtest results if available
     if backtest_data:
-        target_listing.backtest_results = backtest_data["backtest_results"]
-
-    detailed_schema = StrategyListingDetailedSchema(**convert_core_to_schema(target_listing, marketplace, current_user.id).dict())
-
-    if backtest_data:
-        res = backtest_data["backtest_results"]
+        # backtest_data["results"] is a dict (JSONB from DB), not a BacktestResults object
+        res = backtest_data["results"]
         detailed_schema.backtest_results = BacktestResultsSchema(
-            total_return=res.total_return,
-            annualized_return=res.annualized_return,
-            sharpe_ratio=res.sharpe_ratio,
-            sortino_ratio=res.sortino_ratio,
-            max_drawdown=res.max_drawdown,
-            max_drawdown_duration=res.max_drawdown_duration,
-            calmar_ratio=res.calmar_ratio,
-            num_trades=res.num_trades,
-            win_rate=res.win_rate,
-            profit_factor=res.profit_factor,
-            avg_win=res.avg_win,
-            avg_loss=res.avg_loss,
-            avg_trade_duration=res.avg_trade_duration,
-            volatility=res.volatility,
-            var_95=res.var_95,
-            cvar_95=res.cvar_95,
-            equity_curve=res.equity_curve,
-            trades=res.trades,
-            daily_returns=res.daily_returns,
-            start_date=res.start_date.isoformat() if res.start_date else None,
-            end_date=res.end_date.isoformat() if res.end_date else None,
-            initial_capital=res.initial_capital,
-            symbols=res.symbols,
+            total_return=res.get("total_return", 0.0),
+            annualized_return=res.get("annualized_return", 0.0),
+            sharpe_ratio=res.get("sharpe_ratio", 0.0),
+            sortino_ratio=res.get("sortino_ratio", 0.0),
+            max_drawdown=res.get("max_drawdown", 0.0),
+            max_drawdown_duration=res.get("max_drawdown_duration", 0),
+            calmar_ratio=res.get("calmar_ratio", 0.0),
+            num_trades=res.get("num_trades", 0),
+            win_rate=res.get("win_rate", 0.0),
+            profit_factor=res.get("profit_factor", 0.0),
+            avg_win=res.get("avg_win", 0.0),
+            avg_loss=res.get("avg_loss", 0.0),
+            avg_trade_duration=res.get("avg_trade_duration", 0.0),
+            volatility=res.get("volatility", 0.0),
+            var_95=res.get("var_95", 0.0),
+            cvar_95=res.get("cvar_95", 0.0),
+            equity_curve=res.get("equity_curve", []),
+            trades=res.get("trades", []),
+            daily_returns=res.get("daily_returns", []),
+            start_date=res.get("start_date"),
+            end_date=res.get("end_date"),
+            initial_capital=res.get("initial_capital", 100000.0),
+            symbols=res.get("symbols", []),
         )
 
     # Populate reviews
-    reviews = marketplace.get_reviews(strategy_id)
+    reviews = await marketplace.get_reviews(db, strategy_id)
     detailed_schema.reviews_list = [
         StrategyReviewSchema(
             id=r.id,
@@ -222,10 +228,13 @@ async def get_strategy_details(
 
 @router.post("/{strategy_id}/favorite")
 async def favorite_strategy(
-    strategy_id: int, current_user: User = Depends(get_current_active_user), marketplace: StrategyMarketplace = Depends(get_marketplace)
+    strategy_id: int,
+    current_user: User = Depends(get_current_active_user),
+    marketplace: MarketplaceService = Depends(get_marketplace),
+    db: AsyncSession = Depends(get_db),
 ):
     """Add a strategy to user's favorites"""
-    success = marketplace.toggle_favorite(strategy_id, current_user.id, favorite=True)
+    success = await marketplace.toggle_favorite(db, strategy_id, current_user.id, favorite=True)
     if not success:
         raise HTTPException(status_code=500, detail="Failed to favorite strategy")
     return {"status": "success"}
@@ -233,10 +242,13 @@ async def favorite_strategy(
 
 @router.delete("/{strategy_id}/favorite")
 async def unfavorite_strategy(
-    strategy_id: int, current_user: User = Depends(get_current_active_user), marketplace: StrategyMarketplace = Depends(get_marketplace)
+    strategy_id: int,
+    current_user: User = Depends(get_current_active_user),
+    marketplace: MarketplaceService = Depends(get_marketplace),
+    db: AsyncSession = Depends(get_db),
 ):
     """Remove a strategy from user's favorites"""
-    success = marketplace.toggle_favorite(strategy_id, current_user.id, favorite=False)
+    success = await marketplace.toggle_favorite(db, strategy_id, current_user.id, favorite=False)
     if not success:
         raise HTTPException(status_code=500, detail="Failed to unfavorite strategy")
     return {"status": "success"}
@@ -244,10 +256,13 @@ async def unfavorite_strategy(
 
 @router.post("/{strategy_id}/download")
 async def record_download(
-    strategy_id: int, current_user: User = Depends(get_current_active_user), marketplace: StrategyMarketplace = Depends(get_marketplace)
+    strategy_id: int,
+    current_user: User = Depends(get_current_active_user),
+    marketplace: MarketplaceService = Depends(get_marketplace),
+    db: AsyncSession = Depends(get_db),
 ):
     """Record a strategy download and increment download count"""
-    success = marketplace.record_download(strategy_id, current_user.id)
+    success = await marketplace.record_download(db, strategy_id, current_user.id)
     if not success:
         raise HTTPException(status_code=500, detail="Failed to record download")
     return {"status": "success"}
@@ -258,16 +273,18 @@ async def create_review(
     strategy_id: int,
     request: ReviewCreateRequest,
     current_user: User = Depends(get_current_active_user),
-    marketplace: StrategyMarketplace = Depends(get_marketplace),
+    marketplace: MarketplaceService = Depends(get_marketplace),
+    db: AsyncSession = Depends(get_db),
 ):
     """Create or update a review for a strategy"""
-    review_id = marketplace.add_review(
+    review_id = await marketplace.add_review(
+        db=db,
         strategy_id=strategy_id,
         user_id=current_user.id,
         username=current_user.username or "Unknown",
         rating=request.rating,
         review_text=request.review_text,
-        performance_achieved=request.performance_achieved,
+        performance=request.performance_achieved,
     )
     if not review_id:
         raise HTTPException(status_code=500, detail="Failed to create review")
@@ -279,10 +296,11 @@ async def get_reviews(
     strategy_id: int,
     limit: int = Query(20, ge=1, le=100),
     current_user: User = Depends(get_current_active_user),
-    marketplace: StrategyMarketplace = Depends(get_marketplace),
+    marketplace: MarketplaceService = Depends(get_marketplace),
+    db: AsyncSession = Depends(get_db),
 ):
     """Get reviews for a strategy"""
-    reviews = marketplace.get_reviews(strategy_id, limit)
+    reviews = await marketplace.get_reviews(db, strategy_id, limit)
     return [
         StrategyReviewSchema(
             id=r.id,
@@ -302,7 +320,7 @@ async def get_reviews(
 async def publish_strategy(
     request: StrategyPublishRequest,
     current_user: User = Depends(get_current_active_user),
-    marketplace: StrategyMarketplace = Depends(get_marketplace),
+    marketplace: MarketplaceService = Depends(get_marketplace),
     db: AsyncSession = Depends(get_db),
 ):
     """Publish a new strategy to the marketplace"""
@@ -344,7 +362,7 @@ async def publish_strategy(
         # Determine strategy_type from request or backtest config
         strategy_type = request.strategy_key or strategy_config.get("strategy_key", "Custom")
 
-        listing = CoreListing(
+        listing = StrategyListing(
             id=None,
             name=request.name,
             description=request.description,
@@ -364,7 +382,7 @@ async def publish_strategy(
             recommended_capital=request.recommended_capital or 10000.0,
         )
 
-        strategy_id = marketplace.publish_strategy_with_backtest(listing)
+        strategy_id = await marketplace.publish_strategy_with_backtest(db, listing)
 
         return {"id": strategy_id, "status": "published"}
 

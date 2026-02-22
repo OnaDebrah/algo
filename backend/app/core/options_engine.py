@@ -184,8 +184,15 @@ class OptionsBacktestEngine:
     ):
         """Enter a new options position"""
 
-        days_to_exp = entry_rules.get("days_to_expiration", 30)
-        expiration = date + timedelta(days=days_to_exp)
+        # Use specific expiration if provided, otherwise calculate from DTE
+        specific_exp = entry_rules.get("expiration")
+        if specific_exp:
+            from datetime import datetime as dt
+
+            expiration = dt.strptime(str(specific_exp)[:10], "%Y-%m-%d") if isinstance(specific_exp, str) else specific_exp
+        else:
+            days_to_exp = entry_rules.get("days_to_expiration", 30)
+            expiration = date + timedelta(days=days_to_exp)
 
         builder = OptionsStrategyBuilder(symbol, self.risk_free_rate)
         builder.current_price = price
@@ -193,17 +200,34 @@ class OptionsBacktestEngine:
         # Create strategy with custom strikes based on rules
         kwargs = self._get_strategy_strikes(price, entry_rules)
 
-        builder = create_preset_strategy(strategy_type, symbol, price, expiration, **kwargs)
+        builder = create_preset_strategy(
+            strategy_type, symbol, price, expiration, volatility=volatility, risk_free_rate=self.risk_free_rate, **kwargs
+        )
 
         # Calculate cost
         cost = builder.get_initial_cost()
-        num_contracts = abs(int(cost))  # Number of contracts
-        commission = self.commission * num_contracts * len(builder.legs)
+        # Commission: per option contract (not stock legs)
+        option_legs = [leg for leg in builder.legs if leg.option_type != OptionType.STOCK]
+        num_option_contracts = sum(abs(leg.quantity) for leg in option_legs)
+        commission = self.commission * num_option_contracts
         total_cost = cost + commission
 
+        # For strategies involving stock legs (covered call, protective put, collar),
+        # use margin requirement instead of full stock cost to make backtesting
+        # practical with typical capital levels.
+        has_stock_legs = any(leg.option_type == OptionType.STOCK for leg in builder.legs)
+        if has_stock_legs:
+            stock_cost = sum(leg.premium * leg.quantity for leg in builder.legs if leg.option_type == OptionType.STOCK)
+            options_cost = sum(leg.premium * leg.quantity * 100 for leg in builder.legs if leg.option_type != OptionType.STOCK)
+            # Margin requirement: 20% of stock value + full options cost + commission
+            margin_requirement = abs(stock_cost) * 0.20 + options_cost + commission
+            capital_needed = margin_requirement
+        else:
+            capital_needed = abs(total_cost)
+
         # Check if we can afford it
-        if total_cost > self.capital:
-            logger.warning(f"Insufficient capital for {strategy_type.value}")
+        if capital_needed > self.capital:
+            logger.warning(f"Insufficient capital for {strategy_type.value} (need ${capital_needed:.0f}, have ${self.capital:.0f})")
             return
 
         # Enter position
@@ -373,7 +397,17 @@ class OptionsBacktestEngine:
         current_date = pd.Timestamp.now(tz="UTC")
 
         for leg in position["legs"]:
-            expiry = pd.to_datetime(leg.expiry).tz_localize("UTC") if leg.expiry.tzinfo is None else leg.expiry
+            # Stock legs: value = quantity * current_price (no expiry, no Greeks)
+            if leg.option_type == OptionType.STOCK:
+                value += leg.quantity * current_price
+                continue
+
+            if leg.expiry is None:
+                continue
+
+            expiry = pd.to_datetime(leg.expiry)
+            if expiry.tzinfo is None:
+                expiry = expiry.tz_localize("UTC")
 
             delta = expiry - current_date
             T = max(delta.total_seconds() / (365.0 * 24 * 3600), 0)
@@ -415,7 +449,8 @@ class OptionsBacktestEngine:
         """Close all remaining positions at end of backtest"""
 
         while self.positions:
-            self._close_position(0, final_date, final_price, 0.3)
+            vol = self.positions[0].get("volatility", 0.3)
+            self._close_position(0, final_date, final_price, vol)
 
     def _calculate_results(self) -> Dict:
         """Calculate backtest performance metrics"""
@@ -449,7 +484,7 @@ class OptionsBacktestEngine:
         avg_profit = total_profit / len(winning_trades) if winning_trades else 0
         avg_loss = total_loss / len(losing_trades) if losing_trades else 0
 
-        profit_factor = total_profit / total_loss if total_loss > 0 else float("inf")
+        profit_factor = total_profit / total_loss if total_loss > 0 else min(total_profit, 9999.99)
 
         # Portfolio metrics
         final_equity = self.equity_curve[-1]["equity"] if self.equity_curve else self.initial_capital

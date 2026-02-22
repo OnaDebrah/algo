@@ -16,7 +16,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from backend.app.analytics.performance import calculate_performance_metrics
 from backend.app.core.benchmark_calculator import BenchmarkCalculator
 from backend.app.core.data_fetcher import fetch_stock_data
-from backend.app.core.database import DatabaseManager
 from backend.app.core.multi_asset_engine import MultiAssetEngine
 from backend.app.core.risk_manager import RiskManager
 from backend.app.core.trading_engine import TradingEngine
@@ -30,6 +29,7 @@ from backend.app.schemas.backtest import (
     MultiAssetBacktestResponse,
     Trade,
 )
+from backend.app.services.trading_service import TradingService
 from backend.app.strategies.strategy_catalog import get_catalog
 
 logger = logging.getLogger(__name__)
@@ -69,9 +69,9 @@ class BacktestService:
             db: AsyncSession for SQLAlchemy (BacktestRun model)
         """
         self.catalog = get_catalog()
-        self.db_manager = DatabaseManager()  # For trades/performance (psycopg2)
+        self.trading_service = TradingService()
         self.risk_manager = RiskManager()
-        self.db = db  # For BacktestRun model (SQLAlchemy async)
+        self.db = db
 
     async def create_backtest_run(
         self,
@@ -220,14 +220,13 @@ class BacktestService:
                 strategy=strategy,
                 initial_capital=request.initial_capital,
                 risk_manager=self.risk_manager,
-                db_manager=self.db_manager,
+                trading_service=self.trading_service,
                 commission_rate=request.commission_rate,
                 slippage_rate=request.slippage_rate,
+                db=self.db,
             )
 
-            await asyncio.to_thread(
-                engine.run_backtest, request.symbol, data, start_timestamp=pd.Timestamp(request.start_date) if request.start_date else None
-            )
+            await engine.run_backtest(request.symbol, data, start_timestamp=pd.Timestamp(request.start_date) if request.start_date else None)
 
             # Calculate benchmark FIRST so we can pass its equity to factor metrics
             benchmark_calc = BenchmarkCalculator(request.initial_capital)
@@ -245,10 +244,8 @@ class BacktestService:
 
             if benchmark:
                 benchmark["comparison"] = benchmark_calc.compare_to_benchmark(metrics, benchmark)
-                # Sanitize benchmark to prevent inf/NaN JSON serialization errors
                 benchmark = _sanitize_value(benchmark)
 
-            # Create equity curve
             equity_curve: list[EquityCurvePoint] = [
                 EquityCurvePoint(timestamp=str(point["timestamp"]), equity=point["equity"], cash=point["cash"]) for point in engine.equity_curve
             ]
@@ -364,10 +361,9 @@ class BacktestService:
                 logger.info("Running independent strategies backtest")
                 engine = await self._create_independent_engine(request)
 
-            # Run backtest (run_backtest is async — must be awaited directly, not via to_thread)
             await engine.run_backtest(request.symbols, request.period, request.interval)
-            results = engine.get_results()
-            # Create equity curve
+            results = None
+
             equity_curve = [
                 EquityCurvePoint(timestamp=str(point["timestamp"]), equity=point["equity"], cash=point["cash"]) for point in engine.equity_curve
             ]
@@ -422,10 +418,12 @@ class BacktestService:
                     commission_rate=request.commission_rate,
                 )
 
-                if benchmark:
-                    benchmark["comparison"] = benchmark_calc.compare_to_benchmark(results.model_dump(), benchmark)
-                    # Sanitize benchmark to prevent inf/NaN JSON serialization errors
-                    benchmark = _sanitize_value(benchmark)
+            benchmark_equity = benchmark.get("equity_curve") if benchmark else None
+            results = engine.get_results(benchmark_equity)
+
+            if benchmark:
+                benchmark["comparison"] = benchmark_calc.compare_to_benchmark(results.model_dump(), benchmark)
+                benchmark = _sanitize_value(benchmark)
 
             # Build OHLC price data for frontend chart (use first symbol's data for multi-asset)
             ohlc_price_data = None
@@ -532,7 +530,6 @@ class BacktestService:
             strategies=pairs_strategy,
             initial_capital=request.initial_capital,
             risk_manager=self.risk_manager,
-            db=self.db_manager,
             allocation_method=request.allocation_method,
             commission_rate=request.commission_rate,
             slippage_rate=request.slippage_rate,
@@ -559,7 +556,6 @@ class BacktestService:
             strategies=strategies,
             initial_capital=request.initial_capital,
             risk_manager=self.risk_manager,
-            db=self.db_manager,
             allocation_method=request.allocation_method,
             commission_rate=request.commission_rate,
             slippage_rate=request.slippage_rate,

@@ -195,10 +195,9 @@ def calculate_risk_metrics(trades: List[Dict], equity_curve: List[Dict]) -> Dict
 
     return _sanitize_metrics(
         {
-            "volatility": float(volatility),
-            "beta": 1.0,  # Placeholder for future benchmark comparison
-            "var_95": float(var_95),
-            "cvar_95": float(cvar_95),
+            "volatility": float(volatility * 100) if volatility else 0.0,
+            "var_95": float(var_95 * 100) if var_95 else 0.0,
+            "cvar_95": float(cvar_95 * 100) if cvar_95 else 0.0,
             "max_drawdown": float(max_dd),
             "sharpe_ratio": float(sharpe),
             "sortino_ratio": float(sortino),
@@ -399,4 +398,40 @@ def format_metrics_for_display(metrics: Dict) -> Dict:
         "Average Profit": f"${metrics['avg_profit']:.2f}",
         "Profit Factor": f"{metrics['profit_factor']:.2f}",
         "Final Equity": f"${metrics['final_equity']:,.2f}",
+    }
+
+
+def calculate_returns(trades: List) -> Dict:
+    """
+    Calculates daily, monthly, and cumulative PnL from a list of Trade objects.
+    """
+    if not trades:
+        return {"daily_returns": [], "monthly_returns": [], "cumulative_returns": []}
+
+    data = [
+        {
+            "date": t.executed_at,
+            "profit": float(t.profit) if t.profit is not None else 0.0,
+        }
+        for t in trades
+    ]
+
+    df = pd.DataFrame(data)
+
+    df["date"] = pd.to_datetime(df["date"])
+    df = df.set_index("date").sort_index()
+
+    daily_df = df["profit"].resample("D").sum()
+
+    monthly_df = df["profit"].resample("ME").sum()
+
+    cumulative_series = daily_df.cumsum()
+
+    def format_series(series):
+        return [{"date": date.strftime("%Y-%m-%d"), "value": round(float(val), 2)} for date, val in series.items()]
+
+    return {
+        "daily_returns": format_series(daily_df[daily_df != 0]),
+        "monthly_returns": format_series(monthly_df),
+        "cumulative_returns": format_series(cumulative_series),
     }

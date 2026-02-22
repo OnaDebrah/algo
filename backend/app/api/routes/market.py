@@ -5,8 +5,10 @@ Market data routes
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.app.api.deps import get_current_active_user
+from backend.app.database import get_db
 from backend.app.models.user import User
 from backend.app.services.market_service import get_market_service
 
@@ -17,32 +19,38 @@ market_service = get_market_service()
 
 
 @router.get("/quote/{symbol}")
-async def get_quote(symbol: str, use_cache: bool = True, current_user: User = Depends(get_current_active_user)):
+async def get_quote(symbol: str, use_cache: bool = True, current_user: User = Depends(get_current_active_user), db: AsyncSession = Depends(get_db)):
     """
     Get real-time quote for a symbol
 
     Args:
         symbol: Stock symbol
         use_cache: Whether to use cached data (default: True)
+        current_user: User
+        db: AsyncSession
     """
     try:
-        quote = await market_service.get_quote(symbol, use_cache=use_cache)
+        quote = await market_service.get_quote(db, symbol, use_cache=use_cache)
         return quote
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to fetch quote: {str(e)} for user: {current_user}")
 
 
 @router.post("/quotes")
-async def get_quotes(symbols: List[str], use_cache: bool = True, current_user: User = Depends(get_current_active_user)):
+async def get_quotes(
+    symbols: List[str], use_cache: bool = True, current_user: User = Depends(get_current_active_user), db: AsyncSession = Depends(get_db)
+):
     """
     Get quotes for multiple symbols
 
     Args:
         symbols: List of stock symbols
         use_cache: Whether to use cached data
+        current_user: User
+        db: AsyncSession
     """
     try:
-        quotes = await market_service.get_quotes(symbols, use_cache=use_cache)
+        quotes = await market_service.get_quotes(db, symbols, use_cache=use_cache)
         return quotes
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to fetch quotes: {str(e)} for user: {current_user}")
@@ -57,12 +65,15 @@ async def get_historical_data(
     end: Optional[str] = Query(None, description="End date (YYYY-MM-DD)"),
     use_cache: bool = False,
     current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db),
 ):
     """
     Get historical OHLCV data
     """
     try:
-        data = await market_service.get_historical_data(symbol=symbol, period=period, interval=interval, start=start, end=end, use_cache=use_cache)
+        data = await market_service.get_historical_data(
+            db, symbol=symbol, period=period, interval=interval, start=start, end=end, use_cache=use_cache
+        )
 
         if "data" in data and isinstance(data["data"], list):
             formatted_data = []
@@ -106,6 +117,7 @@ async def get_option_chain(
     symbol: str,
     expiration: Optional[str] = Query(None, description="Expiration date (YYYY-MM-DD)"),
     current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db),
 ):
     """
     Get option chain data
@@ -113,6 +125,8 @@ async def get_option_chain(
     Args:
         symbol: Stock symbol
         expiration: Optional specific expiration date
+        current_user: User
+        db: AsyncSession
     """
     try:
         data = await market_service.get_option_chain(symbol, expiration=expiration)
@@ -122,15 +136,17 @@ async def get_option_chain(
 
 
 @router.get("/fundamentals/{symbol}")
-async def get_fundamentals(symbol: str, current_user: User = Depends(get_current_active_user)):
+async def get_fundamentals(symbol: str, current_user: User = Depends(get_current_active_user), db: AsyncSession = Depends(get_db)):
     """
     Get fundamental data for a symbol
 
     Args:
         symbol: Stock symbol
+        current_user: User
+        db: AsyncSession
     """
     try:
-        data = await market_service.get_fundamentals(symbol)
+        data = await market_service.get_fundamentals(db, symbol)
         return data
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to fetch fundamentals: {str(e)} for user: {current_user}")
@@ -141,6 +157,7 @@ async def get_news(
     symbol: str,
     limit: int = Query(10, ge=1, le=50, description="Maximum number of news items"),
     current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db),
 ):
     """
     Get news for a symbol
@@ -148,6 +165,8 @@ async def get_news(
     Args:
         symbol: Stock symbol
         limit: Maximum number of news items (1-50)
+        current_user: User
+        db: AsyncSession
     """
     try:
         news = await market_service.get_news(symbol, limit=limit)
@@ -168,6 +187,7 @@ async def search_symbols(
     Args:
         q: Search query
         limit: Maximum results
+        current_user: User
     """
     try:
         results = await market_service.search_symbols(q, limit=limit)
@@ -183,6 +203,7 @@ async def validate_symbol(symbol: str, current_user: User = Depends(get_current_
 
     Args:
         symbol: Stock symbol to validate
+        current_user: User
     """
     try:
         is_valid = await market_service.validate_symbol(symbol)
@@ -192,12 +213,12 @@ async def validate_symbol(symbol: str, current_user: User = Depends(get_current_
 
 
 @router.get("/status")
-async def get_market_status(current_user: User = Depends(get_current_active_user)):
+async def get_market_status(current_user: User = Depends(get_current_active_user), db: AsyncSession = Depends(get_db)):
     """
     Get market status (open/closed)
     """
     try:
-        status = await market_service.get_market_status()
+        status = await market_service.get_market_status(db)
         return status
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to get market status: {str(e)} for user: {current_user}")
@@ -225,6 +246,7 @@ async def clear_cache(
 
     Args:
         data_type: Optional data type to clear. If not specified, clears all.
+        current_user: User
     """
     try:
         market_service.cache.clear(data_type)
