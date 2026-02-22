@@ -68,7 +68,7 @@ const Header = ({ user, currentPage, serverStatus = false, onLogout }: HeaderPro
         ? marketData.map((q: QuoteData) => ({
             symbol: q.symbol,
             price: formatCurrency(q.price),
-            change: `${q.changePercent >= 0 ? '+' : ''}${toPrecision(q.changePercent)}%`,
+            change: `${q.changePercent >= 0 ? '+' : ''}${q.changePercent.toFixed(2)}%`,
             up: q.changePercent >= 0
         }))
         : loading

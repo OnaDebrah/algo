@@ -15,8 +15,7 @@ const MLForecastPanel: React.FC<MLForecastPanelProps> = ({
                                                              mlForecast,
                                                              selectedSymbol,
                                                              selectedStrategies,
-                                                             addStrategyToCompare
-                                                             ,
+                                                             addStrategyToCompare,
                                                              isLoading
                                                          }) => {
     return (

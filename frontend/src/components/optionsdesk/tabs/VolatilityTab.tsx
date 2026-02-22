@@ -145,7 +145,7 @@ const VolatilityTab: React.FC<VolatilityTabProps> = ({
 
                         <div className="bg-slate-900/50 border border-slate-800/50 rounded-xl p-6">
                             <h4 className="text-sm font-bold text-slate-300 mb-4">Put Volume by Strike</h4>
-                            <div className="h-[250px]">
+                            <div className="h-62.5">
                                 <ResponsiveContainer width="100%" height="100%">
                                     <BarChart data={optionsChain.puts.slice(0, 20)}>
                                         <CartesianGrid strokeDasharray="3 3" stroke="#1e293b"/>

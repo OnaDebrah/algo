@@ -11,8 +11,9 @@ from typing import Dict, List
 
 import numpy as np
 import pandas as pd
-import yfinance as yf
 from scipy.stats import norm
+
+from backend.app.core.data.providers.providers import ProviderFactory
 
 logger = logging.getLogger(__name__)
 
@@ -161,74 +162,82 @@ class BlackScholesCalculator:
 
 
 class OptionsChain:
-    """Fetch and manage options chain data"""
+    """Fetch and manage options chain data via the provider layer."""
 
-    def __init__(self, symbol: str):
+    def __init__(self, symbol: str, provider_factory: ProviderFactory = None):
         self.symbol = symbol
-        self.ticker = yf.Ticker(symbol)
+        self._factory = provider_factory or ProviderFactory()
 
-    def get_expirations(self) -> List[str]:
+    async def get_expirations(self) -> List[str]:
         """Get available expiration dates"""
         try:
-            return list(self.ticker.options)
+            return await self._factory.get_option_expirations(self.symbol)
         except Exception as e:
             logger.error(f"Error fetching expirations for {self.symbol}: {e}")
             return []
 
-    def get_chain(self, expiration: str = None):
+    async def get_chain(self, expiration: str = None):
         """
         Get options chain data
 
         Args:
-            expiration: Specific expiration date (YYYY-MM-DD) or None for all dates
+            expiration: Specific expiration date (YYYY-MM-DD) or None for metadata only
 
         Returns:
-            dict with 'calls' and 'puts' DataFrames, or just expiration info
+            dict with 'calls' and 'puts' DataFrames and 'expiration_dates'
         """
         try:
-            # Get all available expiration dates
-            if not hasattr(self.ticker, "options") or len(self.ticker.options) == 0:
-                raise ValueError(f"No options available for {self.symbol}")
-
             # If no expiration specified, return metadata only
             if expiration is None:
-                return {"expiration_dates": list(self.ticker.options), "calls": pd.DataFrame(), "puts": pd.DataFrame()}
+                expirations = await self.get_expirations()
+                if not expirations:
+                    raise ValueError(f"No options available for {self.symbol}")
+                return {"expiration_dates": expirations, "calls": pd.DataFrame(), "puts": pd.DataFrame()}
 
             # Get options for specific expiration
-            opt = self.ticker.option_chain(expiration)
+            chain = await self._factory.get_option_chain(self.symbol, expiration)
 
-            return {"calls": opt.calls, "puts": opt.puts, "expiration_dates": list(self.ticker.options)}
+            return {
+                "calls": chain.get("calls", pd.DataFrame()),
+                "puts": chain.get("puts", pd.DataFrame()),
+                "expiration_dates": chain.get("expirations", [expiration]),
+            }
 
         except Exception as e:
             logger.error(f"Error fetching options chain: {str(e)}")
             raise
 
-    def get_current_price(self) -> float:
+    async def get_current_price(self) -> float:
         """Get current stock price"""
         try:
-            return self.ticker.history(period="1d")["Close"].iloc[-1]
+            quote = await self._factory.get_quote(self.symbol)
+            return quote.get("price", 0.0)
         except Exception as e:
             logger.error(f"Error fetching price for {self.symbol}: {e}")
             return 0.0
 
-    def get_implied_volatility(self, expiration: str) -> float:
+    async def get_implied_volatility(self, expiration: str) -> float:
         """Estimate implied volatility from options chain"""
         try:
-            calls, puts, expirations = self.get_chain(expiration)
+            chain_data = await self.get_chain(expiration)
+            calls = chain_data.get("calls", pd.DataFrame())
 
             # Use ATM options for IV estimation
-            current_price = self.get_current_price()
+            current_price = await self.get_current_price()
 
             # Find closest to ATM
-            if not calls.empty:
+            if not calls.empty and "strike" in calls.columns:
                 atm_call = calls.iloc[(calls["strike"] - current_price).abs().argsort()[:1]]
                 if not atm_call.empty and "impliedVolatility" in atm_call.columns:
                     return float(atm_call["impliedVolatility"].iloc[0])
 
             # Fallback to historical volatility
-            hist = self.ticker.history(period="1y")
-            returns = hist["Close"].pct_change().dropna()
-            return returns.std() * np.sqrt(252)
+            hist = await self._factory.fetch_data(self.symbol, "1y", "1d")
+            if not hist.empty:
+                returns = hist["Close"].pct_change().dropna()
+                return returns.std() * np.sqrt(252)
+
+            return 0.3  # Default 30%
 
         except Exception as e:
             logger.error(f"Error calculating IV for {self.symbol}: {e}")

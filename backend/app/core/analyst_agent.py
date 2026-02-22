@@ -9,8 +9,8 @@ from datetime import datetime
 from typing import Dict, List, Optional
 
 import pandas as pd
-import yfinance as yf
 
+from backend.app.core.data.providers.providers import ProviderFactory
 from backend.app.services.sentiment_service import SentimentService
 
 logger = logging.getLogger(__name__)
@@ -122,34 +122,24 @@ class FinancialAnalystAgent:
         return report
 
     async def _gather_market_data(self, ticker: str) -> Dict:
-        """Gather comprehensive market data"""
+        """Gather comprehensive market data via provider layer"""
         logger.info("  📊 Gathering market data...")
 
         try:
-            stock = yf.Ticker(ticker)
+            factory = ProviderFactory()
 
-            # Get historical data
-            hist = stock.history(period="2y")
-
-            # Get company info
-            info = stock.info
-
-            # Get financials
-            financials = stock.financials
-            balance_sheet = stock.balance_sheet
-            cash_flow = stock.cashflow
-
-            # Get recommendations
-            recommendations = stock.recommendations
+            # Fetch historical OHLCV + comprehensive financials in parallel-safe order
+            hist = await factory.fetch_data(ticker, "2y", "1d")
+            fin = await factory.get_financials(ticker)
 
             return {
                 "ticker": ticker,
-                "info": info,
+                "info": fin.get("info", {}),
                 "history": hist,
-                "financials": financials,
-                "balance_sheet": balance_sheet,
-                "cash_flow": cash_flow,
-                "recommendations": recommendations,
+                "financials": fin.get("financials", pd.DataFrame()),
+                "balance_sheet": fin.get("balance_sheet", pd.DataFrame()),
+                "cash_flow": fin.get("cash_flow", pd.DataFrame()),
+                "recommendations": fin.get("recommendations", pd.DataFrame()),
                 "current_price": hist["Close"].iloc[-1] if not hist.empty else 0,
             }
 

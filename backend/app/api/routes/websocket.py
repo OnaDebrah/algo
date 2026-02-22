@@ -8,10 +8,10 @@ import logging
 from datetime import datetime, timezone
 from typing import Dict, Set
 
-import yfinance as yf
 from fastapi import APIRouter, Depends, WebSocket, WebSocketDisconnect, status as http_status
 from sqlalchemy.orm import Session
 
+from backend.app.core.data.providers.providers import ProviderFactory
 from backend.app.database import get_db
 from backend.app.models.live import LiveStrategy
 from backend.app.utils.security import decode_access_token
@@ -105,20 +105,21 @@ async def websocket_market_data(websocket: WebSocket, symbol: str, token: str = 
 
     await ws_manager.connect(websocket, user_id, f"market:{symbol}")
 
+    _provider = ProviderFactory()
+
     try:
-        # Send initial data
-        ticker = yf.Ticker(symbol)
-        info = ticker.info
+        # Send initial data via provider layer
+        quote = await _provider.get_quote(symbol)
 
         await ws_manager.send_personal_message(
             {
                 "type": "initial_data",
                 "symbol": symbol,
                 "data": {
-                    "price": info.get("currentPrice", 0),
-                    "change": info.get("regularMarketChange", 0),
-                    "changePct": info.get("regularMarketChangePercent", 0),
-                    "volume": info.get("volume", 0),
+                    "price": quote.get("price", 0),
+                    "change": quote.get("change", 0),
+                    "changePct": quote.get("changePct", 0),
+                    "volume": quote.get("volume", 0),
                     "timestamp": datetime.now().isoformat(),
                 },
             },
@@ -130,17 +131,16 @@ async def websocket_market_data(websocket: WebSocket, symbol: str, token: str = 
             # Fetch latest data every 5 seconds
             await asyncio.sleep(5)
 
-            ticker = yf.Ticker(symbol)
-            info = ticker.info
+            quote = await _provider.get_quote(symbol)
 
             message = {
                 "type": "market_update",
                 "symbol": symbol,
                 "data": {
-                    "price": info.get("currentPrice", 0),
-                    "change": info.get("regularMarketChange", 0),
-                    "changePct": info.get("regularMarketChangePercent", 0),
-                    "volume": info.get("volume", 0),
+                    "price": quote.get("price", 0),
+                    "change": quote.get("change", 0),
+                    "changePct": quote.get("changePct", 0),
+                    "volume": quote.get("volume", 0),
                     "timestamp": datetime.now().isoformat(),
                 },
             }

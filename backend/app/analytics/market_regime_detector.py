@@ -210,8 +210,13 @@ class MarketRegimeDetector:
         if len(self.regime_history) > 0:
             features["regime_persistence"] = self._calculate_regime_persistence()
 
-        # Drop NaN and cache
-        features_clean = features.dropna()
+        # Drop rows where CORE short-lookback features are NaN,
+        # but keep rows even if long-lookback features (trend_252d, hurst, etc.) are NaN
+        core_cols = [c for c in ["volatility_21d", "trend_21d", "trend_strength", "rsi", "z_score"] if c in features.columns]
+        if core_cols:
+            features_clean = features.dropna(subset=core_cols)
+        else:
+            features_clean = features.dropna()
 
         # Update cache
         self._update_cache(cache_key, features_clean)
@@ -511,13 +516,20 @@ class MarketRegimeDetector:
         if len(latest) == 0:
             return {"regime": "unknown", "confidence": 0.0, "scores": {}}
 
+        # NaN-safe accessor: pandas .get() returns NaN rather than the default
+        def _safe(key, default=0):
+            val = latest.get(key, default)
+            if pd.notna(val):
+                return float(val)
+            return float(default)
+
         # Initialize scores
         regime_scores = {regime: 0.0 for regime in self.regime_types}
 
         # 1. Trend-based classification
-        trend_21d = latest.get("trend_21d", 0)
-        trend_strength = latest.get("trend_strength", 0)
-        trend_direction = latest.get("trend_direction", 0)
+        trend_21d = _safe("trend_21d", 0)
+        trend_strength = _safe("trend_strength", 0)
+        trend_direction = _safe("trend_direction", 0)
 
         if abs(trend_21d) > self.trend_thresholds["strong_trend"] and trend_strength > 0.5:
             if trend_direction > 0:
@@ -528,7 +540,7 @@ class MarketRegimeDetector:
             regime_scores["mean_reverting"] += 0.3
 
         # 2. Volatility-based classification
-        volatility = latest.get("volatility_21d", 0.15)
+        volatility = _safe("volatility_21d", 0.15)
 
         if volatility > self.volatility_thresholds["crisis_vol"]:
             regime_scores["crisis"] += 0.5
@@ -538,9 +550,9 @@ class MarketRegimeDetector:
             regime_scores["low_volatility"] += 0.4
 
         # 3. Mean reversion indicators
-        hurst = latest.get("hurst_exponent", 0.5)
-        half_life = latest.get("half_life", 100)
-        z_score = latest.get("z_score", 0)
+        hurst = _safe("hurst_exponent", 0.5)
+        half_life = _safe("half_life", 100)
+        z_score = _safe("z_score", 0)
 
         if hurst < 0.5 and half_life < 20:
             regime_scores["mean_reverting"] += 0.3
@@ -549,7 +561,7 @@ class MarketRegimeDetector:
             regime_scores["mean_reverting"] += 0.2
 
         # 4. Market breadth
-        breadth = latest.get("advance_decline_ratio", 0.5)
+        breadth = _safe("advance_decline_ratio", 0.5)
         if 0.4 < breadth < 0.6:
             regime_scores["mean_reverting"] += 0.1
         elif breadth > 0.7:
@@ -558,7 +570,7 @@ class MarketRegimeDetector:
             regime_scores["trending_bear"] += 0.1
 
         # 5. Technical indicators
-        rsi = latest.get("rsi", 50)
+        rsi = _safe("rsi", 50)
         if rsi > 70:
             regime_scores["trending_bull"] += 0.1
         elif rsi < 30:
@@ -568,9 +580,9 @@ class MarketRegimeDetector:
         crisis_score = 0
         if volatility > self.volatility_thresholds["crisis_vol"]:
             crisis_score += 0.3
-        if latest.get("var_95", 0) < -0.20:
+        if _safe("var_95", 0) < -0.20:
             crisis_score += 0.2
-        if latest.get("kurtosis", 0) > 3:
+        if _safe("kurtosis", 0) > 3:
             crisis_score += 0.1
 
         if crisis_score > 0.4:
@@ -814,10 +826,12 @@ class MarketRegimeDetector:
         z_scores = []
         for feat in key_features:
             if feat in features.columns:
-                feat_values = features[feat]
+                feat_values = features[feat].dropna()
                 if len(feat_values) > 1 and feat_values.std() > 0:
-                    z = (feat_values.iloc[-1] - feat_values.mean()) / feat_values.std()
-                    z_scores.append(abs(z))
+                    latest_val = feat_values.iloc[-1]
+                    if pd.notna(latest_val):
+                        z = (latest_val - feat_values.mean()) / feat_values.std()
+                        z_scores.append(abs(z))
 
         return np.mean(z_scores) if z_scores else 0.0
 
@@ -829,7 +843,7 @@ class MarketRegimeDetector:
             Dict with duration predictions or None
         """
         if len(self.regime_history) < 10:
-            return None
+            return self._predict_regime_duration()
 
         current_regime = self.regime_history[-1]["regime"]
 
@@ -837,7 +851,7 @@ class MarketRegimeDetector:
         durations = self._get_historical_durations(current_regime)
 
         if not durations or len(durations) < 3:
-            return None
+            return self._predict_regime_duration()
 
         # Calculate statistics
         mean_duration = np.mean(durations)
@@ -853,7 +867,7 @@ class MarketRegimeDetector:
             "expected_duration": mean_duration,
             "median_duration": median_duration,
             "std_duration": std_duration,
-            "probability_end_next_week": prob_end_next_week,
+            "probability_end_next_week": round(prob_end_next_week),
             "sample_size": len(durations),
         }
 
@@ -882,7 +896,7 @@ class MarketRegimeDetector:
 
     def _predict_regime_duration(self) -> Dict[str, float]:
         """
-        Predict expected duration of current regime
+        Predict expected duration of current regime using Markov transitions
 
         Returns:
             Dictionary with duration statistics
@@ -890,6 +904,10 @@ class MarketRegimeDetector:
         if len(self.regime_history) < 1:
             return {"expected_duration": 0, "median_duration": 0, "probability_end_next_week": 0}
         current_regime = self.regime_history[-1]["regime"]
+
+        # Calculate/update Markov chain if necessary
+        regime_sequence = [entry["regime"] for entry in self.regime_history]
+        self.markov_chain.fit(regime_sequence)
 
         # Get expected duration from Markov chain
         expected_duration = self.markov_chain.get_expected_duration(current_regime)
@@ -914,6 +932,7 @@ class MarketRegimeDetector:
             prob_end_next_week = 1 - (p_self**5)
 
         return {
+            "current_regime": current_regime,
             "expected_duration": round(expected_duration, 2),
             "median_duration": round(expected_duration * 0.7, 2),  # Approximate median
             "probability_end_next_week": round(min(prob_end_next_week, 0.95), 3),
@@ -1039,6 +1058,37 @@ class MarketRegimeDetector:
 
         return allocation
 
+    def _backfill_history(self, features: pd.DataFrame):
+        """Backfill regime history using pre-calculated features"""
+        if len(self.regime_history) > 0 or len(features) == 0:
+            return
+
+        # Take up to 500 days of history
+        historical_features = features.iloc[-500:-1]  # Exclude current day
+
+        for i in range(len(historical_features)):
+            row_df = historical_features.iloc[i : i + 1]
+            if self.use_ml and self.classifier is not None:
+                # We skip ML ensemble for backfill as it needs full scaled features,
+                # statistical is sufficient for historical transition probabilities
+                regime_info = self.detect_regime_statistical(row_df)
+            else:
+                regime_info = self.detect_regime_statistical(row_df)
+
+            allocation = self.get_strategy_allocation(regime_info["regime"], regime_info["confidence"])
+
+            self.regime_history.append(
+                {
+                    "timestamp": row_df.index[0],
+                    "regime": regime_info["regime"],
+                    "confidence": regime_info["confidence"],
+                    "allocation": allocation,
+                    "strength": 0.0,
+                    "statistical_regime": regime_info.get("statistical_regime"),
+                    "ml_regime": regime_info.get("ml_regime"),
+                }
+            )
+
     def detect_current_regime(
         self,
         price_data: Union[pd.Series, pd.DataFrame],
@@ -1067,6 +1117,10 @@ class MarketRegimeDetector:
                 "method": "insufficient_data",
             }
 
+        # Backfill history if empty (requires at least 10 rows to build Markov chain)
+        if update_history and len(self.regime_history) == 0:
+            self._backfill_history(features)
+
         # Detect regime
         if self.use_ml and self.classifier is not None:
             regime_info = self.detect_regime_ensemble(features)
@@ -1076,27 +1130,31 @@ class MarketRegimeDetector:
         # Get strategy allocation
         allocation = self.get_strategy_allocation(regime_info["regime"], regime_info["confidence"])
 
+        # Update history before calculating duration/warning so they can use the latest info
+        current_ts = price_data.index[-1] if hasattr(price_data, "index") else len(price_data)
+
+        if update_history:
+            # Prevent duplicate entries for the same timestamp from parallel API calls
+            if not self.regime_history or self.regime_history[-1]["timestamp"] != current_ts:
+                history_entry = {
+                    "timestamp": current_ts,
+                    "regime": regime_info["regime"],
+                    "confidence": regime_info["confidence"],
+                    "allocation": allocation,
+                    # calculate_regime_strength is slow, but we do it for the current day
+                    "strength": self.calculate_regime_strength(features),
+                    "statistical_regime": regime_info.get("statistical_regime"),
+                    "ml_regime": regime_info.get("ml_regime"),
+                }
+                self.regime_history.append(history_entry)
+
+                if len(self.regime_history) > 1000:
+                    self.regime_history = self.regime_history[-1000:]
+
         # Calculate additional metrics
         regime_strength = self.calculate_regime_strength(features)
         duration_pred = self.predict_regime_duration()
         warning = self.detect_regime_change_warning(features)
-
-        # Update history
-        if update_history:
-            history_entry = {
-                "timestamp": (price_data.index[-1] if hasattr(price_data, "index") else len(price_data)),
-                "regime": regime_info["regime"],
-                "confidence": regime_info["confidence"],
-                "allocation": allocation,
-                "strength": regime_strength,
-                "statistical_regime": regime_info.get("statistical_regime"),
-                "ml_regime": regime_info.get("ml_regime"),
-            }
-            self.regime_history.append(history_entry)
-
-            # Keep only recent history
-            if len(self.regime_history) > 1000:
-                self.regime_history = self.regime_history[-1000:]
 
         # Compile full results
         regime_info["strategy_allocation"] = allocation

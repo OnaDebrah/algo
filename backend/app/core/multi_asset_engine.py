@@ -12,7 +12,6 @@ import pandas as pd
 
 from backend.app.analytics import calculate_performance_metrics
 from backend.app.core.data_fetcher import fetch_stock_data
-from backend.app.core.database import DatabaseManager
 from backend.app.core.risk_manager import RiskManager
 from backend.app.schemas.backtest import MultiAssetBacktestResult
 from backend.app.strategies import BaseStrategy
@@ -34,7 +33,6 @@ class MultiAssetEngine:
         strategies: Union[Dict[str, BaseStrategy], BaseStrategy],  # {symbol: strategy} OR single pairs strategy
         initial_capital: float = 100000,
         risk_manager: RiskManager = None,
-        db: DatabaseManager = None,
         allocation_method: str = "equal",  # equal, optimized, custom
         commission_rate: float = 0.05,
         slippage_rate: float = 0.03,
@@ -48,7 +46,6 @@ class MultiAssetEngine:
             strategies: Dictionary mapping symbols to strategies OR single pairs strategy
             initial_capital: Starting capital
             risk_manager: Risk manager instance
-            db: Database manager
             allocation_method: How to allocate capital across assets
             pairs_mode: If True, strategy operates on multiple symbols as a pair
             pair_symbols: List of symbols for pairs trading (e.g., ['AAPL', 'MSFT'])
@@ -74,13 +71,11 @@ class MultiAssetEngine:
         self.trades = []
         self.equity_curve = []
         self.risk_manager = risk_manager or RiskManager()
-        self.db = db or DatabaseManager()
         self.allocation_method = allocation_method
 
         self.commission_rate = commission_rate
         self.slippage_rate = slippage_rate
 
-        # Calculate capital allocation per symbol
         self._calculate_allocations()
 
     def _calculate_allocations(self):

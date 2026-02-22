@@ -157,11 +157,10 @@ async def get_analyst_report(
         # Generate comprehensive report using the analyst agent
         core_report = await analyst_agent.generate_investment_thesis(ticker, depth=depth)
 
-        # Get additional ticker info for metadata
-        import yfinance as yf
+        # Get additional ticker info for metadata via provider layer
+        from backend.app.core.data.providers.providers import ProviderFactory
 
-        stock = yf.Ticker(ticker)
-        ticker_info = stock.info
+        ticker_info = await ProviderFactory().get_ticker_info(ticker)
 
         # Convert to API schema
         api_report = convert_core_report_to_api(core_report, ticker_info)
