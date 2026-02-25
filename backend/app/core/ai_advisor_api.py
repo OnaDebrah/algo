@@ -9,7 +9,7 @@ from typing import Dict, List
 
 import anthropic
 
-from backend.app.config import settings
+from ..config import settings
 
 logger = logging.getLogger(__name__)
 

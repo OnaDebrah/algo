@@ -5,8 +5,8 @@ from typing import Any, Optional
 import pandas as pd
 import requests
 
-from backend.app.config import settings
-from backend.app.core.data.providers.base_provider import DataProvider
+from ....config import settings
+from ..providers.base_provider import DataProvider
 
 logger = logging.getLogger(__name__)
 

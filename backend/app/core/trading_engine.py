@@ -9,10 +9,11 @@ from typing import Dict, List
 import pandas as pd
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from backend.app.config import DEFAULT_INITIAL_CAPITAL
-from backend.app.core import RiskManager
-from backend.app.services.trading_service import TradingService
-from backend.app.strategies import BaseStrategy
+from ..config import DEFAULT_INITIAL_CAPITAL
+from ..core import RiskManager
+from ..services.trading_service import TradingService
+from ..strategies import BaseStrategy
+from ..strategies.base_strategy import normalize_signal
 
 logger = logging.getLogger(__name__)
 
@@ -84,7 +85,7 @@ class TradingEngine:
                     "symbol": symbol,
                     "quantity": quantity,
                     "entry_price": slipped_price,
-                    "created_at": (timestamp.isoformat() if isinstance(timestamp, datetime) else str(timestamp)),
+                    "created_at": timestamp if isinstance(timestamp, datetime) else pd.Timestamp(timestamp).to_pydatetime(),
                 }
 
                 trade_data = {
@@ -96,12 +97,16 @@ class TradingEngine:
                     "slippage": slipped_price - current_price,
                     "total_value": total_cost,
                     "side": "BUY",
-                    "executed_at": (timestamp.isoformat() if isinstance(timestamp, datetime) else str(timestamp)),
+                    "executed_at": timestamp if isinstance(timestamp, datetime) else pd.Timestamp(timestamp).to_pydatetime(),
                     "strategy": self.strategy.name,
                 }
 
                 self.trades.append(trade_data)
-                await self.trading_service.save_trade(self.db, trade_data)
+                try:
+                    await self.trading_service.save_trade(self.db, trade_data)
+                except Exception as e:
+                    await self.db.rollback()
+                    logger.debug(f"Trade DB save skipped (backtest mode): {e}")
 
                 logger.info(f"BUY: {quantity} {symbol} @ ${slipped_price:.2f} " f"(Cost: ${total_cost:.2f}, Comm: ${commission:.2f})")
 
@@ -128,14 +133,18 @@ class TradingEngine:
                 "slippage": current_price - slipped_price,
                 "total_value": revenue,
                 "side": "SELL",
-                "executed_at": (timestamp.isoformat() if isinstance(timestamp, datetime) else str(timestamp)),
+                "executed_at": timestamp if isinstance(timestamp, datetime) else pd.Timestamp(timestamp).to_pydatetime(),
                 "strategy": self.strategy.name,
                 "profit": profit,
                 "profit_pct": profit_pct,
             }
 
             self.trades.append(trade_data)
-            await self.trading_service.save_trade(self.db, trade_data)
+            try:
+                await self.trading_service.save_trade(self.db, trade_data)
+            except Exception as e:
+                await self.db.rollback()
+                logger.debug(f"Trade DB save skipped (backtest mode): {e}")
 
             logger.info(
                 f"SELL: {self.position['quantity']} {symbol} @ ${slipped_price:.2f} "
@@ -156,7 +165,8 @@ class TradingEngine:
         logger.info(f"Starting LOOP backtest - Symbol: {symbol}, data: {len(data)}, start: {start_timestamp}")
         for i in range(len(data)):
             current_data = data.iloc[: i + 1]
-            signal = self.strategy.generate_signal(current_data)
+            raw_signal = self.strategy.generate_signal(current_data)
+            signal = normalize_signal(raw_signal)["signal"]
             current_price = data["Close"].iloc[i]
             timestamp = data.index[i]
             await self.execute_trade(symbol, signal, current_price, timestamp, start_timestamp)

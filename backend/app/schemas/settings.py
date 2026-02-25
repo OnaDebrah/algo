@@ -7,7 +7,7 @@ from typing import Optional
 
 from pydantic import BaseModel, Field
 
-from backend.app.config import settings
+from ..config import settings
 
 
 class BrokerSettings(BaseModel):

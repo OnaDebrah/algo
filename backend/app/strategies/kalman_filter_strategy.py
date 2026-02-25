@@ -7,7 +7,7 @@ import pandas as pd
 from filterpy.common import Q_discrete_white_noise
 from filterpy.kalman import KalmanFilter  # Much faster than pykalman
 
-from backend.app.strategies import BaseStrategy
+from ..strategies import BaseStrategy
 
 logger = logging.getLogger(__name__)
 

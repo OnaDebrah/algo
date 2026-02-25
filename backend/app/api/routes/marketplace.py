@@ -5,11 +5,11 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from backend.app.api.deps import get_current_active_user
-from backend.app.database import get_db
-from backend.app.models import User
-from backend.app.models.backtest import BacktestRun
-from backend.app.schemas.marketplace import (
+from ...api.deps import get_current_active_user
+from ...database import get_db
+from ...models import User
+from ...models.backtest import BacktestRun
+from ...schemas.marketplace import (
     BacktestResultsSchema,
     ReviewCreateRequest,
     StrategyListing as StrategyListingSchema,
@@ -17,7 +17,7 @@ from backend.app.schemas.marketplace import (
     StrategyPublishRequest,
     StrategyReviewSchema,
 )
-from backend.app.services.marketplace_service import BacktestResults, MarketplaceService, StrategyListing
+from ...services.marketplace_service import BacktestResults, MarketplaceService, StrategyListing
 
 logger = logging.getLogger(__name__)
 

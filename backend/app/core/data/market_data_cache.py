@@ -5,7 +5,7 @@ from typing import Any, Dict, Optional
 from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from backend.app.models.market_data import MarketDataCacheModel
+from ...models.market_data import MarketDataCacheModel
 
 logger = logging.getLogger(__name__)
 

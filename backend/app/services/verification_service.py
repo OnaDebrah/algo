@@ -5,8 +5,8 @@ from typing import Dict
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from backend.app.models.backtest import BacktestRun
-from backend.app.models.live import LiveStrategy
+from ..models.backtest import BacktestRun
+from ..models.live import LiveStrategy
 
 logger = logging.getLogger(__name__)
 

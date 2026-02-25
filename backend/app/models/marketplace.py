@@ -1,7 +1,7 @@
 from sqlalchemy import Boolean, Column, DateTime, Float, ForeignKey, Integer, LargeBinary, String, Text, UniqueConstraint, func
 from sqlalchemy.dialects.postgresql import JSONB
 
-from backend.app.database import Base
+from ..database import Base
 
 
 class MarketplaceStrategy(Base):

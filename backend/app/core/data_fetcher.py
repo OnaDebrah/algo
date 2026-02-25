@@ -5,10 +5,10 @@ from typing import Any, Dict, List, Optional
 import pandas as pd
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from backend.app.core.data.providers.providers import ProviderFactory
-from backend.app.core.data.providers.yahoo_provider import YahooProvider
-from backend.app.core.data_cache import data_cache
-from backend.app.models import User
+from ..core.data.providers.providers import ProviderFactory
+from ..core.data.providers.yahoo_provider import YahooProvider
+from ..core.data_cache import data_cache
+from ..models import User
 
 logger = logging.getLogger(__name__)
 

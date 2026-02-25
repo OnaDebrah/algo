@@ -9,11 +9,10 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 from sqlalchemy.orm import declarative_base
 from sqlalchemy.pool import NullPool
 
-from backend.app.config import settings
+from .config import settings
 
 logger = logging.getLogger(__name__)
 
-# Create async engine
 engine = create_async_engine(
     settings.DATABASE_URL,
     echo=settings.DB_ECHO,  # Set to True for SQL query logging

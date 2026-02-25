@@ -4,8 +4,8 @@ from typing import Any, Dict, List, Optional
 
 import pandas as pd
 
-from backend.app.config import settings
-from backend.app.core.data.providers.base_provider import (
+from ....config import settings
+from ..providers.base_provider import (
     DataProvider,
     FundamentalsProvider,
     NewsProvider,

@@ -6,9 +6,9 @@ from typing import Dict, List, Optional
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from backend.app.core.data.market_data_cache import MarketDataCache
-from backend.app.core.data.providers.providers import ProviderFactory
-from backend.app.utils.helpers import SECTOR_MAP
+from ..core.data.market_data_cache import MarketDataCache
+from ..core.data.providers.providers import ProviderFactory
+from ..utils.helpers import SECTOR_MAP
 
 logger = logging.getLogger(__name__)
 

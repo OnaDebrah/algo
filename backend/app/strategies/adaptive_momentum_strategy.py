@@ -1,6 +1,6 @@
 import pandas as pd
 
-from backend.app.strategies.cs_momentum_strategy import CrossSectionalMomentumStrategy
+from ..strategies.cs_momentum_strategy import CrossSectionalMomentumStrategy
 
 
 class AdaptiveMomentumStrategy(CrossSectionalMomentumStrategy):

@@ -19,7 +19,7 @@ import requests
 import tweepy
 from nltk.sentiment.vader import SentimentIntensityAnalyzer
 
-from backend.app.strategies import BaseStrategy
+from ...strategies import BaseStrategy
 
 # ML imports
 try:
@@ -36,7 +36,7 @@ except ImportError:
     ML_AVAILABLE = False
 
 warnings.filterwarnings("ignore")
-# Ensure VADER lexicon is downloaded
+
 nltk.download("vader_lexicon", quiet=True)
 
 logger = logging.getLogger(__name__)

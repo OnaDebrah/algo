@@ -3,7 +3,7 @@ from typing import List, Optional
 
 from pydantic import BaseModel, EmailStr
 
-from backend.app.schemas.alert import AlertChannel, AlertLevel
+from ..schemas.alert import AlertChannel, AlertLevel
 
 
 class EmailAlertRequest(BaseModel):

@@ -3,10 +3,10 @@ import logging
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
-from backend.app.alerts.alert_preferences import AlertPreferences
-from backend.app.alerts.email_provider import EmailProvider
-from backend.app.alerts.sms_provider import SMSProvider
-from backend.app.schemas.alert import Alert, AlertChannel, AlertLevel
+from ..alerts.alert_preferences import AlertPreferences
+from ..alerts.email_provider import EmailProvider
+from ..alerts.sms_provider import SMSProvider
+from ..schemas.alert import Alert, AlertChannel, AlertLevel
 
 logger = logging.getLogger(__name__)
 

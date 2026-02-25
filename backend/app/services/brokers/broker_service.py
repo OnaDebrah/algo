@@ -1,9 +1,9 @@
 import logging
 
-from backend.app.services.brokers.alpaca_client import AlpacaClient
-from backend.app.services.brokers.base_client import BrokerClient
-from backend.app.services.brokers.ib_client import IBClient
-from backend.app.services.brokers.paper_client import PaperTradingClient
+from ...services.brokers.alpaca_client import AlpacaClient
+from ...services.brokers.base_client import BrokerClient
+from ...services.brokers.ib_client import IBClient
+from ...services.brokers.paper_client import PaperTradingClient
 
 logger = logging.getLogger(__name__)
 
