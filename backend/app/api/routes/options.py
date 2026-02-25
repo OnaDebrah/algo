@@ -6,13 +6,13 @@ import pandas as pd
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from backend.app.analytics.options_analytics import OptionsAnalytics
-from backend.app.api.deps import get_current_active_user
-from backend.app.core.data.providers.providers import ProviderFactory
-from backend.app.core.options_engine import OptionsBacktestEngine, backtest_options_strategy
-from backend.app.database import get_db
-from backend.app.models import User
-from backend.app.schemas.options import (
+from ...analytics.options_analytics import OptionsAnalytics
+from ...api.deps import get_current_active_user
+from ...core.data.providers.providers import ProviderFactory
+from ...core.options_engine import OptionsBacktestEngine, backtest_options_strategy
+from ...database import get_db
+from ...models import User
+from ...schemas.options import (
     BacktestRequest,
     BacktestResult,
     ChainRequest,
@@ -36,10 +36,10 @@ from backend.app.schemas.options import (
     StrikeOptimizerRequest,
     StrikeOptimizerResponse,
 )
-from backend.app.services.auth_service import AuthService
-from backend.app.services.market_service import get_market_service
-from backend.app.strategies.options_builder import OptionsStrategy, OptionsStrategyBuilder, OptionType, create_preset_strategy
-from backend.app.strategies.options_strategies import OptionsChain
+from ...services.auth_service import AuthService
+from ...services.market_service import get_market_service
+from ...strategies.options_builder import OptionsStrategy, OptionsStrategyBuilder, OptionType, create_preset_strategy
+from ...strategies.options_strategies import OptionsChain
 
 logger = logging.getLogger(__name__)
 
@@ -490,7 +490,7 @@ async def compare_strategies(
             # Build strategy
             if strategy_type and hasattr(OptionsStrategy, strategy_type.upper()):
                 # Preset strategy
-                from backend.app.strategies.options_strategies import OptionsStrategy as OptStrat
+                from ...strategies.options_strategies import OptionsStrategy as OptStrat
 
                 strategy_enum = OptStrat[strategy_type.upper()]
                 expiration = datetime.fromisoformat(strategy_config.get("expiration", (datetime.now() + timedelta(days=30)).isoformat()))

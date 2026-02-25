@@ -1,6 +1,6 @@
 from sqlalchemy import Column, DateTime, ForeignKey, Index, Integer, Numeric, func
 
-from backend.app.database import Base
+from ..database import Base
 
 
 class PerformanceHistory(Base):

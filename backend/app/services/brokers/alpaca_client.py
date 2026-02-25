@@ -6,9 +6,9 @@ Supports: Alpaca, Paper Trading, and extensible for other brokers
 import logging
 from typing import Any, Dict, List, Optional
 
-from backend.app.config import settings
-from backend.app.models import UserSettings
-from backend.app.services.brokers.base_client import BrokerClient
+from ...config import settings
+from ...models import UserSettings
+from ...services.brokers.base_client import BrokerClient
 
 logger = logging.getLogger(__name__)
 

@@ -189,7 +189,7 @@ class BenchmarkCalculator:
         Returns:
             Dictionary with SPY benchmark metrics
         """
-        from backend.app.core import fetch_stock_data
+        from ..core import fetch_stock_data
 
         try:
             data = await fetch_stock_data("SPY", period, interval)

@@ -3,12 +3,12 @@ from typing import Any, Dict, List
 from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from backend.app.api.deps import get_current_active_user, get_db
-from backend.app.core.ai_advisor import AIStrategyAdvisor, StrategyRecommendation
-from backend.app.core.ai_advisor_api import AIAdvisorAPI
-from backend.app.models import User
-from backend.app.schemas.advisor import GuideRequest, GuideResponse, Recommendation, Theme
-from backend.app.services.auth_service import AuthService
+from ...core.ai_advisor import AIStrategyAdvisor, StrategyRecommendation
+from ...core.ai_advisor_api import AIAdvisorAPI
+from ...models import User
+from ...schemas.advisor import GuideRequest, GuideResponse, Recommendation, Theme
+from ...services.auth_service import AuthService
+from ..deps import get_current_active_user, get_db
 
 router = APIRouter(prefix="/advisor", tags=["Advisor"])
 

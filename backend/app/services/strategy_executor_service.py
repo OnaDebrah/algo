@@ -11,10 +11,10 @@ from typing import Any, Dict, Optional
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from backend.app.models.live import LiveEquitySnapshot, LiveStrategy, LiveTrade, StrategyStatus, TradeSide, TradeStatus
-from backend.app.strategies.base_strategy import BaseStrategy
-from backend.app.strategies.strategy_catalog import get_catalog
-from backend.app.websockets.manager import ws_manager
+from ..models.live import LiveEquitySnapshot, LiveStrategy, LiveTrade, StrategyStatus, TradeSide, TradeStatus
+from ..strategies.base_strategy import BaseStrategy
+from ..strategies.strategy_catalog import get_catalog
+from ..websockets.manager import ws_manager
 
 logger = logging.getLogger(__name__)
 

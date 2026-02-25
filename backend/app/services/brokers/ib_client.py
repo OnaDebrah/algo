@@ -10,8 +10,8 @@ from typing import Any, Dict, List, Optional
 
 from ib_insync import IB, util
 
-from backend.app.models import UserSettings
-from backend.app.services.brokers.base_client import BrokerClient
+from ...models import UserSettings
+from ...services.brokers.base_client import BrokerClient
 
 logger = logging.getLogger(__name__)
 

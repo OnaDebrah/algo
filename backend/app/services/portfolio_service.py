@@ -7,11 +7,11 @@ from typing import List, Optional
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from backend.app.models import Portfolio
-from backend.app.models.position import Position
-from backend.app.models.trade import Trade
-from backend.app.schemas import PortfolioMetrics
-from backend.app.schemas.portfolio import (
+from ..models import Portfolio
+from ..models.position import Position
+from ..models.trade import Trade
+from ..schemas import PortfolioMetrics
+from ..schemas.portfolio import (
     Portfolio as PortfolioSchema,
     PortfolioCreate,
     PortfolioUpdate,

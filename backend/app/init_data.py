@@ -4,9 +4,9 @@ import logging
 
 from sqlalchemy import select
 
-from backend.app.database import DatabaseSession
-from backend.app.models.user import User
-from backend.app.utils.security import get_password_hash
+from .database import DatabaseSession
+from .models.user import User
+from .utils.security import get_password_hash
 
 logger = logging.getLogger(__name__)
 

@@ -7,12 +7,12 @@ from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from backend.app.api.deps import check_permission, get_current_active_user, get_db
-from backend.app.core.permissions import Permission
-from backend.app.models.user import User
-from backend.app.schemas.strategy import StrategyInfo, StrategyParameter
-from backend.app.services.auth_service import AuthService
-from backend.app.strategies.strategy_catalog import get_catalog
+from ...api.deps import check_permission, get_current_active_user, get_db
+from ...core.permissions import Permission
+from ...models.user import User
+from ...schemas.strategy import StrategyInfo, StrategyParameter
+from ...services.auth_service import AuthService
+from ...strategies.strategy_catalog import get_catalog
 
 router = APIRouter(prefix="/strategy", tags=["Strategy"])
 

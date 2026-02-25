@@ -13,14 +13,14 @@ import pandas as pd
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from backend.app.analytics.performance import calculate_performance_metrics
-from backend.app.core.benchmark_calculator import BenchmarkCalculator
-from backend.app.core.data_fetcher import fetch_stock_data
-from backend.app.core.multi_asset_engine import MultiAssetEngine
-from backend.app.core.risk_manager import RiskManager
-from backend.app.core.trading_engine import TradingEngine
-from backend.app.models.backtest import BacktestRun
-from backend.app.schemas.backtest import (
+from ..analytics.performance import calculate_performance_metrics
+from ..core.benchmark_calculator import BenchmarkCalculator
+from ..core.data_fetcher import fetch_stock_data
+from ..core.multi_asset_engine import MultiAssetEngine
+from ..core.risk_manager import RiskManager
+from ..core.trading_engine import TradingEngine
+from ..models.backtest import BacktestRun
+from ..schemas.backtest import (
     BacktestRequest,
     BacktestResponse,
     BacktestResult,
@@ -29,8 +29,8 @@ from backend.app.schemas.backtest import (
     MultiAssetBacktestResponse,
     Trade,
 )
-from backend.app.services.trading_service import TradingService
-from backend.app.strategies.strategy_catalog import get_catalog
+from ..services.trading_service import TradingService
+from ..strategies.strategy_catalog import get_catalog
 
 logger = logging.getLogger(__name__)
 
@@ -191,7 +191,7 @@ class BacktestService:
                 if request.ml_model_id:
                     # Try to load a pre-trained deployed model from ML Studio
                     try:
-                        from backend.app.api.routes.mlstudio import load_model
+                        from ..api.routes.mlstudio import load_model
 
                         strategy = load_model(request.ml_model_id)
                         logger.info(f"Loaded deployed ML model '{request.ml_model_id}' for backtest")
@@ -271,7 +271,7 @@ class BacktestService:
                     quantity=t["quantity"],
                     price=t["price"],
                     commission=t["commission"],
-                    executed_at=t.get("executed_at") or t.get("timestamp"),
+                    executed_at=str(t.get("executed_at") or t.get("timestamp")),
                     total_value=t.get("total_value") or (t["quantity"] * t["price"]),
                     side=t.get("side") or t.get("order_type"),
                     notes=t.get("notes"),
@@ -386,7 +386,7 @@ class BacktestService:
                     quantity=t["quantity"],
                     price=t["price"],
                     commission=t["commission"],
-                    executed_at=t.get("executed_at") or t.get("timestamp"),
+                    executed_at=str(t.get("executed_at") or t.get("timestamp")),
                     total_value=t.get("total_value") or (t["quantity"] * t["price"]),
                     side=t.get("side") or t.get("order_type"),
                     notes=t.get("notes"),

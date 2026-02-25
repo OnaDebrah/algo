@@ -3,13 +3,13 @@ from typing import Dict
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from backend.app.api.deps import check_permission, get_current_active_user, get_db
-from backend.app.config import settings
-from backend.app.core.analyst_agent import FinancialAnalystAgent
-from backend.app.core.permissions import Permission
-from backend.app.models import User
-from backend.app.schemas.analyst import AnalystReport, FundamentalData, MACDData, RisksData, SentimentData, TechnicalData, ValuationMetric
-from backend.app.services.auth_service import AuthService
+from ...config import settings
+from ...core.analyst_agent import FinancialAnalystAgent
+from ...core.permissions import Permission
+from ...models import User
+from ...schemas.analyst import AnalystReport, FundamentalData, MACDData, RisksData, SentimentData, TechnicalData, ValuationMetric
+from ...services.auth_service import AuthService
+from ..deps import check_permission, get_current_active_user, get_db
 
 router = APIRouter(prefix="/analyst", tags=["Analyst"])
 
@@ -154,11 +154,9 @@ async def get_analyst_report(
     ticker = ticker.upper()
 
     try:
-        # Generate comprehensive report using the analyst agent
         core_report = await analyst_agent.generate_investment_thesis(ticker, depth=depth)
 
-        # Get additional ticker info for metadata via provider layer
-        from backend.app.core.data.providers.providers import ProviderFactory
+        from ...core.data.providers.providers import ProviderFactory
 
         ticker_info = await ProviderFactory().get_ticker_info(ticker)
 

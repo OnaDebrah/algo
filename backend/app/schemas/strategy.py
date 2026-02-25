@@ -6,7 +6,7 @@ from typing import Any, Dict, List, Optional
 
 from pydantic import BaseModel, Field
 
-from backend.app.schemas.live import EquityPoint, TradeResponse
+from ..schemas.live import EquityPoint, TradeResponse
 
 
 class StrategyParameter(BaseModel):

@@ -1,9 +1,14 @@
 import json
 import logging
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Union
 
-from backend.app.config import settings
-from backend.app.core.data.providers.providers import ProviderFactory
+import torch
+import torch.nn.functional as F
+from anthropic.types import MessageParam
+from transformers import AutoModelForSequenceClassification, AutoTokenizer
+
+from ..config import ANTHROPIC_MODEL_HAIKU_3, settings
+from ..core.data.providers.providers import ProviderFactory
 
 logger = logging.getLogger(__name__)
 
@@ -11,13 +16,23 @@ logger = logging.getLogger(__name__)
 class SentimentService:
     """Service for analyzing market sentiment using LLM and news data"""
 
-    def __init__(self, api_key: Optional[str] = None):
+    def __init__(self, api_key: Optional[str] = None, model_name: str = "ProsusAI/finbert"):
         self.api_key = api_key or settings.ANTHROPIC_API_KEY
         self.client = None
         if self.api_key:
             import anthropic
 
             self.client = anthropic.Anthropic(api_key=self.api_key)
+
+        # FINBERT
+        self.model_name = model_name
+        self.tokenizer = AutoTokenizer.from_pretrained(model_name, use_safetensors=True, clean_up_tokenization_spaces=False)
+        self.model = AutoModelForSequenceClassification.from_pretrained(model_name)
+
+        # Move to GPU if available for faster batch processing
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        self.model.to(self.device)
+        self.model.eval()  # Set to evaluation mode
 
     async def get_sentiment(self, ticker: str) -> Dict:
         """
@@ -53,7 +68,7 @@ class SentimentService:
                 }
 
             # 3. Fallback to simple keyword analysis
-            return self._fallback_sentiment(headlines)
+            return self.analyze_with_finbert(headlines)
 
         except Exception as e:
             logger.error(f"Error in SentimentService: {e}")
@@ -74,13 +89,14 @@ class SentimentService:
         """
 
         try:
+            messages: list[MessageParam] = [{"role": "user", "content": prompt}]
             # Note: Using synchronous client library in an async wrapper for simplicity
             # In production, a truly async client or threadpool would be used.
             message = self.client.messages.create(
-                model="claude-3-haiku-20240307",  # Use faster model for sentiment
+                model=ANTHROPIC_MODEL_HAIKU_3,  # Use faster model for sentiment
                 max_tokens=200,
                 temperature=0,
-                messages=[{"role": "user", "content": prompt}],
+                messages=messages,
             )
 
             response_text = message.content[0].text
@@ -91,6 +107,40 @@ class SentimentService:
         except Exception as e:
             logger.warning(f"LLM Sentiment analysis failed: {e}")
             return {"score": 0.0, "label": "Neutral", "summary": "LLM analysis unavailable."}
+
+    def analyze_with_finbert(self, headlines: List[str]) -> Dict[str, Union[str, float]]:
+        """
+        Standalone method to analyze text sentiment.
+        Returns a dictionary with sentiment, confidence, and score.
+        """
+        full_text = " ".join(headlines)
+
+        if not full_text or not full_text.strip():
+            return {"sentiment": "neutral", "confidence": 0.0, "score": 0.0}
+        try:
+            # 1. Tokenize input
+            inputs = self.tokenizer(full_text, return_tensors="pt", truncation=True, max_length=512).to(self.device)
+
+            with torch.no_grad():
+                outputs = self.model(**inputs)
+                probabilities = F.softmax(outputs.logits, dim=-1)
+
+            # FinBERT Labels: 0 -> positive, 1 -> negative, 2 -> neutral
+            probs = probabilities[0].tolist()
+
+            # Map probabilities to a -1 to 1 score
+            # (Positive Probability - Negative Probability)
+            sentiment_score = probs[0] - probs[1]
+
+            # Determine winning label
+            labels = ["positive", "negative", "neutral"]
+            max_index = torch.argmax(probabilities).item()
+
+            return {"sentiment": labels[max_index], "confidence": round(probs[max_index], 4), "score": round(sentiment_score, 4)}
+        except Exception as e:
+            logger.error(f"FinBERT API Unavailable, using fallback: {e}")
+
+            return self._fallback_sentiment(headlines)
 
     def _fallback_sentiment(self, headlines: List[str]) -> Dict:
         """Simple keyword-based sentiment analysis"""

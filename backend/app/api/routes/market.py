@@ -7,10 +7,10 @@ from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from backend.app.api.deps import get_current_active_user
-from backend.app.database import get_db
-from backend.app.models.user import User
-from backend.app.services.market_service import get_market_service
+from ...api.deps import get_current_active_user
+from ...database import get_db
+from ...models.user import User
+from ...services.market_service import get_market_service
 
 router = APIRouter(prefix="/market", tags=["Market Data"])
 

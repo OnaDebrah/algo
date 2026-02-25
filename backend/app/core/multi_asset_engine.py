@@ -10,11 +10,11 @@ from typing import Dict, List, Optional, Union
 
 import pandas as pd
 
-from backend.app.analytics import calculate_performance_metrics
-from backend.app.core.data_fetcher import fetch_stock_data
-from backend.app.core.risk_manager import RiskManager
-from backend.app.schemas.backtest import MultiAssetBacktestResult
-from backend.app.strategies import BaseStrategy
+from ..analytics import calculate_performance_metrics
+from ..core.data_fetcher import fetch_stock_data
+from ..core.risk_manager import RiskManager
+from ..schemas.backtest import MultiAssetBacktestResult
+from ..strategies import BaseStrategy
 
 logger = logging.getLogger(__name__)
 
@@ -375,7 +375,7 @@ class MultiAssetEngine:
                 symbol_data = full_data.iloc[: index + 1]
                 signal_info = strategy.generate_signal(symbol_data)
 
-                from backend.app.strategies.base_strategy import normalize_signal
+                from ..strategies.base_strategy import normalize_signal
 
                 normalized = normalize_signal(signal_info)
                 signal = normalized["signal"]

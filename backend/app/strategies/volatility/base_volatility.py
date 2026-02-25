@@ -11,7 +11,7 @@ import warnings
 import numpy as np
 import pandas as pd
 
-from backend.app.strategies import BaseStrategy
+from ...strategies import BaseStrategy
 
 warnings.filterwarnings("ignore")
 

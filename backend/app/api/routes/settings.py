@@ -10,11 +10,11 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from backend.app.api.deps import get_current_active_user, get_db
-from backend.app.config import settings
-from backend.app.models.user import User
-from backend.app.models.user_settings import UserSettings as UserSettingsModel
-from backend.app.schemas.settings import (
+from ...api.deps import get_current_active_user, get_db
+from ...config import settings
+from ...models.user import User
+from ...models.user_settings import UserSettings as UserSettingsModel
+from ...schemas.settings import (
     BacktestSettings,
     BrokerConnectionResponse,
     BrokerSettings,
@@ -23,7 +23,7 @@ from backend.app.schemas.settings import (
     SettingsUpdate,
     UserSettings,
 )
-from backend.app.services.brokers.ib_client import IBClient
+from ...services.brokers.ib_client import IBClient
 
 router = APIRouter(prefix="/settings", tags=["Settings"])
 

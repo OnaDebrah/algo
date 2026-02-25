@@ -10,7 +10,7 @@ from typing import Dict, List, Optional
 
 import pandas as pd
 
-from backend.app.core.data.providers.providers import ProviderFactory
+from ..core.data.providers.providers import ProviderFactory
 
 logger = logging.getLogger(__name__)
 

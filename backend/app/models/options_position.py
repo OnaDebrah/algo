@@ -1,6 +1,6 @@
 from sqlalchemy import Column, DateTime, Integer, Numeric, String, func
 
-from backend.app.database import Base
+from ..database import Base
 
 
 class OptionsPosition(Base):

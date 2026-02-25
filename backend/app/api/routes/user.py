@@ -5,10 +5,10 @@ User settings and preferences routes
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
-from backend.app.api.deps import get_current_active_user
-from backend.app.database import get_db
-from backend.app.models.user import User
-from backend.app.schemas.user import UserPreferences, UserResponse, UserUpdate
+from ...api.deps import get_current_active_user
+from ...database import get_db
+from ...models.user import User
+from ...schemas.user import UserPreferences, UserResponse, UserUpdate
 
 router = APIRouter(prefix="/user", tags=["User"])
 
@@ -33,7 +33,7 @@ async def update_current_user(user_update: UserUpdate, current_user: User = Depe
 
     for field, value in update_data.items():
         if field == "password" and value:
-            from backend.app.utils.security import get_password_hash
+            from ...utils.security import get_password_hash
 
             setattr(current_user, "hashed_password", get_password_hash(value))
         elif hasattr(current_user, field):

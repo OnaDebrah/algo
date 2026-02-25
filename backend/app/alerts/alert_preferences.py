@@ -1,7 +1,7 @@
 import logging
 from typing import List, Optional
 
-from backend.app.schemas.alert import AlertChannel, AlertLevel
+from ..schemas.alert import AlertChannel, AlertLevel
 
 logger = logging.getLogger(__name__)
 

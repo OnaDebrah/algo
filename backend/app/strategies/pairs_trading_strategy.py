@@ -4,7 +4,7 @@ import numpy as np
 import pandas as pd
 from statsmodels.tsa.stattools import coint
 
-from backend.app.strategies import BaseStrategy
+from ..strategies import BaseStrategy
 
 
 class PairsTradingStrategy(BaseStrategy):

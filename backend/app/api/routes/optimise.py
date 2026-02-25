@@ -8,12 +8,12 @@ from typing import Any, Hashable
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from backend.app.api.deps import check_permission, get_db
-from backend.app.core.permissions import Permission
-from backend.app.models.user import User
-from backend.app.optimise import PortfolioBacktest, PortfolioOptimizer
-from backend.app.optimise.optimisation_runner import OptimizationRunner
-from backend.app.schemas.optimise import (
+from ...api.deps import check_permission, get_db
+from ...core.permissions import Permission
+from ...models.user import User
+from ...optimise import PortfolioBacktest, PortfolioOptimizer
+from ...optimise.optimisation_runner import OptimizationRunner
+from ...schemas.optimise import (
     BacktestRequest,
     BacktestResponse,
     BayesianOptimizationRequest,

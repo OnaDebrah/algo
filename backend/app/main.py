@@ -7,7 +7,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 
-from backend.app.api.routes import (
+from .api.routes import (
     advisor,
     alerts,
     analyst,
@@ -23,16 +23,17 @@ from backend.app.api.routes import (
     portfolio,
     regime,
     root,
+    sector,
     settings as settings_router,
     social,
     strategy,
     websocket,
 )
-from backend.app.api.routes.live import live
-from backend.app.config import settings
-from backend.app.database import AsyncSessionLocal, init_db
-from backend.app.init_data import init_default_data
-from backend.app.services.execution_manager import get_execution_manager, start_execution_manager, stop_execution_manager
+from .api.routes.live import live
+from .config import settings
+from .database import AsyncSessionLocal, init_db
+from .init_data import init_default_data
+from .services.execution_manager import get_execution_manager, start_execution_manager, stop_execution_manager
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 
@@ -105,4 +106,5 @@ app.include_router(optimise.router)
 app.include_router(social.router)
 app.include_router(settings_router.router)
 app.include_router(health.router)
+app.include_router(sector.router)
 app.include_router(root.router)

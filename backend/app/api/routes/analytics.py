@@ -7,10 +7,10 @@ from datetime import datetime, timedelta
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from backend.app.api.deps import get_current_active_user
-from backend.app.database import get_db
-from backend.app.models.user import User
-from backend.app.services.trading_service import TradingService
+from ...api.deps import get_current_active_user
+from ...database import get_db
+from ...models.user import User
+from ...services.trading_service import TradingService
 
 router = APIRouter(prefix="/analytics", tags=["Analytics"])
 
@@ -20,7 +20,7 @@ trading_service = TradingService
 @router.get("/performance/{portfolio_id}")
 async def get_performance_analytics(
     portfolio_id: int,
-    period: str = Query("1M", regex="^(1D|1W|1M|3M|6M|1Y|ALL)$"),
+    period: str = Query("1M", pattern="^(1D|1W|1M|3M|6M|1Y|ALL)$"),
     current_user: User = Depends(get_current_active_user),
     db: AsyncSession = Depends(get_db),
 ):
@@ -44,7 +44,7 @@ async def get_performance_analytics(
 
     equity_curve = await trading_service.get_equity_curve(db, portfolio_id, start_date, end_date)
 
-    from backend.app.analytics.performance import calculate_performance_metrics
+    from ...analytics.performance import calculate_performance_metrics
 
     if equity_curve:
         initial_equity = equity_curve[0]["equity"]
@@ -77,7 +77,7 @@ async def get_returns_analysis(portfolio_id: int, current_user: User = Depends(g
     if not trades:
         return {"daily_returns": [], "monthly_returns": [], "cumulative_returns": []}
 
-    from backend.app.analytics.performance import calculate_returns
+    from ...analytics.performance import calculate_returns
 
     returns = calculate_returns(trades)
 
@@ -93,7 +93,7 @@ async def get_risk_metrics(portfolio_id: int, current_user: User = Depends(get_c
     if not trades or not equity_curve:
         return {"volatility": 0, "beta": 0, "var_95": 0, "cvar_95": 0, "max_drawdown": 0, "sharpe_ratio": 0, "sortino_ratio": 0}
 
-    from backend.app.analytics.performance import calculate_risk_metrics
+    from ...analytics.performance import calculate_risk_metrics
 
     metrics = calculate_risk_metrics(trades, equity_curve)
 
@@ -108,7 +108,7 @@ async def get_drawdown_analysis(portfolio_id: int, current_user: User = Depends(
     if not equity_curve:
         return {"drawdowns": [], "max_drawdown": 0, "max_drawdown_duration": 0}
 
-    from backend.app.analytics.performance import calculate_max_drawdown
+    from ...analytics.performance import calculate_max_drawdown
 
     analysis = calculate_max_drawdown(equity_curve)
 

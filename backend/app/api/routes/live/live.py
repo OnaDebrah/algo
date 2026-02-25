@@ -12,12 +12,12 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from backend.app.api.deps import get_current_user
-from backend.app.api.routes.live.live_trading_state import LiveTradingState
-from backend.app.api.routes.settings import get_or_create_settings
-from backend.app.database import AsyncSessionLocal, get_db
-from backend.app.models.backtest import BacktestRun
-from backend.app.models.live import (
+from ....api.deps import get_current_user
+from ....api.routes.live.live_trading_state import LiveTradingState
+from ....api.routes.settings import get_or_create_settings
+from ....database import AsyncSessionLocal, get_db
+from ....models.backtest import BacktestRun
+from ....models.live import (
     DeploymentMode,
     LiveEquitySnapshot,
     LiveStrategy,
@@ -26,8 +26,8 @@ from backend.app.models.live import (
     StrategyStatus,
     TradeStatus,
 )
-from backend.app.models.user_settings import UserSettings as UserSettingsModel
-from backend.app.schemas.live import (
+from ....models.user_settings import UserSettings as UserSettingsModel
+from ....schemas.live import (
     ConnectRequest,
     ControlRequest,
     EngineStatus,
@@ -36,13 +36,13 @@ from backend.app.schemas.live import (
     LiveStatus,
     TradeResponse,
 )
-from backend.app.schemas.strategy import (
+from ....schemas.strategy import (
     DeployStrategyRequest,
     StrategyDetailsResponse,
     StrategyResponse,
     UpdateStrategyRequest,
 )
-from backend.app.services.execution_manager import get_execution_manager
+from ....services.execution_manager import get_execution_manager
 
 logger = logging.getLogger(__name__)
 
