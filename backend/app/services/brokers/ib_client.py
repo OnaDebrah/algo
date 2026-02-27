@@ -9,8 +9,9 @@ from datetime import datetime
 from typing import Any, Dict, List, Optional
 
 from ib_insync import IB, util
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from ...models import UserSettings
+from ...models import User, UserSettings
 from ...services.brokers.base_client import BrokerClient
 
 logger = logging.getLogger(__name__)
@@ -29,7 +30,7 @@ class IBClient(BrokerClient):
         self.ib = IB()
         self.connected = False
         self.account_id = None
-        self._bars_cache = {}  # Cache for historical data
+        self._bars_cache = {}
 
     async def connect(self, settings: UserSettings, lightweight: bool = False) -> bool:
         """Connect to IB Gateway/TWS using native async methods"""
@@ -47,9 +48,6 @@ class IBClient(BrokerClient):
             if self.ib.isConnected():
                 self.connected = True
                 self.ib.errorEvent += self._on_error
-
-                # Note: We don't call reqAccountUpdates here as it can cause blocking issues
-                # Account info is fetched on-demand via get_account_info() instead
 
                 logger.info(f"Connected to Interactive Brokers (Account: {self.account_id})")
                 return True
@@ -187,7 +185,15 @@ class IBClient(BrokerClient):
             return None
 
     async def place_order(
-        self, symbol: str, side: str, quantity: float, order_type: str = "market", limit_price: Optional[float] = None
+        self,
+        symbol: str,
+        side: str,
+        quantity: float,
+        order_type: str = "market",
+        limit_price: Optional[float] = None,
+        user: Optional[User] = None,
+        db: Optional[AsyncSession] = None,
+        broker_type: Optional[str] = None,
     ) -> Optional[Dict[str, Any]]:
         """Place order with IB"""
         if not self.connected:
@@ -291,6 +297,65 @@ class IBClient(BrokerClient):
         except Exception as e:
             logger.error(f"Error getting positions: {e}")
             return []
+
+    async def place_market_order(
+        self, symbol: str, qty: float, side: str, time_in_force: str = "day", extended_hours: bool = False
+    ) -> Dict[str, Any]:
+        pass
+
+    async def place_limit_order(
+        self, symbol: str, qty: float, side: str, limit_price: float, time_in_force: str = "day", extended_hours: bool = False
+    ) -> Dict[str, Any]:
+        pass
+
+    async def place_stop_order(
+        self, symbol: str, qty: float, side: str, stop_price: float, time_in_force: str = "day", extended_hours: bool = False
+    ) -> Dict[str, Any]:
+        pass
+
+    async def place_stop_limit_order(
+        self, symbol: str, qty: float, side: str, stop_price: float, limit_price: float, time_in_force: str = "day", extended_hours: bool = False
+    ) -> Dict[str, Any]:
+        pass
+
+    async def place_option_order(
+        self,
+        symbol: str,
+        qty: int,
+        side: str,
+        option_type: str,
+        strike: float,
+        expiration: str,
+        order_type: str = "market",
+        limit_price: Optional[float] = None,
+        time_in_force: str = "day",
+    ) -> Dict[str, Any]:
+        pass
+
+    async def get_option_positions(self) -> List[Dict[str, Any]]:
+        pass
+
+    async def get_orders(self, status: Optional[str] = None) -> List[Dict[str, Any]]:
+        pass
+
+    async def get_order_status(self, order_id: str) -> Dict[str, Any]:
+        pass
+
+    async def replace_order(
+        self,
+        order_id: str,
+        qty: Optional[float] = None,
+        limit_price: Optional[float] = None,
+        stop_price: Optional[float] = None,
+        time_in_force: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        pass
+
+    async def get_bars(self, symbol: str, timeframe: str, start: str, end: str, adjustment: str = "raw") -> List[Dict[str, Any]]:
+        pass
+
+    async def get_quote(self, symbol: str) -> Dict[str, Any]:
+        pass
 
     async def __aenter__(self):
         """Async context manager entry"""

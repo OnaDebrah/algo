@@ -6,6 +6,7 @@ from typing import Dict, List, Optional, Union
 import torch
 import torch.nn.functional as F
 from anthropic.types import MessageParam
+from starlette.concurrency import run_in_threadpool
 from transformers import AutoModelForSequenceClassification, AutoTokenizer
 
 from ..config import ANTHROPIC_MODEL_HAIKU_3, settings
@@ -93,13 +94,9 @@ class SentimentService:
 
         try:
             messages: list[MessageParam] = [{"role": "user", "content": prompt}]
-            # Note: Using synchronous client library in an async wrapper for simplicity
-            # In production, a truly async client or threadpool would be used.
-            message = self.client.messages.create(
-                model=ANTHROPIC_MODEL_HAIKU_3,  # Use faster model for sentiment
-                max_tokens=200,
-                temperature=0,
-                messages=messages,
+
+            message = await run_in_threadpool(
+                self.client.messages.create, model=ANTHROPIC_MODEL_HAIKU_3, max_tokens=200, temperature=0, messages=messages
             )
 
             response_text = message.content[0].text

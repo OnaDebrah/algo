@@ -107,13 +107,13 @@ class AutoHedgeExecutor:
 
         try:
             if strategy == "put_spread":
-                await self._execute_put_spread(user_id, portfolio, details)
+                await self._execute_put_spread(user_id, details)
             elif strategy == "tail_risk":
-                await self._execute_tail_risk_hedge(user_id, portfolio, details)
+                await self._execute_tail_risk_hedge(user_id, details)
             elif strategy == "covered_calls":
-                await self._execute_covered_calls(user_id, portfolio, details)
+                await self._execute_covered_calls(user_id)
             elif strategy == "collar":
-                await self._execute_collar(user_id, portfolio, details)
+                await self._execute_collar(user_id)
 
             self.last_execution[user_id] = datetime.now()
 
@@ -123,7 +123,7 @@ class AutoHedgeExecutor:
             logger.error(f"Hedge execution failed: {e}")
             await self._send_alert(user_id, f"Hedge execution failed: {e}")
 
-    async def _execute_put_spread(self, user_id: int, portfolio: Portfolio, details: Dict):
+    async def _execute_put_spread(self, user_id: int, details: Dict):
         """Execute put spread hedge"""
 
         option_suggestions = details.get("option_suggestions", {})
@@ -137,31 +137,33 @@ class AutoHedgeExecutor:
 
         # Buy ATM puts
         buy_order = await self.broker.place_option_order(
-            user_id=user_id,
             symbol="SPY",
+            qty=int(contracts),
+            side="buy",
             option_type="put",
             strike=strikes.get("moderate", 0),
             expiration=expiry,
-            action="buy",
-            quantity=int(contracts),
+            user=await self._get_user(user_id),
+            db=self.db,
         )
         logger.info(f"BUY order placed: {buy_order}")
 
         # Sell OTM puts to reduce cost
         sell_order = await self.broker.place_option_order(
-            user_id=user_id,
             symbol="SPY",
+            qty=int(contracts),
+            side="sell",
             option_type="put",
             strike=strikes.get("conservative", 0),
             expiration=expiry,
-            action="sell",
-            quantity=int(contracts),
+            user=await self._get_user(user_id),
+            db=self.db,
         )
         logger.info(f"Sell order placed: {sell_order}")
 
         logger.info(f"Put spread executed: Bought {contracts} ATM puts, sold {contracts} OTM puts")
 
-    async def _execute_tail_risk_hedge(self, user_id: int, portfolio: Portfolio, details: Dict):
+    async def _execute_tail_risk_hedge(self, user_id: int, details: Dict):
         """Execute tail risk hedge with VIX calls"""
 
         option_suggestions = details.get("option_suggestions", {})
@@ -169,31 +171,33 @@ class AutoHedgeExecutor:
 
         # Buy OTM puts
         put_order = await self.broker.place_option_order(
-            user_id=user_id,
             symbol="SPY",
+            qty=int(contracts),
+            side="buy",
             option_type="put",
             strike=option_suggestions.get("strikes", {}).get("aggressive", 0),
             expiration=option_suggestions.get("expiry"),
-            action="buy",
-            quantity=int(contracts),
+            user=await self._get_user(user_id),
+            db=self.db,
         )
         logger.info(f"Put order placed: {put_order}")
 
         # Buy VIX calls for additional tail protection
         vix_order = await self.broker.place_option_order(
-            user_id=user_id,
             symbol="VIX",
+            qty=int(contracts * 0.5),
+            side="buy",
             option_type="call",
             strike=60,  # Far OTM VIX calls
             expiration=(datetime.now() + timedelta(days=30)).strftime("%Y-%m-%d"),
-            action="buy",
-            quantity=int(contracts * 0.5),  # Half position in VIX
+            user=await self._get_user(user_id),
+            db=self.db,
         )
         logger.info(f"VIX order placed: {vix_order}")
 
         logger.info(f"Tail risk hedge executed: {contracts} OTM puts, {int(contracts*0.5)} VIX calls")
 
-    async def _execute_covered_calls(self, user_id: int, portfolio: Portfolio, details: Dict):
+    async def _execute_covered_calls(self, user_id: int):
         """Execute covered calls on existing positions"""
 
         # Get current stock positions
@@ -203,18 +207,19 @@ class AutoHedgeExecutor:
             if position.quantity > 0:
                 # Sell OTM calls
                 await self.broker.place_option_order(
-                    user_id=user_id,
                     symbol=position.symbol,
+                    qty=int(position.quantity / 100),
+                    side="sell",
                     option_type="call",
                     strike=position.current_price * 1.05,  # 5% OTM
                     expiration=(datetime.now() + timedelta(days=30)).strftime("%Y-%m-%d"),
-                    action="sell",
-                    quantity=int(position.quantity / 100),  # 1 contract per 100 shares
+                    user=await self._get_user(user_id),
+                    db=self.db,
                 )
 
         logger.info(f"Covered calls executed on {len(positions)} positions")
 
-    async def _execute_collar(self, user_id: int, portfolio: Portfolio, details: Dict):
+    async def _execute_collar(self, user_id: int):
         """Execute collar strategy (buy put, sell call)"""
 
         # Get largest positions
@@ -226,24 +231,26 @@ class AutoHedgeExecutor:
             if contracts > 0:
                 # Buy protective put
                 await self.broker.place_option_order(
-                    user_id=user_id,
                     symbol=position.symbol,
+                    qty=contracts,
+                    side="buy",
                     option_type="put",
                     strike=position.current_price * 0.95,  # 5% OTM put
                     expiration=(datetime.now() + timedelta(days=60)).strftime("%Y-%m-%d"),
-                    action="buy",
-                    quantity=contracts,
+                    user=await self._get_user(user_id),
+                    db=self.db,
                 )
 
                 # Sell covered call to offset cost
                 await self.broker.place_option_order(
-                    user_id=user_id,
                     symbol=position.symbol,
+                    qty=contracts,
+                    side="sell",
                     option_type="call",
                     strike=position.current_price * 1.10,  # 10% OTM call
                     expiration=(datetime.now() + timedelta(days=30)).strftime("%Y-%m-%d"),
-                    action="sell",
-                    quantity=contracts,
+                    user=await self._get_user(user_id),
+                    db=self.db,
                 )
 
         logger.info(f"Collar executed on {len(positions)} positions")
@@ -267,14 +274,14 @@ class AutoHedgeExecutor:
         from ...models.position import Position
 
         result = await self.db.execute(select(Position).where(Position.user_id == user_id, Position.asset_type.in_(["option", "future"])))
-        return result.scalars().all()
+        return list(result.scalars().all())
 
     async def _get_stock_positions(self, user_id: int) -> List[Position]:
         """Get stock positions"""
         from ...models.position import Position
 
         result = await self.db.execute(select(Position).where(Position.user_id == user_id, Position.asset_type == "stock"))
-        return result.scalars().all()
+        return list(result.scalars().all())
 
     async def _log_execution(self, user_id: int, recommendation: Dict):
         """Log hedge execution to database"""
