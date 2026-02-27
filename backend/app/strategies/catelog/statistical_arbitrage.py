@@ -1,9 +1,9 @@
 from typing import Dict
 
-from ..stat_arb.base_stat_arb import RiskParityStatArb
 from ...strategies.catelog.category import StrategyCategory
 from ...strategies.catelog.strategy_info import StrategyInfo
 from ...strategies.stat_arb.sector_neutral import SectorNeutralStrategy
+from ..stat_arb.base_stat_arb import RiskParityStatArb
 
 
 class StatisticalArbitrage:
@@ -14,7 +14,6 @@ class StatisticalArbitrage:
         """Build the strategy catalog"""
 
         catalog = {
-
             "sector_neutral": StrategyInfo(
                 name="Sector Neutral Arbitrage",
                 class_type=SectorNeutralStrategy,

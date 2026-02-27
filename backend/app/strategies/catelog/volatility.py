@@ -1,11 +1,11 @@
 from typing import Dict
 
+from ...strategies.catelog.category import StrategyCategory
+from ...strategies.catelog.strategy_info import StrategyInfo
 from ..volatility.dynamic_scaling import DynamicVolatilityScalingStrategy
 from ..volatility.variance_risk_premium import VarianceRiskPremiumStrategy
 from ..volatility.volatility_breakout import VolatilityBreakoutStrategy
 from ..volatility.volatility_targeting import VolatilityTargetingStrategy
-from ...strategies.catelog.category import StrategyCategory
-from ...strategies.catelog.strategy_info import StrategyInfo
 
 
 class Volatility:

@@ -1,12 +1,12 @@
 from typing import Dict
 
-from .category import StrategyCategory
-from .. import MACDStrategy, KAMAStrategy, MultiTimeframeKAMAStrategy
-from ..adpative_trend_ff_strategy import AdaptiveTrendFollowingStrategy
-from ..donchain_strategy import DonchianChannelStrategy, DonchianATRStrategy, FilteredDonchianStrategy
-from ..parabolic_sar import ParabolicSARStrategy
 from ...strategies.catelog.strategy_info import StrategyInfo
 from ...strategies.technical.sma_crossover import SMACrossoverStrategy
+from .. import KAMAStrategy, MACDStrategy, MultiTimeframeKAMAStrategy
+from ..adpative_trend_ff_strategy import AdaptiveTrendFollowingStrategy
+from ..donchain_strategy import DonchianATRStrategy, DonchianChannelStrategy, FilteredDonchianStrategy
+from ..parabolic_sar import ParabolicSARStrategy
+from .category import StrategyCategory
 
 
 class TrendFollowing:
@@ -251,7 +251,6 @@ class TrendFollowing:
                 cons=["Misses counter-trend moves", "Later entries than classic", "More parameters to optimize", "May miss trend reversals"],
                 backtest_mode="both",
             ),
-
             "parabolic_sar": StrategyInfo(
                 name="Parabolic SAR",
                 class_type=ParabolicSARStrategy,
@@ -294,6 +293,5 @@ class TrendFollowing:
                 ],
                 backtest_mode="both",
             ),
-
         }
         return catalog

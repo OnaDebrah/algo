@@ -1,12 +1,12 @@
 from typing import Dict
 
-from ..ml.mc_ml_sentiment_strategy import MonteCarloMLSentimentStrategy
-from ..ml.sector_prediction.sector_rotation_alt_strategy import SectorRotationAltStrategy
-from ..ml.sector_prediction.sector_rotation_strategy import SectorRotationStrategy
 from ...strategies import MLStrategy
 from ...strategies.catelog.category import StrategyCategory
 from ...strategies.catelog.strategy_info import StrategyInfo
 from ...strategies.lstm_strategy import LSTMStrategy
+from ..ml.mc_ml_sentiment_strategy import MonteCarloMLSentimentStrategy
+from ..ml.sector_prediction.sector_rotation_alt_strategy import SectorRotationAltStrategy
+from ..ml.sector_prediction.sector_rotation_strategy import SectorRotationStrategy
 
 
 class ML:
@@ -17,7 +17,6 @@ class ML:
         """Build the strategy catalog"""
 
         catalog = {
-
             "ml_random_forest": StrategyInfo(
                 name="ML Random Forest",
                 class_type=MLStrategy,
@@ -212,14 +211,13 @@ class ML:
                 ],
                 backtest_mode="single",
             ),
-
             "mc_ml_sentiment": StrategyInfo(
                 name="Monte Carlo ML Sentiment",
                 class_type=MonteCarloMLSentimentStrategy,
                 category=StrategyCategory.MACHINE_LEARNING,
                 description="Combines sentiment analysis, machine learning predictions, "
-                            "and Monte Carlo simulation for probabilistic price forecasting. "
-                            "Uses Kelly Criterion for risk-aware position sizing.",
+                "and Monte Carlo simulation for probabilistic price forecasting. "
+                "Uses Kelly Criterion for risk-aware position sizing.",
                 complexity="Expert",
                 time_horizon="Short to Medium-term",
                 best_for=[

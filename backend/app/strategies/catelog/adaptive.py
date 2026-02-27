@@ -14,7 +14,6 @@ class Adaptive:
         """Build the strategy catalog"""
 
         catalog = {
-
             "regime_adaptive": StrategyInfo(
                 name="Regime-Adaptive Strategy",
                 class_type=RegimeSpecificStrategy,
@@ -24,12 +23,9 @@ class Adaptive:
                 time_horizon="Medium-term",
                 best_for=["Regime-aware trading", "Dynamic allocation", "Multi-strategy portfolio"],
                 parameters={
-                    "lookback_days": {"default": 252, "range": (60, 504),
-                                      "description": "Historical data lookback (days)"},
-                    "regime_update_freq": {"default": 5, "range": (1, 20),
-                                           "description": "Regime re-detection frequency (days)"},
-                    "use_markov_chain": {"default": True, "range": [True, False],
-                                         "description": "Use Markov chain regime transitions"},
+                    "lookback_days": {"default": 252, "range": (60, 504), "description": "Historical data lookback (days)"},
+                    "regime_update_freq": {"default": 5, "range": (1, 20), "description": "Regime re-detection frequency (days)"},
+                    "use_markov_chain": {"default": True, "range": [True, False], "description": "Use Markov chain regime transitions"},
                 },
                 pros=[
                     "Adapts to market regimes automatically",
@@ -54,14 +50,10 @@ class Adaptive:
                 time_horizon="Medium-term",
                 best_for=["Portfolio of strategies", "Regime-aware switching", "Strategy ensemble"],
                 parameters={
-                    "performance_lookback": {"default": 60, "range": (20, 120),
-                                             "description": "Performance evaluation window (days)"},
-                    "rebalance_frequency": {"default": 20, "range": (5, 60),
-                                            "description": "Rebalance frequency (days)"},
-                    "min_regime_confidence": {"default": 0.6, "range": (0.3, 0.9),
-                                              "description": "Minimum confidence for regime signal"},
-                    "use_ensemble": {"default": True, "range": [True, False],
-                                     "description": "Use ensemble of strategies"},
+                    "performance_lookback": {"default": 60, "range": (20, 120), "description": "Performance evaluation window (days)"},
+                    "rebalance_frequency": {"default": 20, "range": (5, 60), "description": "Rebalance frequency (days)"},
+                    "min_regime_confidence": {"default": 0.6, "range": (0.3, 0.9), "description": "Minimum confidence for regime signal"},
+                    "use_ensemble": {"default": True, "range": [True, False], "description": "Use ensemble of strategies"},
                 },
                 pros=[
                     "Combines multiple strategy signals",

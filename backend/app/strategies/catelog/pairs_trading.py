@@ -11,6 +11,7 @@ try:
 except ImportError:
     HFT_AVAILABLE = False
 
+
 class PairsTrading:
     def __init__(self):
         self.strategies = self._build_catalog()
@@ -19,7 +20,6 @@ class PairsTrading:
         """Build the strategy catalog"""
 
         catalog = {
-
             "kalman_filter": StrategyInfo(
                 name="Kalman Filter Pairs Strategy",
                 class_type=KalmanFilterStrategy,

@@ -8,6 +8,9 @@ from typing import Dict, List, Optional
 
 import pandas as pd
 
+from ...strategies import (
+    BaseStrategy,
+)
 from ...strategies.catelog.adaptive import Adaptive
 from ...strategies.catelog.category import StrategyCategory
 from ...strategies.catelog.deep_learning import DeepLearning
@@ -19,9 +22,6 @@ from ...strategies.catelog.statistical_arbitrage import StatisticalArbitrage
 from ...strategies.catelog.strategy_info import StrategyInfo
 from ...strategies.catelog.trend_following import TrendFollowing
 from ...strategies.catelog.volatility import Volatility
-from ...strategies import (
-    BaseStrategy,
-)
 
 logger = logging.getLogger(__name__)
 
@@ -33,7 +33,6 @@ class StrategyCatalog:
     """
 
     def __init__(self):
-
         self.category_catalogs = {
             "trend_following": TrendFollowing(),
             "momentum": Momentum(),
@@ -59,7 +58,7 @@ class StrategyCatalog:
 
         # Merge all catalogs
         for catalog_name, catalog_instance in self.category_catalogs.items():
-            if hasattr(catalog_instance, 'strategies'):
+            if hasattr(catalog_instance, "strategies"):
                 combined_catalog.update(catalog_instance.strategies)
                 logger.info(f"✅ Loaded {len(catalog_instance.strategies)} strategies from {catalog_name}")
             else:
@@ -71,8 +70,7 @@ class StrategyCatalog:
 
     def get_by_mode(self, mode: str) -> Dict[str, StrategyInfo]:
         """Get strategies compatible with a backtest mode ('single' or 'multi')"""
-        return {key: info for key, info in self.strategies.items() if
-                info.backtest_mode == mode or info.backtest_mode == "both"}
+        return {key: info for key, info in self.strategies.items() if info.backtest_mode == mode or info.backtest_mode == "both"}
 
     def get_by_category(self, category: StrategyCategory) -> Dict[str, StrategyInfo]:
         """Get all strategies in a category"""
@@ -184,12 +182,11 @@ class StrategyCatalog:
 
         for key, info in self.strategies.items():
             if (
-                    query_lower in info.name.lower()
-                    or query_lower in info.description.lower()
-                    or any(query_lower in tag.lower() for tag in info.best_for)
+                query_lower in info.name.lower()
+                or query_lower in info.description.lower()
+                or any(query_lower in tag.lower() for tag in info.best_for)
             ):
-                results.append(
-                    {"key": key, "name": info.name, "category": info.category.value, "description": info.description})
+                results.append({"key": key, "name": info.name, "category": info.category.value, "description": info.description})
 
         return results
 
@@ -249,9 +246,11 @@ def get_strategy_summary() -> Dict:
         "categories": [cat.value for cat in catalog.get_categories()],
     }
 
+
 def get_strategy(self, strategy_id: str) -> Optional[StrategyInfo]:
     """Get strategy info by ID"""
     return self.strategies.get(strategy_id)
+
 
 def get_strategy_by_name(self, name: str) -> Optional[StrategyInfo]:
     """Get strategy info by name (case-insensitive partial match)"""
@@ -263,14 +262,15 @@ def get_strategy_by_name(self, name: str) -> Optional[StrategyInfo]:
 
     # ========== LISTING METHODS ==========
 
+
 def list_strategies(
-        self,
-        category: Optional[StrategyCategory] = None,
-        complexity: Optional[str] = None,
-        tags: Optional[List[str]] = None,
-        requires_ml: Optional[bool] = None,
-        time_horizon: Optional[str] = None,
-        search_term: Optional[str] = None
+    self,
+    category: Optional[StrategyCategory] = None,
+    complexity: Optional[str] = None,
+    tags: Optional[List[str]] = None,
+    requires_ml: Optional[bool] = None,
+    time_horizon: Optional[str] = None,
+    search_term: Optional[str] = None,
 ) -> List[Dict]:
     """
     List strategies with optional filters
@@ -302,38 +302,33 @@ def list_strategies(
             continue
         if search_term:
             search_term_lower = search_term.lower()
-            if (search_term_lower not in info.name.lower() and
-                    search_term_lower not in info.description.lower()):
+            if search_term_lower not in info.name.lower() and search_term_lower not in info.description.lower():
                 continue
 
-        results.append({
-            "id": strategy_id,
-            "name": info.name,
-            "category": info.category.value,
-            "complexity": info.complexity,
-            "description": info.description[:100] + "..." if len(info.description) > 100 else info.description,
-            "time_horizon": info.time_horizon,
-            "requires_ml": info.requires_ml_training,
-            "min_data_days": info.min_data_days,
-            "tags": info.tags[:3],  # Show top 3 tags
-            "best_for": info.best_for[:2]  # Show top 2 use cases
-        })
+        results.append(
+            {
+                "id": strategy_id,
+                "name": info.name,
+                "category": info.category.value,
+                "complexity": info.complexity,
+                "description": info.description[:100] + "..." if len(info.description) > 100 else info.description,
+                "time_horizon": info.time_horizon,
+                "requires_ml": info.requires_ml_training,
+                "min_data_days": info.min_data_days,
+                "tags": info.tags[:3],  # Show top 3 tags
+                "best_for": info.best_for[:2],  # Show top 2 use cases
+            }
+        )
 
     return results
 
+
 def list_all_strategies_simple(self) -> List[Dict]:
     """Simple list of all strategies without filters"""
-    return [
-        {
-            "id": sid,
-            "name": info.name,
-            "category": info.category.value,
-            "complexity": info.complexity
-        }
-        for sid, info in self.strategies.items()
-    ]
+    return [{"id": sid, "name": info.name, "category": info.category.value, "complexity": info.complexity} for sid, info in self.strategies.items()]
 
     # ========== DETAILED INFO METHODS ==========
+
 
 def get_strategy_details(self, strategy_id: str) -> Optional[Dict]:
     """Get detailed information about a strategy"""
@@ -355,45 +350,34 @@ def get_strategy_details(self, strategy_id: str) -> Optional[Dict]:
         "backtest_mode": info.backtest_mode,
         "tags": info.tags,
         "requires_ml_training": info.requires_ml_training,
-        "min_data_days": info.min_data_days
+        "min_data_days": info.min_data_days,
     }
+
 
 def get_strategies_by_complexity(self) -> Dict[str, List[Dict]]:
     """Group strategies by complexity level"""
-    grouped = {
-        "Beginner": [],
-        "Intermediate": [],
-        "Advanced": [],
-        "Expert": []
-    }
+    grouped = {"Beginner": [], "Intermediate": [], "Advanced": [], "Expert": []}
 
     for strategy_id, info in self.strategies.items():
         if info.complexity in grouped:
-            grouped[info.complexity].append({
-                "id": strategy_id,
-                "name": info.name,
-                "category": info.category.value,
-                "description": info.description[:80] + "..."
-            })
+            grouped[info.complexity].append(
+                {"id": strategy_id, "name": info.name, "category": info.category.value, "description": info.description[:80] + "..."}
+            )
 
     # Remove empty groups
     return {k: v for k, v in grouped.items() if v}
+
 
 def get_strategies_by_tag(self, tag: str) -> List[Dict]:
     """Get all strategies with a specific tag"""
     results = []
     for strategy_id, info in self.strategies.items():
         if tag in info.tags:
-            results.append({
-                "id": strategy_id,
-                "name": info.name,
-                "category": info.category.value,
-                "complexity": info.complexity,
-                "tags": info.tags
-            })
+            results.append({"id": strategy_id, "name": info.name, "category": info.category.value, "complexity": info.complexity, "tags": info.tags})
     return results
 
     # ========== COMPARISON METHODS ==========
+
 
 def compare_strategies(self, strategy_ids: List[str]) -> pd.DataFrame:
     """Compare multiple strategies side by side"""
@@ -402,20 +386,23 @@ def compare_strategies(self, strategy_ids: List[str]) -> pd.DataFrame:
     for sid in strategy_ids:
         info = self.get_strategy(sid)
         if info:
-            comparison.append({
-                "Strategy": info.name,
-                "Category": info.category.value,
-                "Complexity": info.complexity,
-                "Time Horizon": info.time_horizon,
-                "ML Required": "Yes" if info.requires_ml_training else "No",
-                "Min Data Days": info.min_data_days,
-                "Tags": ", ".join(info.tags[:3]),
-                "Best For": ", ".join(info.best_for[:2])
-            })
+            comparison.append(
+                {
+                    "Strategy": info.name,
+                    "Category": info.category.value,
+                    "Complexity": info.complexity,
+                    "Time Horizon": info.time_horizon,
+                    "ML Required": "Yes" if info.requires_ml_training else "No",
+                    "Min Data Days": info.min_data_days,
+                    "Tags": ", ".join(info.tags[:3]),
+                    "Best For": ", ".join(info.best_for[:2]),
+                }
+            )
 
     return pd.DataFrame(comparison)
 
     # ========== SEARCH AND SUGGESTION METHODS ==========
+
 
 def search_strategies(self, query: str) -> List[Dict]:
     """Search strategies by keyword in name, description, or tags"""
@@ -438,26 +425,23 @@ def search_strategies(self, query: str) -> List[Dict]:
         else:
             continue
 
-        results.append({
-            "id": strategy_id,
-            "name": info.name,
-            "category": info.category.value,
-            "complexity": info.complexity,
-            "score": score,
-            "description": info.description[:100] + "..."
-        })
+        results.append(
+            {
+                "id": strategy_id,
+                "name": info.name,
+                "category": info.category.value,
+                "complexity": info.complexity,
+                "score": score,
+                "description": info.description[:100] + "...",
+            }
+        )
 
     # Sort by relevance score
     results.sort(key=lambda x: x["score"], reverse=True)
     return results
 
-def suggest_strategy(
-        self,
-        market_regime: str,
-        risk_tolerance: str,
-        experience: str,
-        asset_class: Optional[str] = None
-) -> List[Dict]:
+
+def suggest_strategy(self, market_regime: str, risk_tolerance: str, experience: str, asset_class: Optional[str] = None) -> List[Dict]:
     """
     Suggest strategies based on market conditions and user preferences
 
@@ -494,28 +478,18 @@ def suggest_strategy(
             if "risk-management" in info.tags:
                 score += 3
             # Conservative position sizing
-            if hasattr(info, 'max_position') and info.max_position < 1.0:
+            if hasattr(info, "max_position") and info.max_position < 1.0:
                 score += 1
         elif risk_tolerance == "high":
             if "adaptive" in info.tags or "aggressive" in info.tags:
                 score += 2
-            if hasattr(info, 'max_position') and info.max_position > 1.0:
+            if hasattr(info, "max_position") and info.max_position > 1.0:
                 score += 2
 
         # Score based on experience
-        complexity_scores = {
-            "beginner": 3,
-            "intermediate": 2,
-            "advanced": 1,
-            "expert": 0
-        }
+        complexity_scores = {"beginner": 3, "intermediate": 2, "advanced": 1, "expert": 0}
 
-        complexity_map = {
-            "Beginner": 3,
-            "Intermediate": 2,
-            "Advanced": 1,
-            "Expert": 0
-        }
+        complexity_map = {"Beginner": 3, "Intermediate": 2, "Advanced": 1, "Expert": 0}
 
         if info.complexity in complexity_map:
             exp_level = complexity_scores.get(experience, 0)
@@ -528,21 +502,24 @@ def suggest_strategy(
             score += 1
 
         if score > 0:
-            suggestions.append({
-                "id": strategy_id,
-                "name": info.name,
-                "category": info.category.value,
-                "complexity": info.complexity,
-                "score": score,
-                "description": info.description[:100] + "...",
-                "requires_ml": info.requires_ml_training
-            })
+            suggestions.append(
+                {
+                    "id": strategy_id,
+                    "name": info.name,
+                    "category": info.category.value,
+                    "complexity": info.complexity,
+                    "score": score,
+                    "description": info.description[:100] + "...",
+                    "requires_ml": info.requires_ml_training,
+                }
+            )
 
     # Sort by score
     suggestions.sort(key=lambda x: x["score"], reverse=True)
     return suggestions[:10]  # Return top 10
 
     # ========== STATISTICS AND METADATA ==========
+
 
 def get_catalog_stats(self) -> Dict:
     """Get statistics about the catalog"""
@@ -567,8 +544,9 @@ def get_catalog_stats(self) -> Dict:
         "strategies_by_complexity": by_complexity,
         "ml_strategies": ml_count,
         "traditional_strategies": total - ml_count,
-        "categories_count": len(by_category)
+        "categories_count": len(by_category),
     }
+
 
 def get_popular_tags(self, limit: int = 10) -> List[Dict]:
     """Get most common tags across strategies"""
@@ -582,19 +560,23 @@ def get_popular_tags(self, limit: int = 10) -> List[Dict]:
 
     # ========== UTILITY METHODS ==========
 
+
 def validate_strategy_id(self, strategy_id: str) -> bool:
     """Check if a strategy ID exists"""
     return strategy_id in self.strategies
+
 
 def get_strategy_class(self, strategy_id: str) -> Optional[type]:
     """Get the strategy class for instantiation"""
     info = self.get_strategy(strategy_id)
     return info.class_type if info else None
 
+
 def get_parameter_info(self, strategy_id: str) -> Optional[Dict]:
     """Get parameter information for a strategy"""
     info = self.get_strategy(strategy_id)
     return info.parameters if info else None
+
 
 def refresh_catalog(self):
     """Rebuild the catalog (useful if strategies are added dynamically)"""
