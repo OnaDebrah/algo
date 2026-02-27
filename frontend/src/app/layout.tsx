@@ -23,6 +23,10 @@ export default function RootLayout({
 }>) {
     useEffect(() => {
         const autoConnect = async () => {
+            // Only attempt auto-connect if user is authenticated
+            const token = typeof window !== 'undefined' ? localStorage.getItem('access_token') : null;
+            if (!token) return;
+
             try {
                 const result = await live.autoConnect();
                 if (result.status === 'connected') {

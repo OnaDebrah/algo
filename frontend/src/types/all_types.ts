@@ -1804,6 +1804,236 @@ export const TIME_HORIZONS = [
     'Long-term'
 ] as const;
 
+// ==================== SECTOR SCANNER TYPES ====================
+
+export interface SectorSummary {
+    name: string;
+    etf: string;
+    stock_count: number;
+    top_stocks: string[];
+    momentum_score: number;
+    volatility: number;
+    total_return: number;
+    composite_score: number;
+    rank: number;
+    momentum_factors: Record<string, number>;
+    volatility_factors: Record<string, number>;
+}
+
+export interface SectorScanResult {
+    sectors: SectorSummary[];
+    scan_date: string;
+    market_regime: string;
+}
+
+export interface StockRanking {
+    symbol: string;
+    rank: number;
+    composite_score: number;
+    factor_scores: Record<string, number>;
+    factor_contributions: Record<string, number>;
+    percentile: number;
+    expected_return: number | null;
+    confidence: number;
+    sector: string | null;
+    market_cap: number | null;
+    volume: number | null;
+}
+
+export interface StrategyRecommendation {
+    strategy_name: string;
+    strategy_key: string;
+    category: string;
+    suitability_score: number;
+    regime: string;
+    reason: string;
+    backtest_mode: string;
+    complexity: string;
+    time_horizon: string;
+}
+
+// ==================== CRASH PREDICTION ====================
+
+export interface CrashPredictionResult {
+    symbol: string;
+    crash_probability: number;
+    intensity: 'mild' | 'moderate' | 'severe' | 'unknown';
+    confidence: number;
+    timestamp: string;
+    lppls: {
+        bubble_detected: boolean;
+        confidence: number;
+        crash_probability: number;
+        critical_date: string | null;
+        parameters?: Record<string, number>;
+        action?: string;
+        reasons?: string[];
+    };
+    lstm: {
+        stress_index: number;
+        confidence: number;
+        stress_trend: 'increasing' | 'decreasing' | 'stable';
+        action?: string;
+        tap_deviation?: number;
+    };
+    combined_score: number;
+}
+
+export interface MarketStressResult {
+    timestamp: string;
+    stress_index: number;
+    confidence: number;
+    action: string;
+    message: string;
+    trend: 'increasing' | 'decreasing' | 'stable';
+    position_size: number;
+    tap_deviation: number;
+    stress_history: number[];
+    alert: {
+        level: string;
+        message: string;
+        recommendation: string;
+    } | null;
+    forecast: {
+        horizon_days: number;
+        current_stress: number;
+        projected_stress_60d: number;
+        outlook: string;
+        forecast_quality: string;
+        key_indicators: {
+            volatility_regime: string;
+            liquidity_conditions: string;
+            correlation_regime: string;
+        };
+    };
+}
+
+export interface HedgeRecommendation {
+    strategy: string;
+    description?: string;
+    implementation?: string;
+    cost?: number;
+    protection?: string;
+    coverage?: number;
+    details?: Record<string, unknown>;
+    ml_signals?: {
+        lppls_bubble: boolean;
+        lppls_confidence: number;
+        lppls_crash_prob: number;
+        lstm_stress: number;
+        lstm_confidence: number;
+        combined_probability: number;
+    };
+    monitoring?: {
+        rebalance_frequency: string;
+        alert_triggers: Array<{
+            condition: string;
+            action: string;
+            threshold: string;
+        }>;
+        stop_loss_levels: {
+            portfolio_stop: string;
+            hedge_trigger: string;
+            cash_level: string;
+        };
+    };
+    error?: string;
+}
+
+export interface CrashDashboardData {
+    symbol: string;
+    prediction: CrashPredictionResult;
+    stress: MarketStressResult;
+    hedge_recommendation: HedgeRecommendation;
+    history: CrashPredictionHistoryItem[];
+}
+
+export interface CrashPredictionHistoryItem {
+    id: number;
+    user_id: number;
+    symbol: string;
+    timestamp: string;
+    crash_probability: number;
+    intensity: string;
+    confidence: number;
+    lppls_confidence: number | null;
+    lppls_crash_probability: number | null;
+    lppls_bubble_detected: boolean | null;
+    lstm_stress_index: number | null;
+    lstm_confidence: number | null;
+    lstm_stress_trend: string | null;
+    combined_score: number | null;
+    hedge_strategy: string | null;
+    hedge_cost: number | null;
+    alert_level: string | null;
+}
+
+export interface CrashAlertConfig {
+    crash_threshold: number;
+    stress_threshold: number;
+    email_enabled: boolean;
+    sms_enabled: boolean;
+}
+
+// ==================== HISTORICAL ACCURACY TYPES ====================
+
+export interface CrashAccuracyMetrics {
+    sensitivity: number;
+    specificity: number;
+    precision: number;
+    false_positive_rate: number;
+    f1_score: number;
+    avg_lead_time_days: number;
+    lead_time_std_days: number;
+    total_predictions: number;
+    true_positives: number;
+    false_positives: number;
+    true_negatives: number;
+    false_negatives: number;
+}
+
+export interface CrashAccuracyModelComparison {
+    lppls: { sensitivity: number; specificity: number; avg_lead_time: number };
+    lstm: { sensitivity: number; specificity: number; avg_lead_time: number };
+    combined: { sensitivity: number; specificity: number; avg_lead_time: number };
+}
+
+export interface CrashEventAccuracy {
+    name: string;
+    peak_date: string;
+    trough_date: string;
+    drawdown_pct: number;
+    detected: boolean;
+    lead_time_days: number | null;
+    avg_probability_in_window: number;
+    peak_probability: number;
+    lppls_detected: boolean;
+    lstm_detected: boolean;
+    combined_detected: boolean;
+}
+
+export interface AccuracyTimeseriesPoint {
+    date: string;
+    price: number;
+    price_normalized: number;
+    lppls_prob: number;
+    lstm_stress: number;
+    combined_prob: number;
+    drawdown: number;
+    is_crash_zone: boolean;
+}
+
+export interface HistoricalAccuracyData {
+    symbol: string;
+    period: { start: string; end: string };
+    stride_days: number;
+    threshold: number;
+    metrics: CrashAccuracyMetrics;
+    model_comparison: CrashAccuracyModelComparison;
+    crash_events: CrashEventAccuracy[];
+    timeseries: AccuracyTimeseriesPoint[];
+}
+
 // ==================== API ENDPOINT TYPES ====================
 
 export type ApiEndpoint =
@@ -1875,6 +2105,16 @@ export type ApiEndpoint =
     | 'options/analytics/risk-metrics'
     | 'options/analytics/portfolio-stats'
     | 'options/analytics/monte-carlo'
+    | 'sector/list'
+    | 'sector/scan'
+    | 'sector/stocks/{sector}'
+    | 'sector/recommend/{symbol}'
+    | 'crash/predict/{symbol}'
+    | 'crash/stress'
+    | 'crash/hedge-recommendation'
+    | 'crash/history'
+    | 'crash/dashboard/{symbol}'
+    | 'crash/alert/configure'
     | 'settings/'
     | 'settings/reset'
     | 'health'

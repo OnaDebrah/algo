@@ -318,14 +318,14 @@ const StrategyInfoPopover: React.FC<StrategyInfoPopoverProps> = ({ strategy }) =
 
     return (
         <>
-            <button
+            <span
                 ref={triggerRef}
                 onClick={handleToggle}
                 className="p-1 rounded-md text-slate-600 hover:text-violet-400 hover:bg-violet-500/10 transition-all"
                 title="Strategy details"
             >
                 <Info size={12} />
-            </button>
+            </span>
 
             {isOpen && popoverContent && createPortal(popoverContent, document.body)}
         </>
