@@ -13,7 +13,7 @@ import pandas as pd
 from sklearn.decomposition import PCA
 from statsmodels.tsa.vector_ar.vecm import coint_johansen
 
-from backend.app.strategies import BaseStrategy
+from ...strategies import BaseStrategy
 
 warnings.filterwarnings("ignore")
 

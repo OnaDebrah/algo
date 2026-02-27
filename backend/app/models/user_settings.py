@@ -4,11 +4,11 @@ Database Migration: Add Live Trading Settings Columns
 Add this to your UserSettings model or create a new migration
 """
 
-from sqlalchemy import Boolean, Column, Float, ForeignKey, Integer, String
+from sqlalchemy import JSON, Boolean, Column, Float, ForeignKey, Integer, String
 from sqlalchemy.orm import relationship
 
-from backend.app.config import settings
-from backend.app.database import Base
+from ..config import settings
+from ..database import Base
 
 
 class UserSettings(Base):
@@ -18,7 +18,6 @@ class UserSettings(Base):
 
     __tablename__ = "user_settings"
 
-    # Existing columns
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"), unique=True, nullable=False)
 
@@ -48,6 +47,9 @@ class UserSettings(Base):
     notifications = Column(Boolean, default=True)
     auto_refresh = Column(Boolean, default=True)
     refresh_interval = Column(Integer, default=30)
+
+    # Alert preferences (crash prediction thresholds, channels, etc.)
+    alert_preferences = Column(JSON, nullable=True)
 
     # Relationship
     user = relationship("User", back_populates="settings")

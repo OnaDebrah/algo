@@ -9,11 +9,10 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 from sqlalchemy.orm import declarative_base
 from sqlalchemy.pool import NullPool
 
-from backend.app.config import settings
+from .config import settings
 
 logger = logging.getLogger(__name__)
 
-# Create async engine
 engine = create_async_engine(
     settings.DATABASE_URL,
     echo=settings.DB_ECHO,  # Set to True for SQL query logging
@@ -108,8 +107,8 @@ async def reset_db() -> None:
         raise RuntimeError("Cannot reset database in production!")
 
     async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.drop_all)
-        await conn.run_sync(Base.metadata.create_all)
+        await conn.run_sync(Base.meta_data.drop_all)
+        await conn.run_sync(Base.meta_data.create_all)
         logger.warning("Database reset completed - all data deleted!")
 
 

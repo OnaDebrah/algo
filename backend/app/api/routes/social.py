@@ -4,10 +4,10 @@ from typing import List
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from backend.app.api.deps import get_current_active_user, get_db
-from backend.app.models import User
-from backend.app.schemas.social import ActivityResponse
-from backend.app.services.social_service import ActivityService
+from ...api.deps import get_current_active_user, get_db
+from ...models import User
+from ...schemas.social import ActivityResponse
+from ...services.social_service import ActivityService
 
 logger = logging.getLogger(__name__)
 

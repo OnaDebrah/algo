@@ -9,7 +9,7 @@ from sqlalchemy import delete, desc, func, or_, select, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from backend.app.models.marketplace import (
+from ..models.marketplace import (
     MarketplaceStrategy,
     StrategyBacktest,
     StrategyDownload,

@@ -6,20 +6,20 @@ import pandas as pd
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from backend.app.config import settings
-from backend.app.core.data.providers.alpaca_provider import AlpacaProvider
-from backend.app.core.data.providers.base_provider import (
+from ....config import settings
+from ....models import UserSettings
+from ....models.user import User
+from ..providers.alpaca_provider import AlpacaProvider
+from ..providers.base_provider import (
     FundamentalsProvider,
     NewsProvider,
     OptionsDataProvider,
     QuoteProvider,
     RecommendationsProvider,
 )
-from backend.app.core.data.providers.iex_provider import IEXProvider
-from backend.app.core.data.providers.polygon_provider import PolygonProvider
-from backend.app.core.data.providers.yahoo_provider import YahooProvider
-from backend.app.models import UserSettings
-from backend.app.models.user import User
+from ..providers.iex_provider import IEXProvider
+from ..providers.polygon_provider import PolygonProvider
+from ..providers.yahoo_provider import YahooProvider
 
 logger = logging.getLogger(__name__)
 
@@ -67,8 +67,12 @@ class ProviderFactory:
                 logger.debug("Using IEX provider")
                 return IEXProvider()
 
+            if provider_type == "yahoo":
+                logger.debug("Using YAHOO provider")
+                return IEXProvider()
+
         except Exception as e:
-            logger.error(f"Error getting provider: {e}")
+            logger.debug(f"No custom provider configured, using default: {e}")
 
         return self._default_provider
 

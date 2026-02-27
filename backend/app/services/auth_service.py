@@ -4,9 +4,9 @@ from typing import List, Optional
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from backend.app.core.permissions import TIER_PERMISSIONS, Permission, UserTier
-from backend.app.models.usage import UsageTracking
-from backend.app.models.user import User
+from ..core.permissions import TIER_PERMISSIONS, Permission, UserTier
+from ..models.usage import UsageTracking
+from ..models.user import User
 
 logger = logging.getLogger(__name__)
 

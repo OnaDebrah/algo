@@ -4,9 +4,9 @@ from typing import Dict, List
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from backend.app.database import bulk_create
-from backend.app.models import Portfolio, Position, Trade
-from backend.app.models.performance_history import PerformanceHistory
+from ..database import bulk_create
+from ..models import Portfolio, Position, Trade
+from ..models.performance_history import PerformanceHistory
 
 
 class TradingService:

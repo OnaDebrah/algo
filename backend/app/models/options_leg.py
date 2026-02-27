@@ -1,6 +1,6 @@
 from sqlalchemy import Column, DateTime, ForeignKey, Integer, Numeric, String, func
 
-from backend.app.database import Base
+from ..database import Base
 
 
 class OptionsLeg(Base):

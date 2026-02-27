@@ -6,10 +6,10 @@ from typing import Any, Dict, Optional
 import numpy as np
 import pandas as pd
 
-from backend.app.core.data_fetcher import fetch_stock_data
-from backend.app.strategies.technical.bb_mean_reversion import BollingerMeanReversionStrategy
-from backend.app.strategies.technical.macd_strategy import MACDStrategy
-from backend.app.strategies.technical.rsi_strategy import RSIStrategy
+from ...core.data_fetcher import fetch_stock_data
+from ...strategies.technical.bb_mean_reversion import BollingerMeanReversionStrategy
+from ...strategies.technical.macd_strategy import MACDStrategy
+from ...strategies.technical.rsi_strategy import RSIStrategy
 
 logger = logging.getLogger(__name__)
 

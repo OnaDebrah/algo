@@ -7,10 +7,10 @@ from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from backend.app.api.deps import get_current_active_user
-from backend.app.database import get_db
-from backend.app.models.user import User
-from backend.app.services.market_service import get_market_service
+from ...api.deps import get_current_active_user
+from ...database import get_db
+from ...models.user import User
+from ...services.market_service import get_market_service
 
 router = APIRouter(prefix="/market", tags=["Market Data"])
 
@@ -225,12 +225,15 @@ async def get_market_status(current_user: User = Depends(get_current_active_user
 
 
 @router.get("/cache/stats")
-async def get_cache_stats(current_user: User = Depends(get_current_active_user)):
+async def get_cache_stats(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_active_user),
+):
     """
     Get cache statistics
     """
     try:
-        stats = market_service.cache.get_stats()
+        stats = await market_service.cache.get_stats(db)
         return stats
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to get cache stats: {str(e)} for user: {current_user}")
@@ -239,6 +242,7 @@ async def get_cache_stats(current_user: User = Depends(get_current_active_user))
 @router.post("/cache/clear")
 async def clear_cache(
     data_type: Optional[str] = Query(None, description="Data type to clear (quote, historical, fundamentals, etc.)"),
+    db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_active_user),
 ):
     """
@@ -249,19 +253,22 @@ async def clear_cache(
         current_user: User
     """
     try:
-        market_service.cache.clear(data_type)
+        await market_service.cache.clear(db, data_type)
         return {"status": "success", "message": f"Cache cleared: {data_type or 'all'}"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to clear cache: {str(e)} for user: {current_user}")
 
 
 @router.post("/cache/cleanup")
-async def cleanup_cache(current_user: User = Depends(get_current_active_user)):
+async def cleanup_cache(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_active_user),
+):
     """
     Clean up expired cache entries
     """
     try:
-        market_service.cache.cleanup_expired()
-        return {"status": "success", "message": "Expired cache entries cleaned up"}
+        deleted = await market_service.cache.cleanup_expired(db)
+        return {"status": "success", "message": f"Cleaned up {deleted} expired cache entries"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to cleanup cache: {str(e)} for user: {current_user}")

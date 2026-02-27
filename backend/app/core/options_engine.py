@@ -10,8 +10,8 @@ from typing import Dict, List
 import numpy as np
 import pandas as pd
 
-from backend.app.strategies.options_builder import OptionsStrategyBuilder, create_preset_strategy
-from backend.app.strategies.options_strategies import (
+from ..strategies.options_builder import OptionsStrategyBuilder, create_preset_strategy
+from ..strategies.options_strategies import (
     BlackScholesCalculator,
     OptionsStrategy,
     OptionType,

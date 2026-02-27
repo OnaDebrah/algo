@@ -8,12 +8,12 @@ import pandas as pd
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from backend.app.analytics.market_regime_detector import MarketRegimeDetector
-from backend.app.api.deps import get_current_active_user
-from backend.app.core import fetch_stock_data
-from backend.app.database import get_db
-from backend.app.models.user import User
-from backend.app.schemas.regime import (
+from ...analytics.market_regime_detector import MarketRegimeDetector
+from ...api.deps import get_current_active_user
+from ...core import fetch_stock_data
+from ...database import get_db
+from ...models.user import User
+from ...schemas.regime import (
     AllocationResponse,
     CurrentRegimeResponse,
     FeatureImportance,
@@ -25,7 +25,7 @@ from backend.app.schemas.regime import (
     TransitionProbability,
     TransitionResponse,
 )
-from backend.app.services.auth_service import AuthService
+from ...services.auth_service import AuthService
 
 router = APIRouter(prefix="/regime", tags=["Market Regime"])
 

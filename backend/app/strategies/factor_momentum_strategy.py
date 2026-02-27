@@ -2,7 +2,7 @@ from typing import Dict
 
 import pandas as pd
 
-from backend.app.strategies.cs_momentum_strategy import CrossSectionalMomentumStrategy
+from ..strategies.cs_momentum_strategy import CrossSectionalMomentumStrategy
 
 
 class FactorMomentumStrategy(CrossSectionalMomentumStrategy):

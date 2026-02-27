@@ -4,7 +4,7 @@ Risk management system
 
 import logging
 
-from backend.app.config import settings
+from ..config import settings
 
 logger = logging.getLogger(__name__)
 

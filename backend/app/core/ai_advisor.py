@@ -7,7 +7,7 @@ import logging
 from dataclasses import dataclass
 from typing import Dict, List
 
-from backend.app.core.ai_advisor_api import AIAdvisorAPI
+from ..core.ai_advisor_api import AIAdvisorAPI
 
 logger = logging.getLogger(__name__)
 

@@ -4,8 +4,8 @@ from typing import Any, Dict, List, Optional
 
 import pandas as pd
 
-from backend.app.config import settings
-from backend.app.core.data.providers.base_provider import (
+from ....config import settings
+from ..providers.base_provider import (
     DataProvider,
     FundamentalsProvider,
     NewsProvider,
@@ -44,12 +44,20 @@ class YahooProvider(
                 logger.debug(f"YahooProvider: Auto-correcting {symbol} to {symbol}-USD")
                 symbol = f"{symbol}-USD"
 
+            # yfinance rejects period + start/end together:
+            # "Setting period, start and end is nonsense. Set maximum 2 of them."
+            # Prefer start/end when provided, fall back to period otherwise.
+            if start is not None or end is not None:
+                use_period = None
+            else:
+                use_period = period
+
             ticker = yf.Ticker(symbol)
-            data = ticker.history(period=period, interval=interval, start=start, end=end)
+            data = ticker.history(period=use_period, interval=interval, start=start, end=end)
 
             if data.empty:
                 logger.warning(f"YahooProvider: Ticker method failed for {symbol}, trying download method")
-                data = yf.download(symbol, start=start, end=end, period=period, interval=interval, progress=False)
+                data = yf.download(symbol, start=start, end=end, period=use_period, interval=interval, progress=False)
 
             if not data.empty:
                 logger.info(f"YahooProvider: Fetched {len(data)} bars for {symbol}")

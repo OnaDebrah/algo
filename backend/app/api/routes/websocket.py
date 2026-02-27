@@ -11,11 +11,11 @@ from typing import Dict, Set
 from fastapi import APIRouter, Depends, WebSocket, WebSocketDisconnect, status as http_status
 from sqlalchemy.orm import Session
 
-from backend.app.core.data.providers.providers import ProviderFactory
-from backend.app.database import get_db
-from backend.app.models.live import LiveStrategy
-from backend.app.utils.security import decode_access_token
-from backend.app.websockets.manager import ws_manager
+from ...core.data.providers.providers import ProviderFactory
+from ...database import get_db
+from ...models.live import LiveStrategy
+from ...utils.security import decode_access_token
+from ...websockets.manager import ws_manager
 
 logger = logging.getLogger(__name__)
 

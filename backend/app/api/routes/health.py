@@ -1,7 +1,7 @@
 from fastapi import APIRouter
 
-from backend.app.database import AsyncSessionLocal
-from backend.app.services.execution_manager import get_execution_manager
+from ...database import AsyncSessionLocal
+from ...services.execution_manager import get_execution_manager
 
 router = APIRouter(tags=["Health"])
 
