@@ -89,6 +89,21 @@ import {
     UserSettings,
     SettingsUpdate,
 
+    // Sector Scanner
+    SectorSummary,
+    SectorScanResult,
+    StockRanking,
+    StrategyRecommendation,
+
+    // Crash Prediction
+    CrashDashboardData,
+    CrashPredictionResult,
+    CrashPredictionHistoryItem,
+    MarketStressResult,
+    HedgeRecommendation,
+    CrashAlertConfig,
+    HistoricalAccuracyData,
+
     // HTTP Error
     HTTPValidationError, RegimeData, RegimeHistoryResponse, PairsValidationRequest, PairsValidationResponse,
     LiveOrderPlacement, LiveOrderUpdate, MarketplaceFilterParams, AlertPreferences, Alert, DeploymentConfig,
@@ -724,6 +739,72 @@ export const settings = {
 
 };
 
+// ==================== SECTOR SCANNER ====================
+export const sector = {
+    list: () =>
+        client.get<SectorSummary[]>('/sector/list'),
+
+    scan: (period: string = '6mo') =>
+        client.post<SectorScanResult>('/sector/scan', null, { params: { period } }),
+
+    stocks: (sectorName: string, topN: number = 10) =>
+        client.post<StockRanking[]>(`/sector/stocks/${encodeURIComponent(sectorName)}`, null, { params: { top_n: topN } }),
+
+    recommend: (symbol: string) =>
+        client.post<StrategyRecommendation[]>(`/sector/recommend/${symbol}`),
+};
+
+// ==================== CRASH PREDICTION ====================
+export const crashPrediction = {
+    predict: (symbol: string) =>
+        client.get<CrashPredictionResult>(`/crash/predict/${symbol}`),
+
+    getStress: (symbols?: string[]) =>
+        client.get<MarketStressResult>('/crash/stress', {
+            params: symbols ? { symbols: symbols.join(',') } : {},
+        }),
+
+    getHedgeRecommendation: (portfolioValue: number, portfolioBeta: number = 1.0, primaryIndex: string = 'SPY') =>
+        client.get<HedgeRecommendation>('/crash/hedge-recommendation', {
+            params: {
+                portfolio_value: portfolioValue,
+                portfolio_beta: portfolioBeta,
+                primary_index: primaryIndex,
+            },
+        }),
+
+    getHistory: (params?: { symbol?: string; limit?: number; offset?: number }) =>
+        client.get<{ total: number; offset: number; limit: number; predictions: CrashPredictionHistoryItem[] }>(
+            '/crash/history',
+            { params },
+        ),
+
+    getDashboard: (symbol: string, portfolioValue: number = 100000) =>
+        client.get<CrashDashboardData>(`/crash/dashboard/${symbol}`, {
+            params: { portfolio_value: portfolioValue },
+        }),
+
+    configureAlerts: (config: CrashAlertConfig) =>
+        client.post<{ success: boolean; message: string; config: CrashAlertConfig }>(
+            '/crash/alert/configure',
+            null,
+            {
+                params: {
+                    crash_threshold: config.crash_threshold,
+                    stress_threshold: config.stress_threshold,
+                    email_enabled: config.email_enabled,
+                    sms_enabled: config.sms_enabled,
+                },
+            },
+        ),
+
+    getHistoricalAccuracy: (symbol: string, stride: number = 20, threshold: number = 0.33) =>
+        client.get<HistoricalAccuracyData>(`/crash/accuracy/${symbol}`, {
+            params: { stride, threshold },
+            timeout: 600000, // 10 min timeout for first computation
+        }),
+};
+
 // ==================== HEALTH & UTILITY ====================
 export const health = {
     check: () =>
@@ -742,6 +823,8 @@ export const api = {
     strategy,
     analytics,
     regime,
+    sector,
+    crashPrediction,
     analyst,
     advisor,
     alerts,

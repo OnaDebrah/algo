@@ -14,6 +14,8 @@ import AIAnalyst from "@/components/aianalyst/AIAnalyst";
 import RegimeDetector from "@/components/regime/RegimeDetector";
 import AIAdvisor from "@/components/advisor/AIAdvisor";
 import LiveExecution from "@/components/live/LiveExecution";
+import SectorScanner from "@/components/sector/SectorScanner";
+import CrashPredictionDashboard from "@/components/crash/CrashPredictionDashboard";
 import Sidebar from "@/app/layouts/Sidebar";
 import Header from "@/app/layouts/Header";
 import { User } from "@/types/all_types";
@@ -27,9 +29,11 @@ export type PageKey =
   | 'live'
   | 'advisor'
   | 'regime'
+  | 'crash-prediction'
   | 'analyst'
   | 'options'
   | 'portfolio'
+  | 'sector-scanner'
   | 'strategy-builder'
   | 'marketplace'
   | 'settings';
@@ -41,9 +45,11 @@ const PAGE_COMPONENTS: Record<PageKey, React.ReactNode> = {
   live: <LiveExecution />,
   advisor: <AIAdvisor />,
   regime: <RegimeDetector />,
+  'crash-prediction': <CrashPredictionDashboard />,
   analyst: <AIAnalyst />,
   options: <OptionsDesk />,
   portfolio: <PortfolioOptimization />,
+  'sector-scanner': <SectorScanner />,
   'strategy-builder': <StrategyBuilder />,
   marketplace: <Marketplace />,
   settings: <SettingsPage />,
