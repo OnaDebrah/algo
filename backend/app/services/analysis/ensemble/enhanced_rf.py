@@ -13,8 +13,8 @@ from core.data.providers.providers import ProviderFactory
 from sklearn.calibration import CalibratedClassifierCV
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.model_selection import TimeSeriesSplit
-from strategies.analysis.lppls_bubbles_strategy import LPPLSBubbleStrategy
-from strategies.analysis.lstm_stress_strategy import LSTMStressStrategy
+from strategies.ml.analysis import LPPLSBubbleStrategy
+from strategies.ml.analysis.lstm_stress_strategy import LSTMStressStrategy
 
 warnings.filterwarnings("ignore")
 logger = logging.getLogger(__name__)

@@ -3,8 +3,8 @@ from typing import Dict, Union
 import numpy as np
 import pandas as pd
 
-from ...strategies import BaseStrategy
-from ...strategies.analysis.lppls_strategy import LPPLSModel
+from ....strategies import BaseStrategy
+from ....strategies.ml.analysis.lppls_strategy import LPPLSModel
 
 
 class LPPLSBubbleStrategy(BaseStrategy):

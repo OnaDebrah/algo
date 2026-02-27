@@ -20,7 +20,7 @@ from tensorflow.keras.layers import LSTM, Bidirectional, Dense, Dropout
 from tensorflow.keras.models import Sequential, load_model
 from tensorflow.keras.optimizers import Adam
 
-from ...strategies.base_strategy import BaseStrategy
+from ....strategies.base_strategy import BaseStrategy
 
 warnings.filterwarnings("ignore")
 

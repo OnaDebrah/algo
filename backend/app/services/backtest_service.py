@@ -30,7 +30,7 @@ from ..schemas.backtest import (
     Trade,
 )
 from ..services.trading_service import TradingService
-from ..strategies.strategy_catalog import get_catalog
+from ..strategies.catelog.strategy_catalog import get_catalog
 
 logger = logging.getLogger(__name__)
 

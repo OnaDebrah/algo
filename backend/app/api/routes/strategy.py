@@ -12,7 +12,7 @@ from ...core.permissions import Permission
 from ...models.user import User
 from ...schemas.strategy import StrategyInfo, StrategyParameter
 from ...services.auth_service import AuthService
-from ...strategies.strategy_catalog import get_catalog
+from ...strategies.catelog.strategy_catalog import get_catalog
 
 router = APIRouter(prefix="/strategy", tags=["Strategy"])
 
