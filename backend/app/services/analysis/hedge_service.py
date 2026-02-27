@@ -11,8 +11,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from ...core.data.providers.providers import ProviderFactory
 from ...core.quantlib_hedge import QuantLibHedgeEngine
 from ...models.user import User
-from ...strategies.analysis.lppls_bubbles_strategy import LPPLSBubbleStrategy
-from ...strategies.analysis.lstm_stress_strategy import LSTMStressStrategy
+from ...strategies.ml.analysis.lppls_bubbles_strategy import LPPLSBubbleStrategy
+from ...strategies.ml.analysis.lstm_stress_strategy import LSTMStressStrategy
 
 logger = logging.getLogger(__name__)
 

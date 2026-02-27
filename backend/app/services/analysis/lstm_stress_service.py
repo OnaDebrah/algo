@@ -12,7 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from ...core.data.providers.providers import ProviderFactory
 from ...models.user import User
-from ...strategies.analysis.lstm_stress_strategy import LSTMStressStrategy
+from ...strategies.ml.analysis.lstm_stress_strategy import LSTMStressStrategy
 
 logger = logging.getLogger(__name__)
 

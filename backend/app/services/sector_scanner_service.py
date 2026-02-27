@@ -14,7 +14,7 @@ from ..strategies.ml.stock_selection.ranking_pipeline import (
     RankingMethod,
     RankingPipeline,
 )
-from ..strategies.strategy_catalog import get_catalog
+from ..strategies.catelog.strategy_catalog import get_catalog
 
 logger = logging.getLogger(__name__)
 

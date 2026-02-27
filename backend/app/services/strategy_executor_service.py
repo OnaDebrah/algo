@@ -13,7 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..models.live import LiveEquitySnapshot, LiveStrategy, LiveTrade, StrategyStatus, TradeSide, TradeStatus
 from ..strategies.base_strategy import BaseStrategy
-from ..strategies.strategy_catalog import get_catalog
+from ..strategies.catelog.strategy_catalog import get_catalog
 from ..websockets.manager import ws_manager
 
 logger = logging.getLogger(__name__)

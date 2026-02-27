@@ -358,7 +358,7 @@ class WalkForwardService:
         """Helper to run a single backtest on a data slice."""
         from ..core.risk_manager import RiskManager
         from ..core.trading_engine import TradingEngine
-        from ..strategies.strategy_catalog import get_catalog
+        from strategies.catelog.strategy_catalog import get_catalog
 
         # Ensure window parameters are integers
         sanitized_params = self._sanitize_params(params)
