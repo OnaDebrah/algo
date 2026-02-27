@@ -17,7 +17,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from ...core.data.providers.providers import ProviderFactory
 from ...models.user import User
-from ...strategies.analysis.lppls_bubbles_strategy import LPPLSBubbleStrategy
+from ...strategies.ml.analysis.lppls_bubbles_strategy import LPPLSBubbleStrategy
 
 logger = logging.getLogger(__name__)
 
