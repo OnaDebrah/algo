@@ -4,7 +4,7 @@ Bollinger Bands Mean Reversion Strategy
 
 import pandas as pd
 
-from backend.app.strategies import BaseStrategy
+from ...strategies import BaseStrategy
 
 
 class BollingerMeanReversionStrategy(BaseStrategy):

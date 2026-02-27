@@ -13,10 +13,10 @@ from fastapi import APIRouter
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.pool import NullPool
 
-from backend.app.config import settings
-from backend.app.schemas.backtest import BacktestRequest as SingleBacktestRequest, MultiAssetBacktestRequest, StrategyConfig
-from backend.app.schemas.optimise import BayesianOptimizationRequest
-from backend.app.services.backtest_service import BacktestService
+from ..config import settings
+from ..schemas.backtest import BacktestRequest as SingleBacktestRequest, MultiAssetBacktestRequest, StrategyConfig
+from ..schemas.optimise import BayesianOptimizationRequest
+from ..services.backtest_service import BacktestService
 
 logger = logging.getLogger(__name__)
 router = APIRouter()

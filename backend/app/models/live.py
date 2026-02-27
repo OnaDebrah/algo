@@ -10,7 +10,7 @@ from typing import Optional
 from sqlalchemy import ARRAY, JSON, Boolean, Column, DateTime, Enum as SQLEnum, Float, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from backend.app.database import Base
+from ..database import Base
 
 
 class DeploymentMode(str, Enum):

@@ -9,7 +9,7 @@ from typing import Dict, List, Optional, Tuple
 
 import numpy as np
 
-from backend.app.strategies.options_strategies import (
+from ..strategies.options_strategies import (
     BlackScholesCalculator,
     OptionLeg,
     OptionsStrategy,

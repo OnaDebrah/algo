@@ -6,12 +6,12 @@ import numpy as np
 import pandas as pd
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from backend.app.analytics.performance import calculate_performance_metrics
-from backend.app.core.data_fetcher import fetch_stock_data
-from backend.app.optimise.walk_forward_optimiser import OptimizationConfig, OptimizationResult, PrunerType, SamplerType, WalkForwardOptimizer
-from backend.app.schemas.backtest import BacktestResult, EquityCurvePoint, WFAFoldResult, WFARequest, WFAResponse
-from backend.app.schemas.optimise import OptimizationRequest, ParamRange as OptParamRange
-from backend.app.services.backtest_service import BacktestService
+from ..analytics.performance import calculate_performance_metrics
+from ..core.data_fetcher import fetch_stock_data
+from ..optimise.walk_forward_optimiser import OptimizationConfig, OptimizationResult, PrunerType, SamplerType, WalkForwardOptimizer
+from ..schemas.backtest import BacktestResult, EquityCurvePoint, WFAFoldResult, WFARequest, WFAResponse
+from ..schemas.optimise import OptimizationRequest, ParamRange as OptParamRange
+from ..services.backtest_service import BacktestService
 
 logger = logging.getLogger(__name__)
 
@@ -356,9 +356,9 @@ class WalkForwardService:
         self, request: WFARequest, data: pd.DataFrame, params: Dict[str, Any], capital: float, start_timestamp: Any = None
     ) -> Tuple[BacktestResult, List, List]:
         """Helper to run a single backtest on a data slice."""
-        from backend.app.core.risk_manager import RiskManager
-        from backend.app.core.trading_engine import TradingEngine
-        from backend.app.strategies.strategy_catalog import get_catalog
+        from ..core.risk_manager import RiskManager
+        from ..core.trading_engine import TradingEngine
+        from ..strategies.strategy_catalog import get_catalog
 
         # Ensure window parameters are integers
         sanitized_params = self._sanitize_params(params)

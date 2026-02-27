@@ -4,7 +4,7 @@ import numpy as np
 import pandas as pd
 from scipy import stats
 
-from backend.app.strategies.volatility.base_volatility import BaseVolatilityStrategy
+from ...strategies.volatility.base_volatility import BaseVolatilityStrategy
 
 
 class DynamicVolatilityScalingStrategy(BaseVolatilityStrategy):

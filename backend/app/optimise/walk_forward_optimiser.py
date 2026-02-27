@@ -14,8 +14,8 @@ from optuna.pruners import HyperbandPruner, MedianPruner, SuccessiveHalvingPrune
 from optuna.samplers import CmaEsSampler, RandomSampler, TPESampler
 from optuna.visualization import plot_optimization_history, plot_param_importances
 
-from backend.app.schemas.backtest import BacktestResult
-from backend.app.strategies.technical.pre_compute_indicators import PreComputeIndicators
+from ..schemas.backtest import BacktestResult
+from ..strategies.technical.pre_compute_indicators import PreComputeIndicators
 
 logger = logging.getLogger(__name__)
 

@@ -13,7 +13,7 @@ from typing import Dict, Union
 import numpy as np
 import pandas as pd
 
-from backend.app.strategies.ts_momentum_strategy import TimeSeriesMomentumStrategy
+from ..strategies.ts_momentum_strategy import TimeSeriesMomentumStrategy
 
 warnings.filterwarnings("ignore")
 

@@ -25,7 +25,7 @@ import pandas as pd
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.preprocessing import LabelEncoder, StandardScaler
 
-from backend.app.analytics.regimes.markov_regime_chain import MarkovRegimeChain
+from ..analytics.regimes.markov_regime_chain import MarkovRegimeChain
 
 warnings.filterwarnings("ignore")
 

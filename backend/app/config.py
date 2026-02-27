@@ -65,6 +65,8 @@ class Settings(BaseSettings):
 
     # API Keys
     ANTHROPIC_API_KEY: str = os.getenv("ANTHROPIC_API_KEY", "")
+    ANTHROPIC_MODEL_HAIKU_3: str = os.getenv("ANTHROPIC_MODEL_HAIKU_3", "claude-3-haiku-20240307")
+    ANTHROPIC_MODEL_SONNET_4: str = os.getenv("ANTHROPIC_MODEL_SONNET_4", "claude-sonnet-4-20250514")
 
     # Trading Defaults
     DEFAULT_INITIAL_CAPITAL: float = float(os.getenv("DEFAULT_INITIAL_CAPITAL", "100000"))
@@ -98,6 +100,14 @@ class Settings(BaseSettings):
     USER_AGENT: str = os.getenv(
         "USER_AGENT", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
     )
+
+    # Macro Data
+    # FRED API (free registration at https://fred.stlouisfed.org/docs/api/api_key.html)
+    FRED_API_KEY: str = os.getenv("FRED_API_KEY", "")
+
+    # BLS API (free registration at https://data.bls.gov/registrationEngine/)
+    BLS_API_KEY: str = os.getenv("BLS_API_KEY", "")
+    BLS_BASE_URL: str = os.getenv("BLS_BASE_URL", "https://api.bls.gov/publicAPI/v2/timeseries/data/")
 
     # Alerts (SMTP)
     SMTP_SERVER: str = os.getenv("SMTP_SERVER", "smtp.gmail.com")
@@ -162,7 +172,12 @@ DEFAULT_MACD_SLOW = settings.DEFAULT_MACD_SLOW
 DEFAULT_MACD_SIGNAL = settings.DEFAULT_MACD_SIGNAL
 DEFAULT_ML_TEST_SIZE = settings.DEFAULT_ML_TEST_SIZE
 DEFAULT_ML_THRESHOLD = settings.DEFAULT_ML_THRESHOLD
+
 ML_MODELS_DIR = settings.ML_MODELS_DIR
+
+BLS_BASE_URL = settings.BLS_BASE_URL
+ANTHROPIC_MODEL_HAIKU_3 = settings.ANTHROPIC_MODEL_HAIKU_3
+ANTHROPIC_MODEL_SONNET_4 = settings.ANTHROPIC_MODEL_SONNET_4
 
 
 # Validation on import

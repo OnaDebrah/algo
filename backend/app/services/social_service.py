@@ -3,7 +3,7 @@ from typing import Any, Dict, Optional
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from backend.app.models.social import Activity
+from ..models.social import Activity
 
 logger = logging.getLogger(__name__)
 
@@ -38,7 +38,7 @@ class ActivityService:
         # Note: In a real implementation, we'd join with User to get usernames.
         from sqlalchemy import desc, select
 
-        from backend.app.models import User
+        from ..models import User
 
         stmt = select(Activity, User.username).join(User, Activity.user_id == User.id).order_by(desc(Activity.created_at)).limit(limit)
         result = await self.db.execute(stmt)

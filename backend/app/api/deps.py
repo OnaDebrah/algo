@@ -10,11 +10,11 @@ from jose import JWTError, jwt
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from backend.app.config import settings
-from backend.app.core.permissions import Permission
-from backend.app.database import get_db
-from backend.app.models.user import User
-from backend.app.services.auth_service import AuthService
+from ..config import settings
+from ..core.permissions import Permission
+from ..database import get_db
+from ..models.user import User
+from ..services.auth_service import AuthService
 
 logger = logging.getLogger(__name__)
 

@@ -6,9 +6,11 @@ Supports: Alpaca, Paper Trading, and extensible for other brokers
 import logging
 from typing import Any, Dict, List, Optional
 
-from backend.app.config import settings
-from backend.app.models import UserSettings
-from backend.app.services.brokers.base_client import BrokerClient
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from ...config import settings
+from ...models import User, UserSettings
+from ...services.brokers.base_client import BrokerClient
 
 logger = logging.getLogger(__name__)
 
@@ -104,7 +106,15 @@ class AlpacaClient(BrokerClient):
             return None
 
     async def place_order(
-        self, symbol: str, side: str, quantity: float, order_type: str = "market", limit_price: Optional[float] = None
+        self,
+        symbol: str,
+        side: str,
+        quantity: float,
+        order_type: str = "market",
+        limit_price: Optional[float] = None,
+        user: Optional[User] = None,
+        db: Optional[AsyncSession] = None,
+        broker_type: Optional[str] = None,
     ) -> Optional[Dict[str, Any]]:
         """Place order with Alpaca"""
         try:
@@ -157,3 +167,62 @@ class AlpacaClient(BrokerClient):
         except Exception as e:
             logger.error(f"Error getting positions: {e}")
             return []
+
+    async def place_market_order(
+        self, symbol: str, qty: float, side: str, time_in_force: str = "day", extended_hours: bool = False
+    ) -> Dict[str, Any]:
+        pass
+
+    async def place_limit_order(
+        self, symbol: str, qty: float, side: str, limit_price: float, time_in_force: str = "day", extended_hours: bool = False
+    ) -> Dict[str, Any]:
+        pass
+
+    async def place_stop_order(
+        self, symbol: str, qty: float, side: str, stop_price: float, time_in_force: str = "day", extended_hours: bool = False
+    ) -> Dict[str, Any]:
+        pass
+
+    async def place_stop_limit_order(
+        self, symbol: str, qty: float, side: str, stop_price: float, limit_price: float, time_in_force: str = "day", extended_hours: bool = False
+    ) -> Dict[str, Any]:
+        pass
+
+    async def place_option_order(
+        self,
+        symbol: str,
+        qty: int,
+        side: str,
+        option_type: str,
+        strike: float,
+        expiration: str,
+        order_type: str = "market",
+        limit_price: Optional[float] = None,
+        time_in_force: str = "day",
+    ) -> Dict[str, Any]:
+        pass
+
+    async def get_option_positions(self) -> List[Dict[str, Any]]:
+        pass
+
+    async def get_orders(self, status: Optional[str] = None) -> List[Dict[str, Any]]:
+        pass
+
+    async def get_order_status(self, order_id: str) -> Dict[str, Any]:
+        pass
+
+    async def replace_order(
+        self,
+        order_id: str,
+        qty: Optional[float] = None,
+        limit_price: Optional[float] = None,
+        stop_price: Optional[float] = None,
+        time_in_force: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        pass
+
+    async def get_bars(self, symbol: str, timeframe: str, start: str, end: str, adjustment: str = "raw") -> List[Dict[str, Any]]:
+        pass
+
+    async def get_quote(self, symbol: str) -> Dict[str, Any]:
+        pass

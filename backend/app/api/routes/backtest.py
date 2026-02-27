@@ -11,12 +11,12 @@ from sqlalchemy import desc, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from statsmodels.tsa.stattools import coint
 
-from backend.app.api.deps import check_permission, get_current_active_user, get_current_user, get_db
-from backend.app.core import fetch_stock_data
-from backend.app.core.permissions import Permission
-from backend.app.models import BacktestRun
-from backend.app.models.user import User
-from backend.app.schemas.backtest import (
+from ...api.deps import check_permission, get_current_active_user, get_current_user, get_db
+from ...core import fetch_stock_data
+from ...core.permissions import Permission
+from ...models import BacktestRun
+from ...models.user import User
+from ...schemas.backtest import (
     BacktestHistoryItem,
     BacktestRequest,
     BacktestResponse,
@@ -29,11 +29,11 @@ from backend.app.schemas.backtest import (
     WFARequest,
     WFAResponse,
 )
-from backend.app.services.auth_service import AuthService
-from backend.app.services.backtest_service import BacktestService
-from backend.app.services.market_service import get_market_service
-from backend.app.services.walk_forward_service import WalkForwardService
-from backend.app.utils.helpers import pairs
+from ...services.auth_service import AuthService
+from ...services.backtest_service import BacktestService
+from ...services.market_service import get_market_service
+from ...services.walk_forward_service import WalkForwardService
+from ...utils.helpers import pairs
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/backtest", tags=["Backtest"])

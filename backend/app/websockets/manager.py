@@ -11,7 +11,7 @@ from typing import Any, Dict, Set
 from fastapi import WebSocket
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from backend.app.models.live import LiveStrategy
+from ..models.live import LiveStrategy
 
 logger = logging.getLogger(__name__)
 

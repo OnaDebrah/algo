@@ -3,8 +3,8 @@ from typing import Dict, Union
 
 import pandas as pd
 
-from backend.app.strategies.base_strategy import BaseStrategy
-from backend.app.strategies.ml_strategy import MLStrategy
+from ..strategies.base_strategy import BaseStrategy
+from ..strategies.ml_strategy import MLStrategy
 
 logger = logging.getLogger(__name__)
 
@@ -31,7 +31,7 @@ class DynamicStrategy(BaseStrategy):
             return self._ml_models[model_id]
 
         try:
-            from backend.app.api.routes.mlstudio import load_model
+            from ..api.routes.mlstudio import load_model
 
             strat = load_model(model_id)
             self._ml_models[model_id] = strat

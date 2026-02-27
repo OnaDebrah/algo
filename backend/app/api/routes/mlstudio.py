@@ -7,12 +7,12 @@ from typing import Any, Dict, List
 
 from fastapi import APIRouter, Depends, HTTPException
 
-from backend.app.api.deps import get_current_active_user
-from backend.app.config import settings
-from backend.app.core import fetch_stock_data
-from backend.app.models import User
-from backend.app.schemas.mlstudio import MLModel, TrainingConfig
-from backend.app.strategies import MLStrategy
+from ...api.deps import get_current_active_user
+from ...config import settings
+from ...core import fetch_stock_data
+from ...models import User
+from ...schemas.mlstudio import MLModel, TrainingConfig
+from ...strategies import MLStrategy
 
 logger = logging.getLogger(__name__)
 
@@ -179,7 +179,7 @@ async def train_model(config: TrainingConfig, current_user: User = Depends(get_c
 
         # Handle LSTM separately — it uses LSTMStrategy, not MLStrategy
         if model_type_slug == "lstm":
-            from backend.app.strategies.lstm_strategy import LSTMStrategy
+            from ...strategies.lstm_strategy import LSTMStrategy
 
             ml_strategy = LSTMStrategy(
                 name=f"{config.symbol}_lstm",

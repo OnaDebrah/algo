@@ -3,10 +3,10 @@ import logging
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
-from backend.app.alerts.alert_preferences import AlertPreferences
-from backend.app.alerts.email_provider import EmailProvider
-from backend.app.alerts.sms_provider import SMSProvider
-from backend.app.schemas.alert import Alert, AlertChannel, AlertLevel
+from ..alerts.alert_preferences import AlertPreferences
+from ..alerts.email_provider import EmailProvider
+from ..alerts.sms_provider import SMSProvider
+from ..schemas.alert import Alert, AlertCategory, AlertChannel, AlertLevel
 
 logger = logging.getLogger(__name__)
 
@@ -94,9 +94,12 @@ class AlertManager:
         level: AlertLevel,
         title: str,
         message: str,
+        category: Optional[AlertCategory],
         strategy_id: Optional[int] = None,
         metadata: Optional[Dict[str, Any]] = None,
         channels: Optional[List[AlertChannel]] = None,
+        action_required: Optional[bool] = False,
+        action_url: Optional[str] = None,
     ) -> bool:
         """
         Queue an alert for sending
@@ -108,7 +111,10 @@ class AlertManager:
             message: Alert message
             strategy_id: Optional strategy ID
             metadata: Optional metadata
+            category: Optional alert catefory
             channels: Channels to use (default: user preferences)
+            action_required: Required action,
+            action_url: Action url
 
         Returns:
             bool: Whether alert was queued
@@ -117,14 +123,14 @@ class AlertManager:
             logger.warning(f"Alert rate limited for user {user_id}, level {level}")
             return False
 
-        alert = Alert(level, title, message, strategy_id, metadata)
+        alert = Alert(level, title, message, strategy_id, metadata, category, action_required, action_url)
 
         prefs = self.user_preferences.get(user_id)
         if not prefs:
             prefs = AlertPreferences.default()
 
         if not channels:
-            channels = prefs.get_channels_for_level(level)
+            channels = prefs.get_channels_for_alert(level)
 
         await self.alert_queue.put((user_id, alert, channels, prefs))
 

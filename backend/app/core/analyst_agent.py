@@ -9,9 +9,11 @@ from datetime import datetime
 from typing import Dict, List, Optional
 
 import pandas as pd
+from anthropic.types import MessageParam
 
-from backend.app.core.data.providers.providers import ProviderFactory
-from backend.app.services.sentiment_service import SentimentService
+from ..config import ANTHROPIC_MODEL_SONNET_4
+from ..core.data.providers.providers import ProviderFactory
+from ..services.sentiment_service import SentimentService
 
 logger = logging.getLogger(__name__)
 
@@ -97,25 +99,18 @@ class FinancialAnalystAgent:
         """
         logger.info(f"🔍 Starting analysis for {ticker}...")
 
-        # Step 1: Gather all data
         data = await self._gather_market_data(ticker)
 
-        # Step 2: Perform technical analysis
         technical = self._perform_technical_analysis(data)
 
-        # Step 3: Calculate fundamental metrics
         fundamentals = self._calculate_fundamentals(data)
 
-        # Step 4: Get peer comparison
         peers = await self._analyze_peers(ticker, data)
 
-        # Step 5: Fetch recent news and sentiment
         news = await self._analyze_news_sentiment(ticker)
 
-        # Step 6: Generate AI analysis
         ai_analysis = await self._generate_ai_analysis(ticker, data, technical, fundamentals, peers, news, depth)
 
-        # Step 7: Compile report
         report = self._compile_report(ticker, data, technical, fundamentals, peers, news, ai_analysis)
 
         logger.info(f"✅ Analysis complete for {ticker}")
@@ -338,15 +333,15 @@ class FinancialAnalystAgent:
         if not self.client:
             return self._generate_fallback_analysis(ticker, data, technical, fundamentals)
 
-        # Build comprehensive prompt
         prompt = self._build_analysis_prompt(ticker, data, technical, fundamentals, peers, news, depth)
 
         try:
+            messages: list[MessageParam] = [{"role": "user", "content": prompt}]
             message = self.client.messages.create(
-                model="claude-sonnet-4-20250514",
+                model=ANTHROPIC_MODEL_SONNET_4,
                 max_tokens=4000,
                 temperature=0.3,  # Lower temperature for factual analysis
-                messages=[{"role": "user", "content": prompt}],
+                messages=messages,
             )
 
             response_text = message.content[0].text
