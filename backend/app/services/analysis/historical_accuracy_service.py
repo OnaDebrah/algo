@@ -8,8 +8,8 @@ accuracy metrics (sensitivity, specificity, lead time, margin of error).
 
 import asyncio
 import logging
-from datetime import datetime, timedelta
-from typing import Dict, List, Optional, Tuple
+from datetime import datetime
+from typing import Dict, List, Optional
 
 import numpy as np
 import pandas as pd
@@ -18,7 +18,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from ...core.data.providers.providers import ProviderFactory
 from ...models.user import User
 from ...strategies.analysis.lppls_bubbles_strategy import LPPLSBubbleStrategy
-from ...strategies.analysis.lstm_stress_strategy import LSTMStressStrategy
 
 logger = logging.getLogger(__name__)
 
@@ -145,7 +144,12 @@ class HistoricalAccuracyService:
         # Step 3-4: Run models (CPU-heavy, run in thread pool)
         result = await asyncio.to_thread(
             self._run_backtest_sync,
-            data, ground_truth, stride_days, threshold, symbol, use_proxy,
+            data,
+            ground_truth,
+            stride_days,
+            threshold,
+            symbol,
+            use_proxy,
         )
 
         # Cache result
@@ -154,9 +158,7 @@ class HistoricalAccuracyService:
 
         return result
 
-    async def _fetch_historical_data(
-        self, symbol: str, user: Optional[User], db: Optional[AsyncSession]
-    ) -> pd.DataFrame:
+    async def _fetch_historical_data(self, symbol: str, user: Optional[User], db: Optional[AsyncSession]) -> pd.DataFrame:
         """Fetch 18+ years of daily data."""
         start_date = datetime(2007, 1, 1)
         end_date = datetime.now()
@@ -252,16 +254,18 @@ class HistoricalAccuracyService:
             drawdown = float(ground_truth["drawdown"].iloc[idx])
             is_crash = bool(ground_truth["is_pre_crash"].iloc[idx] or ground_truth["is_crash_zone"].iloc[idx])
 
-            results.append({
-                "date": date.strftime("%Y-%m-%d"),
-                "price": round(price, 2),
-                "price_normalized": round((price / price_start) * 100, 2),
-                "lppls_prob": round(lppls_prob, 4),
-                "lstm_stress": round(lstm_stress, 4),
-                "combined_prob": round(combined, 4),
-                "drawdown": round(drawdown, 4),
-                "is_crash_zone": is_crash,
-            })
+            results.append(
+                {
+                    "date": date.strftime("%Y-%m-%d"),
+                    "price": round(price, 2),
+                    "price_normalized": round((price / price_start) * 100, 2),
+                    "lppls_prob": round(lppls_prob, 4),
+                    "lstm_stress": round(lstm_stress, 4),
+                    "combined_prob": round(combined, 4),
+                    "drawdown": round(drawdown, 4),
+                    "is_crash_zone": is_crash,
+                }
+            )
 
         logger.info(f"Backtest complete: {len(results)} evaluation points")
 
@@ -422,11 +426,7 @@ class HistoricalAccuracyService:
 
             # Weighted combination
             proxy_prob = (
-                0.30 * super_exp_score
-                + 0.25 * deviation_score
-                + 0.20 * oscillation_score
-                + 0.15 * acceleration_score
-                + 0.10 * vol_regime_score
+                0.30 * super_exp_score + 0.25 * deviation_score + 0.20 * oscillation_score + 0.15 * acceleration_score + 0.10 * vol_regime_score
             )
             return float(min(max(proxy_prob, 0.0), 1.0))
 
@@ -457,11 +457,7 @@ class HistoricalAccuracyService:
             warning_start = peak - pd.Timedelta(days=crash["warning_window_days"])
 
             # Find predictions in the warning window
-            mask = (
-                (pd.to_datetime(df["date"]) >= warning_start)
-                & (pd.to_datetime(df["date"]) <= peak)
-                & (df["combined_prob"] >= threshold)
-            )
+            mask = (pd.to_datetime(df["date"]) >= warning_start) & (pd.to_datetime(df["date"]) <= peak) & (df["combined_prob"] >= threshold)
 
             if mask.any():
                 first_signal = pd.to_datetime(df.loc[mask, "date"].iloc[0])
@@ -506,11 +502,7 @@ class HistoricalAccuracyService:
             for crash in KNOWN_CRASHES:
                 peak = pd.Timestamp(crash["peak_date"])
                 warning_start = peak - pd.Timedelta(days=crash["warning_window_days"])
-                mask = (
-                    (pd.to_datetime(df["date"]) >= warning_start)
-                    & (pd.to_datetime(df["date"]) <= peak)
-                    & (df[col] >= threshold)
-                )
+                mask = (pd.to_datetime(df["date"]) >= warning_start) & (pd.to_datetime(df["date"]) <= peak) & (df[col] >= threshold)
                 if mask.any():
                     first_signal = pd.to_datetime(df.loc[mask, "date"].iloc[0])
                     lead_times.append((peak - first_signal).days)
@@ -543,19 +535,21 @@ class HistoricalAccuracyService:
             full_mask = warning_mask | crash_zone_mask
 
             if not full_mask.any():
-                events.append({
-                    "name": crash["name"],
-                    "peak_date": crash["peak_date"],
-                    "trough_date": crash["trough_date"],
-                    "drawdown_pct": crash["drawdown_pct"],
-                    "detected": False,
-                    "lead_time_days": None,
-                    "avg_probability_in_window": 0.0,
-                    "peak_probability": 0.0,
-                    "lppls_detected": False,
-                    "lstm_detected": False,
-                    "combined_detected": False,
-                })
+                events.append(
+                    {
+                        "name": crash["name"],
+                        "peak_date": crash["peak_date"],
+                        "trough_date": crash["trough_date"],
+                        "drawdown_pct": crash["drawdown_pct"],
+                        "detected": False,
+                        "lead_time_days": None,
+                        "avg_probability_in_window": 0.0,
+                        "peak_probability": 0.0,
+                        "lppls_detected": False,
+                        "lstm_detected": False,
+                        "combined_detected": False,
+                    }
+                )
                 continue
 
             window_data = df[full_mask]
@@ -574,18 +568,20 @@ class HistoricalAccuracyService:
                     first_signal = pd.to_datetime(signals["date"].iloc[0])
                     lead_time = (peak - first_signal).days
 
-            events.append({
-                "name": crash["name"],
-                "peak_date": crash["peak_date"],
-                "trough_date": crash["trough_date"],
-                "drawdown_pct": crash["drawdown_pct"],
-                "detected": combined_detected,
-                "lead_time_days": lead_time,
-                "avg_probability_in_window": round(float(window_data["combined_prob"].mean()), 4),
-                "peak_probability": round(float(window_data["combined_prob"].max()), 4),
-                "lppls_detected": lppls_detected,
-                "lstm_detected": lstm_detected,
-                "combined_detected": combined_detected,
-            })
+            events.append(
+                {
+                    "name": crash["name"],
+                    "peak_date": crash["peak_date"],
+                    "trough_date": crash["trough_date"],
+                    "drawdown_pct": crash["drawdown_pct"],
+                    "detected": combined_detected,
+                    "lead_time_days": lead_time,
+                    "avg_probability_in_window": round(float(window_data["combined_prob"].mean()), 4),
+                    "peak_probability": round(float(window_data["combined_prob"].max()), 4),
+                    "lppls_detected": lppls_detected,
+                    "lstm_detected": lstm_detected,
+                    "combined_detected": combined_detected,
+                }
+            )
 
         return events

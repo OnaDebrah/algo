@@ -8,20 +8,19 @@ hedge recommendations, and alert configuration.
 import asyncio
 import json
 import logging
-from datetime import datetime
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ..deps import get_current_active_user
 from ...database import get_db
 from ...models.crash_prediction import CrashPrediction
 from ...models.user import User
-from ...services.analysis.historical_accuracy_service import HistoricalAccuracyService
 from ...services.analysis.hedge_service import HedgeRecommendationService
+from ...services.analysis.historical_accuracy_service import HistoricalAccuracyService
 from ...services.analysis.lstm_stress_service import LSTMStressService
+from ..deps import get_current_active_user
 
 logger = logging.getLogger(__name__)
 
@@ -250,11 +249,7 @@ async def get_crash_dashboard(
             db=db,
         )
 
-        prediction_result, stress_result = await asyncio.gather(
-            prediction_task,
-            stress_task,
-            return_exceptions=True
-        )
+        prediction_result, stress_result = await asyncio.gather(prediction_task, stress_task, return_exceptions=True)
 
         # Handle prediction result
         prediction_data = {}
@@ -333,10 +328,15 @@ async def get_crash_dashboard(
                 combined_score=crash_prob,
                 hedge_strategy=hedge_data.get("strategy"),
                 hedge_cost=hedge_data.get("cost"),
-                meta_data=json.loads(json.dumps({
-                    "prediction": prediction_data,
-                    "stress": {k: v for k, v in stress_data.items() if k != "stress_history"},
-                }, default=str)),
+                meta_data=json.loads(
+                    json.dumps(
+                        {
+                            "prediction": prediction_data,
+                            "stress": {k: v for k, v in stress_data.items() if k != "stress_history"},
+                        },
+                        default=str,
+                    )
+                ),
             )
             db.add(prediction)
             await db.commit()
@@ -388,9 +388,7 @@ async def configure_crash_alerts(
         # Store preferences in user settings
         from ...models.user_settings import UserSettings
 
-        result = await db.execute(
-            select(UserSettings).where(UserSettings.user_id == current_user.id)
-        )
+        result = await db.execute(select(UserSettings).where(UserSettings.user_id == current_user.id))
         settings = result.scalar_one_or_none()
 
         crash_alert_config = {
