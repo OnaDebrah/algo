@@ -281,8 +281,7 @@ class MacroFeatureEngine:
 
         # Market-implied growth
         if "Close" in market_data.columns:
-            # Cyclical vs defensive ratio
-            # TODO This would require sector indices - simplified version
+            # Market momentum as growth proxy (cyclical/defensive ratio requires sector indices)
             features["market_momentum_3m"] = market_data["Close"].pct_change(63)
             features["market_momentum_12m"] = market_data["Close"].pct_change(252)
 
@@ -301,7 +300,7 @@ class MacroFeatureEngine:
         """Apply PCA for dimensionality reduction"""
         # Select numeric columns
         numeric_cols = features.select_dtypes(include=[np.number]).columns
-        X = features[numeric_cols].fillna(method="ffill").fillna(0)
+        X = features[numeric_cols].ffill().fillna(0)
 
         # Scale
         X_scaled = self.scaler.fit_transform(X)
@@ -324,7 +323,7 @@ class MacroFeatureEngine:
     def _handle_missing(self, features: pd.DataFrame) -> pd.DataFrame:
         """Handle missing values intelligently"""
         # Forward fill then backward fill
-        features = features.fillna(method="ffill").fillna(method="bfill")
+        features = features.ffill().bfill()
 
         # Fill any remaining with 0
         features = features.fillna(0)

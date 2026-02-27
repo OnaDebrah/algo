@@ -57,6 +57,14 @@ class StrategyPerformance:
     num_trades: int = 0
     last_update: datetime = field(default_factory=datetime.now)
     regime_performance: Dict[str, float] = field(default_factory=dict)
+    # Extended metrics
+    calmar_ratio: float = 0.0
+    information_ratio: float = 0.0
+    current_drawdown: float = 0.0
+    max_drawdown_days: int = 0
+    signal_accuracy: float = 0.5
+    long_term_accuracy: float = 0.5
+    signal_frequency: float = 0.0
 
 
 class AdaptiveStrategySwitcher(BaseStrategy):
@@ -112,6 +120,13 @@ class AdaptiveStrategySwitcher(BaseStrategy):
 
         logger.info(f"AdaptiveStrategySwitcher initialized with {len(self.strategy_catalog)} strategies")
 
+    @staticmethod
+    def _ensure_tz_naive(ts):
+        """Convert any timestamp to tz-naive for safe datetime arithmetic."""
+        if hasattr(ts, "tzinfo") and ts.tzinfo is not None:
+            return ts.replace(tzinfo=None)
+        return ts
+
     def _initialize_strategies(self) -> Dict[str, StrategyConfig]:
         """Initialize the catalog of available strategies"""
         return {
@@ -127,7 +142,7 @@ class AdaptiveStrategySwitcher(BaseStrategy):
             "ts_momentum": StrategyConfig(
                 strategy_class=TimeSeriesMomentumStrategy,
                 strategy_type=StrategyType.MOMENTUM,
-                default_params={"lookback": 12, "holding_period": 3},
+                default_params={"asset_symbol": ""},
                 weight=1.0,
                 preferred_regimes=["bull", "recovery"],
                 avoided_regimes=["bear", "crisis"],
@@ -152,7 +167,7 @@ class AdaptiveStrategySwitcher(BaseStrategy):
             "volatility_breakout": StrategyConfig(
                 strategy_class=VolatilityBreakoutStrategy,
                 strategy_type=StrategyType.BREAKOUT,
-                default_params={"period": 20, "std_dev": 2.0},
+                default_params={"vol_multiplier": 2.0, "trend_lookback": 20, "atr_period": 14},
                 weight=1.0,
                 preferred_regimes=["high_volatility", "breakout"],
                 avoided_regimes=["low_volatility", "range_bound"],
@@ -219,16 +234,15 @@ class AdaptiveStrategySwitcher(BaseStrategy):
 
     def _update_state(self, data: pd.DataFrame):
         """Update regime and performance metrics"""
-        current_time = data.index[-1] if hasattr(data.index, "max") else datetime.now()
+        current_time = self._ensure_tz_naive(data.index[-1]) if hasattr(data.index, "max") else datetime.now()
 
         # Update regime periodically
         if self.last_update is None or (hasattr(current_time, "day") and (current_time - self.last_update).days >= self.regime_update_freq):
-            if len(data) > self.lookback_days:
-                recent_data = data.tail(self.lookback_days)
-                regime_df = self.regime_detector.detect_regimes(recent_data)
-
-                if not regime_df.empty:
-                    self.last_regime = regime_df.iloc[-1]
+            if len(data) >= 50:  # Need minimum bars for statistical regime detection
+                recent_data = data.tail(min(self.lookback_days, len(data)))
+                regime_result = self.regime_detector.detect_current_regime(recent_data["Close"], recent_data.get("Volume"))
+                if regime_result and regime_result.get("regime") != "unknown":
+                    self.last_regime = regime_result
                     logger.info(f"Regime updated: {self.last_regime.get('regime')}")
 
             self.last_update = current_time
@@ -309,8 +323,12 @@ class AdaptiveStrategySwitcher(BaseStrategy):
         if strategy_name not in self.strategy_instances:
             config = self.strategy_catalog.get(strategy_name)
             if config:
-                strategy = config.strategy_class(name=strategy_name, params=config.default_params)
-                self.strategy_instances[strategy_name] = strategy
+                try:
+                    strategy = config.strategy_class(**config.default_params)
+                    self.strategy_instances[strategy_name] = strategy
+                except Exception as e:
+                    logger.warning(f"Failed to instantiate {strategy_name}: {e}")
+                    return None
 
         return self.strategy_instances.get(strategy_name)
 
@@ -401,8 +419,8 @@ class AdaptiveStrategySwitcher(BaseStrategy):
             self._last_prices = {}
             self._strategy_weights_history = {name: [] for name in self.strategy_catalog}
 
-        # Store timestamp
-        current_time = timestamp or datetime.now()
+        # Store timestamp (strip tz to avoid tz-naive/tz-aware mismatch)
+        current_time = self._ensure_tz_naive(timestamp) if timestamp else datetime.now()
 
         # Update price history
         if current_price is not None:
@@ -745,10 +763,18 @@ class AdaptiveStrategySwitcher(BaseStrategy):
                 perf.calmar_ratio = 0.0
 
             # Information ratio (excess return over benchmark)
-            # This would need benchmark data
             if hasattr(self, "_benchmark_returns") and self._benchmark_returns:
-                # Align dates and calculate
-                pass
+                try:
+                    bench = np.array(self._benchmark_returns[-len(recent_returns) :])
+                    if len(bench) == len(recent_returns):
+                        excess = np.array(recent_returns) - bench
+                        tracking_error = np.std(excess) * np.sqrt(252)
+                        if tracking_error > 1e-8:
+                            perf.information_ratio = float(np.mean(excess) * 252 / tracking_error)
+                        else:
+                            perf.information_ratio = 0.0
+                except Exception:
+                    perf.information_ratio = 0.0
 
             # ===== SIGNAL QUALITY METRICS =====
 
@@ -1184,7 +1210,7 @@ class AdaptiveStrategySwitcher(BaseStrategy):
             "regime": regime_info,
             "market_conditions": market_conditions,
             "current_drawdown": self.current_drawdown,
-            "rebalance_needed": self._should_rebalance(datetime.now()),
+            "rebalance_needed": self._should_rebalance(self._ensure_tz_naive(data.index[-1]) if len(data) > 0 else datetime.now()),
         }
 
     def _should_rebalance(self, current_time: datetime) -> bool:

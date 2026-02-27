@@ -102,11 +102,6 @@ class TradingEngine:
                 }
 
                 self.trades.append(trade_data)
-                try:
-                    await self.trading_service.save_trade(self.db, trade_data)
-                except Exception as e:
-                    await self.db.rollback()
-                    logger.debug(f"Trade DB save skipped (backtest mode): {e}")
 
                 logger.info(f"BUY: {quantity} {symbol} @ ${slipped_price:.2f} " f"(Cost: ${total_cost:.2f}, Comm: ${commission:.2f})")
 
@@ -140,11 +135,6 @@ class TradingEngine:
             }
 
             self.trades.append(trade_data)
-            try:
-                await self.trading_service.save_trade(self.db, trade_data)
-            except Exception as e:
-                await self.db.rollback()
-                logger.debug(f"Trade DB save skipped (backtest mode): {e}")
 
             logger.info(
                 f"SELL: {self.position['quantity']} {symbol} @ ${slipped_price:.2f} "

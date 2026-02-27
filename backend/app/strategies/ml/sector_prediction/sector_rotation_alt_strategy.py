@@ -7,7 +7,6 @@ import numpy as np
 import pandas as pd
 from sklearn.ensemble import GradientBoostingRegressor, RandomForestRegressor
 from sklearn.preprocessing import StandardScaler
-from utils.async_helper import AsyncHelper
 
 from ....analytics.market_regime_detector import MarketRegimeDetector
 from ....core import fetch_financials, fetch_stock_data
@@ -15,6 +14,7 @@ from ....core.data.fetchers.alternative_data_fetcher import AlternativeDataSourc
 from ....core.data.fetchers.fundamentals_fetcher import FundamentalsFetcher
 from ....strategies import BaseStrategy
 from ....strategies.ml.sector_prediction.factor_explainer import FactorExplainer
+from ....utils.async_helper import AsyncHelper
 from ....utils.helpers import SECTOR_MAPPINGS
 
 logger = logging.getLogger(__name__)
@@ -151,8 +151,12 @@ class SectorRotationAltStrategy(BaseStrategy):
         # Get current regime
         regime = None
         if self.regime_detector and len(data) > 50:
-            regime_df = self.regime_detector.detect_regime_ensemble(data)
-            regime = regime_df["regime"].iloc[-1] if not regime_df.empty else None
+            try:
+                regime_result = self.regime_detector.detect_current_regime(data["Close"], data.get("Volume"))
+                regime = regime_result.get("regime") if regime_result else None
+            except Exception as e:
+                logger.debug(f"Regime detection failed: {e}")
+                regime = None
 
         sector_predictions = []
         sector_explanations = {}
@@ -745,9 +749,8 @@ class SectorRotationAltStrategy(BaseStrategy):
         if not self.regime_detector or len(data) < 50:
             return None
         try:
-            regime_data = self.regime_detector.detect_regime_ensemble(data)
-            regime = regime_data.get("regime") if regime_data else None
-            return regime
+            regime_result = self.regime_detector.detect_current_regime(data["Close"], data.get("Volume"))
+            return regime_result.get("regime") if regime_result else None
         except Exception as e:
             logger.error(f"Error detecting regime: {e}")
             return None
@@ -803,8 +806,8 @@ class SectorRotationAltStrategy(BaseStrategy):
                 vix = await fetch_stock_data("^VIX", period=f"{self.lookback_years}y", interval="1mo")
                 if vix is not None and not vix.empty:
                     macro_data["vix"] = vix["Close"]
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug(f"Failed to fetch VIX: {e}")
 
             # Fetch SPY for market-level features
             try:
@@ -813,16 +816,16 @@ class SectorRotationAltStrategy(BaseStrategy):
                     macro_data["market_return"] = spy["Close"].pct_change()
                     macro_data["market_momentum_3m"] = spy["Close"].pct_change(3)
                     macro_data["market_momentum_6m"] = spy["Close"].pct_change(6)
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug(f"Failed to fetch SPY: {e}")
 
             # Fetch Treasury proxy (TLT) for interest rate environment
             try:
                 tlt = await fetch_stock_data("TLT", period=f"{self.lookback_years}y", interval="1mo")
                 if tlt is not None and not tlt.empty:
                     macro_data["bond_return"] = tlt["Close"].pct_change()
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug(f"Failed to fetch TLT: {e}")
 
             return macro_data.dropna() if not macro_data.empty else pd.DataFrame()
 

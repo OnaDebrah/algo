@@ -8,7 +8,7 @@ from ...services.brokers.paper_client import PaperTradingClient
 logger = logging.getLogger(__name__)
 
 
-class BrokerFactory:
+class BrokerService:
     """Factory for creating broker clients"""
 
     @staticmethod

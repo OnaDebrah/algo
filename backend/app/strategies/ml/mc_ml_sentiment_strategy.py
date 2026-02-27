@@ -29,10 +29,6 @@ try:
 
     ML_AVAILABLE = True
 except ImportError:
-    from sklearn.ensemble import GradientBoostingRegressor, RandomForestRegressor
-    from sklearn.model_selection import train_test_split
-    from sklearn.preprocessing import StandardScaler
-
     ML_AVAILABLE = False
 
 warnings.filterwarnings("ignore")
@@ -81,12 +77,11 @@ class SentimentAnalyzer:
 
     def _get_news_sentiment(self, symbol: str, date: datetime) -> float:
         """
-        Get news sentiment score
-        In production: Use APIs like RavenPack, Bloomberg, or NewsAPI
+        Get news sentiment score.
+        Returns 0.0 (neutral) as a safe default — no external API dependency.
+        In production: integrate RavenPack, Bloomberg, or NewsAPI.
         """
-        # Placeholder: Random walk with mean reversion for demo
-        np.random.seed(hash(f"{symbol}{date}") % (2**32))
-        return np.clip(np.random.normal(0, 0.3), -1, 1)
+        return 0.0
 
     def _get_stocktwits_sentiment(self, symbol: str, date: datetime) -> float:
         """
@@ -149,8 +144,15 @@ class SentimentAnalyzer:
     def _get_twitter_sentiment(self, symbol: str, date: datetime) -> float:
         """
         Institutional grade sentiment analysis using VADER and Weighted Influence.
+        Requires a valid Twitter/X API bearer token in TWITTER_BEARER_TOKEN env var.
+        Returns 0.0 (neutral) if credentials are not configured.
         """
-        BEARER_TOKEN = "YOUR_TWITTER_BEARER_TOKEN"
+        import os
+
+        BEARER_TOKEN = os.environ.get("TWITTER_BEARER_TOKEN", "")
+        if not BEARER_TOKEN or BEARER_TOKEN == "YOUR_TWITTER_BEARER_TOKEN":
+            return 0.0  # No credentials configured
+
         query = f"({symbol} OR #{symbol}) -is:retweet lang:en"
 
         analyzer = SentimentIntensityAnalyzer()
@@ -210,9 +212,17 @@ class SentimentAnalyzer:
         """
         Scrapes high-signal subreddits using PRAW and calculates
         a weighted sentiment score based on post engagement.
+        Requires REDDIT_CLIENT_ID and REDDIT_CLIENT_SECRET env vars.
+        Returns 0.0 (neutral) if credentials are not configured.
         """
-        # 1. Authentication (Use environment variables for these)
-        reddit = praw.Reddit(client_id="YOUR_CLIENT_ID", client_secret="YOUR_CLIENT_SECRET", user_agent="FinancialAnalystBot/1.0 by /u/YourUsername")
+        import os
+
+        client_id = os.environ.get("REDDIT_CLIENT_ID", "")
+        client_secret = os.environ.get("REDDIT_CLIENT_SECRET", "")
+        if not client_id or client_id == "YOUR_CLIENT_ID":
+            return 0.0  # No credentials configured
+
+        reddit = praw.Reddit(client_id=client_id, client_secret=client_secret, user_agent="FinancialAnalystBot/1.0")
 
         analyzer = SentimentIntensityAnalyzer()
         subreddits = ["wallstreetbets", "stocks", "investing", "options"]
@@ -266,16 +276,17 @@ class SentimentAnalyzer:
 
         return float(np.sum(weighted_scores) / total_weight)
 
+    def _get_cached_sentiment(self, symbol: str) -> float:
+        """Return cached sentiment for symbol, or neutral if not available."""
+        return self.sentiment_cache.get(symbol, 0.0)
+
     def _get_options_sentiment(self, symbol: str, date: datetime) -> float:
         """
-        Get options market sentiment (put/call ratio, IV skew)
-        In production: Calculate from actual options data
+        Get options market sentiment (put/call ratio, IV skew).
+        Returns 0.0 (neutral) as a safe default — no external API dependency.
+        In production: Calculate from actual options chain data.
         """
-        np.random.seed(hash(f"options{symbol}{date}") % (2**32))
-        # Put/call ratio: >1 = bearish, <1 = bullish
-        put_call_ratio = np.random.uniform(0.5, 1.5)
-        sentiment = (1.0 - put_call_ratio) / 0.5  # Normalize to [-1, 1]
-        return np.clip(sentiment, -1, 1)
+        return 0.0
 
 
 class MLPredictor:
@@ -389,7 +400,13 @@ class MLPredictor:
         # Estimate uncertainty (simplified)
         if hasattr(self.model, "estimators_"):
             # For ensemble methods, use prediction variance
-            all_predictions = np.array([tree.predict(X_scaled) for tree in self.model.estimators_])
+            # GradientBoosting: estimators_ is 2D array (n_estimators, 1) of DecisionTreeRegressors
+            # RandomForest: estimators_ is a flat list of DecisionTreeRegressors
+            estimators = self.model.estimators_
+            if hasattr(estimators, "ravel"):
+                # GradientBoosting: flatten 2D array to get individual trees
+                estimators = estimators.ravel()
+            all_predictions = np.array([tree.predict(X_scaled) for tree in estimators])
             uncertainty = np.std(all_predictions, axis=0)
         else:
             # Fixed uncertainty for non-ensemble methods
@@ -623,8 +640,12 @@ class MonteCarloMLSentimentStrategy(BaseStrategy):
         # Prepare features
         df = self.calculate_indicators(data)
 
-        # Get feature columns (exclude price data)
-        feature_cols = [col for col in df.columns if col not in ["open", "high", "low", "close", "volume"]]
+        # Get feature columns (exclude price data and output columns)
+        feature_cols = [
+            col
+            for col in df.columns
+            if col not in ["open", "high", "low", "close", "volume", "signal", "position_size", "expected_return", "confidence"]
+        ]
         features = df[feature_cols]
 
         # Target: next day return

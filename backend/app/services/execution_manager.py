@@ -12,7 +12,7 @@ from sqlalchemy import select
 from ..api.routes.settings import get_or_create_settings
 from ..models import UserSettings
 from ..models.live import LiveStrategy, StrategyStatus
-from ..services.brokers.broker_service import BrokerClient, BrokerFactory
+from ..services.brokers.broker_service import BrokerClient, BrokerService
 from ..services.strategy_executor_service import StrategyExecutor
 
 logger = logging.getLogger(__name__)
@@ -182,7 +182,7 @@ class ExecutionManager:
             return self.brokers[broker_name]
 
         try:
-            broker = BrokerFactory.create_broker(broker_name)
+            broker = BrokerService.create_broker(broker_name)
 
             connected = await broker.connect(user_settings)
 
