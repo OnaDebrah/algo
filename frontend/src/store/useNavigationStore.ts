@@ -7,9 +7,11 @@ type PageKey =
     | 'live'
     | 'advisor'
     | 'regime'
+    | 'crash-prediction'
     | 'analyst'
     | 'options'
     | 'portfolio'
+    | 'sector-scanner'
     | 'strategy-builder'
     | 'marketplace'
     | 'settings';
