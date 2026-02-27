@@ -3,14 +3,17 @@ Analytics routes
 """
 
 from datetime import datetime, timedelta
+from typing import List
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ...api.deps import get_current_active_user
 from ...database import get_db
 from ...models.user import User
+from ...services.analysis.lppls_service import LPPLSService
 from ...services.trading_service import TradingService
+from .. import deps
 
 router = APIRouter(prefix="/analytics", tags=["Analytics"])
 
@@ -113,3 +116,51 @@ async def get_drawdown_analysis(portfolio_id: int, current_user: User = Depends(
     analysis = calculate_max_drawdown(equity_curve)
 
     return analysis
+
+
+@router.get("/lppls/analyze/{symbol}")
+async def analyze_bubble(
+    symbol: str,
+    lookback_days: int = Query(365, ge=30, le=730),
+    confidence_threshold: float = Query(0.6, ge=0.1, le=1.0),
+    current_user: User = Depends(deps.get_current_user),
+    db: AsyncSession = Depends(deps.get_db),
+):
+    """
+    Analyze a symbol for bubble detection using LPPLS model
+
+    Returns bubble probability, confidence score, and critical date
+    """
+    service = LPPLSService()
+
+    params = {"lookback_window": lookback_days, "confidence_threshold": confidence_threshold}
+
+    result = await service.analyze_symbol(symbol=symbol, user=current_user, db=db, lookback_days=lookback_days, params=params)
+
+    if "error" in result:
+        raise HTTPException(status_code=400, detail=result["error"])
+
+    return result
+
+
+@router.get("/lppls/screen")
+async def screen_bubbles(
+    symbols: List[str] = Query(..., description="List of symbols to screen"),
+    current_user: User = Depends(deps.get_current_user),
+    db: AsyncSession = Depends(deps.get_db),
+):
+    """
+    Screen multiple symbols for bubble detection
+
+    Returns sorted list by crash probability
+    """
+    service = LPPLSService()
+
+    results = await service.analyze_multiple(symbols=symbols, user=current_user, db=db)
+
+    return {
+        "timestamp": datetime.now().isoformat(),
+        "symbols_analyzed": len(symbols),
+        "bubbles_detected": sum(1 for r in results.values() if r.get("bubble_detected")),
+        "results": results,
+    }

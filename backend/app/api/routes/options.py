@@ -1,15 +1,16 @@
 import logging
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 
 import numpy as np
 import pandas as pd
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ...analytics.options_analytics import OptionsAnalytics
 from ...api.deps import get_current_active_user
 from ...core.data.providers.providers import ProviderFactory
 from ...core.options_engine import OptionsBacktestEngine, backtest_options_strategy
+from ...core.quantlib_hedge import OptionContract, QuantLibHedgeEngine
 from ...database import get_db
 from ...models import User
 from ...schemas.options import (
@@ -36,10 +37,12 @@ from ...schemas.options import (
     StrikeOptimizerRequest,
     StrikeOptimizerResponse,
 )
+from ...services.analysis.hedge_service import HedgeRecommendationService
 from ...services.auth_service import AuthService
 from ...services.market_service import get_market_service
 from ...strategies.options_builder import OptionsStrategy, OptionsStrategyBuilder, OptionType, create_preset_strategy
 from ...strategies.options_strategies import OptionsChain
+from .. import deps
 
 logger = logging.getLogger(__name__)
 
@@ -159,7 +162,7 @@ def _generate_mock_chain(symbol: str, price: float) -> ChainResponse:
             }
         )
 
-    return ChainResponse(symbol=symbol, underlying_price=price, expiration_dates=expiration_dates, calls=calls, puts=puts)
+    return ChainResponse(symbol=symbol, current_price=price, expiration_dates=expiration_dates, calls=calls, puts=puts)
 
 
 @router.post("/chain", response_model=ChainResponse)
@@ -705,10 +708,8 @@ async def calculate_portfolio_stats(
     """
     await AuthService.track_usage(db, current_user.id, "calculate_portfolio_stats")
     try:
-        # Convert positions to dict format
-        positions = [pos.dict() for pos in request.positions]
+        positions = [pos.model_dump() for pos in request.positions]
 
-        # Calculate stats
         stats = OptionsAnalytics.calculate_options_portfolio_stats(positions)
 
         return PortfolioStatsResponse(**stats)
@@ -757,3 +758,103 @@ async def run_monte_carlo(request: MonteCarloRequest, current_user: User = Depen
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Monte Carlo simulation failed: {str(e)}")
+
+
+@router.get("/hedge/recommendation")
+async def get_hedge_recommendation(
+    portfolio_value: float = Query(..., description="Total portfolio value"),
+    portfolio_beta: float = Query(1.0, description="Portfolio beta"),
+    primary_index: str = Query("SPY", description="Primary index for hedging"),
+    current_user: User = Depends(deps.get_current_user),
+    db: AsyncSession = Depends(deps.get_db),
+):
+    """
+    Get comprehensive hedge recommendation based on ML crash predictions
+
+    Combines LPPLS bubble detection and LSTM stress models
+    with QuantLib options pricing to suggest optimal hedges
+    """
+    service = HedgeRecommendationService()
+
+    try:
+        recommendation = await service.get_hedge_recommendation(
+            user=current_user, db=db, portfolio_value=portfolio_value, portfolio_beta=portfolio_beta, primary_index=primary_index
+        )
+
+        return recommendation
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/hedge/{symbol}")
+async def analyze_option(
+    symbol: str,
+    option_type: str = Query(..., regex="^(call|put)$"),
+    strike: float = Query(...),
+    expiration: date = Query(...),
+    current_user: User = Depends(deps.get_current_user),
+    db: AsyncSession = Depends(deps.get_db),
+):
+    """
+    Analyze a specific option and calculate Greeks
+    """
+
+    # Get current market data
+    provider = ProviderFactory()
+    quote = await provider.get_provider().get_quote(symbol, current_user, db)
+
+    # Setup hedge engine
+    engine = QuantLibHedgeEngine()
+    engine.setup_market(
+        spot_price=quote["price"],
+        risk_free_rate=0.05,  # Would fetch from Treasury data
+        volatility=0.20,  # Would fetch from options chain
+    )
+
+    option = OptionContract(symbol=symbol, option_type=option_type, strike=strike, expiration=expiration)
+
+    # Price option
+    result = engine.price_option(option)
+
+    # Add hedge recommendation
+    hedge = engine.calculate_delta_hedge(option, quote["price"] * 100, 1.0)
+
+    return {
+        "option": {"symbol": symbol, "type": option_type, "strike": strike, "expiration": expiration.isoformat()},
+        "pricing": result,
+        "hedge_recommendation": hedge,
+    }
+
+
+@router.get("/hedge/portfolio")
+async def hedge_portfolio(
+    portfolio_value: float = Query(...),
+    portfolio_beta: float = Query(1.0),
+    index_symbol: str = Query("SPY"),
+    hedge_percentage: float = Query(0.5, ge=0.1, le=1.0),
+    current_user: User = Depends(deps.get_current_user),
+    db: AsyncSession = Depends(deps.get_db),
+):
+    """
+    Calculate portfolio hedge using index options
+    """
+
+    # Get index price
+    provider = ProviderFactory()
+    quote = await provider.get_provider().get_quote(index_symbol, current_user, db)
+
+    # Setup hedge engine
+    engine = QuantLibHedgeEngine()
+    engine.setup_market(spot_price=quote["price"], risk_free_rate=0.05, volatility=0.20)
+
+    # Calculate portfolio hedge
+    result = engine.calculate_portfolio_hedge(
+        portfolio_value=portfolio_value,
+        portfolio_beta=portfolio_beta,
+        index_symbol=index_symbol,
+        index_price=quote["price"],
+        hedge_percentage=hedge_percentage,
+    )
+
+    return result

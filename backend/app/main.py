@@ -14,6 +14,7 @@ from .api.routes import (
     analytics,
     auth,
     backtest,
+    crash_prediction,
     health,
     market,
     marketplace,
@@ -107,4 +108,5 @@ app.include_router(social.router)
 app.include_router(settings_router.router)
 app.include_router(health.router)
 app.include_router(sector.router)
+app.include_router(crash_prediction.router)
 app.include_router(root.router)

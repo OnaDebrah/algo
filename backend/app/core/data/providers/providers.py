@@ -67,8 +67,12 @@ class ProviderFactory:
                 logger.debug("Using IEX provider")
                 return IEXProvider()
 
+            if provider_type == "yahoo":
+                logger.debug("Using YAHOO provider")
+                return IEXProvider()
+
         except Exception as e:
-            logger.error(f"Error getting provider: {e}")
+            logger.debug(f"No custom provider configured, using default: {e}")
 
         return self._default_provider
 

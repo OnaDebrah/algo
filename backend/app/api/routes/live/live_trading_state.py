@@ -5,7 +5,7 @@ from typing import List, Optional
 from ....models import UserSettings
 from ....schemas.live import BrokerType, EngineStatus
 from ....services.brokers.base_client import BrokerClient
-from ....services.brokers.broker_service import BrokerFactory
+from ....services.brokers.broker_service import BrokerService
 
 logger = logging.getLogger(__name__)
 
@@ -27,7 +27,7 @@ class LiveTradingState:
     async def connect(self, broker_type: str, user_settings: UserSettings) -> bool:
         """Connect to broker using factory"""
         try:
-            self.broker_client = BrokerFactory.create_broker(broker_type)
+            self.broker_client = BrokerService.create_broker(broker_type)
             self.broker_type = broker_type
 
             success = await self.broker_client.connect(user_settings)

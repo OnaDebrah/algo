@@ -10,7 +10,6 @@ from ..core.data.fetchers.fundamentals_fetcher import FundamentalsFetcher
 from ..core.data.providers.providers import ProviderFactory
 from ..strategies.ml.stock_selection.factor_engine import FactorEngine
 from ..strategies.ml.stock_selection.ranking_pipeline import (
-    RankedStock,
     RankingConfig,
     RankingMethod,
     RankingPipeline,
@@ -43,12 +42,14 @@ class SectorScannerService:
         sectors = []
         for name, stocks in FundamentalsFetcher.SECTOR_MAPPINGS.items():
             etf = FundamentalsFetcher.SECTOR_ETFS.get(name, "")
-            sectors.append({
-                "name": name,
-                "etf": etf,
-                "stock_count": len(stocks),
-                "top_stocks": stocks[:5],
-            })
+            sectors.append(
+                {
+                    "name": name,
+                    "etf": etf,
+                    "stock_count": len(stocks),
+                    "top_stocks": stocks[:5],
+                }
+            )
         return sectors
 
     async def scan_sectors(self, period: str = "6mo") -> Dict[str, Any]:
@@ -231,17 +232,19 @@ class SectorScannerService:
             # Compute suitability score based on how well the strategy fits the regime
             suitability = self._compute_suitability(info, regime, price_data)
 
-            recommendations.append({
-                "strategy_name": info.name,
-                "strategy_key": key,
-                "category": info.category.value,
-                "suitability_score": round(suitability, 2),
-                "regime": regime,
-                "reason": self._get_recommendation_reason(info, regime),
-                "backtest_mode": info.backtest_mode,
-                "complexity": info.complexity,
-                "time_horizon": info.time_horizon,
-            })
+            recommendations.append(
+                {
+                    "strategy_name": info.name,
+                    "strategy_key": key,
+                    "category": info.category.value,
+                    "suitability_score": round(suitability, 2),
+                    "regime": regime,
+                    "reason": self._get_recommendation_reason(info, regime),
+                    "backtest_mode": info.backtest_mode,
+                    "complexity": info.complexity,
+                    "time_horizon": info.time_horizon,
+                }
+            )
 
         # Sort by suitability
         recommendations.sort(key=lambda x: x["suitability_score"], reverse=True)

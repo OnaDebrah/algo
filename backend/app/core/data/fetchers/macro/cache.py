@@ -501,7 +501,7 @@ class MacroCache:
                     to_delete = []
 
                     for entry in entries.scalars():
-                        meta = entry.metadata
+                        meta = entry.meta_data
                         if indicators and set(indicators) != set(meta.get("indicators", [])):
                             continue
                         if country and meta.get("country") != country:

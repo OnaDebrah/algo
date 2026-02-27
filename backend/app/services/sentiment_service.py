@@ -1,5 +1,6 @@
 import json
 import logging
+import warnings
 from typing import Dict, List, Optional, Union
 
 import torch
@@ -9,6 +10,8 @@ from transformers import AutoModelForSequenceClassification, AutoTokenizer
 
 from ..config import ANTHROPIC_MODEL_HAIKU_3, settings
 from ..core.data.providers.providers import ProviderFactory
+
+warnings.filterwarnings("ignore", category=FutureWarning)
 
 logger = logging.getLogger(__name__)
 

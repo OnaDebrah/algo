@@ -107,8 +107,8 @@ async def reset_db() -> None:
         raise RuntimeError("Cannot reset database in production!")
 
     async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.drop_all)
-        await conn.run_sync(Base.metadata.create_all)
+        await conn.run_sync(Base.meta_data.drop_all)
+        await conn.run_sync(Base.meta_data.create_all)
         logger.warning("Database reset completed - all data deleted!")
 
 
