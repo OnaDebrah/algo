@@ -31,7 +31,9 @@ const Sidebar = ({ currentPage, setCurrentPage, user, onLogout }: any) => {
             items: [
                 { id: 'advisor', icon: Zap, label: 'AI Strategy Advisor' },
                 { id: 'regime', icon: TrendingUp, label: 'Market Regime' },
-                { id: 'analyst', icon: Activity, label: 'Deep Analyst' }
+                { id: 'crash-prediction', icon: Shield, label: 'Crash Prediction' },
+                { id: 'analyst', icon: Activity, label: 'Deep Analyst' },
+                { id: 'sector-scanner', icon: Target, label: 'Sector Scanner' }
             ]
         },
         {
