@@ -356,9 +356,10 @@ class WalkForwardService:
         self, request: WFARequest, data: pd.DataFrame, params: Dict[str, Any], capital: float, start_timestamp: Any = None
     ) -> Tuple[BacktestResult, List, List]:
         """Helper to run a single backtest on a data slice."""
+        from strategies.catelog.strategy_catalog import get_catalog
+
         from ..core.risk_manager import RiskManager
         from ..core.trading_engine import TradingEngine
-        from strategies.catelog.strategy_catalog import get_catalog
 
         # Ensure window parameters are integers
         sanitized_params = self._sanitize_params(params)
