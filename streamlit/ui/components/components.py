@@ -14,7 +14,12 @@ PRICING_CONFIG = [
         "icon": "🆓",
         "price": "€0",
         "period": "forever",
-        "features": ["Portfolio Dashboard", "Basic Backtesting", "10 Backtests/month", "Paper Trading"],
+        "features": [
+            "Portfolio Dashboard",
+            "Basic Backtesting",
+            "10 Backtests/month",
+            "Paper Trading",
+        ],
         "cta": "Start Free",
         "highlight": False,
     },
@@ -23,7 +28,12 @@ PRICING_CONFIG = [
         "icon": "🥉",
         "price": "€0",
         "period": "per month",
-        "features": ["Everything in FREE", "Multi-Asset Trading", "Advanced Analytics", "Market Data API"],
+        "features": [
+            "Everything in FREE",
+            "Multi-Asset Trading",
+            "Advanced Analytics",
+            "Market Data API",
+        ],
         "cta": "Start Trial",
         "highlight": False,
     },
@@ -32,7 +42,12 @@ PRICING_CONFIG = [
         "icon": "⭐",
         "price": "€0",
         "period": "per month",
-        "features": ["Everything in BASIC", "ML Strategies", "Options Trading", "AI Strategy Advisor"],
+        "features": [
+            "Everything in BASIC",
+            "ML Strategies",
+            "Options Trading",
+            "AI Strategy Advisor",
+        ],
         "cta": "Start Trial",
         "highlight": True,
     },
@@ -41,7 +56,12 @@ PRICING_CONFIG = [
         "icon": "💎",
         "price": "Custom",
         "period": "contact sales",
-        "features": ["Everything in PRO", "Live Trading", "Dedicated API", "Dedicated Support"],
+        "features": [
+            "Everything in PRO",
+            "Live Trading",
+            "Dedicated API",
+            "Dedicated Support",
+        ],
         "cta": "Contact Sales",
         "highlight": False,
     },
@@ -65,7 +85,9 @@ def get_hero_html():
 
 
 def render_stats_section():
-    st.markdown('<div id="stats" style="margin: 4rem 0;"></div>', unsafe_allow_html=True)
+    st.markdown(
+        '<div id="stats" style="margin: 4rem 0;"></div>', unsafe_allow_html=True
+    )
     C = OracleTheme.COLORS
 
     st.markdown(
@@ -103,13 +125,20 @@ def render_stats_section():
 
 def render_pricing_section():
     C = OracleTheme.COLORS
-    st.markdown(f'<h2 style="text-align: center; color: {C["text_primary"]};">Plans for Every Trader</h2>', unsafe_allow_html=True)
+    st.markdown(
+        f'<h2 style="text-align: center; color: {C["text_primary"]};">Plans for Every Trader</h2>',
+        unsafe_allow_html=True,
+    )
 
     cols = st.columns(4)
     for col, tier in zip(cols, PRICING_CONFIG):
         with col:
             # Theme Variable Extraction to prevent Python 3.10 f-string errors
-            border_style = f"2px solid {C['primary']}" if tier["highlight"] else f"1px solid {C['border_subtle']}"
+            border_style = (
+                f"2px solid {C['primary']}"
+                if tier["highlight"]
+                else f"1px solid {C['border_subtle']}"
+            )
             bg_color = C["bg_tertiary"] if tier["highlight"] else C["bg_card"]
 
             badge_html = (
@@ -142,7 +171,12 @@ def render_pricing_section():
                 unsafe_allow_html=True,
             )
 
-            if st.button(tier["cta"], key=f"tier_{tier['name']}", use_container_width=True, type="primary" if tier["highlight"] else "secondary"):
+            if st.button(
+                tier["cta"],
+                key=f"tier_{tier['name']}",
+                use_container_width=True,
+                type="primary" if tier["highlight"] else "secondary",
+            ):
                 st.switch_page("pages/_Auth.py")
             st.markdown("</div>", unsafe_allow_html=True)
 
@@ -310,7 +344,12 @@ def render_cta_section():
 
     col1, col2, col3 = st.columns([1, 1, 1])
     with col2:
-        if st.button("🚀 Start Free Trial", use_container_width=True, type="primary", key="cta_final"):
+        if st.button(
+            "🚀 Start Free Trial",
+            use_container_width=True,
+            type="primary",
+            key="cta_final",
+        ):
             st.switch_page("pages/_Auth.py")
 
 
@@ -324,12 +363,18 @@ def render_authenticated_home():
     C = OracleTheme.COLORS
 
     # 1. Welcome Header
-    OracleTheme.render_page_header(title=f"Welcome back, {user['username']}", subtitle="Your institutional command center is ready.", icon="👋")
+    OracleTheme.render_page_header(
+        title=f"Welcome back, {user['username']}",
+        subtitle="Your institutional command center is ready.",
+        icon="👋",
+    )
 
     # 2. Market Ticker (Live Feed)
     @st.fragment(run_every="30s")
     def sync_ticker():
-        render_market_ticker(style="scrolling", include_news=False, include_calendar=False)
+        render_market_ticker(
+            style="scrolling", include_news=False, include_calendar=False
+        )
 
     sync_ticker()
 
@@ -345,7 +390,9 @@ def render_authenticated_home():
     unrealized = data.get("unrealized_pnl", 0.0)
     prev_nav = data.get("prev_nav", nav)
 
-    risk_util = ctx.risk_manager.get_current_risk_utilization(current_exposure=exposure, portfolio_value=nav)
+    risk_util = ctx.risk_manager.get_current_risk_utilization(
+        current_exposure=exposure, portfolio_value=nav
+    )
 
     nav_change = ((nav - prev_nav) / prev_nav * 100) if prev_nav > 0 else 0.0
 
@@ -359,9 +406,16 @@ def render_authenticated_home():
         st.metric("Market Exposure", f"{exposure_pct:.1f}%", f"€{exposure:,.0f}")
     with m_col3:
         unrealized_pct = (unrealized / nav * 100) if nav > 0 else 0
-        st.metric("Unrealized P&L", f"€{unrealized:,.2f}", f"{unrealized_pct:+.2f}%", delta_color="normal" if unrealized >= 0 else "inverse")
+        st.metric(
+            "Unrealized P&L",
+            f"€{unrealized:,.2f}",
+            f"{unrealized_pct:+.2f}%",
+            delta_color="normal" if unrealized >= 0 else "inverse",
+        )
     with m_col4:
-        risk_status = "Nominal" if risk_util < 75 else "Warning" if risk_util < 90 else "CRITICAL"
+        risk_status = (
+            "Nominal" if risk_util < 75 else "Warning" if risk_util < 90 else "CRITICAL"
+        )
         st.metric("Risk Utilization", f"{risk_util}%", risk_status)
 
     st.markdown("---")
@@ -752,14 +806,20 @@ def render_footer():
     )
 
 
-def render_metric_card(title: str, value: str, change: str = None, icon: str = None, color: str = "#667eea"):
+def render_metric_card(
+    title: str, value: str, change: str = None, icon: str = None, color: str = "#667eea"
+):
     """Render a professional metric card"""
     change_html = (
         f'<div style="color: {"#00c853" if "+" in change else "#ff5252"}; font-size: 0.875rem; font-weight: 600; margin-top: 0.5rem;">{change}</div>'
         if change
         else ""
     )
-    icon_html = f'<div style="font-size: 2rem; margin-bottom: 0.5rem;">{icon}</div>' if icon else ""
+    icon_html = (
+        f'<div style="font-size: 2rem; margin-bottom: 0.5rem;">{icon}</div>'
+        if icon
+        else ""
+    )
 
     st.markdown(
         f"""
@@ -808,11 +868,17 @@ def render_status_badge(status: str, label: str = None):
     )
 
 
-def render_progress_bar(value: float, max_value: float = 100, label: str = None, color: str = "#667eea"):
+def render_progress_bar(
+    value: float, max_value: float = 100, label: str = None, color: str = "#667eea"
+):
     """Render a professional progress bar"""
     percentage = (value / max_value) * 100
 
-    label_html = f'<div style="margin-bottom: 0.5rem; font-size: 0.875rem; font-weight: 600;">{label}</div>' if label else ""
+    label_html = (
+        f'<div style="margin-bottom: 0.5rem; font-size: 0.875rem; font-weight: 600;">{label}</div>'
+        if label
+        else ""
+    )
 
     st.markdown(
         f"""
@@ -909,7 +975,13 @@ def render_data_table(data: List[Dict], columns: List[str] = None):
     )
 
 
-def render_empty_state(title: str, message: str, icon: str = "📭", action_label: str = None, action_callback=None):
+def render_empty_state(
+    title: str,
+    message: str,
+    icon: str = "📭",
+    action_label: str = None,
+    action_callback=None,
+):
     """Render an empty state message"""
     if action_label and action_callback:
         if st.button(action_label, type="primary"):
@@ -963,13 +1035,20 @@ def render_loading_spinner(message: str = "Loading..."):
 
 def get_tier_badge(tier: str) -> str:
     """Get formatted tier badge"""
-    tier_config = {"free": ("🆓", "FREE"), "basic": ("🥉", "BASIC"), "pro": ("⭐", "PRO"), "enterprise": ("💎", "ENTERPRISE")}
+    tier_config = {
+        "free": ("🆓", "FREE"),
+        "basic": ("🥉", "BASIC"),
+        "pro": ("⭐", "PRO"),
+        "enterprise": ("💎", "ENTERPRISE"),
+    }
 
     icon, label = tier_config.get(tier.lower(), ("🎯", tier.upper()))
     return f"{icon} {label}"
 
 
-def render_workspace_card(icon: str, title: str, description: str, page: str, color: str = "#667eea"):
+def render_workspace_card(
+    icon: str, title: str, description: str, page: str, color: str = "#667eea"
+):
     """Render a workspace navigation card"""
     st.markdown(
         f"""

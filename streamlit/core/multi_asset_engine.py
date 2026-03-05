@@ -63,10 +63,14 @@ class MultiAssetEngine:
 
         if self.allocation_method == "equal":
             # Equal allocation
-            self.allocations = {symbol: 1.0 / num_symbols for symbol in self.strategies.keys()}
+            self.allocations = {
+                symbol: 1.0 / num_symbols for symbol in self.strategies.keys()
+            }
         else:
             # Default to equal if other methods not implemented
-            self.allocations = {symbol: 1.0 / num_symbols for symbol in self.strategies.keys()}
+            self.allocations = {
+                symbol: 1.0 / num_symbols for symbol in self.strategies.keys()
+            }
 
         logger.info(f"Capital allocations: {self.allocations}")
 
@@ -79,7 +83,10 @@ class MultiAssetEngine:
             period: Time period
             interval: Data interval
         """
-        logger.info(f"Starting multi-asset backtest: {len(symbols)} symbols, " f"period: {period}, interval: {interval}")
+        logger.info(
+            f"Starting multi-asset backtest: {len(symbols)} symbols, "
+            f"period: {period}, interval: {interval}"
+        )
 
         # Fetch data for all symbols
         data_dict = {}
@@ -115,12 +122,17 @@ class MultiAssetEngine:
                 signal = strategy.generate_signal(symbol_data)
 
                 # Execute trade
-                self._execute_trade(symbol, signal, current_price, timestamp, strategy.name)
+                self._execute_trade(
+                    symbol, signal, current_price, timestamp, strategy.name
+                )
 
             # Calculate portfolio equity
             self._update_equity(timestamp, aligned_data, i)
 
-        logger.info(f"Backtest complete: {len(self.trades)} trades, " f"Final equity: ${self.equity_curve[-1]['equity']:,.2f}")
+        logger.info(
+            f"Backtest complete: {len(self.trades)} trades, "
+            f"Final equity: ${self.equity_curve[-1]['equity']:,.2f}"
+        )
 
     def _align_data(self, data_dict: Dict[str, pd.DataFrame]) -> Dict:
         """Align data across all symbols to common timestamps"""
@@ -163,7 +175,9 @@ class MultiAssetEngine:
             # Apply Slippage (Paying more than current_price)
             execution_price = current_price * (1 + self.slippage_rate)
 
-            quantity = self.risk_manager.calculate_position_size(available_capital, execution_price)
+            quantity = self.risk_manager.calculate_position_size(
+                available_capital, execution_price
+            )
 
             # Calculate Costs
             trade_value = quantity * execution_price
@@ -188,13 +202,19 @@ class MultiAssetEngine:
                     "price": execution_price,
                     "commission": commission,
                     "slippage_impact": execution_price - current_price,
-                    "timestamp": (timestamp.isoformat() if isinstance(timestamp, datetime) else str(timestamp)),
+                    "timestamp": (
+                        timestamp.isoformat()
+                        if isinstance(timestamp, datetime)
+                        else str(timestamp)
+                    ),
                     "strategy": strategy_name,
                 }
 
                 self.trades.append(trade_data)
                 self.db.save_trade(trade_data)
-                logger.debug(f"BUY: {quantity} {symbol} @ ${execution_price:.2f} (Comm: ${commission:.2f})")
+                logger.debug(
+                    f"BUY: {quantity} {symbol} @ ${execution_price:.2f} (Comm: ${commission:.2f})"
+                )
 
         # --- SELL SIGNAL ---
         elif signal == -1 and symbol in self.positions:
@@ -213,8 +233,12 @@ class MultiAssetEngine:
 
             # Calculate P&L (Total commission includes entry + exit)
             total_commissions = position.get("entry_commission", 0) + commission
-            profit = (trade_value - (position["quantity"] * position["entry_price"])) - total_commissions
-            profit_pct = (profit / (position["quantity"] * position["entry_price"])) * 100
+            profit = (
+                trade_value - (position["quantity"] * position["entry_price"])
+            ) - total_commissions
+            profit_pct = (
+                profit / (position["quantity"] * position["entry_price"])
+            ) * 100
 
             trade_data = {
                 "symbol": symbol,
@@ -223,7 +247,11 @@ class MultiAssetEngine:
                 "price": execution_price,
                 "commission": commission,
                 "total_fees": total_commissions,
-                "timestamp": (timestamp.isoformat() if isinstance(timestamp, datetime) else str(timestamp)),
+                "timestamp": (
+                    timestamp.isoformat()
+                    if isinstance(timestamp, datetime)
+                    else str(timestamp)
+                ),
                 "strategy": strategy_name,
                 "profit": profit,
                 "profit_pct": profit_pct,
@@ -233,7 +261,8 @@ class MultiAssetEngine:
             self.db.save_trade(trade_data)
 
             logger.debug(
-                f"SELL: {position['quantity']} {symbol} @ ${execution_price:.2f} " f"(Net P&L: ${profit:.2f}, Fees: ${total_commissions:.2f})"
+                f"SELL: {position['quantity']} {symbol} @ ${execution_price:.2f} "
+                f"(Net P&L: ${profit:.2f}, Fees: ${total_commissions:.2f})"
             )
 
             del self.positions[symbol]
@@ -264,7 +293,9 @@ class MultiAssetEngine:
             return {}
 
         final_equity = self.equity_curve[-1]["equity"]
-        total_return = ((final_equity - self.initial_capital) / self.initial_capital) * 100
+        total_return = (
+            (final_equity - self.initial_capital) / self.initial_capital
+        ) * 100
 
         # Per-symbol statistics
         symbol_stats = self._calculate_symbol_stats()
@@ -293,7 +324,9 @@ class MultiAssetEngine:
             completed_trades = pd.DataFrame()
 
         if not completed_trades.empty:
-            win_rate = (completed_trades["profit"] > 0).sum() / len(completed_trades) * 100
+            win_rate = (
+                (completed_trades["profit"] > 0).sum() / len(completed_trades) * 100
+            )
             avg_profit = completed_trades["profit"].mean()
 
             returns = completed_trades["profit_pct"].values
@@ -381,7 +414,9 @@ class MultiAssetEngine:
                 winning_trades = (profits > 0).sum()
                 losing_trades = (profits < 0).sum()
                 total_return = profits.sum()
-                win_rate = (winning_trades / total_trades * 100) if total_trades > 0 else 0.0
+                win_rate = (
+                    (winning_trades / total_trades * 100) if total_trades > 0 else 0.0
+                )
 
                 stats[symbol] = {
                     "total_trades": int(total_trades),

@@ -14,7 +14,12 @@ class OptionsAnalytics:
 
     @staticmethod
     def calculate_expected_return(
-        current_price: float, strike: float, premium: float, option_type: str, position: str, probability_itm: float
+        current_price: float,
+        strike: float,
+        premium: float,
+        option_type: str,
+        position: str,
+        probability_itm: float,
     ) -> float:
         """
         Calculate expected return for an option position
@@ -48,7 +53,9 @@ class OptionsAnalytics:
                 return premium - expected_loss
 
     @staticmethod
-    def calculate_kelly_criterion(win_prob: float, avg_win: float, avg_loss: float) -> float:
+    def calculate_kelly_criterion(
+        win_prob: float, avg_win: float, avg_loss: float
+    ) -> float:
         """
         Calculate optimal position size using Kelly Criterion
 
@@ -74,7 +81,12 @@ class OptionsAnalytics:
 
     @staticmethod
     def calculate_probability_itm(
-        current_price: float, strike: float, days_to_expiration: int, volatility: float, risk_free_rate: float = 0.05, option_type: str = "call"
+        current_price: float,
+        strike: float,
+        days_to_expiration: int,
+        volatility: float,
+        risk_free_rate: float = 0.05,
+        option_type: str = "call",
     ) -> float:
         """
         Calculate probability of option finishing in-the-money
@@ -96,10 +108,19 @@ class OptionsAnalytics:
         T = days_to_expiration / 365.0
 
         if T <= 0:
-            return 1.0 if ((option_type == "call" and current_price > strike) or (option_type == "put" and current_price < strike)) else 0.0
+            return (
+                1.0
+                if (
+                    (option_type == "call" and current_price > strike)
+                    or (option_type == "put" and current_price < strike)
+                )
+                else 0.0
+            )
 
         # Calculate d2 from Black-Scholes
-        d2 = (np.log(current_price / strike) + (risk_free_rate - 0.5 * volatility**2) * T) / (volatility * np.sqrt(T))
+        d2 = (
+            np.log(current_price / strike) + (risk_free_rate - 0.5 * volatility**2) * T
+        ) / (volatility * np.sqrt(T))
 
         if option_type == "call":
             return norm.cdf(d2)
@@ -107,7 +128,9 @@ class OptionsAnalytics:
             return norm.cdf(-d2)
 
     @staticmethod
-    def calculate_probability_touch(current_price: float, barrier: float, days_to_expiration: int, volatility: float) -> float:
+    def calculate_probability_touch(
+        current_price: float, barrier: float, days_to_expiration: int, volatility: float
+    ) -> float:
         """
         Calculate probability of price touching a barrier before expiration
 
@@ -135,7 +158,9 @@ class OptionsAnalytics:
         return prob_touch
 
     @staticmethod
-    def calculate_var(portfolio_value: float, returns: np.ndarray, confidence_level: float = 0.95) -> float:
+    def calculate_var(
+        portfolio_value: float, returns: np.ndarray, confidence_level: float = 0.95
+    ) -> float:
         """
         Calculate Value at Risk (VaR)
 
@@ -154,7 +179,9 @@ class OptionsAnalytics:
         return abs(portfolio_value * var_percentile)
 
     @staticmethod
-    def calculate_cvar(portfolio_value: float, returns: np.ndarray, confidence_level: float = 0.95) -> float:
+    def calculate_cvar(
+        portfolio_value: float, returns: np.ndarray, confidence_level: float = 0.95
+    ) -> float:
         """
         Calculate Conditional Value at Risk (CVaR) / Expected Shortfall
 
@@ -220,7 +247,9 @@ class OptionsAnalytics:
         std_return_pct = df["pnl_pct"].std() * 100
 
         # Kelly criterion
-        kelly_fraction = OptionsAnalytics.calculate_kelly_criterion(win_rate, avg_win, avg_loss)
+        kelly_fraction = OptionsAnalytics.calculate_kelly_criterion(
+            win_rate, avg_win, avg_loss
+        )
 
         # Expectancy
         expectancy = (win_rate * avg_win) - ((1 - win_rate) * abs(avg_loss))
@@ -246,7 +275,9 @@ class OptionsAnalytics:
         }
 
     @staticmethod
-    def calculate_rolling_metrics(equity_curve: List[Dict], window: int = 30) -> pd.DataFrame:
+    def calculate_rolling_metrics(
+        equity_curve: List[Dict], window: int = 30
+    ) -> pd.DataFrame:
         """
         Calculate rolling performance metrics
 
@@ -267,8 +298,12 @@ class OptionsAnalytics:
 
         # Rolling metrics
         df["rolling_return"] = df["returns"].rolling(window).sum() * 100
-        df["rolling_volatility"] = df["returns"].rolling(window).std() * np.sqrt(252) * 100
-        df["rolling_sharpe"] = (df["rolling_return"] / df["rolling_volatility"]).fillna(0)
+        df["rolling_volatility"] = (
+            df["returns"].rolling(window).std() * np.sqrt(252) * 100
+        )
+        df["rolling_sharpe"] = (df["rolling_return"] / df["rolling_volatility"]).fillna(
+            0
+        )
 
         # Rolling drawdown
         df["rolling_max"] = df["equity"].rolling(window, min_periods=1).max()
@@ -277,7 +312,13 @@ class OptionsAnalytics:
         return df
 
     @staticmethod
-    def monte_carlo_simulation(current_price: float, volatility: float, days: int, num_simulations: int = 10000, drift: float = 0.0) -> np.ndarray:
+    def monte_carlo_simulation(
+        current_price: float,
+        volatility: float,
+        days: int,
+        num_simulations: int = 10000,
+        drift: float = 0.0,
+    ) -> np.ndarray:
         """
         Run Monte Carlo simulation for price paths
 
@@ -294,7 +335,9 @@ class OptionsAnalytics:
         dt = 1 / 252  # Daily time step
 
         # Generate random price paths
-        returns = np.random.normal(drift * dt, volatility * np.sqrt(dt), (num_simulations, days))
+        returns = np.random.normal(
+            drift * dt, volatility * np.sqrt(dt), (num_simulations, days)
+        )
 
         # Calculate cumulative returns
         price_paths = current_price * np.exp(returns.cumsum(axis=1))
@@ -304,7 +347,11 @@ class OptionsAnalytics:
 
     @staticmethod
     def calculate_optimal_strike_selection(
-        current_price: float, volatility: float, days_to_expiration: int, strategy_type: str, num_strikes: int = 10
+        current_price: float,
+        volatility: float,
+        days_to_expiration: int,
+        strategy_type: str,
+        num_strikes: int = 10,
     ) -> List[Dict]:
         """
         Calculate optimal strikes for a strategy with risk/reward analysis
@@ -323,23 +370,37 @@ class OptionsAnalytics:
 
         # Generate strike range
         if strategy_type in ["covered_call", "call_spread"]:
-            strikes = np.linspace(current_price * 1.01, current_price * 1.15, num_strikes)
+            strikes = np.linspace(
+                current_price * 1.01, current_price * 1.15, num_strikes
+            )
         elif strategy_type in ["cash_secured_put", "put_spread"]:
-            strikes = np.linspace(current_price * 0.85, current_price * 0.99, num_strikes)
+            strikes = np.linspace(
+                current_price * 0.85, current_price * 0.99, num_strikes
+            )
         else:
-            strikes = np.linspace(current_price * 0.90, current_price * 1.10, num_strikes)
+            strikes = np.linspace(
+                current_price * 0.90, current_price * 1.10, num_strikes
+            )
 
         for strike in strikes:
             # Calculate probability ITM
             prob_itm = OptionsAnalytics.calculate_probability_itm(
-                current_price, strike, days_to_expiration, volatility, option_type="call" if "call" in strategy_type else "put"
+                current_price,
+                strike,
+                days_to_expiration,
+                volatility,
+                option_type="call" if "call" in strategy_type else "put",
             )
 
             # Calculate expected premium (simplified)
             moneyness = strike / current_price
             time_value = volatility * np.sqrt(days_to_expiration / 365) * current_price
 
-            intrinsic = max(current_price - strike, 0) if "call" in strategy_type else max(strike - current_price, 0)
+            intrinsic = (
+                max(current_price - strike, 0)
+                if "call" in strategy_type
+                else max(strike - current_price, 0)
+            )
             premium = intrinsic + time_value * (1 - abs(1 - moneyness))
 
             results.append(
@@ -349,14 +410,18 @@ class OptionsAnalytics:
                     "premium_estimate": premium,
                     "prob_itm": prob_itm,
                     "prob_otm": 1 - prob_itm,
-                    "expected_return": premium * (1 - prob_itm) if "short" in strategy_type else -premium + intrinsic,
+                    "expected_return": premium * (1 - prob_itm)
+                    if "short" in strategy_type
+                    else -premium + intrinsic,
                 }
             )
 
         return results
 
 
-def analyze_strategy_risk_reward(strategy_payoffs: np.ndarray, price_simulations: np.ndarray) -> Dict:
+def analyze_strategy_risk_reward(
+    strategy_payoffs: np.ndarray, price_simulations: np.ndarray
+) -> Dict:
     """
     Analyze risk/reward profile of a strategy
 
@@ -392,5 +457,7 @@ def analyze_strategy_risk_reward(strategy_payoffs: np.ndarray, price_simulations
         "max_profit": max_profit,
         "max_loss": max_loss,
         "risk_reward_ratio": risk_reward_ratio,
-        "profit_loss_ratio": abs(max_profit / max_loss) if max_loss != 0 else float("inf"),
+        "profit_loss_ratio": abs(max_profit / max_loss)
+        if max_loss != 0
+        else float("inf"),
     }

@@ -1,6 +1,6 @@
 from typing import Any, Dict
 
-from core.trade.order.order import Order, OrderSide, OrderType, TimeInForce
+from app.core.trade.order.order import Order, OrderSide, OrderType, TimeInForce
 
 
 class StopLimitOrder(Order):

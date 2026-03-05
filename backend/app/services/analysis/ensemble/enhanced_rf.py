@@ -9,12 +9,13 @@ from typing import Dict, Optional, Tuple
 import joblib
 import numpy as np
 import pandas as pd
-from core.data.providers.providers import ProviderFactory
 from sklearn.calibration import CalibratedClassifierCV
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.model_selection import TimeSeriesSplit
-from strategies.ml.analysis import LPPLSBubbleStrategy
-from strategies.ml.analysis.lstm_stress_strategy import LSTMStressStrategy
+
+from app.core.data.providers.providers import ProviderFactory
+from app.strategies.ml.analysis.lppls_bubbles_strategy import LPPLSBubbleStrategy
+from app.strategies.ml.analysis.lstm_stress_strategy import LSTMStressStrategy
 
 warnings.filterwarnings("ignore")
 logger = logging.getLogger(__name__)

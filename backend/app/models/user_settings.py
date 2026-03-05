@@ -51,5 +51,8 @@ class UserSettings(Base):
     # Alert preferences (crash prediction thresholds, channels, etc.)
     alert_preferences = Column(JSON, nullable=True)
 
+    # Crash monitoring toggle (used by CrashMonitorScheduler)
+    crash_monitoring = Column(Boolean, default=False)
+
     # Relationship
     user = relationship("User", back_populates="settings")

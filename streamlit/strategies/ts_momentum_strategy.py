@@ -209,7 +209,11 @@ def _calculate_vol_scaled_signal(self, prices: pd.Series) -> Tuple[float, float]
 
     # Calculate volatility
     returns = self._calculate_returns(prices)
-    recent_returns = returns.iloc[-self.volatility_lookback :] if len(returns) >= self.volatility_lookback else returns
+    recent_returns = (
+        returns.iloc[-self.volatility_lookback :]
+        if len(returns) >= self.volatility_lookback
+        else returns
+    )
 
     if len(recent_returns) < 20:  # Minimum for meaningful volatility
         vol_scale = 1.0
@@ -249,7 +253,9 @@ def _calculate_drawdown_protection(self, current_equity: float) -> float:
     # Apply reduction if drawdown exceeds threshold
     if current_drawdown > self.max_drawdown_limit:
         # Gradually reduce positions as drawdeepens
-        reduction = 1.0 - (current_drawdown - self.max_drawdown_limit) / self.max_drawdown_limit
+        reduction = (
+            1.0 - (current_drawdown - self.max_drawdown_limit) / self.max_drawdown_limit
+        )
         return max(0.1, reduction)  # Minimum 10% position
     else:
         return 1.0
@@ -347,8 +353,12 @@ def generate_signal(
         self.position_size = 0
         self.trailing_stop_level = 0
         return {
-            "signal": (-np.sign(self.current_position) if self.current_position != 0 else 0),
-            "position_size": (abs(self.current_position) if self.current_position != 0 else 0),
+            "signal": (
+                -np.sign(self.current_position) if self.current_position != 0 else 0
+            ),
+            "position_size": (
+                abs(self.current_position) if self.current_position != 0 else 0
+            ),
             "raw_signal": 0,
             "volatility_scale": 1.0,
             "drawdown_scale": 1.0,
@@ -388,22 +398,36 @@ def generate_signal(
     if raw_signal != 0 and self.current_position == 0:
         # Enter new position
         signal_direction = raw_signal
-        position_size = min(abs(raw_signal) * volatility_scale * drawdown_scale, self.max_position)
+        position_size = min(
+            abs(raw_signal) * volatility_scale * drawdown_scale, self.max_position
+        )
         self.current_position = signal_direction * position_size
         self.position_size = position_size
         self.entry_price = current_price
-        self.trailing_stop_level = current_price * (1 - self.trailing_stop_pct if signal_direction > 0 else 1 + self.trailing_stop_pct)
+        self.trailing_stop_level = current_price * (
+            1 - self.trailing_stop_pct
+            if signal_direction > 0
+            else 1 + self.trailing_stop_pct
+        )
 
-    elif self.current_position != 0 and np.sign(raw_signal) != np.sign(self.current_position):
+    elif self.current_position != 0 and np.sign(raw_signal) != np.sign(
+        self.current_position
+    ):
         # Reverse position (signal changed direction)
         signal_direction = raw_signal * 2  # Double signal to indicate reversal
-        position_size = min(abs(raw_signal) * volatility_scale * drawdown_scale, self.max_position)
+        position_size = min(
+            abs(raw_signal) * volatility_scale * drawdown_scale, self.max_position
+        )
         self.current_position = np.sign(raw_signal) * position_size
         self.position_size = position_size
         self.entry_price = current_price
-        self.trailing_stop_level = current_price * (1 - self.trailing_stop_pct if raw_signal > 0 else 1 + self.trailing_stop_pct)
+        self.trailing_stop_level = current_price * (
+            1 - self.trailing_stop_pct if raw_signal > 0 else 1 + self.trailing_stop_pct
+        )
 
-    elif self.current_position != 0 and np.sign(raw_signal) == np.sign(self.current_position):
+    elif self.current_position != 0 and np.sign(raw_signal) == np.sign(
+        self.current_position
+    ):
         # Hold position
         signal_direction = np.sign(self.current_position)
         position_size = self.position_size
@@ -411,7 +435,9 @@ def generate_signal(
     # Store signal history
     self.signals_history.append(
         {
-            "timestamp": (prices.index[-1] if hasattr(prices.index, "__len__") else len(prices)),
+            "timestamp": (
+                prices.index[-1] if hasattr(prices.index, "__len__") else len(prices)
+            ),
             "raw_signal": raw_signal,
             "position": self.current_position,
             "volatility_scale": volatility_scale,
@@ -432,7 +458,11 @@ def generate_signal(
             "current_price": float(current_price),
             "in_position": self.current_position != 0,
             "entry_price": (float(self.entry_price) if self.entry_price > 0 else None),
-            "stop_level": (float(self.trailing_stop_level) if self.trailing_stop_level > 0 else None),
+            "stop_level": (
+                float(self.trailing_stop_level)
+                if self.trailing_stop_level > 0
+                else None
+            ),
         },
     }
 
@@ -463,7 +493,11 @@ def generate_signals_batch(self, prices: pd.Series) -> pd.DataFrame:
         result = self.generate_signal(window)
 
         signals.append(result["signal"])
-        positions.append(result["position_size"] * np.sign(result["signal"]) if result["signal"] != 0 else 0)
+        positions.append(
+            result["position_size"] * np.sign(result["signal"])
+            if result["signal"] != 0
+            else 0
+        )
         position_sizes.append(result["position_size"])
 
     # Create results DataFrame
@@ -523,7 +557,9 @@ def get_performance_metrics(self, strategy_returns: pd.Series) -> Dict:
         "sharpe_ratio": float(sharpe_ratio),
         "max_drawdown": float(max_drawdown),
         "win_rate": float(win_rate),
-        "calmar_ratio": (float(annual_return / abs(max_drawdown)) if max_drawdown < 0 else 0),
+        "calmar_ratio": (
+            float(annual_return / abs(max_drawdown)) if max_drawdown < 0 else 0
+        ),
     }
 
 
@@ -537,7 +573,9 @@ def plot_signals(self, prices: pd.Series, signals_df: pd.DataFrame = None):
         if signals_df is None:
             signals_df = self.generate_signals_batch(prices)
 
-        fig, axes = plt.subplots(3, 1, figsize=(12, 10), gridspec_kw={"height_ratios": [2, 1, 1]})
+        fig, axes = plt.subplots(
+            3, 1, figsize=(12, 10), gridspec_kw={"height_ratios": [2, 1, 1]}
+        )
 
         # Plot 1: Price and signals
         ax1 = axes[0]

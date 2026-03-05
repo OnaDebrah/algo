@@ -4,6 +4,7 @@ Custom Strategy Engine - Execute user-defined strategies with safety checks
 
 import ast
 import io
+import logging
 import re
 import traceback
 from contextlib import redirect_stderr, redirect_stdout
@@ -12,6 +13,8 @@ from typing import Any, Dict, Optional, Tuple
 
 import numpy as np
 import pandas as pd
+
+logger = logging.getLogger(__name__)
 
 
 class SafeExecutionEnvironment:
@@ -215,7 +218,7 @@ class StrategyCodeGenerator:
             return code, explanation, example
 
         except Exception as e:
-            print(f"AI generation error: {e}")
+            logger.error(f"AI generation error: {e}")
             return self._generate_template_strategy(prompt, style)
 
     def _build_code_generation_prompt(self, prompt: str, style: str) -> str:

@@ -278,7 +278,11 @@ class StrategyMarketplace:
     # ============================================================
 
     def publish_strategy_with_backtest(
-        self, listing: StrategyListing, equity_curve_df: pd.DataFrame = None, trades_df: pd.DataFrame = None, daily_returns_df: pd.DataFrame = None
+        self,
+        listing: StrategyListing,
+        equity_curve_df: pd.DataFrame = None,
+        trades_df: pd.DataFrame = None,
+        daily_returns_df: pd.DataFrame = None,
     ) -> int:
         """
         Publish strategy WITH complete backtest results
@@ -334,9 +338,13 @@ class StrategyMarketplace:
             backtest_data = json.dumps(listing.backtest_results.to_dict())
 
             # Serialize dataframes efficiently
-            equity_blob = pickle.dumps(equity_curve_df) if equity_curve_df is not None else None
+            equity_blob = (
+                pickle.dumps(equity_curve_df) if equity_curve_df is not None else None
+            )
             trades_blob = pickle.dumps(trades_df) if trades_df is not None else None
-            returns_blob = pickle.dumps(daily_returns_df) if daily_returns_df is not None else None
+            returns_blob = (
+                pickle.dumps(daily_returns_df) if daily_returns_df is not None else None
+            )
 
             cursor.execute(
                 """
@@ -352,8 +360,12 @@ class StrategyMarketplace:
                     equity_blob,
                     trades_blob,
                     returns_blob,
-                    listing.backtest_results.start_date.isoformat() if listing.backtest_results.start_date else None,
-                    listing.backtest_results.end_date.isoformat() if listing.backtest_results.end_date else None,
+                    listing.backtest_results.start_date.isoformat()
+                    if listing.backtest_results.start_date
+                    else None,
+                    listing.backtest_results.end_date.isoformat()
+                    if listing.backtest_results.end_date
+                    else None,
                     listing.backtest_results.initial_capital,
                     json.dumps(listing.backtest_results.symbols),
                 ),
@@ -405,11 +417,20 @@ class StrategyMarketplace:
         backtest_results = BacktestResults.from_dict(backtest_data)
 
         # Deserialize dataframes
-        equity_curve = pickle.loads(row["equity_curve"]) if row["equity_curve"] else None
+        equity_curve = (
+            pickle.loads(row["equity_curve"]) if row["equity_curve"] else None
+        )
         trades = pickle.loads(row["trades_history"]) if row["trades_history"] else None
-        daily_returns = pickle.loads(row["daily_returns"]) if row["daily_returns"] else None
+        daily_returns = (
+            pickle.loads(row["daily_returns"]) if row["daily_returns"] else None
+        )
 
-        return {"backtest_results": backtest_results, "equity_curve": equity_curve, "trades": trades, "daily_returns": daily_returns}
+        return {
+            "backtest_results": backtest_results,
+            "equity_curve": equity_curve,
+            "trades": trades,
+            "daily_returns": daily_returns,
+        }
 
     # ============================================================
     # ENHANCED BROWSING WITH PERFORMANCE FILTERS
@@ -497,7 +518,9 @@ class StrategyMarketplace:
                 category=row["category"],
                 complexity=row["complexity"],
                 parameters=json.loads(row["parameters"]),
-                backtest_results=backtest_data["backtest_results"] if backtest_data else BacktestResults(),
+                backtest_results=backtest_data["backtest_results"]
+                if backtest_data
+                else BacktestResults(),
                 sharpe_ratio=row["sharpe_ratio"],
                 total_return=row["total_return"],
                 max_drawdown=row["max_drawdown"],
@@ -569,7 +592,9 @@ class StrategyMarketplace:
     # EXPORT BACKTEST DATA
     # ============================================================
 
-    def export_backtest_data(self, strategy_id: int, format: str = "json") -> Optional[str]:
+    def export_backtest_data(
+        self, strategy_id: int, format: str = "json"
+    ) -> Optional[str]:
         """
         Export backtest data for external analysis
 
@@ -589,9 +614,15 @@ class StrategyMarketplace:
             return json.dumps(
                 {
                     "backtest_results": backtest["backtest_results"].to_dict(),
-                    "equity_curve": backtest["equity_curve"].to_dict("records") if backtest["equity_curve"] is not None else None,
-                    "trades": backtest["trades"].to_dict("records") if backtest["trades"] is not None else None,
-                    "daily_returns": backtest["daily_returns"].to_dict("records") if backtest["daily_returns"] is not None else None,
+                    "equity_curve": backtest["equity_curve"].to_dict("records")
+                    if backtest["equity_curve"] is not None
+                    else None,
+                    "trades": backtest["trades"].to_dict("records")
+                    if backtest["trades"] is not None
+                    else None,
+                    "daily_returns": backtest["daily_returns"].to_dict("records")
+                    if backtest["daily_returns"] is not None
+                    else None,
                 }
             )
 

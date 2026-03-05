@@ -55,6 +55,7 @@ import {
     TechnicalData,
     ValuationMetric
 } from "@/types/all_types";
+import {toPrecision} from "@/utils/formatters";
 
 interface PriceDataPoint {
     date: string;
@@ -868,7 +869,7 @@ const AIAnalyst = () => {
                         </div>
                         <div className="text-center p-4 bg-slate-900/50 rounded-xl">
                             <p className="text-2xl font-bold text-purple-400">{
-                                report.valuation.reduce((acc, metric) => acc + metric.score, 0) / report.valuation.length
+                                toPrecision(report.valuation.reduce((acc, metric) => acc + metric.score, 0) / report.valuation.length)
                             }</p>
                             <p className="text-xs text-slate-400 mt-1">Avg Score</p>
                         </div>

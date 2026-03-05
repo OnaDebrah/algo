@@ -8,6 +8,7 @@ hedge recommendations, and alert configuration.
 import asyncio
 import json
 import logging
+import math
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -23,6 +24,27 @@ from ...services.analysis.lstm_stress_service import LSTMStressService
 from ..deps import get_current_active_user
 
 logger = logging.getLogger(__name__)
+
+
+def _safe_json_default(obj):
+    """JSON serialization fallback that handles NaN, Inf, datetime, numpy types."""
+    if isinstance(obj, float) and (math.isnan(obj) or math.isinf(obj)):
+        return 0.0
+    return str(obj)
+
+
+def _safe_float(value, default=0.0):
+    """Safely convert a value to float, replacing NaN/Inf/None with default."""
+    if value is None:
+        return default
+    try:
+        f = float(value)
+        if math.isnan(f) or math.isinf(f):
+            return default
+        return f
+    except (TypeError, ValueError):
+        return default
+
 
 router = APIRouter(prefix="/crash", tags=["Crash Prediction"])
 
@@ -71,23 +93,27 @@ async def predict_crash(
 
         # Persist prediction to DB
         try:
+            lppls_data = crash_analysis["lppls"]
+            lstm_data = crash_analysis["lstm"]
+            combined = _safe_float(crash_analysis["combined_probability"])
+
             prediction = CrashPrediction(
                 user_id=current_user.id,
                 symbol=symbol.upper(),
-                crash_probability=crash_analysis["combined_probability"],
+                crash_probability=combined,
                 intensity=crash_analysis["intensity"],
                 confidence=max(
-                    crash_analysis["lppls"].get("confidence") or 0,
-                    crash_analysis["lstm"].get("confidence") or 0,
+                    _safe_float(lppls_data.get("confidence")),
+                    _safe_float(lstm_data.get("confidence")),
                 ),
-                lppls_confidence=crash_analysis["lppls"].get("confidence") or 0,
-                lppls_crash_probability=crash_analysis["lppls"].get("crash_probability") or 0,
-                lppls_bubble_detected=crash_analysis["lppls"].get("is_bubble", False),
-                lstm_stress_index=crash_analysis["lstm"].get("stress_index") or 0.5,
-                lstm_confidence=crash_analysis["lstm"].get("confidence") or 0,
-                lstm_stress_trend=crash_analysis["lstm"].get("stress_trend", "stable"),
-                combined_score=crash_analysis["combined_probability"],
-                meta_data=json.loads(json.dumps(crash_analysis, default=str)),
+                lppls_confidence=_safe_float(lppls_data.get("confidence")),
+                lppls_crash_probability=_safe_float(lppls_data.get("crash_probability")),
+                lppls_bubble_detected=lppls_data.get("is_bubble", False),
+                lstm_stress_index=_safe_float(lstm_data.get("stress_index"), default=0.5),
+                lstm_confidence=_safe_float(lstm_data.get("confidence")),
+                lstm_stress_trend=lstm_data.get("stress_trend", "stable"),
+                combined_score=combined,
+                meta_data=json.loads(json.dumps(crash_analysis, default=_safe_json_default)),
             )
             db.add(prediction)
             await db.commit()
@@ -100,16 +126,16 @@ async def predict_crash(
 
         return {
             "symbol": symbol.upper(),
-            "crash_probability": crash_analysis["combined_probability"],
+            "crash_probability": _safe_float(crash_analysis["combined_probability"]),
             "intensity": crash_analysis["intensity"],
             "confidence": max(
-                crash_analysis["lppls"].get("confidence") or 0,
-                crash_analysis["lstm"].get("confidence") or 0,
+                _safe_float(crash_analysis["lppls"].get("confidence")),
+                _safe_float(crash_analysis["lstm"].get("confidence")),
             ),
             "timestamp": crash_analysis["timestamp"],
             "lppls": crash_analysis["lppls"],
             "lstm": crash_analysis["lstm"],
-            "combined_score": crash_analysis["combined_probability"],
+            "combined_score": _safe_float(crash_analysis["combined_probability"]),
         }
 
     except Exception as e:
@@ -309,32 +335,34 @@ async def get_crash_dashboard(
             logger.warning(f"Failed to fetch history for dashboard: {e}")
 
         try:
-            crash_prob = prediction_data.get("combined_probability", 0)
+            crash_prob = _safe_float(prediction_data.get("combined_probability", 0))
+            lppls_d = prediction_data.get("lppls", {})
+            lstm_d = prediction_data.get("lstm", {})
             prediction = CrashPrediction(
                 user_id=current_user.id,
                 symbol=symbol.upper(),
                 crash_probability=crash_prob,
                 intensity=prediction_data.get("intensity", "unknown"),
                 confidence=max(
-                    prediction_data.get("lppls", {}).get("confidence") or 0,
-                    prediction_data.get("lstm", {}).get("confidence") or 0,
+                    _safe_float(lppls_d.get("confidence")),
+                    _safe_float(lstm_d.get("confidence")),
                 ),
-                lppls_confidence=prediction_data.get("lppls", {}).get("confidence") or 0,
-                lppls_crash_probability=prediction_data.get("lppls", {}).get("crash_probability") or 0,
-                lppls_bubble_detected=prediction_data.get("lppls", {}).get("is_bubble", False),
-                lstm_stress_index=prediction_data.get("lstm", {}).get("stress_index") or 0.5,
-                lstm_confidence=prediction_data.get("lstm", {}).get("confidence") or 0,
-                lstm_stress_trend=prediction_data.get("lstm", {}).get("stress_trend", "stable"),
+                lppls_confidence=_safe_float(lppls_d.get("confidence")),
+                lppls_crash_probability=_safe_float(lppls_d.get("crash_probability")),
+                lppls_bubble_detected=lppls_d.get("is_bubble", False),
+                lstm_stress_index=_safe_float(lstm_d.get("stress_index"), default=0.5),
+                lstm_confidence=_safe_float(lstm_d.get("confidence")),
+                lstm_stress_trend=lstm_d.get("stress_trend", "stable"),
                 combined_score=crash_prob,
                 hedge_strategy=hedge_data.get("strategy"),
-                hedge_cost=hedge_data.get("cost"),
+                hedge_cost=_safe_float(hedge_data.get("cost")) if hedge_data.get("cost") is not None else None,
                 meta_data=json.loads(
                     json.dumps(
                         {
                             "prediction": prediction_data,
                             "stress": {k: v for k, v in stress_data.items() if k != "stress_history"},
                         },
-                        default=str,
+                        default=_safe_json_default,
                     )
                 ),
             )
@@ -351,16 +379,16 @@ async def get_crash_dashboard(
         return {
             "symbol": symbol.upper(),
             "prediction": {
-                "crash_probability": prediction_data.get("combined_probability", 0),
+                "crash_probability": _safe_float(prediction_data.get("combined_probability", 0)),
                 "intensity": prediction_data.get("intensity", "unknown"),
                 "confidence": max(
-                    prediction_data.get("lppls", {}).get("confidence") or 0,
-                    prediction_data.get("lstm", {}).get("confidence") or 0,
+                    _safe_float(prediction_data.get("lppls", {}).get("confidence")),
+                    _safe_float(prediction_data.get("lstm", {}).get("confidence")),
                 ),
                 "timestamp": prediction_data.get("timestamp"),
                 "lppls": prediction_data.get("lppls", {}),
                 "lstm": prediction_data.get("lstm", {}),
-                "combined_score": prediction_data.get("combined_probability", 0),
+                "combined_score": _safe_float(prediction_data.get("combined_probability", 0)),
             },
             "stress": stress_data,
             "hedge_recommendation": hedge_data,

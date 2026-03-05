@@ -90,7 +90,7 @@ class FundamentalsFetcher:
 
         # Fallback: fetch VIX from yfinance as minimal macro proxy
         try:
-            from backend.app.core.data.providers.providers import ProviderFactory
+            from ..providers.providers import ProviderFactory
 
             provider = ProviderFactory()
             vix_data = await provider.fetch_data("^VIX", f"{lookback_years}y", "1mo")
@@ -105,7 +105,7 @@ class FundamentalsFetcher:
 
     async def _get_financials(self, symbol: str) -> Dict:
         """Get financial data for a symbol via ProviderFactory"""
-        from backend.app.core.data.providers.providers import ProviderFactory
+        from ..providers.providers import ProviderFactory
 
         provider = ProviderFactory()
         return await provider.get_ticker_info(symbol)

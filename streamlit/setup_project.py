@@ -30,7 +30,12 @@ def create_directory_structure():
         print(f"✓ Created directory: {directory}/")
 
         # Create __init__.py in Python package directories
-        if directory != "tests" and directory != "data" and directory != "logs" and not directory.startswith("tests/"):
+        if (
+            directory != "tests"
+            and directory != "data"
+            and directory != "logs"
+            and not directory.startswith("tests/")
+        ):
             init_file = os.path.join(directory, "__init__.py")
             if not os.path.exists(init_file):
                 with open(init_file, "w") as f:

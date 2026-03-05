@@ -140,7 +140,7 @@ const AppShell: React.FC<AppShellProps> = () => {
     localStorage.setItem('access_token', token);
     localStorage.setItem('user', JSON.stringify(userData));
 
-    if (userData.tier === 'FREE') {
+    if ((userData?.tier ?? 'FREE') === 'FREE') {
       setCurrentPage('dashboard');
     }
   }, []);

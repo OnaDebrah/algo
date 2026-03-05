@@ -68,7 +68,9 @@ def render_regime_detector(db):
 
     # Initialize detector in session state if not exists
     if "regime_detector" not in st.session_state:
-        st.session_state.regime_detector = MarketRegimeDetector(lookback_period=252, use_ml=True, confidence_threshold=0.7)
+        st.session_state.regime_detector = MarketRegimeDetector(
+            lookback_period=252, use_ml=True, confidence_threshold=0.7
+        )
 
     detector = st.session_state.regime_detector
 
@@ -82,9 +84,13 @@ def render_regime_detector(db):
         with col1:
             symbol = st.text_input("Ticker", value="SPY").upper()
         with col2:
-            data_source = st.selectbox("Source", ["Yahoo Finance", "Database", "Generate Example"])
+            data_source = st.selectbox(
+                "Source", ["Yahoo Finance", "Database", "Generate Example"]
+            )
         with col3:
-            period = st.selectbox("Historical Window", ["1mo", "3mo", "6mo", "1y", "2y"], index=3)
+            period = st.selectbox(
+                "Historical Window", ["1mo", "3mo", "6mo", "1y", "2y"], index=3
+            )
         with col4:
             interval = st.selectbox("Data Interval", ["1h", "1d", "1wk"], index=1)
 
@@ -94,22 +100,38 @@ def render_regime_detector(db):
         col_a, col_b, col_c = st.columns([2, 3, 3])
         with col_a:
             st.markdown("<br>", unsafe_allow_html=True)
-            use_ml = st.toggle("Enable ML Ensemble", value=True, help="Use XGBoost/RandomForest ensemble classification")
+            use_ml = st.toggle(
+                "Enable ML Ensemble",
+                value=True,
+                help="Use XGBoost/RandomForest ensemble classification",
+            )
         with col_b:
             lookback = st.slider("Lookback Window (Days)", 63, 504, 252, 21)
         with col_c:
-            confidence_threshold = st.slider("Min Confidence Threshold", 0.50, 0.95, 0.70, 0.05)
+            confidence_threshold = st.slider(
+                "Min Confidence Threshold", 0.50, 0.95, 0.70, 0.05
+            )
 
     # --- 2. ISOLATED ACTION BAR ---
     st.markdown("<br>", unsafe_allow_html=True)
     btn_col1, btn_col2, btn_col3 = st.columns([1, 2, 1])
     with btn_col2:
-        detect_clicked = st.button("🔍 EXECUTE REGIME ANALYSIS", type="primary", use_container_width=True)
+        detect_clicked = st.button(
+            "🔍 EXECUTE REGIME ANALYSIS", type="primary", use_container_width=True
+        )
     st.markdown("<br>", unsafe_allow_html=True)
 
     # Dynamic Update Logic
-    if detector.lookback_period != lookback or detector.use_ml != use_ml or detector.confidence_threshold != confidence_threshold:
-        st.session_state.regime_detector = MarketRegimeDetector(lookback_period=lookback, use_ml=use_ml, confidence_threshold=confidence_threshold)
+    if (
+        detector.lookback_period != lookback
+        or detector.use_ml != use_ml
+        or detector.confidence_threshold != confidence_threshold
+    ):
+        st.session_state.regime_detector = MarketRegimeDetector(
+            lookback_period=lookback,
+            use_ml=use_ml,
+            confidence_threshold=confidence_threshold,
+        )
         detector = st.session_state.regime_detector
 
     st.markdown("---")
@@ -127,7 +149,9 @@ def render_regime_detector(db):
                     price_data = generate_synthetic_data(lookback)
 
                 if price_data is None or len(price_data) < 63:
-                    st.error("Insufficient data. Need at least 63 days of price history.")
+                    st.error(
+                        "Insufficient data. Need at least 63 days of price history."
+                    )
                     return
 
                 # Detect regime
@@ -155,7 +179,9 @@ def render_regime_detector(db):
             st.session_state.get("regime_price_data"),
         )
     else:
-        st.info("👆 Configure settings and click 'Detect Regime' to analyze market conditions")
+        st.info(
+            "👆 Configure settings and click 'Detect Regime' to analyze market conditions"
+        )
 
         # Show example of what to expect
         with st.expander("ℹ️ What will this show?"):
@@ -212,7 +238,9 @@ def fetch_database_data(db, symbol: str, days: int) -> pd.Series:
 
     except Exception as e:
         st.error(f"Database error: {str(e)}")
-        st.info("Tip: Make sure you have price_data table with symbol, date, close columns")
+        st.info(
+            "Tip: Make sure you have price_data table with symbol, date, close columns"
+        )
         return None
 
 
@@ -262,7 +290,9 @@ def render_regime_dashboard(regime_info: dict, detector, price_data: pd.Series =
     col1, col2, col3, col4 = st.columns(4)
 
     with col1:
-        st.metric("Regime", f"{get_regime_emoji(regime)} {regime.replace('_', ' ').title()}")
+        st.metric(
+            "Regime", f"{get_regime_emoji(regime)} {regime.replace('_', ' ').title()}"
+        )
 
     with col2:
         st.metric(
@@ -313,7 +343,10 @@ def render_regime_dashboard(regime_info: dict, detector, price_data: pd.Series =
 
         if scores:
             scores_df = pd.DataFrame(
-                [{"Regime": k.replace("_", " ").title(), "Probability": v} for k, v in sorted(scores.items(), key=lambda x: x[1], reverse=True)]
+                [
+                    {"Regime": k.replace("_", " ").title(), "Probability": v}
+                    for k, v in sorted(scores.items(), key=lambda x: x[1], reverse=True)
+                ]
             )
 
             fig = px.bar(
@@ -337,10 +370,14 @@ def render_regime_dashboard(regime_info: dict, detector, price_data: pd.Series =
         with st.expander("📋 Detailed Analysis", expanded=False):
             st.markdown("**Detection Methods:**")
             st.write(f"• Method: {regime_info.get('method', 'N/A').title()}")
-            st.write(f"• Statistical: {regime_info.get('statistical_regime', 'N/A').replace('_', ' ').title()}")
+            st.write(
+                f"• Statistical: {regime_info.get('statistical_regime', 'N/A').replace('_', ' ').title()}"
+            )
 
             if regime_info.get("ml_regime"):
-                st.write(f"• ML Prediction: {regime_info['ml_regime'].replace('_', ' ').title()}")
+                st.write(
+                    f"• ML Prediction: {regime_info['ml_regime'].replace('_', ' ').title()}"
+                )
 
     with col_right:
         # Strategy allocation
@@ -351,7 +388,12 @@ def render_regime_dashboard(regime_info: dict, detector, price_data: pd.Series =
             # Filter out very small allocations
             filtered_alloc = {k: v for k, v in allocation.items() if v > 0.01}
 
-            alloc_df = pd.DataFrame([{"Strategy": k.replace("_", " ").title(), "Weight": v} for k, v in filtered_alloc.items()])
+            alloc_df = pd.DataFrame(
+                [
+                    {"Strategy": k.replace("_", " ").title(), "Weight": v}
+                    for k, v in filtered_alloc.items()
+                ]
+            )
 
             fig = px.pie(
                 alloc_df,
@@ -493,7 +535,9 @@ def render_regime_statistics(regime_history: list):
         for regime, count in regime_counts.items():
             percentage = count / len(regimes) * 100
             emoji = get_regime_emoji(regime)
-            st.write(f"{emoji} {regime.replace('_', ' ').title()}: {count} ({percentage:.1f}%)")
+            st.write(
+                f"{emoji} {regime.replace('_', ' ').title()}: {count} ({percentage:.1f}%)"
+            )
 
     with col2:
         st.markdown("**Average Duration:**")
@@ -521,4 +565,6 @@ def render_regime_statistics(regime_history: list):
             if dur_list:
                 avg_duration = np.mean(dur_list)
                 emoji = get_regime_emoji(regime)
-                st.write(f"{emoji} {regime.replace('_', ' ').title()}: {avg_duration:.1f} periods")
+                st.write(
+                    f"{emoji} {regime.replace('_', ' ').title()}: {avg_duration:.1f} periods"
+                )

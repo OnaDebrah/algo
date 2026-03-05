@@ -272,7 +272,9 @@ class DonchianATRStrategy(BaseStrategy):
         # Long entry with ATR filter
         if current_high > prev_upper_entry:
             breakout_strength = (current_high - prev_upper_entry) / current_atr
-            if breakout_strength > 0.1 and self.position != 1:  # Minimum 10% ATR breakout
+            if (
+                breakout_strength > 0.1 and self.position != 1
+            ):  # Minimum 10% ATR breakout
                 self.position = 1
                 return 1
 
@@ -299,7 +301,9 @@ class DonchianATRStrategy(BaseStrategy):
 
         return 0
 
-    def get_position_size(self, data: pd.DataFrame, account_value: float, risk_per_trade: float = 0.02) -> float:
+    def get_position_size(
+        self, data: pd.DataFrame, account_value: float, risk_per_trade: float = 0.02
+    ) -> float:
         """
         Calculate position size based on ATR
 
@@ -380,7 +384,9 @@ class FilteredDonchianStrategy(BaseStrategy):
         if len(data) < max(entry_period, trend_period) + 1:
             return 0
 
-        channels = DonchianChannelStrategy(entry_period=entry_period, exit_period=self.params["exit_period"]).calculate_channels(data)
+        channels = DonchianChannelStrategy(
+            entry_period=entry_period, exit_period=self.params["exit_period"]
+        ).calculate_channels(data)
 
         trend_ma = self.calculate_trend(data)
 

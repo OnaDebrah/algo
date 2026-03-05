@@ -55,7 +55,12 @@ def configure_page(page_title: str, page_icon: str = "📈"):
         page_title: Page title
         page_icon: Page icon
     """
-    st.set_page_config(page_title=f"{page_title} | Trading Platform", page_icon=page_icon, layout="wide", initial_sidebar_state="expanded")
+    st.set_page_config(
+        page_title=f"{page_title} | Trading Platform",
+        page_icon=page_icon,
+        layout="wide",
+        initial_sidebar_state="expanded",
+    )
 
     st.markdown(
         """

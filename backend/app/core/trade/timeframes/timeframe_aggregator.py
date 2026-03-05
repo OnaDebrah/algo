@@ -4,7 +4,7 @@ from typing import List, Optional
 
 import pandas as pd
 
-from core.trade.timeframes.timeframe_bar import TimeframeBar
+from app.core.trade.timeframes.timeframe_bar import TimeframeBar
 
 
 class TimeframeAggregator:

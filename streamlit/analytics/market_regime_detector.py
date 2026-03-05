@@ -163,8 +163,12 @@ class MarketRegimeDetector:
         # 1. Volatility features
         features["volatility_21d"] = returns.rolling(21).std() * np.sqrt(252)
         features["volatility_63d"] = returns.rolling(63).std() * np.sqrt(252)
-        features["volatility_ratio"] = features["volatility_21d"] / (features["volatility_63d"] + 1e-10)
-        features["volatility_regime"] = self._classify_volatility(features["volatility_21d"])
+        features["volatility_ratio"] = features["volatility_21d"] / (
+            features["volatility_63d"] + 1e-10
+        )
+        features["volatility_regime"] = self._classify_volatility(
+            features["volatility_21d"]
+        )
 
         # 2. Trend features
         features["trend_21d"] = prices / prices.shift(21) - 1
@@ -175,7 +179,9 @@ class MarketRegimeDetector:
         features["trend_direction"] = np.sign(features["trend_21d"])
 
         # 3. Mean reversion features - FIXED
-        features["hurst_exponent"] = self._calculate_hurst_exponent_rolling(prices, window=100)
+        features["hurst_exponent"] = self._calculate_hurst_exponent_rolling(
+            prices, window=100
+        )
         features["half_life"] = self._calculate_half_life_rolling(prices, window=50)
         features["z_score"] = self._calculate_zscore(prices, window=20)
 
@@ -191,7 +197,9 @@ class MarketRegimeDetector:
 
         # 6. Correlation features - OPTIMIZED
         if isinstance(price_data, pd.DataFrame) and price_data.shape[1] > 5:
-            correlation_features = self._calculate_correlation_features_optimized(price_data)
+            correlation_features = self._calculate_correlation_features_optimized(
+                price_data
+            )
             features = pd.concat([features, correlation_features], axis=1)
 
         # 7. Technical indicators
@@ -247,7 +255,9 @@ class MarketRegimeDetector:
             labels=["low_vol", "medium_vol", "high_vol", "crisis_vol"],
         )
 
-    def _calculate_trend_strength(self, prices: pd.Series, window: int = 14) -> pd.Series:
+    def _calculate_trend_strength(
+        self, prices: pd.Series, window: int = 14
+    ) -> pd.Series:
         """Calculate ADX-like trend strength"""
         high = prices.rolling(window).max()
         low = prices.rolling(window).min()
@@ -263,11 +273,15 @@ class MarketRegimeDetector:
         atr = tr.rolling(window).mean()
 
         # Simplified trend strength
-        trend_strength = (prices.diff(window).abs() / (atr + 1e-10)).replace([np.inf, -np.inf], np.nan)
+        trend_strength = (prices.diff(window).abs() / (atr + 1e-10)).replace(
+            [np.inf, -np.inf], np.nan
+        )
 
         return trend_strength
 
-    def _calculate_hurst_exponent_rolling(self, prices: pd.Series, window: int = 100) -> pd.Series:
+    def _calculate_hurst_exponent_rolling(
+        self, prices: pd.Series, window: int = 100
+    ) -> pd.Series:
         """
         FIXED: Calculate rolling Hurst exponent for mean reversion detection
 
@@ -291,7 +305,9 @@ class MarketRegimeDetector:
                 if lag >= len(price_window):
                     break
 
-                pp = np.subtract(price_window.iloc[lag:].values, price_window.iloc[:-lag].values)
+                pp = np.subtract(
+                    price_window.iloc[lag:].values, price_window.iloc[:-lag].values
+                )
 
                 if len(pp) > 0:
                     tau.append(np.sqrt(np.std(pp)))
@@ -319,7 +335,9 @@ class MarketRegimeDetector:
         # Apply rolling calculation
         return prices.rolling(window, min_periods=20).apply(hurst_for_window, raw=False)
 
-    def _calculate_half_life_rolling(self, prices: pd.Series, window: int = 50) -> pd.Series:
+    def _calculate_half_life_rolling(
+        self, prices: pd.Series, window: int = 50
+    ) -> pd.Series:
         """
         FIXED: Calculate rolling half-life of mean reversion
 
@@ -361,7 +379,9 @@ class MarketRegimeDetector:
                 return 100
 
         # Apply rolling calculation
-        return prices.rolling(window, min_periods=20).apply(half_life_for_window, raw=False)
+        return prices.rolling(window, min_periods=20).apply(
+            half_life_for_window, raw=False
+        )
 
     def _calculate_zscore(self, prices: pd.Series, window: int = 20) -> pd.Series:
         """Calculate rolling z-score"""
@@ -380,16 +400,26 @@ class MarketRegimeDetector:
         declines = (daily_returns < 0).sum(axis=1)
 
         breadth["advance_decline_ratio"] = advances / (advances + declines + 1e-10)
-        breadth["percent_above_ma20"] = (price_data > price_data.rolling(20).mean()).sum(axis=1) / price_data.shape[1]
-        breadth["percent_above_ma50"] = (price_data > price_data.rolling(50).mean()).sum(axis=1) / price_data.shape[1]
+        breadth["percent_above_ma20"] = (
+            price_data > price_data.rolling(20).mean()
+        ).sum(axis=1) / price_data.shape[1]
+        breadth["percent_above_ma50"] = (
+            price_data > price_data.rolling(50).mean()
+        ).sum(axis=1) / price_data.shape[1]
 
         # New highs/lows
-        breadth["new_highs_20d"] = (price_data == price_data.rolling(20).max()).sum(axis=1)
-        breadth["new_lows_20d"] = (price_data == price_data.rolling(20).min()).sum(axis=1)
+        breadth["new_highs_20d"] = (price_data == price_data.rolling(20).max()).sum(
+            axis=1
+        )
+        breadth["new_lows_20d"] = (price_data == price_data.rolling(20).min()).sum(
+            axis=1
+        )
 
         return breadth
 
-    def _calculate_volume_features(self, prices: pd.Series, volume: pd.Series) -> pd.DataFrame:
+    def _calculate_volume_features(
+        self, prices: pd.Series, volume: pd.Series
+    ) -> pd.DataFrame:
         """
         FIXED: Calculate volume-based features with proper alignment
         """
@@ -401,19 +431,27 @@ class MarketRegimeDetector:
         features = pd.DataFrame(index=common_idx)
 
         # Volume trends
-        features["volume_ma_ratio"] = volume_aligned / (volume_aligned.rolling(20).mean() + 1e-10)
-        features["volume_price_trend"] = (prices_aligned.diff() * volume_aligned).rolling(5).mean()
+        features["volume_ma_ratio"] = volume_aligned / (
+            volume_aligned.rolling(20).mean() + 1e-10
+        )
+        features["volume_price_trend"] = (
+            (prices_aligned.diff() * volume_aligned).rolling(5).mean()
+        )
 
         # On-balance volume (OBV)
         price_change = prices_aligned.diff()
         obv = (np.sign(price_change) * volume_aligned).fillna(0).cumsum()
 
         features["obv"] = obv
-        features["obv_slope"] = obv.rolling(20).apply(lambda x: np.polyfit(range(len(x)), x, 1)[0] if len(x) > 1 else 0, raw=False)
+        features["obv_slope"] = obv.rolling(20).apply(
+            lambda x: np.polyfit(range(len(x)), x, 1)[0] if len(x) > 1 else 0, raw=False
+        )
 
         return features
 
-    def _calculate_correlation_features_optimized(self, price_data: pd.DataFrame) -> pd.DataFrame:
+    def _calculate_correlation_features_optimized(
+        self, price_data: pd.DataFrame
+    ) -> pd.DataFrame:
         """
         OPTIMIZED: Calculate correlation-based features efficiently
         """
@@ -440,7 +478,9 @@ class MarketRegimeDetector:
             return np.mean(corr_matrix[upper_indices])
 
         # Rolling correlation calculation
-        avg_corr = returns.rolling(63).apply(lambda x: avg_pairwise_correlation(pd.DataFrame(x)), raw=False)
+        avg_corr = returns.rolling(63).apply(
+            lambda x: avg_pairwise_correlation(pd.DataFrame(x)), raw=False
+        )
 
         # Take mean across all columns (they should be similar)
         features["avg_correlation"] = avg_corr.mean(axis=1)
@@ -473,7 +513,9 @@ class MarketRegimeDetector:
 
         return macd
 
-    def _calculate_bollinger_bandwidth(self, prices: pd.Series, window: int = 20) -> pd.Series:
+    def _calculate_bollinger_bandwidth(
+        self, prices: pd.Series, window: int = 20
+    ) -> pd.Series:
         """Calculate Bollinger Band width"""
         sma = prices.rolling(window).mean()
         std = prices.rolling(window).std()
@@ -499,7 +541,11 @@ class MarketRegimeDetector:
             else:
                 break
 
-        return persistence / len(self.regime_history) if len(self.regime_history) > 0 else 0.0
+        return (
+            persistence / len(self.regime_history)
+            if len(self.regime_history) > 0
+            else 0.0
+        )
 
     # ============================================================================
     # REGIME DETECTION METHODS
@@ -522,12 +568,17 @@ class MarketRegimeDetector:
         trend_strength = latest.get("trend_strength", 0)
         trend_direction = latest.get("trend_direction", 0)
 
-        if abs(trend_21d) > self.trend_thresholds["strong_trend"] and trend_strength > 0.5:
+        if (
+            abs(trend_21d) > self.trend_thresholds["strong_trend"]
+            and trend_strength > 0.5
+        ):
             if trend_direction > 0:
                 regime_scores["trending_bull"] += 0.4
             else:
                 regime_scores["trending_bear"] += 0.4
-        elif abs(trend_21d) < self.trend_thresholds["no_trend"] and trend_strength < 0.3:
+        elif (
+            abs(trend_21d) < self.trend_thresholds["no_trend"] and trend_strength < 0.3
+        ):
             regime_scores["mean_reverting"] += 0.3
 
         # 2. Volatility-based classification
@@ -582,7 +633,10 @@ class MarketRegimeDetector:
         # 7. Recovery detection
         if len(self.regime_history) >= 3:
             recent_regimes = [h["regime"] for h in self.regime_history[-3:]]
-            if "crisis" in recent_regimes and volatility < self.volatility_thresholds["high_vol"]:
+            if (
+                "crisis" in recent_regimes
+                and volatility < self.volatility_thresholds["high_vol"]
+            ):
                 regime_scores["recovery"] += 0.3
 
         # Normalize scores
@@ -611,7 +665,9 @@ class MarketRegimeDetector:
 
         try:
             # Prepare features
-            available_features = [col for col in self.feature_columns if col in features.columns]
+            available_features = [
+                col for col in self.feature_columns if col in features.columns
+            ]
             if not available_features:
                 return self.detect_regime_statistical(features)
 
@@ -629,7 +685,10 @@ class MarketRegimeDetector:
             confidence = probabilities[predicted_class]
 
             # Create scores
-            scores = {self.label_encoder.inverse_transform([i])[0]: prob for i, prob in enumerate(probabilities)}
+            scores = {
+                self.label_encoder.inverse_transform([i])[0]: prob
+                for i, prob in enumerate(probabilities)
+            }
 
             return {
                 "regime": regime,
@@ -646,7 +705,9 @@ class MarketRegimeDetector:
         """Ensemble of statistical and ML methods"""
         # Get predictions
         statistical_result = self.detect_regime_statistical(features)
-        ml_result = self.detect_regime_ml(features) if self.use_ml else statistical_result
+        ml_result = (
+            self.detect_regime_ml(features) if self.use_ml else statistical_result
+        )
 
         # Weight based on confidence
         stat_weight = statistical_result["confidence"]
@@ -692,7 +753,9 @@ class MarketRegimeDetector:
     # NEW: REGIME CONFIDENCE INTERVALS
     # ============================================================================
 
-    def get_regime_with_confidence_interval(self, features: pd.DataFrame, n_bootstrap: int = 100) -> Dict:
+    def get_regime_with_confidence_interval(
+        self, features: pd.DataFrame, n_bootstrap: int = 100
+    ) -> Dict:
         """
         Bootstrap confidence intervals for regime detection
 
@@ -711,7 +774,9 @@ class MarketRegimeDetector:
         # Bootstrap samples
         for _ in range(n_bootstrap):
             # Resample features (last 50 rows)
-            sample_idx = np.random.choice(len(features) - 50, size=min(50, len(features)), replace=True)
+            sample_idx = np.random.choice(
+                len(features) - 50, size=min(50, len(features)), replace=True
+            )
             sampled = features.iloc[sample_idx]
 
             regime_info = self.detect_regime_statistical(sampled)
@@ -731,7 +796,9 @@ class MarketRegimeDetector:
     # NEW: EARLY WARNING SYSTEM
     # ============================================================================
 
-    def detect_regime_change_warning(self, features: pd.DataFrame, lookback: int = 20) -> Dict:
+    def detect_regime_change_warning(
+        self, features: pd.DataFrame, lookback: int = 20
+    ) -> Dict:
         """
         Detect early signs of regime change
 
@@ -754,7 +821,9 @@ class MarketRegimeDetector:
         recent_confidences = [h["confidence"] for h in self.regime_history[-lookback:]]
 
         # Confidence trend (negative = declining)
-        confidence_trend = np.polyfit(range(len(recent_confidences)), recent_confidences, 1)[0]
+        confidence_trend = np.polyfit(
+            range(len(recent_confidences)), recent_confidences, 1
+        )[0]
 
         # Method disagreement
         recent_regimes = self.regime_history[-lookback:]
@@ -865,7 +934,9 @@ class MarketRegimeDetector:
 
         # Simple exponential decay probability
         # P(regime ends in next N days) = 1 - exp(-N/mean_duration)
-        prob_end_next_week = 1 - np.exp(-5 / mean_duration) if mean_duration > 0 else 0.5
+        prob_end_next_week = (
+            1 - np.exp(-5 / mean_duration) if mean_duration > 0 else 0.5
+        )
 
         return {
             "current_regime": current_regime,
@@ -1039,7 +1110,9 @@ class MarketRegimeDetector:
             regime_info = self.detect_regime_statistical(features)
 
         # Get strategy allocation
-        allocation = self.get_strategy_allocation(regime_info["regime"], regime_info["confidence"])
+        allocation = self.get_strategy_allocation(
+            regime_info["regime"], regime_info["confidence"]
+        )
 
         # Calculate additional metrics
         regime_strength = self.calculate_regime_strength(features)
@@ -1049,7 +1122,11 @@ class MarketRegimeDetector:
         # Update history
         if update_history:
             history_entry = {
-                "timestamp": (price_data.index[-1] if hasattr(price_data, "index") else len(price_data)),
+                "timestamp": (
+                    price_data.index[-1]
+                    if hasattr(price_data, "index")
+                    else len(price_data)
+                ),
                 "regime": regime_info["regime"],
                 "confidence": regime_info["confidence"],
                 "allocation": allocation,
@@ -1120,7 +1197,9 @@ class MarketRegimeDetector:
 
         print(f"ML model trained on {len(X)} samples")
 
-    def _generate_labels(self, historical_data: pd.DataFrame, features: pd.DataFrame) -> pd.Series:
+    def _generate_labels(
+        self, historical_data: pd.DataFrame, features: pd.DataFrame
+    ) -> pd.Series:
         """Generate regime labels for training"""
         labels = pd.Series(index=features.index, dtype="object")
 

@@ -95,14 +95,18 @@ class LSTMStrategy(BaseStrategy):
         df = df.dropna()
         self.feature_cols = ["returns", "range", "volatility"]
 
-        return df[self.feature_cols].values, df["returns"].shift(-1).dropna().values  # Predicting next return
+        return df[self.feature_cols].values, df["returns"].shift(
+            -1
+        ).dropna().values  # Predicting next return
 
     def create_sequences(self, data, seq_length):
         xs = []
         ys = []
         for i in range(len(data) - seq_length - 1):
             x = data[i : (i + seq_length)]
-            y = data[i + seq_length]  # We are predicting the move at the END of the sequence?
+            y = data[
+                i + seq_length
+            ]  # We are predicting the move at the END of the sequence?
             # Actually, standard is: inputs [t-N...t], predict t+1.
             # In prepare_data, I aligned 'returns' to be current returns.
             # The target should be *future* returns.
@@ -152,7 +156,12 @@ class LSTMStrategy(BaseStrategy):
         y_train = torch.from_numpy(y_train_np).long()
 
         # Model
-        self.model = LSTMModel(input_dim=1, hidden_dim=self.hidden_dim, output_dim=self.classes, num_layers=self.num_layers)
+        self.model = LSTMModel(
+            input_dim=1,
+            hidden_dim=self.hidden_dim,
+            output_dim=self.classes,
+            num_layers=self.num_layers,
+        )
         criterion = nn.CrossEntropyLoss()
         optimizer = torch.optim.Adam(self.model.parameters(), lr=self.learning_rate)
 
@@ -194,7 +203,9 @@ class LSTMStrategy(BaseStrategy):
             return 0
 
         # Prepare latest sequence
-        last_returns = data["Close"].pct_change().tail(self.lookback).values.reshape(-1, 1)
+        last_returns = (
+            data["Close"].pct_change().tail(self.lookback).values.reshape(-1, 1)
+        )
 
         if len(last_returns) < self.lookback:
             return 0
