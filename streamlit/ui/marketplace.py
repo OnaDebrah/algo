@@ -5,7 +5,11 @@ Strategy Marketplace
 import pandas as pd
 
 import streamlit as st
-from streamlit.core.marketplace import StrategyListing, StrategyMarketplace, StrategyReview
+from streamlit.core.marketplace import (
+    StrategyListing,
+    StrategyMarketplace,
+    StrategyReview,
+)
 from streamlit.strategies.strategy_catalog import get_catalog
 
 
@@ -16,10 +20,14 @@ def init_marketplace():
     if "current_user_id" not in st.session_state:
         st.session_state.current_user_id = st.session_state.get("user", {}).get("id", 1)
     if "current_username" not in st.session_state:
-        st.session_state.current_username = st.session_state.get("user", {}).get("username", "demo_user")
+        st.session_state.current_username = st.session_state.get("user", {}).get(
+            "username", "demo_user"
+        )
 
 
-def render_strategy_card(strategy: StrategyListing, show_actions: bool = True, key: str = ""):
+def render_strategy_card(
+    strategy: StrategyListing, show_actions: bool = True, key: str = ""
+):
     """Render a beautiful strategy card"""
     with st.container():
         st.markdown(
@@ -48,7 +56,11 @@ def render_strategy_card(strategy: StrategyListing, show_actions: bool = True, k
         with col1:
             st.markdown(f"### {strategy.name}")
             st.markdown(f"*by {strategy.creator_name}*")
-            st.caption(strategy.description[:150] + "..." if len(strategy.description) > 150 else strategy.description)
+            st.caption(
+                strategy.description[:150] + "..."
+                if len(strategy.description) > 150
+                else strategy.description
+            )
 
         with col2:
             # Rating display
@@ -111,22 +123,41 @@ def render_strategy_card(strategy: StrategyListing, show_actions: bool = True, k
             action_col1, action_col2, action_col3, action_col4 = st.columns(4)
 
             with action_col1:
-                if st.button("📖 Details", key=f"details_{strategy.id}_{key}", use_container_width=True):
+                if st.button(
+                    "📖 Details",
+                    key=f"details_{strategy.id}_{key}",
+                    use_container_width=True,
+                ):
                     st.session_state.selected_strategy = strategy.id
                     st.rerun()
 
             with action_col2:
-                if st.button("⬇️ Clone", key=f"clone_{strategy.id}_clone_{key}", use_container_width=True):
+                if st.button(
+                    "⬇️ Clone",
+                    key=f"clone_{strategy.id}_clone_{key}",
+                    use_container_width=True,
+                ):
                     clone_strategy(strategy.id)
 
             with action_col3:
-                is_fav = st.session_state.marketplace.is_favorited(strategy.id, st.session_state.current_user_id)
+                is_fav = st.session_state.marketplace.is_favorited(
+                    strategy.id, st.session_state.current_user_id
+                )
                 icon = "❤️" if is_fav else "🤍"
-                if st.button(f"{icon}", key=f"fav_{strategy.id}_{key}", use_container_width=True, help="Favorite"):
+                if st.button(
+                    f"{icon}",
+                    key=f"fav_{strategy.id}_{key}",
+                    use_container_width=True,
+                    help="Favorite",
+                ):
                     toggle_favorite(strategy.id)
 
             with action_col4:
-                if st.button("⭐ Review", key=f"review_{strategy.id}_{key}", use_container_width=True):
+                if st.button(
+                    "⭐ Review",
+                    key=f"review_{strategy.id}_{key}",
+                    use_container_width=True,
+                ):
                     st.session_state.review_strategy = strategy.id
                     st.rerun()
 
@@ -192,7 +223,9 @@ def render_strategy_details(strategy_id: int):
     with col2:
         st.markdown("### ⚙️ Parameters")
         if strategy.parameters:
-            params_df = pd.DataFrame([{"Parameter": k, "Value": v} for k, v in strategy.parameters.items()])
+            params_df = pd.DataFrame(
+                [{"Parameter": k, "Value": v} for k, v in strategy.parameters.items()]
+            )
             st.dataframe(params_df, use_container_width=True)
         else:
             st.info("No custom parameters")
@@ -255,7 +288,12 @@ def render_strategy_details(strategy_id: int):
 
                 if review.performance_achieved:
                     with st.expander("📊 User's Performance"):
-                        perf_df = pd.DataFrame([{"Metric": k, "Value": v} for k, v in review.performance_achieved.items()])
+                        perf_df = pd.DataFrame(
+                            [
+                                {"Metric": k, "Value": v}
+                                for k, v in review.performance_achieved.items()
+                            ]
+                        )
                         st.dataframe(perf_df, use_container_width=True)
 
                 st.divider()
@@ -285,7 +323,11 @@ def render_review_form(strategy_id: int):
         if submitted:
             performance = {}
             if total_return != 0 or sharpe != 0 or max_dd != 0:
-                performance = {"total_return": total_return, "sharpe_ratio": sharpe, "max_drawdown": max_dd}
+                performance = {
+                    "total_return": total_return,
+                    "sharpe_ratio": sharpe,
+                    "max_drawdown": max_dd,
+                }
 
             review = StrategyReview(
                 strategy_id=strategy_id,
@@ -307,7 +349,9 @@ def render_review_form(strategy_id: int):
 def clone_strategy(strategy_id: int):
     """Clone a strategy to user's collection"""
     marketplace = st.session_state.marketplace
-    config = marketplace.download_strategy(strategy_id, st.session_state.current_user_id)
+    config = marketplace.download_strategy(
+        strategy_id, st.session_state.current_user_id
+    )
 
     if config:
         st.success("✅ Strategy cloned successfully! Check your strategies page.")
@@ -338,14 +382,26 @@ def render_publish_form():
     catalog = get_catalog()
 
     with st.form("publish_strategy"):
-        name = st.text_input("Strategy Name*", placeholder="My Awesome Momentum Strategy")
-        description = st.text_area("Description*", height=150, placeholder="Describe what makes your strategy unique...")
+        name = st.text_input(
+            "Strategy Name*", placeholder="My Awesome Momentum Strategy"
+        )
+        description = st.text_area(
+            "Description*",
+            height=150,
+            placeholder="Describe what makes your strategy unique...",
+        )
 
         col1, col2 = st.columns(2)
         with col1:
-            strategy_type = st.selectbox("Strategy Type*", options=list(catalog.strategies.keys()), format_func=lambda x: catalog.strategies[x].name)
+            strategy_type = st.selectbox(
+                "Strategy Type*",
+                options=list(catalog.strategies.keys()),
+                format_func=lambda x: catalog.strategies[x].name,
+            )
         with col2:
-            complexity = st.selectbox("Complexity*", ["Beginner", "Intermediate", "Advanced", "Institutional"])
+            complexity = st.selectbox(
+                "Complexity*", ["Beginner", "Intermediate", "Advanced", "Institutional"]
+            )
 
         # Get strategy info from catalog
         strategy_info = catalog.strategies[strategy_type]
@@ -356,17 +412,26 @@ def render_publish_form():
             if param_info.get("range"):
                 if isinstance(param_info["range"], tuple):
                     parameters[param_name] = st.slider(
-                        param_name, min_value=param_info["range"][0], max_value=param_info["range"][1], value=param_info["default"]
+                        param_name,
+                        min_value=param_info["range"][0],
+                        max_value=param_info["range"][1],
+                        value=param_info["default"],
                     )
                 else:
                     parameters[param_name] = st.selectbox(
-                        param_name, options=param_info["range"], index=param_info["range"].index(param_info["default"])
+                        param_name,
+                        options=param_info["range"],
+                        index=param_info["range"].index(param_info["default"]),
                     )
             else:
-                parameters[param_name] = st.text_input(param_name, value=str(param_info["default"]))
+                parameters[param_name] = st.text_input(
+                    param_name, value=str(param_info["default"])
+                )
 
         st.markdown("### 📊 Performance Metrics (Optional)")
-        st.caption("Add backtested performance metrics to make your strategy more attractive")
+        st.caption(
+            "Add backtested performance metrics to make your strategy more attractive"
+        )
 
         perf_col1, perf_col2, perf_col3, perf_col4 = st.columns(4)
         with perf_col1:
@@ -379,7 +444,9 @@ def render_publish_form():
             win_rate = st.number_input("Win Rate (%)", value=0.0, max_value=100.0)
 
         st.markdown("### 🏷️ Tags")
-        tags_input = st.text_input("Tags (comma-separated)", placeholder="momentum, trend-following, low-risk")
+        tags_input = st.text_input(
+            "Tags (comma-separated)", placeholder="momentum, trend-following, low-risk"
+        )
 
         col1, col2 = st.columns(2)
         with col1:
@@ -400,7 +467,12 @@ def render_publish_form():
             # Build performance metrics
             performance_metrics = {}
             if total_return != 0 or sharpe_ratio != 0:
-                performance_metrics = {"total_return": total_return, "sharpe_ratio": sharpe_ratio, "max_drawdown": max_drawdown, "win_rate": win_rate}
+                performance_metrics = {
+                    "total_return": total_return,
+                    "sharpe_ratio": sharpe_ratio,
+                    "max_drawdown": max_drawdown,
+                    "win_rate": win_rate,
+                }
 
             # Create listing
             listing = StrategyListing(
@@ -430,7 +502,16 @@ def render_publish_form():
 
 def render_navigation_tabs():
     """Render main navigation tabs"""
-    tabs = st.tabs(["🔍 Browse", "🔥 Trending", "📝 My Strategies", "❤️ Favorites", "⬇️ Downloads", "📤 Publish"])
+    tabs = st.tabs(
+        [
+            "🔍 Browse",
+            "🔥 Trending",
+            "📝 My Strategies",
+            "❤️ Favorites",
+            "⬇️ Downloads",
+            "📤 Publish",
+        ]
+    )
 
     return tabs
 
@@ -552,27 +633,50 @@ def marketplace():
         col1, col2, col3, col4 = st.columns(4)
 
         with col1:
-            search_query = st.text_input("🔍 Search", placeholder="Search strategies...", key="browse_search")
+            search_query = st.text_input(
+                "🔍 Search", placeholder="Search strategies...", key="browse_search"
+            )
 
         with col2:
-            categories = ["All"] + list(set([s.category for s in marketplace.browse_strategies()]))
+            categories = ["All"] + list(
+                set([s.category for s in marketplace.browse_strategies()])
+            )
             category = st.selectbox("Category", categories, key="browse_category")
             category = None if category == "All" else category
 
         with col3:
-            complexities = ["All", "Beginner", "Intermediate", "Advanced", "Institutional"]
-            complexity = st.selectbox("Complexity", complexities, key="browse_complexity")
+            complexities = [
+                "All",
+                "Beginner",
+                "Intermediate",
+                "Advanced",
+                "Institutional",
+            ]
+            complexity = st.selectbox(
+                "Complexity", complexities, key="browse_complexity"
+            )
             complexity = None if complexity == "All" else complexity
 
         with col4:
-            sort_options = {"Rating": "rating", "Downloads": "downloads", "Newest": "created_at", "Recently Updated": "updated_at"}
-            sort_by = st.selectbox("Sort by", list(sort_options.keys()), key="browse_sort")
+            sort_options = {
+                "Rating": "rating",
+                "Downloads": "downloads",
+                "Newest": "created_at",
+                "Recently Updated": "updated_at",
+            }
+            sort_by = st.selectbox(
+                "Sort by", list(sort_options.keys()), key="browse_sort"
+            )
 
         st.markdown("<div style='margin: 1.5rem 0;'></div>", unsafe_allow_html=True)
 
         # Browse strategies
         strategies = marketplace.browse_strategies(
-            category=category, complexity=complexity, search_query=search_query or None, sort_by=sort_options[sort_by], limit=50
+            category=category,
+            complexity=complexity,
+            search_query=search_query or None,
+            sort_by=sort_options[sort_by],
+            limit=50,
         )
 
         if strategies:
@@ -599,16 +703,22 @@ def marketplace():
     with tabs[2]:
         st.markdown("### 📝 My Published Strategies")
 
-        user_strategies = marketplace.get_user_strategies(st.session_state.current_user_id)
+        user_strategies = marketplace.get_user_strategies(
+            st.session_state.current_user_id
+        )
 
         if user_strategies:
             # Show creator stats
-            creator_stats = marketplace.get_creator_stats(st.session_state.current_user_id)
+            creator_stats = marketplace.get_creator_stats(
+                st.session_state.current_user_id
+            )
 
             stat_col1, stat_col2, stat_col3, stat_col4 = st.columns(4)
             stat_col1.metric("Published", creator_stats["strategies_published"])
             stat_col2.metric("Total Downloads", creator_stats["total_downloads"])
-            stat_col3.metric("Average Rating", f"{creator_stats['average_rating']:.1f}⭐")
+            stat_col3.metric(
+                "Average Rating", f"{creator_stats['average_rating']:.1f}⭐"
+            )
             stat_col4.metric("Total Ratings", creator_stats["total_ratings"])
 
             st.markdown("<div style='margin: 1.5rem 0;'></div>", unsafe_allow_html=True)

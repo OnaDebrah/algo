@@ -1,20 +1,144 @@
-
 services:
+  # ------------------------------
+  # PostgreSQL
+  # ------------------------------
   postgres:
     image: postgres:16-alpine
+    container_name: algo_postgres
     environment:
-      POSTGRES_DB: trading_platform
-      POSTGRES_USER: trading_user
-      POSTGRES_PASSWORD: secure_password_here
+      POSTGRES_DB: ${POSTGRES_DB:-trading_platform}
+      POSTGRES_USER: ${POSTGRES_USER:-trading_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-password}
+      POSTGRES_HOST: ${POSTGRES_HOST:-postgres}
+      POSTGRES_PORT: ${POSTGRES_PORT:-5432}
     ports:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U trading_user -d trading_platform"]
-      interval: 10s
+      test: [ "CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}" ]
+      interval: 5s
       timeout: 5s
-      retries: 5
+      retries: 10
 
+  # ------------------------------
+  # Redis
+  # ------------------------------
+  redis:
+    image: redis:7-alpine
+    container_name: algo_redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: [ "CMD", "redis-cli", "ping" ]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # ------------------------------
+  # Alembic migrations
+  # ------------------------------
+  migrate:
+    build: ./backend
+    container_name: app_migrate
+    command: alembic upgrade head
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-trading_platform}
+      POSTGRES_USER: ${POSTGRES_USER:-trading_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-password}
+      POSTGRES_HOST: ${POSTGRES_HOST:-postgres}
+      POSTGRES_PORT: ${POSTGRES_PORT:-5432}
+    volumes:
+      - ./backend:/app
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  # ------------------------------
+  # FastAPI app
+  # ------------------------------
+  fastapi:
+    build: ./backend
+    container_name: app_api
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload --loop asyncio
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-trading_platform}
+      POSTGRES_USER: ${POSTGRES_USER:-trading_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-password}
+      POSTGRES_HOST: ${POSTGRES_HOST:-postgres}
+      POSTGRES_PORT: ${POSTGRES_PORT:-5432}
+    volumes:
+      - ./backend:/app
+    ports:
+      - "8000:8000"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+
+  # ------------------------------
+  # Celery worker
+  # ------------------------------
+  celery_worker:
+    build: ./backend
+    container_name: app_worker
+    command: celery -A app.celery_app worker --loglevel=info
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-trading_platform}
+      POSTGRES_USER: ${POSTGRES_USER:-trading_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-password}
+      POSTGRES_HOST: ${POSTGRES_HOST:-postgres}
+      POSTGRES_PORT: ${POSTGRES_PORT:-5432}
+    volumes:
+      - ./backend:/app
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+
+  # ------------------------------
+  # Celery beat scheduler
+  # ------------------------------
+  celery_beat:
+    build: ./backend
+    container_name: app_beat
+    command: celery -A app.celery_app beat --loglevel=info
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-trading_platform}
+      POSTGRES_USER: ${POSTGRES_USER:-trading_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-password}
+      POSTGRES_HOST: ${POSTGRES_HOST:-postgres}
+      POSTGRES_PORT: ${POSTGRES_PORT:-5432}
+    volumes:
+      - ./backend:/app
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+
+  # ------------------------------
+  # Next.js frontend
+  # ------------------------------
+  nextjs:
+    build: ./frontend
+    container_name: app_frontend
+    command: npm run dev
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    ports:
+      - "3000:3000"
+    depends_on:
+      - fastapi
+
+# ------------------------------
+# Volumes
+# ------------------------------
 volumes:
   postgres_data:
+  redis_data:

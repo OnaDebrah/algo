@@ -107,7 +107,9 @@ class BaseVolatilityStrategy(BaseStrategy):
             weights = weights / weights.sum()
 
             mean_return = (returns_clean * weights).sum()
-            vol = np.sqrt(((weights * (returns_clean - mean_return) ** 2).sum())) * np.sqrt(252)
+            vol = np.sqrt(
+                ((weights * (returns_clean - mean_return) ** 2).sum())
+            ) * np.sqrt(252)
 
         elif self.vol_estimator == "parkinson":
             # Parkinson estimator using high-low range
@@ -151,7 +153,9 @@ class BaseVolatilityStrategy(BaseStrategy):
 
             # GARCH recursion
             for t in range(1, n):
-                variances[t] = omega + alpha * returns.iloc[t - 1] ** 2 + beta * variances[t - 1]
+                variances[t] = (
+                    omega + alpha * returns.iloc[t - 1] ** 2 + beta * variances[t - 1]
+                )
 
             # Current volatility (annualized)
             vol = np.sqrt(variances[-1]) * np.sqrt(252)
@@ -178,7 +182,9 @@ class BaseVolatilityStrategy(BaseStrategy):
         var_intraday = returns.var()
 
         # Yang-Zhang estimator
-        vol = np.sqrt(var_overnight + k * var_intraday + (1 - k) * var_intraday) * np.sqrt(252)
+        vol = np.sqrt(
+            var_overnight + k * var_intraday + (1 - k) * var_intraday
+        ) * np.sqrt(252)
 
         return vol
 
@@ -211,7 +217,10 @@ class BaseVolatilityStrategy(BaseStrategy):
         if len(self.volatility_history) > 20:
             self.metrics["realized_vol"] = np.mean(self.volatility_history[-20:])
             self.metrics["vol_target_hit_rate"] = np.mean(
-                [abs(v - self.target_volatility) / self.target_volatility < 0.2 for v in self.volatility_history[-20:]]
+                [
+                    abs(v - self.target_volatility) / self.target_volatility < 0.2
+                    for v in self.volatility_history[-20:]
+                ]
             )
             self.metrics["max_leverage"] = max(self.leverage_history)
             self.metrics["min_leverage"] = min(self.leverage_history)

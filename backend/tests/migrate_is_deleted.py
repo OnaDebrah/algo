@@ -9,9 +9,8 @@ logger = logging.getLogger(__name__)
 
 async def migrate():
     """Add is_deleted column to live_strategies table"""
-    from sqlalchemy.ext.asyncio import create_async_engine
-
     from backend.app.config import settings
+    from sqlalchemy.ext.asyncio import create_async_engine
 
     urls_to_try = [settings.DATABASE_URL]
     # Also try the constructed one from components if different

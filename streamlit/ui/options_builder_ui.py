@@ -11,7 +11,10 @@ import plotly.graph_objects as go
 
 import streamlit as st
 from streamlit.core.data_fetcher import fetch_stock_data
-from streamlit.strategies.options_builder import OptionsStrategyBuilder, create_preset_strategy
+from streamlit.strategies.options_builder import (
+    OptionsStrategyBuilder,
+    create_preset_strategy,
+)
 from streamlit.strategies.options_strategies import (
     OptionsChain,
     OptionsStrategy,
@@ -36,7 +39,12 @@ def render_options_strategy_builder(ml_models: dict = None):
 
     with tab_design:
         st.markdown("### Strategy Blueprint")
-        mode = st.radio("Design Mode", ["Preset Templates", "Custom Leg Builder"], horizontal=True, key="design_mode")
+        mode = st.radio(
+            "Design Mode",
+            ["Preset Templates", "Custom Leg Builder"],
+            horizontal=True,
+            key="design_mode",
+        )
         if mode == "Preset Templates":
             render_preset_strategies(ml_models)
         else:
@@ -55,7 +63,9 @@ def render_preset_strategies(ml_models: dict = None):
 
     with col1:
         # Symbol input
-        symbol = st.text_input("Underlying Symbol", value="AAPL", help="Enter stock ticker").upper()
+        symbol = st.text_input(
+            "Underlying Symbol", value="AAPL", help="Enter stock ticker"
+        ).upper()
 
     with col2:
         # Fetch current price
@@ -88,9 +98,13 @@ def render_preset_strategies(ml_models: dict = None):
                     except Exception as e:
                         st.warning(f"Prediction failed: {e}")
             with col_ml2:
-                st.info("Use this forecast to select a strategy below (e.g. Bullish -> Calls/Bull Spreads)")
+                st.info(
+                    "Use this forecast to select a strategy below (e.g. Bullish -> Calls/Bull Spreads)"
+                )
     elif ml_models:
-        st.caption(f"ℹ️ Train an ML model for {symbol} in the 'Build' tab to see forecasts here.")
+        st.caption(
+            f"ℹ️ Train an ML model for {symbol} in the 'Build' tab to see forecasts here."
+        )
 
     current_price = st.session_state.get("current_price", 150.0)
 
@@ -125,24 +139,33 @@ def render_preset_strategies(ml_models: dict = None):
 
     with col1:
         for strategy in strategies_group_1:
-            if st.button(strategy.value, key=f"preset_{strategy.value}", use_container_width=True):
+            if st.button(
+                strategy.value, key=f"preset_{strategy.value}", use_container_width=True
+            ):
                 selected_strategy = strategy
                 st.session_state["selected_strategy"] = strategy
 
     with col2:
         for strategy in strategies_group_2:
-            if st.button(strategy.value, key=f"preset_{strategy.value}", use_container_width=True):
+            if st.button(
+                strategy.value, key=f"preset_{strategy.value}", use_container_width=True
+            ):
                 selected_strategy = strategy
                 st.session_state["selected_strategy"] = strategy
 
     with col3:
         for strategy in strategies_group_3:
-            if st.button(strategy.value, key=f"preset_{strategy.value}", use_container_width=True):
+            if st.button(
+                strategy.value, key=f"preset_{strategy.value}", use_container_width=True
+            ):
                 selected_strategy = strategy
                 st.session_state["selected_strategy"] = strategy
 
     # FIXED: Check if selected_strategy exists and is not None before rendering
-    if "selected_strategy" in st.session_state and st.session_state["selected_strategy"] is not None:
+    if (
+        "selected_strategy" in st.session_state
+        and st.session_state["selected_strategy"] is not None
+    ):
         strategy = st.session_state["selected_strategy"]
         _render_strategy_details(strategy, symbol, current_price)
     elif selected_strategy is not None:
@@ -150,7 +173,9 @@ def render_preset_strategies(ml_models: dict = None):
         _render_strategy_details(selected_strategy, symbol, current_price)
 
 
-def _render_strategy_details(strategy: OptionsStrategy, symbol: str, current_price: float):
+def _render_strategy_details(
+    strategy: OptionsStrategy, symbol: str, current_price: float
+):
     """Render details and configuration for selected strategy"""
 
     # FIXED: Add safety check at the beginning
@@ -210,7 +235,9 @@ def _render_strategy_details(strategy: OptionsStrategy, symbol: str, current_pri
     # Build strategy
     if st.button("🚀 Build & Analyze Strategy", type="primary"):
         try:
-            builder = create_preset_strategy(strategy, symbol, current_price, expiration, **kwargs)
+            builder = create_preset_strategy(
+                strategy, symbol, current_price, expiration, **kwargs
+            )
             _display_strategy_analysis(builder, volatility, current_price)
         except Exception as e:
             st.error(f"Error building strategy: {e}")
@@ -244,18 +271,26 @@ def _get_strategy_parameters(strategy: OptionsStrategy, current_price: float) ->
     elif strategy == OptionsStrategy.VERTICAL_CALL_SPREAD:
         col1, col2 = st.columns(2)
         with col1:
-            long_strike = st.number_input("Long Call Strike", value=current_price, step=0.5)
+            long_strike = st.number_input(
+                "Long Call Strike", value=current_price, step=0.5
+            )
         with col2:
-            short_strike = st.number_input("Short Call Strike", value=current_price * 1.05, step=0.5)
+            short_strike = st.number_input(
+                "Short Call Strike", value=current_price * 1.05, step=0.5
+            )
         kwargs["long_strike"] = long_strike
         kwargs["short_strike"] = short_strike
 
     elif strategy == OptionsStrategy.VERTICAL_PUT_SPREAD:
         col1, col2 = st.columns(2)
         with col1:
-            long_strike = st.number_input("Long Put Strike", value=current_price, step=0.5)
+            long_strike = st.number_input(
+                "Long Put Strike", value=current_price, step=0.5
+            )
         with col2:
-            short_strike = st.number_input("Short Put Strike", value=current_price * 0.95, step=0.5)
+            short_strike = st.number_input(
+                "Short Put Strike", value=current_price * 0.95, step=0.5
+            )
         kwargs["long_strike"] = long_strike
         kwargs["short_strike"] = short_strike
 
@@ -266,11 +301,17 @@ def _get_strategy_parameters(strategy: OptionsStrategy, current_price: float) ->
         with col1:
             put_long = st.number_input("Put Long", value=current_price * 0.90, step=0.5)
         with col2:
-            put_short = st.number_input("Put Short", value=current_price * 0.95, step=0.5)
+            put_short = st.number_input(
+                "Put Short", value=current_price * 0.95, step=0.5
+            )
         with col3:
-            call_short = st.number_input("Call Short", value=current_price * 1.05, step=0.5)
+            call_short = st.number_input(
+                "Call Short", value=current_price * 1.05, step=0.5
+            )
         with col4:
-            call_long = st.number_input("Call Long", value=current_price * 1.10, step=0.5)
+            call_long = st.number_input(
+                "Call Long", value=current_price * 1.10, step=0.5
+            )
 
         kwargs["put_long_strike"] = put_long
         kwargs["put_short_strike"] = put_short
@@ -290,9 +331,13 @@ def _get_strategy_parameters(strategy: OptionsStrategy, current_price: float) ->
     elif strategy == OptionsStrategy.STRANGLE:
         col1, col2 = st.columns(2)
         with col1:
-            put_strike = st.number_input("Put Strike", value=current_price * 0.95, step=0.5)
+            put_strike = st.number_input(
+                "Put Strike", value=current_price * 0.95, step=0.5
+            )
         with col2:
-            call_strike = st.number_input("Call Strike", value=current_price * 1.05, step=0.5)
+            call_strike = st.number_input(
+                "Call Strike", value=current_price * 1.05, step=0.5
+            )
         kwargs["put_strike"] = put_strike
         kwargs["call_strike"] = call_strike
 
@@ -347,7 +392,9 @@ def render_custom_builder():
     col1, col2, col3, col4, col5 = st.columns(5)
 
     with col1:
-        leg_type = st.selectbox("Type", [OptionType.CALL.value, OptionType.PUT.value], key="leg_type")
+        leg_type = st.selectbox(
+            "Type", [OptionType.CALL.value, OptionType.PUT.value], key="leg_type"
+        )
         option_type = OptionType.CALL if leg_type == "Call" else OptionType.PUT
 
     with col2:
@@ -355,10 +402,14 @@ def render_custom_builder():
         quantity = 1 if position == "Long" else -1
 
     with col3:
-        strike = st.number_input("Strike", value=builder.current_price, step=0.5, key="leg_strike")
+        strike = st.number_input(
+            "Strike", value=builder.current_price, step=0.5, key="leg_strike"
+        )
 
     with col4:
-        days = st.number_input("Days to Exp", min_value=1, max_value=365, value=30, key="leg_days")
+        days = st.number_input(
+            "Days to Exp", min_value=1, max_value=365, value=30, key="leg_days"
+        )
 
     with col5:
         st.markdown("<br>", unsafe_allow_html=True)
@@ -368,7 +419,14 @@ def render_custom_builder():
                 builder.add_leg(option_type, strike, expiry, quantity)
 
                 # Store leg info for display
-                st.session_state["custom_legs"].append({"type": leg_type, "position": position, "strike": strike, "days": days})
+                st.session_state["custom_legs"].append(
+                    {
+                        "type": leg_type,
+                        "position": position,
+                        "strike": strike,
+                        "days": days,
+                    }
+                )
 
                 st.success(f"Added {position} {leg_type} @ ${strike}")
                 st.rerun()
@@ -401,12 +459,16 @@ def render_custom_builder():
             st.markdown("<br>", unsafe_allow_html=True)
             if st.button("🧪 Analyze Strategy", type="primary"):
                 try:
-                    _display_strategy_analysis(builder, volatility, builder.current_price)
+                    _display_strategy_analysis(
+                        builder, volatility, builder.current_price
+                    )
                 except Exception as e:
                     st.error(f"Analysis failed: {e}")
 
 
-def _display_strategy_analysis(builder: OptionsStrategyBuilder, volatility: float, current_price: float):
+def _display_strategy_analysis(
+    builder: OptionsStrategyBuilder, volatility: float, current_price: float
+):
     """Display comprehensive strategy analysis"""
 
     st.markdown("---")
@@ -485,7 +547,9 @@ def _display_strategy_analysis(builder: OptionsStrategyBuilder, volatility: floa
         st.exception(e)
 
 
-def _plot_payoff_diagram(builder: OptionsStrategyBuilder, current_price: float, breakevens: List[float]):
+def _plot_payoff_diagram(
+    builder: OptionsStrategyBuilder, current_price: float, breakevens: List[float]
+):
     """Plot payoff diagram"""
 
     st.markdown("### Σ Payoff Diagram")
@@ -522,7 +586,12 @@ def _plot_payoff_diagram(builder: OptionsStrategyBuilder, current_price: float, 
 
         # Breakeven points
         for be in breakevens:
-            fig.add_vline(x=be, line_dash="dot", line_color="cyan", annotation_text=f"BE: ${be:.2f}")
+            fig.add_vline(
+                x=be,
+                line_dash="dot",
+                line_color="cyan",
+                annotation_text=f"BE: ${be:.2f}",
+            )
 
         # Profit/loss zones
         fig.add_shape(
@@ -564,7 +633,9 @@ def _plot_payoff_diagram(builder: OptionsStrategyBuilder, current_price: float, 
         st.error(f"Failed to plot payoff diagram: {e}")
 
 
-def _plot_greeks_surface(builder: OptionsStrategyBuilder, current_price: float, volatility: float):
+def _plot_greeks_surface(
+    builder: OptionsStrategyBuilder, current_price: float, volatility: float
+):
     """Plot Greeks sensitivity heatmap"""
 
     st.markdown("#### Greeks Sensitivity Analysis")
@@ -666,7 +737,11 @@ def render_options_chain_viewer():
                             "impliedVolatility",
                         ]
                         display_cols = [c for c in display_cols if c in calls.columns]
-                        st.dataframe(calls[display_cols], use_container_width=True, hide_index=True)
+                        st.dataframe(
+                            calls[display_cols],
+                            use_container_width=True,
+                            hide_index=True,
+                        )
                     else:
                         st.info("No call options available")
 
@@ -682,7 +757,11 @@ def render_options_chain_viewer():
                             "impliedVolatility",
                         ]
                         display_cols = [c for c in display_cols if c in puts.columns]
-                        st.dataframe(puts[display_cols], use_container_width=True, hide_index=True)
+                        st.dataframe(
+                            puts[display_cols],
+                            use_container_width=True,
+                            hide_index=True,
+                        )
                     else:
                         st.info("No put options available")
 

@@ -60,11 +60,17 @@ class MACDStrategy(BaseStrategy):
             return 0
 
         # Bullish crossover
-        if macd_line.iloc[-2] <= signal_line.iloc[-2] and macd_line.iloc[-1] > signal_line.iloc[-1]:
+        if (
+            macd_line.iloc[-2] <= signal_line.iloc[-2]
+            and macd_line.iloc[-1] > signal_line.iloc[-1]
+        ):
             return 1
 
         # Bearish crossover
-        if macd_line.iloc[-2] >= signal_line.iloc[-2] and macd_line.iloc[-1] < signal_line.iloc[-1]:
+        if (
+            macd_line.iloc[-2] >= signal_line.iloc[-2]
+            and macd_line.iloc[-1] < signal_line.iloc[-1]
+        ):
             return -1
 
         return 0

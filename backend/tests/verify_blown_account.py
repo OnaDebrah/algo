@@ -4,7 +4,6 @@ from unittest.mock import MagicMock
 
 import numpy as np
 import pandas as pd
-
 from backend.app.schemas.backtest import ParamRange, WFARequest
 from backend.app.services.walk_forward_service import WalkForwardService
 

@@ -124,14 +124,20 @@ def render_ml_builder(ml_models: dict):
                 data = fetch_stock_data(ml_symbol, training_period, "1d")
 
                 if data.empty:
-                    st.error("❌ Failed to fetch training data. Please check the symbol.")
+                    st.error(
+                        "❌ Failed to fetch training data. Please check the symbol."
+                    )
                     return
 
                 if len(data) < min_samples:
-                    st.error(f"❌ Insufficient data. Got {len(data)} samples, need at least {min_samples}.")
+                    st.error(
+                        f"❌ Insufficient data. Got {len(data)} samples, need at least {min_samples}."
+                    )
                     return
 
-                st.info(f"📊 Fetched {len(data)} data points from {data.index[0].date()} to {data.index[-1].date()}")
+                st.info(
+                    f"📊 Fetched {len(data)} data points from {data.index[0].date()} to {data.index[-1].date()}"
+                )
 
                 # Create and train model
                 if model_type == "LSTM (Deep Learning)":
@@ -170,7 +176,9 @@ def render_ml_builder(ml_models: dict):
                 st.success("✅ Model trained successfully!")
 
                 # Display Results
-                _display_training_results(train_score, test_score, ml_strategy, ml_symbol)
+                _display_training_results(
+                    train_score, test_score, ml_strategy, ml_symbol
+                )
 
             except Exception as e:
                 st.error(f"❌ Error during training: {str(e)}")
@@ -181,7 +189,9 @@ def render_ml_builder(ml_models: dict):
     _display_trained_models(ml_models)
 
 
-def _display_training_results(train_score: float, test_score: float, ml_strategy: MLStrategy, symbol: str):
+def _display_training_results(
+    train_score: float, test_score: float, ml_strategy: MLStrategy, symbol: str
+):
     """Display training results and metrics"""
     col1, col2, col3 = st.columns(3)
 
@@ -226,7 +236,9 @@ def _display_training_results(train_score: float, test_score: float, ml_strategy
         if overfit_score < 0.05:
             st.success("✅ **Good Model**: Low overfitting")
         elif overfit_score < 0.15:
-            st.warning("⚠️ **Moderate Overfitting**: Consider more data or regularization")
+            st.warning(
+                "⚠️ **Moderate Overfitting**: Consider more data or regularization"
+            )
         else:
             st.error("❌ **High Overfitting**: Model may not generalize well")
 
@@ -280,11 +292,17 @@ def _display_trained_models(ml_models: dict):
             st.metric("Total Models", len(ml_models))
 
         with col2:
-            rf_count = sum(1 for m in ml_models.values() if getattr(m, "model_type", "") == "random_forest")
+            rf_count = sum(
+                1
+                for m in ml_models.values()
+                if getattr(m, "model_type", "") == "random_forest"
+            )
             st.metric("Random Forest", rf_count)
 
         with col3:
-            lstm_count = sum(1 for m in ml_models.values() if isinstance(m, LSTMStrategy))
+            lstm_count = sum(
+                1 for m in ml_models.values() if isinstance(m, LSTMStrategy)
+            )
             st.metric("LSTM Models", lstm_count)
 
         # Model details
@@ -293,8 +311,12 @@ def _display_trained_models(ml_models: dict):
                 col1, col2, col3 = st.columns(3)
 
                 with col1:
-                    st.write(f"**Model Type:** {model.strategy_type.replace('_', ' ').title()}")
-                    st.write(f"**Status:** {'✅ Trained' if model.is_trained else '❌ Not Trained'}")
+                    st.write(
+                        f"**Model Type:** {model.strategy_type.replace('_', ' ').title()}"
+                    )
+                    st.write(
+                        f"**Status:** {'✅ Trained' if model.is_trained else '❌ Not Trained'}"
+                    )
 
                 with col2:
                     st.write(f"**Features:** {len(model.feature_cols)}")
@@ -306,7 +328,9 @@ def _display_trained_models(ml_models: dict):
 
                     with col_a:
                         if st.button("🔄 Retrain", key=f"retrain_{symbol}"):
-                            st.info(f"Use the training section above to retrain {symbol}")
+                            st.info(
+                                f"Use the training section above to retrain {symbol}"
+                            )
 
                     with col_b:
                         if st.button("🗑️ Delete", key=f"delete_{symbol}"):
@@ -321,7 +345,9 @@ def _display_trained_models(ml_models: dict):
                         if len(model.feature_cols) > 20:
                             st.caption(f"... and {len(model.feature_cols) - 20} more")
     else:
-        st.info("📚 No models trained yet. Train your first model using the form above!")
+        st.info(
+            "📚 No models trained yet. Train your first model using the form above!"
+        )
 
 
 def _create_sample_data_chart():

@@ -8,7 +8,9 @@ import numpy as np
 import pandas as pd
 
 
-def calculate_performance_metrics(trades: List[Dict], equity_curve: List[Dict], initial_capital: float) -> Dict:
+def calculate_performance_metrics(
+    trades: List[Dict], equity_curve: List[Dict], initial_capital: float
+) -> Dict:
     """
     Calculate comprehensive performance metrics
 
@@ -128,7 +130,9 @@ def calculate_sortino_ratio(returns: pd.Series, risk_free_rate: float = 0.0) -> 
     return np.mean(excess_returns) / downside_std * np.sqrt(252)
 
 
-def calculate_calmar_ratio(total_return: float, max_drawdown: float, years: float = 1.0) -> float:
+def calculate_calmar_ratio(
+    total_return: float, max_drawdown: float, years: float = 1.0
+) -> float:
     """
     Calculate Calmar ratio (return / max drawdown)
 

@@ -38,7 +38,9 @@ async def verify_analyst():
         if data.get("revenue_forecast"):
             print("✅ AnalystAgent Data Fetching looks good!")
         else:
-            print("⚠️ AnalystAgent Data Fetching: No forecasts found (might be normal for some tickers)")
+            print(
+                "⚠️ AnalystAgent Data Fetching: No forecasts found (might be normal for some tickers)"
+            )
     except Exception as e:
         print(f"❌ AnalystAgent failed: {e}")
 
@@ -46,7 +48,9 @@ async def verify_analyst():
 def verify_trading_engine():
     print("Testing TradingEngine Costs...")
     strategy = SMACrossoverStrategy()
-    engine = TradingEngine(strategy, initial_capital=100000, commission_rate=0.01, slippage_rate=0.01)
+    engine = TradingEngine(
+        strategy, initial_capital=100000, commission_rate=0.01, slippage_rate=0.01
+    )
 
     # Mock data
     data = pd.DataFrame(
@@ -76,7 +80,9 @@ def verify_trading_engine():
     if buy_trade["price"] == 101.0 and sell_trade["price"] == 108.9:
         print("✅ TradingEngine costs look good!")
     else:
-        print(f"❌ TradingEngine costs mismatch. Buy: {buy_trade['price']}, Sell: {sell_trade['price']}")
+        print(
+            f"❌ TradingEngine costs mismatch. Buy: {buy_trade['price']}, Sell: {sell_trade['price']}"
+        )
 
 
 async def main():

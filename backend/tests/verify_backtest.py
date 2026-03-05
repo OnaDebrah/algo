@@ -1,7 +1,6 @@
 from datetime import datetime, timedelta
 
 import pandas as pd
-
 from backend.app.core.multi_asset_engine import MultiAssetEngine
 from backend.app.core.trading_engine import TradingEngine
 from backend.app.strategies.base_strategy import BaseStrategy

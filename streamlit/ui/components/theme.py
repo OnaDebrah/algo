@@ -497,8 +497,16 @@ class OracleTheme:
     @staticmethod
     def render_page_header(title: str, subtitle: str = None, icon: str = None):
         """Render a professional page header"""
-        icon_html = f'<span style="font-size: 3rem; margin-right: 1rem;">{icon}</span>' if icon else ""
-        subtitle_html = f'<p style="font-size: 1.125rem; color: var(--text-secondary); margin-top: 0.5rem;">{subtitle}</p>' if subtitle else ""
+        icon_html = (
+            f'<span style="font-size: 3rem; margin-right: 1rem;">{icon}</span>'
+            if icon
+            else ""
+        )
+        subtitle_html = (
+            f'<p style="font-size: 1.125rem; color: var(--text-secondary); margin-top: 0.5rem;">{subtitle}</p>'
+            if subtitle
+            else ""
+        )
 
         st.markdown(
             f"""

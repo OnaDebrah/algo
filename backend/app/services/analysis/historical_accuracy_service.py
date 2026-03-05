@@ -160,18 +160,24 @@ class HistoricalAccuracyService:
 
     async def _fetch_historical_data(self, symbol: str, user: Optional[User], db: Optional[AsyncSession]) -> pd.DataFrame:
         """Fetch 18+ years of daily data."""
-        start_date = datetime(2007, 1, 1)
-        end_date = datetime.now()
-
+        # Use period="max" to get all available history (avoids period=None + start/end
+        # compatibility issues with yfinance). Then filter to 2007+ afterward.
         data = await self.provider_factory.fetch_data(
             symbol=symbol,
-            period=None,
+            period="max",
             interval="1d",
-            start=start_date,
-            end=end_date,
             user=user,
             db=db,
         )
+
+        if not data.empty:
+            # Filter to 2007-01-01 onwards (needed for known crash events starting 2007)
+            start_date = pd.Timestamp("2007-01-01")
+            if data.index.tz is not None:
+                start_date = start_date.tz_localize(data.index.tz)
+            data = data[data.index >= start_date]
+            logger.info(f"Filtered to {len(data)} bars from {data.index[0]} to {data.index[-1]}")
+
         return data
 
     def _compute_ground_truth(self, data: pd.DataFrame) -> pd.DataFrame:

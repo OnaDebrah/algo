@@ -51,7 +51,9 @@ class VarianceRiskPremiumStrategy(BaseVolatilityStrategy):
         vrp = implied_vol - realized_vol
         return vrp
 
-    def generate_vrp_signal(self, implied_vol: float, realized_vol: float, vrp_history: List[float] = None) -> Dict:
+    def generate_vrp_signal(
+        self, implied_vol: float, realized_vol: float, vrp_history: List[float] = None
+    ) -> Dict:
         """
         Generate VRP trading signal
 
@@ -105,7 +107,9 @@ class VarianceRiskPremiumStrategy(BaseVolatilityStrategy):
                 position_size = 1.0
 
         # Calculate position details based on method
-        position_details = self._calculate_vrp_position(signal, position_size, implied_vol, realized_vol)
+        position_details = self._calculate_vrp_position(
+            signal, position_size, implied_vol, realized_vol
+        )
 
         return {
             "signal": signal,
@@ -122,7 +126,9 @@ class VarianceRiskPremiumStrategy(BaseVolatilityStrategy):
             },
         }
 
-    def _calculate_vrp_position(self, signal: int, position_size: float, implied_vol: float, realized_vol: float) -> Dict:
+    def _calculate_vrp_position(
+        self, signal: int, position_size: float, implied_vol: float, realized_vol: float
+    ) -> Dict:
         """
         Calculate detailed VRP position based on selected method
         """

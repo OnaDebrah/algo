@@ -1,6 +1,6 @@
 from typing import Optional
 
-from core.trade.order.order import Order, OrderStatus
+from app.core.trade.order.order import Order, OrderStatus
 
 
 class OCOOrder:

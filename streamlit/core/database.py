@@ -166,7 +166,9 @@ class DatabaseManager:
         conn.close()
         return trades
 
-    def save_performance(self, portfolio_id: int, equity: float, cash: float, total_return: float):
+    def save_performance(
+        self, portfolio_id: int, equity: float, cash: float, total_return: float
+    ):
         """Save performance snapshot"""
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
@@ -233,7 +235,9 @@ class DatabaseManager:
 
         try:
             # 1. Get Current Capital - Use a safer fetch
-            cursor.execute("SELECT current_capital FROM portfolios WHERE id = ?", (portfolio_id,))
+            cursor.execute(
+                "SELECT current_capital FROM portfolios WHERE id = ?", (portfolio_id,)
+            )
             row = cursor.fetchone()
             nav = row[0] if row else 0.0
 

@@ -60,13 +60,19 @@ class SentimentAnalyzer:
             if source == "news":
                 features["news_sentiment"] = self._get_news_sentiment(symbol, date)
             elif source == "twitter":
-                features["twitter_sentiment"] = self._get_twitter_sentiment(symbol, date)
+                features["twitter_sentiment"] = self._get_twitter_sentiment(
+                    symbol, date
+                )
             elif source == "stocktwits":
-                features["stocktwits_sentiment"] = self._get_stocktwits_sentiment(symbol, date)
+                features["stocktwits_sentiment"] = self._get_stocktwits_sentiment(
+                    symbol, date
+                )
             elif source == "reddit":
                 features["reddit_sentiment"] = self._get_reddit_sentiment(symbol, date)
             elif source == "options":
-                features["options_sentiment"] = self._get_options_sentiment(symbol, date)
+                features["options_sentiment"] = self._get_options_sentiment(
+                    symbol, date
+                )
 
         # Add aggregate sentiment
         if features:
@@ -113,7 +119,9 @@ class SentimentAnalyzer:
 
                 # 2. Extract Explicit Sentiment (Bullish/Bearish tag)
                 # Users can manually tag their posts. This is a very strong signal.
-                explicit_sentiment = msg.get("entities", {}).get("sentiment", {}).get("basic")
+                explicit_sentiment = (
+                    msg.get("entities", {}).get("sentiment", {}).get("basic")
+                )
                 if explicit_sentiment == "Bullish":
                     vader_score = (vader_score + 1.0) / 2  # Nudge score higher
                 elif explicit_sentiment == "Bearish":
@@ -126,7 +134,11 @@ class SentimentAnalyzer:
                 is_official = 10 if user.get("official", False) else 1
 
                 # Logarithmic weighting to avoid one whale skewing everything
-                weight = (np.log1p(followers) * 0.7) + (np.log1p(experience) * 0.3) + is_official
+                weight = (
+                    (np.log1p(followers) * 0.7)
+                    + (np.log1p(experience) * 0.3)
+                    + is_official
+                )
 
                 weighted_scores.append(vader_score * weight)
                 total_weight += weight
@@ -180,7 +192,9 @@ class SentimentAnalyzer:
 
                 # 2. Calculate Influence Weight
                 # Institutional logic: Verified accounts and high follower counts have more "alpha"
-                follower_count = author["public_metrics"]["followers_count"] if author else 0
+                follower_count = (
+                    author["public_metrics"]["followers_count"] if author else 0
+                )
                 is_verified = author["verified"] if author else False
 
                 # Weight formula: Logarithmic scale for followers + bonus for verification
@@ -208,7 +222,11 @@ class SentimentAnalyzer:
         a weighted sentiment score based on post engagement.
         """
         # 1. Authentication (Use environment variables for these)
-        reddit = praw.Reddit(client_id="YOUR_CLIENT_ID", client_secret="YOUR_CLIENT_SECRET", user_agent="FinancialAnalystBot/1.0 by /u/YourUsername")
+        reddit = praw.Reddit(
+            client_id="YOUR_CLIENT_ID",
+            client_secret="YOUR_CLIENT_SECRET",
+            user_agent="FinancialAnalystBot/1.0 by /u/YourUsername",
+        )
 
         analyzer = SentimentIntensityAnalyzer()
         subreddits = ["wallstreetbets", "stocks", "investing", "options"]
@@ -225,7 +243,9 @@ class SentimentAnalyzer:
 
             # Fetch top/relevant posts from the last 24-48 hours
             # 'cloud' search is more effective for symbols
-            for submission in target_subs.search(query, sort="relevance", time_filter="week", limit=25):
+            for submission in target_subs.search(
+                query, sort="relevance", time_filter="week", limit=25
+            ):
                 # 2. VADER Analysis on Title + Body
                 content = f"{submission.title} {submission.selftext}"
                 vader_score = analyzer.polarity_scores(content)["compound"]
@@ -238,7 +258,9 @@ class SentimentAnalyzer:
 
                 # Institutional Weighting Formula
                 # We use log1p for score to handle viral posts without over-skewing
-                weight = (np.log1p(max(0, score)) * ratio) + (np.log1p(num_comments) * 0.5)
+                weight = (np.log1p(max(0, score)) * ratio) + (
+                    np.log1p(num_comments) * 0.5
+                )
 
                 weighted_scores.append(vader_score * weight)
                 total_weight += weight
@@ -248,7 +270,9 @@ class SentimentAnalyzer:
                 submission.comments.replace_more(limit=0)  # Flatten comment tree
                 for comment in submission.comments[:3]:
                     c_score = analyzer.polarity_scores(comment.body)["compound"]
-                    c_weight = np.log1p(max(0, comment.score)) * 0.5  # Comments have less weight than posts
+                    c_weight = (
+                        np.log1p(max(0, comment.score)) * 0.5
+                    )  # Comments have less weight than posts
                     weighted_scores.append(c_score * c_weight)
                     total_weight += c_weight
 
@@ -287,9 +311,13 @@ class MLPredictor:
         self.feature_names = []
 
         if not ML_AVAILABLE:
-            raise ImportError("scikit-learn is required. Install with: pip install scikit-learn")
+            raise ImportError(
+                "scikit-learn is required. Install with: pip install scikit-learn"
+            )
 
-    def create_features(self, data: pd.DataFrame, sentiment_features: pd.DataFrame) -> pd.DataFrame:
+    def create_features(
+        self, data: pd.DataFrame, sentiment_features: pd.DataFrame
+    ) -> pd.DataFrame:
         """
         Create feature set combining technical indicators and sentiment
         """
@@ -306,7 +334,9 @@ class MLPredictor:
 
         # Volume features
         if "volume" in data.columns:
-            features["volume_ma_ratio"] = data["volume"] / data["volume"].rolling(20).mean()
+            features["volume_ma_ratio"] = (
+                data["volume"] / data["volume"].rolling(20).mean()
+            )
 
         # Moving averages
         features["sma_20"] = data["close"].rolling(20).mean() / data["close"] - 1
@@ -342,7 +372,9 @@ class MLPredictor:
             raise ValueError(f"Insufficient training data: {len(X)} samples")
 
         # Split data
-        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=test_size, shuffle=False)
+        X_train, X_test, y_train, y_test = train_test_split(
+            X, y, test_size=test_size, shuffle=False
+        )
 
         # Scale features
         X_train_scaled = self.scaler.fit_transform(X_train)
@@ -350,9 +382,13 @@ class MLPredictor:
 
         # Train model
         if self.model_type == "gradient_boosting":
-            self.model = GradientBoostingRegressor(n_estimators=100, learning_rate=0.1, max_depth=5, random_state=42)
+            self.model = GradientBoostingRegressor(
+                n_estimators=100, learning_rate=0.1, max_depth=5, random_state=42
+            )
         elif self.model_type == "random_forest":
-            self.model = RandomForestRegressor(n_estimators=100, max_depth=10, random_state=42)
+            self.model = RandomForestRegressor(
+                n_estimators=100, max_depth=10, random_state=42
+            )
         else:
             raise ValueError(f"Unknown model type: {self.model_type}")
 
@@ -364,7 +400,12 @@ class MLPredictor:
         train_score = self.model.score(X_train_scaled, y_train)
         test_score = self.model.score(X_test_scaled, y_test)
 
-        return {"train_r2": train_score, "test_r2": test_score, "train_samples": len(X_train), "test_samples": len(X_test)}
+        return {
+            "train_r2": train_score,
+            "test_r2": test_score,
+            "train_samples": len(X_train),
+            "test_samples": len(X_test),
+        }
 
     def predict(self, features: pd.DataFrame) -> Tuple[np.ndarray, np.ndarray]:
         """
@@ -385,7 +426,9 @@ class MLPredictor:
         # Estimate uncertainty (simplified)
         if hasattr(self.model, "estimators_"):
             # For ensemble methods, use prediction variance
-            all_predictions = np.array([tree.predict(X_scaled) for tree in self.model.estimators_])
+            all_predictions = np.array(
+                [tree.predict(X_scaled) for tree in self.model.estimators_]
+            )
             uncertainty = np.std(all_predictions, axis=0)
         else:
             # Fixed uncertainty for non-ensemble methods
@@ -403,7 +446,12 @@ class MonteCarloEngine:
         self.num_simulations = num_simulations
 
     def simulate_paths(
-        self, current_price: float, predicted_return: float, predicted_volatility: float, forecast_horizon: int, dt: float = 1 / 252
+        self,
+        current_price: float,
+        predicted_return: float,
+        predicted_volatility: float,
+        forecast_horizon: int,
+        dt: float = 1 / 252,
     ) -> np.ndarray:
         """
         Generate Monte Carlo price paths using Geometric Brownian Motion
@@ -423,7 +471,9 @@ class MonteCarloEngine:
         paths[:, 0] = current_price
 
         # Generate random shocks
-        random_shocks = np.random.normal(0, 1, (self.num_simulations, forecast_horizon - 1))
+        random_shocks = np.random.normal(
+            0, 1, (self.num_simulations, forecast_horizon - 1)
+        )
 
         # Simulate GBM paths
         for t in range(1, forecast_horizon):
@@ -433,7 +483,9 @@ class MonteCarloEngine:
 
         return paths
 
-    def calculate_statistics(self, paths: np.ndarray, confidence_level: float = 0.95) -> Dict[str, Any]:
+    def calculate_statistics(
+        self, paths: np.ndarray, confidence_level: float = 0.95
+    ) -> Dict[str, Any]:
         """
         Calculate statistics from simulated paths
         """
@@ -452,7 +504,12 @@ class MonteCarloEngine:
             "prob_profit": np.mean(final_prices > paths[0, 0]),
             "expected_return": np.mean((final_prices - paths[0, 0]) / paths[0, 0]),
             "var_95": np.percentile(final_prices - paths[0, 0], 5),
-            "cvar_95": np.mean((final_prices - paths[0, 0])[final_prices - paths[0, 0] <= np.percentile(final_prices - paths[0, 0], 5)]),
+            "cvar_95": np.mean(
+                (final_prices - paths[0, 0])[
+                    final_prices - paths[0, 0]
+                    <= np.percentile(final_prices - paths[0, 0], 5)
+                ]
+            ),
         }
 
         return stats
@@ -466,7 +523,12 @@ class PositionSizer:
     def __init__(self, risk_per_trade: float = 0.02):
         self.risk_per_trade = risk_per_trade
 
-    def calculate_position_size(self, portfolio_value: float, simulation_stats: Dict[str, Any], current_price: float) -> float:
+    def calculate_position_size(
+        self,
+        portfolio_value: float,
+        simulation_stats: Dict[str, Any],
+        current_price: float,
+    ) -> float:
         """
         Calculate position size based on simulation results
 
@@ -556,7 +618,9 @@ class MonteCarloMLSentimentStrategy(BaseStrategy):
         sentiment_data = []
         for date in df.index:
             # Get sentiment for current symbol (assuming single symbol for now)
-            sentiment_features = self.sentiment_analyzer.get_sentiment_features("SYMBOL", date)
+            sentiment_features = self.sentiment_analyzer.get_sentiment_features(
+                "SYMBOL", date
+            )
             sentiment_features["date"] = date
             sentiment_data.append(sentiment_features)
 
@@ -598,7 +662,11 @@ class MonteCarloMLSentimentStrategy(BaseStrategy):
         df = self.calculate_indicators(data)
 
         # Get feature columns (exclude price data)
-        feature_cols = [col for col in df.columns if col not in ["open", "high", "low", "close", "volume"]]
+        feature_cols = [
+            col
+            for col in df.columns
+            if col not in ["open", "high", "low", "close", "volume"]
+        ]
         features = df[feature_cols]
 
         # Target: next day return
@@ -640,7 +708,18 @@ class MonteCarloMLSentimentStrategy(BaseStrategy):
         feature_cols = [
             col
             for col in df_with_features.columns
-            if col not in ["open", "high", "low", "close", "volume", "signal", "position_size", "expected_return", "confidence"]
+            if col
+            not in [
+                "open",
+                "high",
+                "low",
+                "close",
+                "volume",
+                "signal",
+                "position_size",
+                "expected_return",
+                "confidence",
+            ]
         ]
 
         # Make predictions on recent data

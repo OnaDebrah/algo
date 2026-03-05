@@ -6,4 +6,11 @@ from .marketplace import StrategyMarketplace
 from .risk_manager import RiskManager
 from .trading_engine import TradingEngine
 
-__all__ = ["DatabaseManager", "TradingEngine", "RiskManager", "fetch_stock_data", "validate_interval_period", "StrategyMarketplace"]
+__all__ = [
+    "DatabaseManager",
+    "TradingEngine",
+    "RiskManager",
+    "fetch_stock_data",
+    "validate_interval_period",
+    "StrategyMarketplace",
+]

@@ -2,33 +2,36 @@
 Scheduler for automated crash monitoring and hedge execution
 """
 
+from __future__ import annotations
+
 import logging
 import os
 from datetime import datetime, timedelta
-from typing import Dict, Optional, Tuple
+from typing import TYPE_CHECKING, Dict, List, Optional, Tuple
 
 import numpy as np
 import pandas as pd
-from alerts import AlertManager
-from alpaca_trade_api.entity import Watchlist
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
+
+if TYPE_CHECKING:
+    import plotly.graph_objects as go
 from apscheduler.triggers.cron import CronTrigger
 from apscheduler.triggers.interval import IntervalTrigger
-from models import User, UserSettings
-from models.bubble_detection import BubbleDetection
-from models.crash_prediction import CrashPrediction
-from pygments.lexers import go
-from schemas.alert import AlertCategory, AlertLevel
-from sklearn.metrics import r2_score
+from sklearn.metrics import mean_squared_error, r2_score
 from sqlalchemy import select
-from tensorflow.python.keras.losses import mean_squared_error
 
+from ...alerts.alert_manager import AlertManager
 from ...core.data.providers.providers import ProviderFactory
 from ...database import AsyncSessionLocal
+from ...models import User, UserSettings
+from ...models.bubble_detection import BubbleDetection
+from ...models.crash_prediction import CrashPrediction
+from ...models.portfolio import Portfolio
+from ...models.position import Position
+from ...schemas.alert import AlertCategory, AlertLevel
 from ...services.brokers.broker_service import BrokerService
 from ...services.execution.auto_hedge_executor import AutoHedgeExecutor
 from ..analysis.dashboard import CrashPredictionDashboard
-from ..portfolio_service import PortfolioService
 
 logger = logging.getLogger(__name__)
 
@@ -152,6 +155,45 @@ class CrashMonitorScheduler:
         logger.info("=" * 50)
 
         return retrain_results
+
+    def _add_technical_indicators(self, data: pd.DataFrame) -> pd.DataFrame:
+        """Add technical indicators needed for ML training features"""
+        df = data.copy()
+        close = df["Close"]
+        volume = df["Volume"] if "Volume" in df.columns else pd.Series(0, index=df.index)
+
+        # Returns over various windows
+        df["returns_1d"] = close.pct_change(1)
+        df["returns_5d"] = close.pct_change(5)
+        df["returns_21d"] = close.pct_change(21)
+        df["volatility_21d"] = df["returns_1d"].rolling(21).std()
+        df["volume_ratio"] = volume / volume.rolling(21).mean()
+
+        # RSI (14-period)
+        delta = close.diff()
+        gain = delta.clip(lower=0).rolling(14).mean()
+        loss = (-delta.clip(upper=0)).rolling(14).mean()
+        rs = gain / loss.replace(0, np.nan)
+        df["rsi"] = 100 - (100 / (1 + rs))
+
+        # MACD
+        ema12 = close.ewm(span=12).mean()
+        ema26 = close.ewm(span=26).mean()
+        df["macd"] = ema12 - ema26
+
+        # Bollinger Band position (distance from mean in std devs)
+        sma20 = close.rolling(20).mean()
+        std20 = close.rolling(20).std()
+        df["bb_position"] = (close - sma20) / std20.replace(0, np.nan)
+
+        # SMA ratios
+        df["sma_50_ratio"] = close / close.rolling(50).mean()
+        df["sma_200_ratio"] = close / close.rolling(200).mean()
+
+        # Forward return target for supervised learning
+        df["forward_return_1d"] = close.pct_change().shift(-1)
+
+        return df
 
     async def _fetch_training_data(self) -> pd.DataFrame:
         """Fetch latest data for model retraining"""
@@ -593,25 +635,25 @@ class CrashMonitorScheduler:
             message += f"Errors: {', '.join(results.get('errors', []))}"
             await self.alert_manager.send_error(message)
 
-        async def run_crash_predictions(self):
-            """Run crash predictions for all users"""
-            logger.info("Running crash predictions")
+    async def run_crash_predictions(self):
+        """Run crash predictions for all users"""
+        logger.info("Running crash predictions")
 
-            async with AsyncSessionLocal() as db:
-                users = await self._get_active_users(db)
+        async with AsyncSessionLocal() as db:
+            users = await self._get_active_users(db)
 
-                for user in users:
-                    try:
-                        # Get user's executor
-                        if user.id not in self.executors:
-                            self.executors[user.id] = AutoHedgeExecutor(self.provider_factory, self.broker, db)
+            for user in users:
+                try:
+                    # Get user's executor
+                    if user.id not in self.executors:
+                        self.executors[user.id] = AutoHedgeExecutor(self.provider_factory, self.broker, db)
 
-                        executor = self.executors[user.id]
+                    executor = self.executors[user.id]
 
-                        await executor.monitor_and_execute(user.id)
+                    await executor.monitor_and_execute(user.id)
 
-                    except Exception as e:
-                        logger.error(f"Error in predictions for user {user.id}: {e}")
+                except Exception as e:
+                    logger.error(f"Error in predictions for user {user.id}: {e}")
 
     async def check_hedge_executions(self):
         """Check and execute hedges if needed"""
@@ -679,18 +721,21 @@ class CrashMonitorScheduler:
                     logger.error(f"Alert check error for user {user.id}: {e}")
 
     async def _get_active_users(self, db) -> list:
-        """Get users with active monitoring"""
-
-        result = await db.execute(select(User).join(UserSettings).where(UserSettings.crash_monitoring, User.is_active))
+        """Get users with active crash monitoring enabled"""
+        result = await db.execute(
+            select(User)
+            .join(UserSettings)
+            .where(
+                UserSettings.crash_monitoring == True,  # noqa: E712
+                User.is_active == True,  # noqa: E712
+            )
+        )
         return result.scalars().all()
 
     async def _get_user_symbols(self, user_id: int, db) -> list:
-        """Get symbols monitored by user"""
-
-        result = await db.execute(select(Watchlist).where(Watchlist.user_id == user_id))
-        watchlist = result.scalars().first()
-
-        return watchlist.symbols if watchlist else []
+        """Get symbols monitored by user from their positions"""
+        result = await db.execute(select(Position.symbol).join(Portfolio).where(Portfolio.user_id == user_id).distinct())
+        return [row[0] for row in result.all()]
 
     async def _get_crash_probability(self, user_id: int, db) -> float:
         """Get current crash probability for user"""
@@ -722,27 +767,67 @@ class CrashMonitorScheduler:
 
         await self.alert_manager.send_alert(user_id=user_id, level=level, title="Crash Monitor Alert", message=message, category=category)
 
-    async def _update_user_portfolio(self, user_id: int, db, portfolio_id: int = 1):
-        """Update user portfolio data"""
+    async def _update_user_portfolio(self, user_id: int, db):
+        """Refresh portfolio data by fetching latest quotes for user positions"""
+        symbols = await self._get_user_symbols(user_id, db)
+        for symbol in symbols:
+            try:
+                await self.provider_factory.get_quote(symbol)
+            except Exception as e:
+                logger.debug(f"Failed to refresh quote for {symbol}: {e}")
 
-        service = PortfolioService(db)
-        await service.update_portfolio(portfolio_id, user_id)
+    async def _get_user_predictions(self, user_id: int, db) -> Dict:
+        """Get latest crash predictions for user, keyed by symbol"""
+        result = await db.execute(
+            select(CrashPrediction).where(CrashPrediction.user_id == user_id).order_by(CrashPrediction.timestamp.desc()).limit(100)
+        )
+        predictions = result.scalars().all()
 
-    async def _generate_user_dashboard(self, user_id: int, db, portfolio_id: int = 1) -> go.Figure:
-        """Generate dashboard for user"""
-        service = PortfolioService(db)
-        portfolio = await service.get_portfolio(user_id, portfolio_id)
+        # Group predictions into series by symbol
+        grouped: Dict[str, List] = {}
+        for pred in predictions:
+            symbol = pred.symbol
+            if symbol not in grouped:
+                grouped[symbol] = []
+            grouped[symbol].append(
+                {
+                    "timestamp": pred.timestamp,
+                    "crash_probability": pred.crash_probability,
+                    "confidence": pred.confidence,
+                    "intensity": pred.intensity,
+                }
+            )
+
+        # Convert to pandas Series for the dashboard
+        series_dict: Dict[str, pd.Series] = {}
+        for symbol, records in grouped.items():
+            df = pd.DataFrame(records)
+            if not df.empty and "timestamp" in df.columns:
+                df = df.set_index("timestamp").sort_index()
+                series_dict[symbol] = df["crash_probability"]
+
+        return series_dict
+
+    async def _generate_user_dashboard(self, user_id: int, db) -> Optional[go.Figure]:
+        """Generate dashboard for user by fetching price data and predictions"""
+        symbols = await self._get_user_symbols(user_id, db)
+        if not symbols:
+            return None
+
+        # Fetch price data for the user's primary symbol
+        price_data = await self.provider_factory.fetch_data(symbol=symbols[0], period="1y", interval="1d")
+        if price_data.empty:
+            return None
+
         predictions = await self._get_user_predictions(user_id, db)
 
-        dashboard = self.dashboard.create_dashboard(
-            price_data=portfolio.price_history, predictions=predictions, stress_data=portfolio.stress_history, bubble_data=portfolio.bubble_data
-        )
+        return self.dashboard.create_dashboard(price_data=price_data, predictions=predictions)
 
-        return dashboard
-
-    async def _save_dashboard(self, user_id: int, dashboard: go.Figure):
+    async def _save_dashboard(self, user_id: int, dashboard: Optional[go.Figure]):
         """Save dashboard to file or database"""
-        # Save as HTML
+        if dashboard is None:
+            return
+        os.makedirs("dashboards", exist_ok=True)
         dashboard.write_html(f"dashboards/user_{user_id}_dashboard.html")
 
     def stop(self):

@@ -16,8 +16,6 @@ from ...services.brokers.base_client import BrokerClient
 
 logger = logging.getLogger(__name__)
 
-util.patchAsyncio()
-
 
 class IBClient(BrokerClient):
     """
@@ -27,6 +25,10 @@ class IBClient(BrokerClient):
     """
 
     def __init__(self):
+        try:
+            util.patchAsyncio()
+        except ValueError:
+            pass
         self.ib = IB()
         self.connected = False
         self.account_id = None

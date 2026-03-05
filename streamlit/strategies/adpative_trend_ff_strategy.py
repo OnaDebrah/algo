@@ -47,7 +47,9 @@ class AdaptiveTrendFollowingStrategy(TimeSeriesMomentumStrategy):
 
         # Calculate volatility regime (existing code remains)
         returns = self._calculate_returns(prices)
-        recent_vol = self._calculate_volatility(returns.iloc[-63:] if len(returns) >= 63 else returns)
+        recent_vol = self._calculate_volatility(
+            returns.iloc[-63:] if len(returns) >= 63 else returns
+        )
 
         if recent_vol < 0.1:
             vol_regime = "low_vol"
@@ -124,7 +126,9 @@ class AdaptiveTrendFollowingStrategy(TimeSeriesMomentumStrategy):
         # Adjust position size based on regime
         if "position_size" in base_result:
             base_result["position_size"] *= position_multiplier
-            base_result["position_size"] = min(base_result["position_size"], self.max_position)
+            base_result["position_size"] = min(
+                base_result["position_size"], self.max_position
+            )
 
         # Add regime info to metadata
         base_result["metadata"]["regime"] = regime

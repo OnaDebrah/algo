@@ -46,7 +46,9 @@ class AIAdvisorAPI:
 
             # Clean up response (remove markdown if present)
             if response_text.startswith("```json"):
-                response_text = response_text.split("```json")[1].split("```")[0].strip()
+                response_text = (
+                    response_text.split("```json")[1].split("```")[0].strip()
+                )
             elif response_text.startswith("```"):
                 response_text = response_text.split("```")[1].split("```")[0].strip()
 
@@ -140,7 +142,9 @@ class AIAdvisorAPI:
         except Exception:
             return False
 
-    async def get_recommendations_with_retry(self, user_profile: Dict, max_retries: int = 2) -> str:
+    async def get_recommendations_with_retry(
+        self, user_profile: Dict, max_retries: int = 2
+    ) -> str:
         """
         Get recommendations with automatic retry on failure
         """
@@ -154,7 +158,9 @@ class AIAdvisorAPI:
                 if self.validate_response(response):
                     return response
                 else:
-                    print(f"⚠️ Invalid response format (attempt {attempt + 1}/{max_retries})")
+                    print(
+                        f"⚠️ Invalid response format (attempt {attempt + 1}/{max_retries})"
+                    )
                     if attempt < max_retries - 1:
                         continue
 

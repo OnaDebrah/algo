@@ -107,9 +107,24 @@ def fetch_economic_calendar() -> List[Dict]:
     # Options: Trading Economics API, Investing.com API, Alpha Vantage
 
     events = [
-        {"time": "10:00 AM EST", "event": "Fed Interest Rate Decision", "impact": "high", "icon": "🔴"},
-        {"time": "2:30 PM EST", "event": "Unemployment Claims", "impact": "medium", "icon": "🟡"},
-        {"time": "Tomorrow", "event": "CPI Data Release", "impact": "high", "icon": "🔴"},
+        {
+            "time": "10:00 AM EST",
+            "event": "Fed Interest Rate Decision",
+            "impact": "high",
+            "icon": "🔴",
+        },
+        {
+            "time": "2:30 PM EST",
+            "event": "Unemployment Claims",
+            "impact": "medium",
+            "icon": "🟡",
+        },
+        {
+            "time": "Tomorrow",
+            "event": "CPI Data Release",
+            "impact": "high",
+            "icon": "🔴",
+        },
     ]
 
     return events
@@ -307,7 +322,11 @@ def render_news_feed(news_items: List[Dict]):
 
     news_html = []
     for item in news_items:
-        time_str = item["time"].strftime("%H:%M") if isinstance(item["time"], datetime) else "Now"
+        time_str = (
+            item["time"].strftime("%H:%M")
+            if isinstance(item["time"], datetime)
+            else "Now"
+        )
         news_html.append(f"""
             <div class="news-item">
                 <span class="news-time">{time_str}</span>
@@ -507,7 +526,9 @@ def render_economic_calendar(events: List[Dict]):
 # ============================================================================
 
 
-def render_market_ticker(style: str = "scrolling", include_news: bool = False, include_calendar: bool = False):
+def render_market_ticker(
+    style: str = "scrolling", include_news: bool = False, include_calendar: bool = False
+):
     """
     Render complete market ticker with auto-refresh.
 
@@ -521,7 +542,9 @@ def render_market_ticker(style: str = "scrolling", include_news: bool = False, i
     with t_col2:
         inner_col1, inner_col2 = st.columns([1, 4])
         with inner_col2:
-            auto_refresh = st.toggle("Auto", value=False, key="ticker_auto", help="Refresh every 2m")
+            auto_refresh = st.toggle(
+                "Auto", value=False, key="ticker_auto", help="Refresh every 2m"
+            )
 
     # Fetch data
     with st.spinner("Loading market data..."):

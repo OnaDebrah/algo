@@ -2,7 +2,7 @@ from typing import Any, Dict, List, Optional
 
 import pandas as pd
 
-from core.trade.timeframes.multi_timeframe_manager import MultiTimeframeManager
+from app.core.trade.timeframes.multi_timeframe_manager import MultiTimeframeManager
 
 
 class StrategyMultiTimeframeAdapter:

@@ -304,7 +304,9 @@ Make the strategy practical, well-documented, and production-ready."""
 
         return code, explanation, example
 
-    def _generate_template_strategy(self, prompt: str, style: str) -> Tuple[str, str, str]:
+    def _generate_template_strategy(
+        self, prompt: str, style: str
+    ) -> Tuple[str, str, str]:
         """Generate template strategy when AI is unavailable"""
 
         # Detect strategy type from prompt

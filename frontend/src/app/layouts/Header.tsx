@@ -68,10 +68,10 @@ const Header = ({ user, currentPage, serverStatus = false, onLogout }: HeaderPro
     // Prepare display data
     const displayData: MarketDisplayData[] = marketData.length > 0
         ? marketData.map((q: QuoteData) => ({
-            symbol: q.symbol,
-            price: formatCurrency(q.price),
-            change: `${q.changePercent >= 0 ? '+' : ''}${q.changePercent.toFixed(2)}%`,
-            up: q.changePercent >= 0
+            symbol: q.symbol ?? '---',
+            price: formatCurrency(q.price ?? 0),
+            change: `${(q.changePercent ?? 0) >= 0 ? '+' : ''}${(q.changePercent ?? 0).toFixed(2)}%`,
+            up: (q.changePercent ?? 0) >= 0
         }))
         : loading
             ? [
@@ -104,7 +104,7 @@ const Header = ({ user, currentPage, serverStatus = false, onLogout }: HeaderPro
                     {/* User info */}
                     <div className="flex items-center space-x-2 border-l border-slate-800 pl-6">
                         <span className="font-medium text-slate-400">
-                            {user.username} • {user.tier} Tier
+                            {user?.username ?? 'User'} • {user?.tier ?? 'FREE'} Tier
                         </span>
                         {onLogout && (
                             <button

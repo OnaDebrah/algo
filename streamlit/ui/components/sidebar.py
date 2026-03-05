@@ -15,7 +15,10 @@ def render_page_sidebar():
     if st.session_state.get("authenticated"):
         user = st.session_state.user
         if user.get("username") != "admin":
-            st.markdown('<style>[data-testid="stSidebarNav"] a[href*="Admin"] {display: none !important;}</style>', unsafe_allow_html=True)
+            st.markdown(
+                '<style>[data-testid="stSidebarNav"] a[href*="Admin"] {display: none !important;}</style>',
+                unsafe_allow_html=True,
+            )
 
     st.markdown(
         """
@@ -126,14 +129,21 @@ def render_user_profile(user: dict):
     col1, col2 = st.columns(2)
 
     with col1:
-        if st.button("⚙️", help="Settings", use_container_width=True, key="sidebar_settings"):
+        if st.button(
+            "⚙️", help="Settings", use_container_width=True, key="sidebar_settings"
+        ):
             st.switch_page("pages/6_⚙️_Settings.py")
 
     with col2:
-        if st.button("🚪", help="Logout", use_container_width=True, key="sidebar_logout"):
+        if st.button(
+            "🚪", help="Logout", use_container_width=True, key="sidebar_logout"
+        ):
             logout_user()
 
-    st.markdown('<div style="margin: 1.5rem 0; border-top: 1px solid var(--border-subtle);"></div>', unsafe_allow_html=True)
+    st.markdown(
+        '<div style="margin: 1.5rem 0; border-top: 1px solid var(--border-subtle);"></div>',
+        unsafe_allow_html=True,
+    )
 
 
 def render_guest_actions():
@@ -156,13 +166,18 @@ def render_guest_actions():
         unsafe_allow_html=True,
     )
 
-    if st.button("🔐 Sign In", use_container_width=True, type="primary", key="sidebar_signin"):
+    if st.button(
+        "🔐 Sign In", use_container_width=True, type="primary", key="sidebar_signin"
+    ):
         st.switch_page("pages/_Auth.py")
 
     if st.button("📝 Create Account", use_container_width=True, key="sidebar_signup"):
         st.switch_page("pages/_Auth.py")
 
-    st.markdown('<div style="margin: 1.5rem 0; border-top: 1px solid var(--border-subtle);"></div>', unsafe_allow_html=True)
+    st.markdown(
+        '<div style="margin: 1.5rem 0; border-top: 1px solid var(--border-subtle);"></div>',
+        unsafe_allow_html=True,
+    )
 
 
 def render_system_status():
@@ -211,7 +226,10 @@ def render_system_status():
             unsafe_allow_html=True,
         )
 
-    st.markdown('<div style="margin: 1.5rem 0; border-top: 1px solid var(--border-subtle);"></div>', unsafe_allow_html=True)
+    st.markdown(
+        '<div style="margin: 1.5rem 0; border-top: 1px solid var(--border-subtle);"></div>',
+        unsafe_allow_html=True,
+    )
 
 
 def render_quick_actions():
@@ -245,7 +263,10 @@ def render_quick_actions():
         st.switch_page("pages/5_🏪_Market.py")
 
 
-st.markdown('<div style="margin: 1.5rem 0; border-top: 1px solid var(--border-subtle);"></div>', unsafe_allow_html=True)
+st.markdown(
+    '<div style="margin: 1.5rem 0; border-top: 1px solid var(--border-subtle);"></div>',
+    unsafe_allow_html=True,
+)
 
 
 def render_sidebar_footer():

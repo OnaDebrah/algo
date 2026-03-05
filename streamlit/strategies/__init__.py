@@ -8,4 +8,12 @@ from .multi_kama_strategy import MultiTimeframeKAMAStrategy
 from .rsi_strategy import RSIStrategy
 from .sma_crossover import SMACrossoverStrategy
 
-__all__ = ["BaseStrategy", "SMACrossoverStrategy", "RSIStrategy", "MACDStrategy", "MLStrategy", "KAMAStrategy", "MultiTimeframeKAMAStrategy"]
+__all__ = [
+    "BaseStrategy",
+    "SMACrossoverStrategy",
+    "RSIStrategy",
+    "MACDStrategy",
+    "MLStrategy",
+    "KAMAStrategy",
+    "MultiTimeframeKAMAStrategy",
+]

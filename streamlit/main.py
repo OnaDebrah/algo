@@ -17,7 +17,12 @@ from streamlit.ui import (
     render_stats_section,
 )
 
-st.set_page_config(page_title="ORACULUM - Institutional Trading Platform", page_icon="🏛️", layout="wide", initial_sidebar_state="collapsed")
+st.set_page_config(
+    page_title="ORACULUM - Institutional Trading Platform",
+    page_icon="🏛️",
+    layout="wide",
+    initial_sidebar_state="collapsed",
+)
 
 init_auth_state()
 

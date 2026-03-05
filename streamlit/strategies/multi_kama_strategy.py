@@ -53,7 +53,9 @@ class MultiTimeframeKAMAStrategy(BaseStrategy):
         for i in range(period + 1, len(close)):
             if pd.notna(kama.iloc[i - 1]):
                 sc = smoothing_constant.iloc[i]
-                kama.iloc[i] = kama.iloc[i - 1] + sc * (close.iloc[i] - kama.iloc[i - 1])
+                kama.iloc[i] = kama.iloc[i - 1] + sc * (
+                    close.iloc[i] - kama.iloc[i - 1]
+                )
             else:
                 kama.iloc[i] = close.iloc[i]
 
@@ -80,7 +82,11 @@ class MultiTimeframeKAMAStrategy(BaseStrategy):
         prev_short_kama = short_kama.iloc[-2]
         prev_long_kama = long_kama.iloc[-2]
 
-        if any(pd.isna([current_short_kama, current_long_kama, prev_short_kama, prev_long_kama])):
+        if any(
+            pd.isna(
+                [current_short_kama, current_long_kama, prev_short_kama, prev_long_kama]
+            )
+        ):
             return 0
 
         # Buy: Price crosses above both KAMAs and short > long (uptrend)

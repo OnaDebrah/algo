@@ -18,7 +18,9 @@ from streamlit.core.database import DatabaseManager
 from streamlit.core.risk_manager import RiskManager
 
 
-def render_configuration(db: DatabaseManager, alert_manager: AlertManager, risk_manager: RiskManager):
+def render_configuration(
+    db: DatabaseManager, alert_manager: AlertManager, risk_manager: RiskManager
+):
     """
     Render the configuration tab
 
@@ -60,17 +62,23 @@ def _render_alert_configuration(alert_manager: AlertManager):
         col1, col2 = st.columns(2)
 
         with col1:
-            from_email = st.text_input("From Email", key="from_email", help="Your email address")
+            from_email = st.text_input(
+                "From Email", key="from_email", help="Your email address"
+            )
             smtp_server = st.text_input(
                 "SMTP Server",
                 value="smtp.gmail.com",
                 key="smtp",
                 help="Email server address",
             )
-            smtp_port = st.number_input("SMTP Port", value=587, key="smtp_port", help="Usually 587 for TLS")
+            smtp_port = st.number_input(
+                "SMTP Port", value=587, key="smtp_port", help="Usually 587 for TLS"
+            )
 
         with col2:
-            to_email = st.text_input("To Email", key="to_email", help="Recipient email address")
+            to_email = st.text_input(
+                "To Email", key="to_email", help="Recipient email address"
+            )
             email_password = st.text_input(
                 "Email Password",
                 type="password",
@@ -118,7 +126,9 @@ def _render_alert_configuration(alert_manager: AlertManager):
                 key="twilio_token",
                 help="Found in Twilio console",
             )
-            to_number = st.text_input("To Number (+1234567890)", key="to_num", help="Recipient phone number")
+            to_number = st.text_input(
+                "To Number (+1234567890)", key="to_num", help="Recipient phone number"
+            )
 
         st.info(
             """
@@ -169,7 +179,9 @@ def _render_alert_configuration(alert_manager: AlertManager):
 
         # Test alerts option
         if st.button("📧 Send Test Alert"):
-            alert_manager.send_email_alert("Test Alert", "This is a test alert from your trading platform.")
+            alert_manager.send_email_alert(
+                "Test Alert", "This is a test alert from your trading platform."
+            )
             alert_manager.send_sms_alert("Test alert from trading platform")
             st.info("Test alert sent! Check your email/phone.")
 
@@ -222,13 +234,17 @@ def _render_risk_management(risk_manager: RiskManager):
         col1, col2 = st.columns(2)
 
         with col1:
-            enable_trailing_stop = st.checkbox("Enable Trailing Stop Loss", help="Stop loss that follows price upward")
+            enable_trailing_stop = st.checkbox(
+                "Enable Trailing Stop Loss", help="Stop loss that follows price upward"
+            )
 
             if enable_trailing_stop:
                 _ = st.slider("Trailing Stop %", min_value=1, max_value=10, value=3)
 
         with col2:
-            enable_profit_target = st.checkbox("Enable Profit Target", help="Automatic exit at profit target")
+            enable_profit_target = st.checkbox(
+                "Enable Profit Target", help="Automatic exit at profit target"
+            )
 
             if enable_profit_target:
                 _ = st.slider("Profit Target %", min_value=5, max_value=50, value=20)

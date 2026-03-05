@@ -5,7 +5,11 @@ Asset Class Selection UI Component
 import pandas as pd
 
 import streamlit as st
-from streamlit.core.asset_classes import AssetClass, get_asset_class_names, get_asset_manager
+from streamlit.core.asset_classes import (
+    AssetClass,
+    get_asset_class_names,
+    get_asset_manager,
+)
 
 
 def render_asset_selector(key_prefix: str = "asset") -> tuple:
@@ -244,7 +248,9 @@ def render_symbol_finder():
     col1, col2 = st.columns(2)
 
     with col1:
-        search_query = st.text_input("Search Symbol", placeholder="Enter symbol to validate", key="symbol_finder")
+        search_query = st.text_input(
+            "Search Symbol", placeholder="Enter symbol to validate", key="symbol_finder"
+        )
 
     with col2:
         _ = st.selectbox(
@@ -289,7 +295,9 @@ def render_symbol_finder():
                     st.markdown(f"**Description:** {class_info.get('description')}")
                     st.markdown(f"**Risk Level:** {class_info.get('risk_level')}")
                     st.markdown(f"**Best For:** {class_info.get('best_for')}")
-                    st.markdown(f"**Considerations:** {class_info.get('considerations')}")
+                    st.markdown(
+                        f"**Considerations:** {class_info.get('considerations')}"
+                    )
 
         else:
             st.error(f"❌ {message}")
@@ -299,7 +307,9 @@ def render_symbol_finder():
             popular = asset_mgr.get_popular_symbols(detected_class)
 
             if popular:
-                st.info(f"💡 **Suggested {detected_class.value} symbols:** {', '.join(popular[:5])}")
+                st.info(
+                    f"💡 **Suggested {detected_class.value} symbols:** {', '.join(popular[:5])}"
+                )
 
 
 def render_portfolio_builder(key_prefix: str = "portfolio") -> list:
@@ -352,7 +362,9 @@ def render_portfolio_builder(key_prefix: str = "portfolio") -> list:
     col1, col2, col3 = st.columns([2, 2, 1])
 
     with col1:
-        add_class = st.selectbox("Asset Class", get_asset_class_names(), key=f"{key_prefix}_add_class")
+        add_class = st.selectbox(
+            "Asset Class", get_asset_class_names(), key=f"{key_prefix}_add_class"
+        )
 
         asset_class_enum = next(ac for ac in AssetClass if ac.value == add_class)
 
@@ -549,7 +561,9 @@ def render_quick_add(key_prefix: str = "quick") -> str:
 
         if is_valid:
             asset_info = asset_mgr.get_asset_info(symbol)
-            st.success(f"✅ {symbol} - {asset_info.name} ({asset_info.asset_class.value})")
+            st.success(
+                f"✅ {symbol} - {asset_info.name} ({asset_info.asset_class.value})"
+            )
             return symbol
         else:
             st.error(f"❌ {message}")

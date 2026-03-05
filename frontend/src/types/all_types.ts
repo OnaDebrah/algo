@@ -441,6 +441,9 @@ export interface BacktestHistoryItem {
     equity_curve?: EquityCurvePoint[] | null;
     trades?: Trade[] | null;
 
+    // Extended results (advanced metrics, benchmark, price data, factor attribution)
+    extended_results?: Record<string, any> | null;
+
     // Metadata
     status: string;
     error_message: string | null;

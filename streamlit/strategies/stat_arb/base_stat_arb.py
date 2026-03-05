@@ -115,7 +115,9 @@ class StatisticalArbitrageStrategy(BaseStrategy):
     # CORE BASKET CONSTRUCTION METHODS
     # ============================================================================
 
-    def _construct_cointegration_basket(self, prices: pd.DataFrame, test_period: Optional[int] = None) -> Optional[Tuple[List[str], np.ndarray]]:
+    def _construct_cointegration_basket(
+        self, prices: pd.DataFrame, test_period: Optional[int] = None
+    ) -> Optional[Tuple[List[str], np.ndarray]]:
         """
         Construct cointegrated basket using Johansen test
 
@@ -207,7 +209,9 @@ class StatisticalArbitrageStrategy(BaseStrategy):
 
         return None
 
-    def _construct_pca_basket(self, prices: pd.DataFrame) -> Optional[Tuple[List[str], Dict]]:
+    def _construct_pca_basket(
+        self, prices: pd.DataFrame
+    ) -> Optional[Tuple[List[str], Dict]]:
         """
         Construct basket using PCA residual trading
 
@@ -275,7 +279,9 @@ class StatisticalArbitrageStrategy(BaseStrategy):
 
         return None
 
-    def _construct_kalman_basket(self, prices: pd.DataFrame) -> Optional[Tuple[List[str], Dict]]:
+    def _construct_kalman_basket(
+        self, prices: pd.DataFrame
+    ) -> Optional[Tuple[List[str], Dict]]:
         """
         Construct basket using Kalman filter for dynamic relationships
         """
@@ -298,7 +304,9 @@ class StatisticalArbitrageStrategy(BaseStrategy):
         for i, asset in enumerate(independents):
             # Simple Kalman filter implementation
             # In production, use pykalman or similar
-            kf_state = self._initialize_kalman(prices[dependent].values, prices[asset].values)
+            kf_state = self._initialize_kalman(
+                prices[dependent].values, prices[asset].values
+            )
             kalman_models[asset] = kf_state
 
             # Get current hedge ratio
@@ -435,7 +443,9 @@ class StatisticalArbitrageStrategy(BaseStrategy):
 
         return state
 
-    def _update_kalman(self, kalman_state: Dict, new_price_1: float, new_price_2: float) -> Dict:
+    def _update_kalman(
+        self, kalman_state: Dict, new_price_1: float, new_price_2: float
+    ) -> Dict:
         """
         Update Kalman filter with new prices
         """
@@ -449,7 +459,9 @@ class StatisticalArbitrageStrategy(BaseStrategy):
         prediction_error = new_price_1 - predicted_price
 
         # Kalman gain (simplified)
-        kalman_gain = kalman_state["state_covariance"] / (kalman_state["state_covariance"] + self.kf_observation_cov)
+        kalman_gain = kalman_state["state_covariance"] / (
+            kalman_state["state_covariance"] + self.kf_observation_cov
+        )
 
         # Update
         new_beta = old_beta + kalman_gain * prediction_error / new_price_2
@@ -471,7 +483,9 @@ class StatisticalArbitrageStrategy(BaseStrategy):
     # MAIN STRATEGY METHODS
     # ============================================================================
 
-    def update_baskets(self, prices: pd.DataFrame, force_update: bool = False) -> List[Dict]:
+    def update_baskets(
+        self, prices: pd.DataFrame, force_update: bool = False
+    ) -> List[Dict]:
         """
         Update trading baskets based on new data
 
@@ -641,7 +655,9 @@ class StatisticalArbitrageStrategy(BaseStrategy):
                         new_price_dep = prices[dependent].iloc[-1]
                         new_price_ind = prices[asset].iloc[-1]
 
-                        updated_state = self._update_kalman(kalman_state, new_price_dep, new_price_ind)
+                        updated_state = self._update_kalman(
+                            kalman_state, new_price_dep, new_price_ind
+                        )
                         metadata["kalman_models"][asset] = updated_state
 
         return {
@@ -692,7 +708,9 @@ class StatisticalArbitrageStrategy(BaseStrategy):
 
         return portfolio_weights
 
-    def run_backtest(self, prices: pd.DataFrame, initial_capital: float = 1000000) -> pd.DataFrame:
+    def run_backtest(
+        self, prices: pd.DataFrame, initial_capital: float = 1000000
+    ) -> pd.DataFrame:
         """
         Run backtest on historical data
 
@@ -729,7 +747,9 @@ class StatisticalArbitrageStrategy(BaseStrategy):
 
                 for asset in self.universe:
                     if positions[asset] != 0:
-                        asset_return = prices[asset].iloc[i] / prices[asset].iloc[i - 1] - 1
+                        asset_return = (
+                            prices[asset].iloc[i] / prices[asset].iloc[i - 1] - 1
+                        )
                         position_return = positions[asset] * asset_return
                         daily_returns[asset] = position_return
                         portfolio_return += position_return * capital
@@ -743,7 +763,9 @@ class StatisticalArbitrageStrategy(BaseStrategy):
                         "capital": capital,
                         "return": portfolio_return,
                         "num_baskets": len(self.active_baskets),
-                        "num_trades": sum(1 for s in signals.values() if s["signal"] != 0),
+                        "num_trades": sum(
+                            1 for s in signals.values() if s["signal"] != 0
+                        ),
                     }
                 )
 
@@ -785,8 +807,12 @@ class StatisticalArbitrageStrategy(BaseStrategy):
                 "volatility": volatility,
                 "sharpe_ratio": sharpe,
                 "max_drawdown": max_drawdown,
-                "calmar_ratio": (annual_return / abs(max_drawdown) if max_drawdown < 0 else 0),
-                "win_rate": (len(returns[returns > 0]) / len(returns) if len(returns) > 0 else 0),
+                "calmar_ratio": (
+                    annual_return / abs(max_drawdown) if max_drawdown < 0 else 0
+                ),
+                "win_rate": (
+                    len(returns[returns > 0]) / len(returns) if len(returns) > 0 else 0
+                ),
             }
         )
 
@@ -824,7 +850,9 @@ if __name__ == "__main__":
     for i in range(n_assets):
         # Create correlated returns
         correlation = 0.3 + 0.6 * i / n_assets
-        asset_return = correlation * base_returns + np.sqrt(1 - correlation**2) * np.random.randn(500)
+        asset_return = correlation * base_returns + np.sqrt(
+            1 - correlation**2
+        ) * np.random.randn(500)
         asset_return = asset_return * 0.01  # Scale to 1% daily vol
 
         # Add some mean reversion
