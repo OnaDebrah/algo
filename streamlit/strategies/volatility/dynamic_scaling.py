@@ -82,7 +82,9 @@ class DynamicVolatilityScalingStrategy(BaseVolatilityStrategy):
 
         return vol_forecast
 
-    def calculate_scaling_factor(self, asset: str, returns: pd.Series, current_position: float = 0.0) -> float:
+    def calculate_scaling_factor(
+        self, asset: str, returns: pd.Series, current_position: float = 0.0
+    ) -> float:
         """
         Calculate dynamic scaling factor for an asset
 
@@ -103,19 +105,25 @@ class DynamicVolatilityScalingStrategy(BaseVolatilityStrategy):
 
         # Apply risk manager constraints if available
         if self.risk_manager is not None:
-            risk_constraints = self.risk_manager.get_constraints(asset, current_position)
+            risk_constraints = self.risk_manager.get_constraints(
+                asset, current_position
+            )
 
             if "max_position" in risk_constraints:
                 max_pos = risk_constraints["max_position"]
                 if current_position != 0:
                     current_scale = abs(current_position)
-                    max_scale = max_pos / current_scale if current_position != 0 else 1.0
+                    max_scale = (
+                        max_pos / current_scale if current_position != 0 else 1.0
+                    )
                     base_scale = min(base_scale, max_scale)
 
             if "var_limit" in risk_constraints:
                 # Adjust for VaR constraints
                 var_limit = risk_constraints["var_limit"]
-                portfolio_var = self._estimate_portfolio_var(asset, current_position, vol_forecast)
+                portfolio_var = self._estimate_portfolio_var(
+                    asset, current_position, vol_forecast
+                )
 
                 if portfolio_var > 0:
                     var_scale = var_limit / portfolio_var
@@ -129,7 +137,9 @@ class DynamicVolatilityScalingStrategy(BaseVolatilityStrategy):
             # Adjust position additively
             target_exposure = self.target_volatility / vol_forecast
             current_exposure = abs(current_position) if current_position != 0 else 0
-            scale_factor = 1.0 + (target_exposure - current_exposure) * 0.1  # 10% adjustment
+            scale_factor = (
+                1.0 + (target_exposure - current_exposure) * 0.1
+            )  # 10% adjustment
 
         elif self.scaling_method == "optimal":
             # Kelly-optimal scaling
@@ -146,7 +156,9 @@ class DynamicVolatilityScalingStrategy(BaseVolatilityStrategy):
 
         return scale_factor
 
-    def _estimate_portfolio_var(self, asset: str, position: float, volatility: float, confidence: float = 0.95) -> float:
+    def _estimate_portfolio_var(
+        self, asset: str, position: float, volatility: float, confidence: float = 0.95
+    ) -> float:
         """Estimate portfolio VaR for position"""
         # Simplified VaR calculation
         z_score = stats.norm.ppf(confidence)
@@ -180,7 +192,11 @@ class DynamicVolatilityScalingStrategy(BaseVolatilityStrategy):
             "scaling_factors": self.scaling_factors.copy(),
             "volatility_forecasts": self.volatility_forecasts.copy(),
             "current_leverage": self.current_leverage,
-            "volatility_history": (self.volatility_history[-20:] if len(self.volatility_history) >= 20 else self.volatility_history),
+            "volatility_history": (
+                self.volatility_history[-20:]
+                if len(self.volatility_history) >= 20
+                else self.volatility_history
+            ),
             "metrics": self.metrics.copy(),
         }
 

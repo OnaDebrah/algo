@@ -581,4 +581,4 @@ def get_parameter_info(self, strategy_id: str) -> Optional[Dict]:
 def refresh_catalog(self):
     """Rebuild the catalog (useful if strategies are added dynamically)"""
     self.strategies = self._build_catalog()
-    print(f"Catalog refreshed: {len(self.strategies)} strategies loaded")
+    logger.info(f"Catalog refreshed: {len(self.strategies)} strategies loaded")

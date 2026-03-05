@@ -8,11 +8,17 @@ from enum import Enum
 from typing import Dict, List, Type
 
 from streamlit.strategies import KAMAStrategy, MultiTimeframeKAMAStrategy
-from streamlit.strategies.adpative_trend_ff_strategy import AdaptiveTrendFollowingStrategy
+from streamlit.strategies.adpative_trend_ff_strategy import (
+    AdaptiveTrendFollowingStrategy,
+)
 from streamlit.strategies.base_strategy import BaseStrategy
 from streamlit.strategies.bb_mean_reversion import BollingerMeanReversionStrategy
 from streamlit.strategies.cs_momentum_strategy import CrossSectionalMomentumStrategy
-from streamlit.strategies.donchain_strategy import DonchianATRStrategy, DonchianChannelStrategy, FilteredDonchianStrategy
+from streamlit.strategies.donchain_strategy import (
+    DonchianATRStrategy,
+    DonchianChannelStrategy,
+    FilteredDonchianStrategy,
+)
 from streamlit.strategies.kalman_filter_strategy import KalmanFilterStrategy
 from streamlit.strategies.lstm_strategy import LSTMStrategy
 from streamlit.strategies.macd_strategy import MACDStrategy
@@ -26,12 +32,20 @@ from streamlit.strategies.sma_crossover import SMACrossoverStrategy
 # Statistical Arbitrage
 from streamlit.strategies.stat_arb.sector_neutral import SectorNeutralStrategy
 from streamlit.strategies.ts_momentum_strategy import TimeSeriesMomentumStrategy
-from streamlit.strategies.volatility.dynamic_scaling import DynamicVolatilityScalingStrategy
-from streamlit.strategies.volatility.variance_risk_premium import VarianceRiskPremiumStrategy
+from streamlit.strategies.volatility.dynamic_scaling import (
+    DynamicVolatilityScalingStrategy,
+)
+from streamlit.strategies.volatility.variance_risk_premium import (
+    VarianceRiskPremiumStrategy,
+)
 
 # Volatility strategies
-from streamlit.strategies.volatility.volatility_breakout import VolatilityBreakoutStrategy
-from streamlit.strategies.volatility.volatility_targeting import VolatilityTargetingStrategy
+from streamlit.strategies.volatility.volatility_breakout import (
+    VolatilityBreakoutStrategy,
+)
+from streamlit.strategies.volatility.volatility_targeting import (
+    VolatilityTargetingStrategy,
+)
 
 
 class StrategyCategory(Enum):
@@ -197,12 +211,33 @@ class StrategyCatalog:
                 description="Kaufman's Adaptive Moving Average. Adapts speed based on market efficiency - fast during trends, slow during consolidation. Reduces whipsaws compared to traditional moving averages.",
                 complexity="Intermediate",
                 time_horizon="Medium-term",
-                best_for=["Trending markets", "Swing trading", "Reduced whipsaws", "Adaptive trend following"],
+                best_for=[
+                    "Trending markets",
+                    "Swing trading",
+                    "Reduced whipsaws",
+                    "Adaptive trend following",
+                ],
                 parameters={
-                    "period": {"default": 10, "range": (5, 30), "description": "Efficiency ratio calculation period"},
-                    "fast_ema": {"default": 2, "range": (2, 5), "description": "Fast EMA constant (for trending markets)"},
-                    "slow_ema": {"default": 30, "range": (20, 50), "description": "Slow EMA constant (for choppy markets)"},
-                    "signal_threshold": {"default": 0.0, "range": (0.0, 0.02), "description": "Minimum % above/below KAMA for signal"},
+                    "period": {
+                        "default": 10,
+                        "range": (5, 30),
+                        "description": "Efficiency ratio calculation period",
+                    },
+                    "fast_ema": {
+                        "default": 2,
+                        "range": (2, 5),
+                        "description": "Fast EMA constant (for trending markets)",
+                    },
+                    "slow_ema": {
+                        "default": 30,
+                        "range": (20, 50),
+                        "description": "Slow EMA constant (for choppy markets)",
+                    },
+                    "signal_threshold": {
+                        "default": 0.0,
+                        "range": (0.0, 0.02),
+                        "description": "Minimum % above/below KAMA for signal",
+                    },
                 },
                 pros=[
                     "Adapts to market conditions automatically",
@@ -211,7 +246,12 @@ class StrategyCatalog:
                     "Stable during consolidation",
                     "Works across multiple timeframes",
                 ],
-                cons=["More complex than simple MAs", "Still has some lag", "Parameter sensitive", "Can whipsaw during trend transitions"],
+                cons=[
+                    "More complex than simple MAs",
+                    "Still has some lag",
+                    "Parameter sensitive",
+                    "Can whipsaw during trend transitions",
+                ],
             ),
             "multi_kama": StrategyInfo(
                 name="MULTI KAMA Strategy",
@@ -220,12 +260,33 @@ class StrategyCatalog:
                 description="Kaufman's Adaptive Moving Average. Adapts speed based on market efficiency - fast during trends, slow during consolidation. Reduces whipsaws compared to traditional moving averages.",
                 complexity="Intermediate",
                 time_horizon="Medium-term",
-                best_for=["Trending markets", "Swing trading", "Reduced whipsaws", "Adaptive trend following"],
+                best_for=[
+                    "Trending markets",
+                    "Swing trading",
+                    "Reduced whipsaws",
+                    "Adaptive trend following",
+                ],
                 parameters={
-                    "short_period": {"default": 10, "range": (5, 30), "description": "Efficiency ratio calculation period"},
-                    "long_period": {"default": 15, "range": (5, 45), "description": "Efficiency ratio calculation period"},
-                    "fast_ema": {"default": 2, "range": (2, 5), "description": "Fast EMA constant (for trending markets)"},
-                    "slow_ema": {"default": 30, "range": (20, 50), "description": "Slow EMA constant (for choppy markets)"},
+                    "short_period": {
+                        "default": 10,
+                        "range": (5, 30),
+                        "description": "Efficiency ratio calculation period",
+                    },
+                    "long_period": {
+                        "default": 15,
+                        "range": (5, 45),
+                        "description": "Efficiency ratio calculation period",
+                    },
+                    "fast_ema": {
+                        "default": 2,
+                        "range": (2, 5),
+                        "description": "Fast EMA constant (for trending markets)",
+                    },
+                    "slow_ema": {
+                        "default": 30,
+                        "range": (20, 50),
+                        "description": "Slow EMA constant (for choppy markets)",
+                    },
                 },
                 pros=[
                     "Adapts to market conditions automatically",
@@ -234,7 +295,12 @@ class StrategyCatalog:
                     "Stable during consolidation",
                     "Works across multiple timeframes",
                 ],
-                cons=["More complex than simple MAs", "Still has some lag", "Parameter sensitive", "Can whipsaw during trend transitions"],
+                cons=[
+                    "More complex than simple MAs",
+                    "Still has some lag",
+                    "Parameter sensitive",
+                    "Can whipsaw during trend transitions",
+                ],
             ),
             "donchian": StrategyInfo(
                 name="Donchian Channel Breakout",
@@ -243,11 +309,28 @@ class StrategyCatalog:
                 description="The classic Turtle Trader strategy. Goes long on N-day high breakouts, exits on M-day low breakouts. Simple, robust, and effective across all timeframes and asset classes.",
                 complexity="Beginner",
                 time_horizon="Medium to Long-term",
-                best_for=["Trending markets", "Futures trading", "Long-term trend following", "Systematic trading"],
+                best_for=[
+                    "Trending markets",
+                    "Futures trading",
+                    "Long-term trend following",
+                    "Systematic trading",
+                ],
                 parameters={
-                    "entry_period": {"default": 20, "range": (10, 55), "description": "Period for entry breakout (N-day high/low)"},
-                    "exit_period": {"default": 10, "range": (5, 20), "description": "Period for exit breakout (M-day high/low)"},
-                    "use_both_sides": {"default": True, "range": [True, False], "description": "Trade both long and short positions"},
+                    "entry_period": {
+                        "default": 20,
+                        "range": (10, 55),
+                        "description": "Period for entry breakout (N-day high/low)",
+                    },
+                    "exit_period": {
+                        "default": 10,
+                        "range": (5, 20),
+                        "description": "Period for exit breakout (M-day high/low)",
+                    },
+                    "use_both_sides": {
+                        "default": True,
+                        "range": [True, False],
+                        "description": "Trade both long and short positions",
+                    },
                 },
                 pros=[
                     "Extremely simple and objective",
@@ -272,12 +355,33 @@ class StrategyCatalog:
                 description="Enhanced Donchian strategy with ATR-based risk management. Uses volatility for position sizing and dynamic stop losses.",
                 complexity="Intermediate",
                 time_horizon="Medium to Long-term",
-                best_for=["Risk-managed trend following", "Volatile markets", "Professional trading", "Portfolio management"],
+                best_for=[
+                    "Risk-managed trend following",
+                    "Volatile markets",
+                    "Professional trading",
+                    "Portfolio management",
+                ],
                 parameters={
-                    "entry_period": {"default": 20, "range": (10, 55), "description": "Period for entry breakout"},
-                    "exit_period": {"default": 10, "range": (5, 20), "description": "Period for exit breakout"},
-                    "atr_period": {"default": 14, "range": (10, 30), "description": "Period for ATR calculation"},
-                    "atr_multiplier": {"default": 2.0, "range": (1.0, 4.0), "description": "ATR multiplier for stop loss"},
+                    "entry_period": {
+                        "default": 20,
+                        "range": (10, 55),
+                        "description": "Period for entry breakout",
+                    },
+                    "exit_period": {
+                        "default": 10,
+                        "range": (5, 20),
+                        "description": "Period for exit breakout",
+                    },
+                    "atr_period": {
+                        "default": 14,
+                        "range": (10, 30),
+                        "description": "Period for ATR calculation",
+                    },
+                    "atr_multiplier": {
+                        "default": 2.0,
+                        "range": (1.0, 4.0),
+                        "description": "ATR multiplier for stop loss",
+                    },
                 },
                 pros=[
                     "Risk-adjusted position sizing",
@@ -286,7 +390,12 @@ class StrategyCatalog:
                     "Filters weak breakouts",
                     "Adapts to volatility",
                 ],
-                cons=["More complex than classic version", "May miss some breakouts", "Requires ATR calculation", "Parameter optimization needed"],
+                cons=[
+                    "More complex than classic version",
+                    "May miss some breakouts",
+                    "Requires ATR calculation",
+                    "Parameter optimization needed",
+                ],
             ),
             "filtered_donchian": StrategyInfo(
                 name="Filtered Donchian Strategy",
@@ -295,14 +404,42 @@ class StrategyCatalog:
                 description="Donchian breakouts with trend filter. Only takes trades in direction of longer-term trend. Reduces whipsaws.",
                 complexity="Intermediate",
                 time_horizon="Medium to Long-term",
-                best_for=["Reducing false breakouts", "Trend-aligned trading", "Lower drawdown tolerance", "Conservative trend following"],
+                best_for=[
+                    "Reducing false breakouts",
+                    "Trend-aligned trading",
+                    "Lower drawdown tolerance",
+                    "Conservative trend following",
+                ],
                 parameters={
-                    "entry_period": {"default": 20, "range": (10, 55), "description": "Period for entry breakout"},
-                    "exit_period": {"default": 10, "range": (5, 20), "description": "Period for exit breakout"},
-                    "trend_period": {"default": 50, "range": (20, 200), "description": "Period for trend filter MA"},
+                    "entry_period": {
+                        "default": 20,
+                        "range": (10, 55),
+                        "description": "Period for entry breakout",
+                    },
+                    "exit_period": {
+                        "default": 10,
+                        "range": (5, 20),
+                        "description": "Period for exit breakout",
+                    },
+                    "trend_period": {
+                        "default": 50,
+                        "range": (20, 200),
+                        "description": "Period for trend filter MA",
+                    },
                 },
-                pros=["Fewer false breakouts", "Better win rate", "Reduced whipsaws", "Trend-aligned entries", "Lower drawdowns"],
-                cons=["Misses counter-trend moves", "Later entries than classic", "More parameters to optimize", "May miss trend reversals"],
+                pros=[
+                    "Fewer false breakouts",
+                    "Better win rate",
+                    "Reduced whipsaws",
+                    "Trend-aligned entries",
+                    "Lower drawdowns",
+                ],
+                cons=[
+                    "Misses counter-trend moves",
+                    "Later entries than classic",
+                    "More parameters to optimize",
+                    "May miss trend reversals",
+                ],
             ),
             # ============================================================
             # MOMENTUM STRATEGIES
@@ -836,7 +973,11 @@ class StrategyCatalog:
                     "Small datasets",
                 ],
                 parameters={
-                    "model_type": {"default": "svm", "range": None, "description": "Model type"},
+                    "model_type": {
+                        "default": "svm",
+                        "range": None,
+                        "description": "Model type",
+                    },
                     "test_size": {
                         "default": 0.2,
                         "range": (0.1, 0.4),
@@ -867,7 +1008,11 @@ class StrategyCatalog:
                     "Linear relationships",
                 ],
                 parameters={
-                    "model_type": {"default": "logistic_regression", "range": None, "description": "Model type"},
+                    "model_type": {
+                        "default": "logistic_regression",
+                        "range": None,
+                        "description": "Model type",
+                    },
                     "test_size": {
                         "default": 0.2,
                         "range": (0.1, 0.4),
@@ -1000,7 +1145,11 @@ class StrategyCatalog:
                     "Conservative traders",
                 ],
                 parameters={
-                    "strategy_type": {"default": "covered_call", "range": None, "description": "Options strategy type"},
+                    "strategy_type": {
+                        "default": "covered_call",
+                        "range": None,
+                        "description": "Options strategy type",
+                    },
                     "strike_pct": {
                         "default": 0.05,
                         "range": (0.01, 0.15),
@@ -1038,7 +1187,11 @@ class StrategyCatalog:
                     "Range-bound stocks",
                 ],
                 parameters={
-                    "strategy_type": {"default": "iron_condor", "range": None, "description": "Options strategy type"},
+                    "strategy_type": {
+                        "default": "iron_condor",
+                        "range": None,
+                        "description": "Options strategy type",
+                    },
                     "wing_width": {
                         "default": 0.05,
                         "range": (0.03, 0.10),
@@ -1076,7 +1229,11 @@ class StrategyCatalog:
                     "Precise targets",
                 ],
                 parameters={
-                    "strategy_type": {"default": "butterfly_spread", "range": None, "description": "Options strategy type"},
+                    "strategy_type": {
+                        "default": "butterfly_spread",
+                        "range": None,
+                        "description": "Options strategy type",
+                    },
                     "wing_width": {
                         "default": 0.03,
                         "range": (0.02, 0.08),
@@ -1114,7 +1271,11 @@ class StrategyCatalog:
                     "Direction unknown",
                 ],
                 parameters={
-                    "strategy_type": {"default": "straddle", "range": None, "description": "Options strategy type"},
+                    "strategy_type": {
+                        "default": "straddle",
+                        "range": None,
+                        "description": "Options strategy type",
+                    },
                     "dte": {
                         "default": 30,
                         "range": (7, 90),
@@ -1145,11 +1306,19 @@ class StrategyCatalog:
 
     def get_by_category(self, category: StrategyCategory) -> Dict[str, StrategyInfo]:
         """Get all strategies in a category"""
-        return {key: info for key, info in self.strategies.items() if info.category == category}
+        return {
+            key: info
+            for key, info in self.strategies.items()
+            if info.category == category
+        }
 
     def get_by_complexity(self, complexity: str) -> Dict[str, StrategyInfo]:
         """Get strategies by complexity level"""
-        return {key: info for key, info in self.strategies.items() if info.complexity == complexity}
+        return {
+            key: info
+            for key, info in self.strategies.items()
+            if info.complexity == complexity
+        }
 
     def get_categories(self) -> List[StrategyCategory]:
         """Get list of all categories"""
@@ -1245,7 +1414,14 @@ class StrategyCatalog:
                 or query_lower in info.description.lower()
                 or any(query_lower in tag.lower() for tag in info.best_for)
             ):
-                results.append({"key": key, "name": info.name, "category": info.category.value, "description": info.description})
+                results.append(
+                    {
+                        "key": key,
+                        "name": info.name,
+                        "category": info.category.value,
+                        "description": info.description,
+                    }
+                )
 
         return results
 

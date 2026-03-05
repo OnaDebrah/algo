@@ -9,7 +9,12 @@ from streamlit.auth.streamlit_auth import init_auth_state
 from streamlit.ui import OracleTheme
 
 # Page config
-st.set_page_config(page_title="ORACULUM - Sign In", page_icon="🔐", layout="centered", initial_sidebar_state="collapsed")
+st.set_page_config(
+    page_title="ORACULUM - Sign In",
+    page_icon="🔐",
+    layout="centered",
+    initial_sidebar_state="collapsed",
+)
 
 # Apply theme
 OracleTheme.apply_theme()
@@ -145,18 +150,33 @@ with tab1:
     st.markdown('<div style="margin-bottom: 1.5rem;"></div>', unsafe_allow_html=True)
 
     with st.form("login_form", clear_on_submit=False):
-        username = st.text_input("Username or Email", placeholder="Enter your username or email", key="login_username", label_visibility="collapsed")
+        username = st.text_input(
+            "Username or Email",
+            placeholder="Enter your username or email",
+            key="login_username",
+            label_visibility="collapsed",
+        )
 
         st.markdown('<div style="margin-bottom: 1rem;"></div>', unsafe_allow_html=True)
 
-        password = st.text_input("Password", type="password", placeholder="Enter your password", key="login_password", label_visibility="collapsed")
+        password = st.text_input(
+            "Password",
+            type="password",
+            placeholder="Enter your password",
+            key="login_password",
+            label_visibility="collapsed",
+        )
 
-        st.markdown('<div style="margin-bottom: 1.5rem;"></div>', unsafe_allow_html=True)
+        st.markdown(
+            '<div style="margin-bottom: 1.5rem;"></div>', unsafe_allow_html=True
+        )
 
         col1, col2 = st.columns([3, 1])
 
         with col1:
-            submit = st.form_submit_button("Sign In →", use_container_width=True, type="primary")
+            submit = st.form_submit_button(
+                "Sign In →", use_container_width=True, type="primary"
+            )
 
         with col2:
             back = st.form_submit_button("Back", use_container_width=True)
@@ -213,35 +233,61 @@ with tab2:
     st.info("💡 **Start with FREE tier** - No credit card required. Upgrade anytime.")
 
     with st.form("register_form", clear_on_submit=False):
-        new_username = st.text_input("Username", placeholder="Choose a unique username", key="reg_username", label_visibility="collapsed")
+        new_username = st.text_input(
+            "Username",
+            placeholder="Choose a unique username",
+            key="reg_username",
+            label_visibility="collapsed",
+        )
 
         st.markdown('<div style="margin-bottom: 1rem;"></div>', unsafe_allow_html=True)
 
-        new_email = st.text_input("Email", placeholder="your.email@example.com", key="reg_email", label_visibility="collapsed")
+        new_email = st.text_input(
+            "Email",
+            placeholder="your.email@example.com",
+            key="reg_email",
+            label_visibility="collapsed",
+        )
 
         st.markdown('<div style="margin-bottom: 1rem;"></div>', unsafe_allow_html=True)
 
         new_password = st.text_input(
-            "Password", type="password", placeholder="Create a strong password (min 8 characters)", key="reg_password", label_visibility="collapsed"
+            "Password",
+            type="password",
+            placeholder="Create a strong password (min 8 characters)",
+            key="reg_password",
+            label_visibility="collapsed",
         )
 
         st.markdown('<div style="margin-bottom: 1rem;"></div>', unsafe_allow_html=True)
 
         confirm_password = st.text_input(
-            "Confirm Password", type="password", placeholder="Confirm your password", key="reg_confirm", label_visibility="collapsed"
+            "Confirm Password",
+            type="password",
+            placeholder="Confirm your password",
+            key="reg_confirm",
+            label_visibility="collapsed",
         )
 
-        st.markdown('<div style="margin-bottom: 1.5rem;"></div>', unsafe_allow_html=True)
+        st.markdown(
+            '<div style="margin-bottom: 1.5rem;"></div>', unsafe_allow_html=True
+        )
 
         # Terms acceptance
-        accept_terms = st.checkbox("I agree to the Terms of Service and Privacy Policy", key="terms")
+        accept_terms = st.checkbox(
+            "I agree to the Terms of Service and Privacy Policy", key="terms"
+        )
 
-        st.markdown('<div style="margin-bottom: 1.5rem;"></div>', unsafe_allow_html=True)
+        st.markdown(
+            '<div style="margin-bottom: 1.5rem;"></div>', unsafe_allow_html=True
+        )
 
         col1, col2 = st.columns([3, 1])
 
         with col1:
-            register = st.form_submit_button("Create Account →", use_container_width=True, type="primary")
+            register = st.form_submit_button(
+                "Create Account →", use_container_width=True, type="primary"
+            )
 
         with col2:
             back_reg = st.form_submit_button("Back", use_container_width=True)
@@ -275,7 +321,9 @@ with tab2:
                 has_digit = any(c.isdigit() for c in new_password)
 
                 if not (has_upper and has_lower and has_digit):
-                    errors.append("Password should contain uppercase, lowercase, and numbers")
+                    errors.append(
+                        "Password should contain uppercase, lowercase, and numbers"
+                    )
 
             if errors:
                 for error in errors:
@@ -283,7 +331,9 @@ with tab2:
             else:
                 with st.spinner("Creating your account..."):
                     auth_manager = st.session_state.auth_manager
-                    result = auth_manager.register_user(new_username, new_email, new_password, UserTier.FREE)
+                    result = auth_manager.register_user(
+                        new_username, new_email, new_password, UserTier.FREE
+                    )
 
                     if result["success"]:
                         st.success("✅ Account created successfully!")

@@ -124,7 +124,7 @@ import {
     UpdateResponse
 } from "@/types/live";
 import { ActivityResponse } from "@/types/social";
-import {AnalystReportParams} from "@/types/analyst";
+import { AnalystReportParams } from "@/types/analyst";
 
 // Use environment variable or default to localhost
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
@@ -132,6 +132,7 @@ const IS_BROWSER = typeof window !== 'undefined';
 
 const client = axios.create({
     baseURL: API_URL,
+    timeout: 30000,
     headers: {
         'Content-Type': 'application/json',
     },
@@ -194,14 +195,147 @@ export const auth = {
 };
 
 // ==================== BACKTEST ====================
+
+/** Response from POST endpoints after Celery dispatch */
+export interface BacktestSubmission {
+    backtest_id: number;
+    task_id: string;
+    status: string;
+    message: string;
+}
+
+/**
+ * Poll /backtest/history/{id} until status is 'completed' or 'failed'.
+ * Returns the full BacktestHistoryItem once done.
+ */
+async function pollForResult(
+    backtestId: number,
+    intervalMs: number = 2000,
+    maxAttempts: number = 300  // 10 minutes at 2s
+): Promise<BacktestHistoryItem> {
+    for (let i = 0; i < maxAttempts; i++) {
+        const details = await client.get<BacktestHistoryItem>(
+            `/backtest/history/${backtestId}`
+        );
+
+        if (details.status === 'completed' || details.status === 'failed') {
+            if (details.status === 'failed') {
+                throw new Error(details.error_message || 'Backtest failed');
+            }
+            return details;
+        }
+
+        // Wait before next poll
+        await new Promise(resolve => setTimeout(resolve, intervalMs));
+    }
+    throw new Error('Backtest timed out');
+}
+
 export const backtest = {
-    // Single asset backtest
+    /**
+     * Submit a single-asset backtest (returns immediately, polls for result).
+     * Returns the same shape as before so callers are unaffected.
+     */
     runSingle: async (request: SingleBacktestRequest): Promise<SingleBacktestResponse> => {
-        return client.post<SingleBacktestResponse>('/backtest/single', request);
+        const submission = await client.post<BacktestSubmission>('/backtest/single', request);
+        const completed = await pollForResult(submission.backtest_id);
+
+        // Reconstruct the nested response shape the store expects
+        // from the flat BacktestHistoryItem returned by polling
+        const item = completed as any;
+        const ext = item.extended_results || {};
+        return {
+            result: {
+                // Core metrics from top-level columns
+                total_return: ext.total_return ?? item.total_return_pct ?? 0,
+                total_return_pct: item.total_return_pct ?? 0,
+                win_rate: item.win_rate ?? 0,
+                sharpe_ratio: item.sharpe_ratio ?? 0,
+                max_drawdown: item.max_drawdown ?? 0,
+                total_trades: item.total_trades ?? 0,
+                final_equity: item.final_equity ?? 0,
+                initial_capital: ext.initial_capital ?? item.initial_capital ?? 0,
+                // Trade statistics from extended_results
+                winning_trades: ext.winning_trades ?? 0,
+                losing_trades: ext.losing_trades ?? 0,
+                avg_profit: ext.avg_profit ?? 0,
+                avg_win: ext.avg_win ?? 0,
+                avg_loss: ext.avg_loss ?? 0,
+                profit_factor: ext.profit_factor ?? 0,
+                symbol_stats: ext.symbol_stats ?? {},
+                // Factor attribution from extended_results
+                alpha: ext.alpha ?? 0,
+                beta: ext.beta ?? 0,
+                r_squared: ext.r_squared ?? 0,
+                // Advanced metrics from extended_results
+                sortino_ratio: ext.sortino_ratio ?? 0,
+                calmar_ratio: ext.calmar_ratio ?? 0,
+                var_95: ext.var_95 ?? 0,
+                cvar_95: ext.cvar_95 ?? 0,
+                volatility: ext.volatility ?? 0,
+                expectancy: ext.expectancy ?? 0,
+                total_commission: ext.total_commission ?? 0,
+                // Monthly returns matrix from extended_results
+                monthly_returns_matrix: ext.monthly_returns_matrix ?? undefined,
+            },
+            equity_curve: item.equity_curve ?? [],
+            trades: item.trades ?? [],
+            // Price data and benchmark from extended_results
+            price_data: ext.price_data ?? null,
+            benchmark: ext.benchmark ?? null,
+        } as SingleBacktestResponse;
     },
 
+    /**
+     * Submit a multi-asset backtest (returns immediately, polls for result).
+     */
     runMulti: async (request: MultiAssetBacktestRequest): Promise<MultiAssetBacktestResponse> => {
-        return client.post<MultiAssetBacktestResponse>('/backtest/multi', request);
+        const submission = await client.post<BacktestSubmission>('/backtest/multi', request);
+        const completed = await pollForResult(submission.backtest_id);
+
+        // Reconstruct the nested response shape from flat BacktestHistoryItem
+        const item = completed as any;
+        const ext = item.extended_results || {};
+        return {
+            result: {
+                // Core metrics from top-level columns
+                total_return: ext.total_return ?? item.total_return_pct ?? 0,
+                total_return_pct: item.total_return_pct ?? 0,
+                win_rate: item.win_rate ?? 0,
+                sharpe_ratio: item.sharpe_ratio ?? 0,
+                max_drawdown: item.max_drawdown ?? 0,
+                total_trades: item.total_trades ?? 0,
+                final_equity: item.final_equity ?? 0,
+                initial_capital: ext.initial_capital ?? item.initial_capital ?? 0,
+                // Trade statistics from extended_results
+                winning_trades: ext.winning_trades ?? 0,
+                losing_trades: ext.losing_trades ?? 0,
+                avg_profit: ext.avg_profit ?? 0,
+                avg_win: ext.avg_win ?? 0,
+                avg_loss: ext.avg_loss ?? 0,
+                profit_factor: ext.profit_factor ?? 0,
+                symbol_stats: ext.symbol_stats ?? {},
+                // Factor attribution from extended_results
+                alpha: ext.alpha ?? 0,
+                beta: ext.beta ?? 0,
+                r_squared: ext.r_squared ?? 0,
+                // Advanced metrics from extended_results
+                sortino_ratio: ext.sortino_ratio ?? 0,
+                calmar_ratio: ext.calmar_ratio ?? 0,
+                var_95: ext.var_95 ?? 0,
+                cvar_95: ext.cvar_95 ?? 0,
+                volatility: ext.volatility ?? 0,
+                expectancy: ext.expectancy ?? 0,
+                total_commission: ext.total_commission ?? 0,
+                // Multi-asset specific
+                num_symbols: ext.num_symbols ?? item.symbols?.length ?? 0,
+            },
+            equity_curve: item.equity_curve ?? [],
+            trades: item.trades ?? [],
+            // Price data and benchmark from extended_results
+            price_data: ext.price_data ?? null,
+            benchmark: ext.benchmark ?? null,
+        } as MultiAssetBacktestResponse;
     },
 
     runValidateKalman: async (request: PairsValidationRequest): Promise<PairsValidationResponse> => {
@@ -244,8 +378,31 @@ export const backtest = {
     bayesian: (request: any) =>
         client.post<any>('/optimise/bayesian', request),
 
-    walkForward: (request: WFARequest) =>
-        client.post<WFAResponse>('/backtest/walk-forward', request)
+    /**
+     * Submit Walk-Forward Analysis (returns immediately, polls for result).
+     */
+    walkForward: async (request: WFARequest): Promise<WFAResponse> => {
+        const submission = await client.post<BacktestSubmission>('/backtest/walk-forward', request);
+        const completed = await pollForResult(submission.backtest_id);
+        // WFA results are stored in extended_results.wfa_results (moved from trades_json)
+        const wfaData = completed.extended_results?.wfa_results;
+        if (wfaData) {
+            return wfaData as unknown as WFAResponse;
+        }
+        // Fallback: check trades for backward compatibility with older data
+        if (completed.trades && !Array.isArray(completed.trades)) {
+            return completed.trades as unknown as WFAResponse;
+        }
+        return completed as unknown as WFAResponse;
+    },
+
+    /**
+     * Check Celery task status directly (optional, for advanced UIs).
+     */
+    getTaskStatus: (taskId: string) =>
+        client.get<{ task_id: string; status: string; result?: any; error?: string }>(
+            `/backtest/task/${taskId}`
+        ),
 };
 
 // ==================== PORTFOLIO ====================
@@ -557,7 +714,7 @@ export const mlstudio = {
         client.post<{ success: boolean; deployed: boolean; endpoint?: string }>(`/mlstudio/undeploy/${model_id}`),
 
     updateModelStatus: (request: MLModelStatusRequest) =>
-            client.post<{ success: boolean; deployed: boolean; endpoint?: string }>(`/mlstudio/update-status/`, request),
+        client.post<{ success: boolean; deployed: boolean; endpoint?: string }>(`/mlstudio/update-status/`, request),
 
     exportModel: (model_id: string) =>
         client.post<Blob | MediaSource>(`/mlstudio/export/${model_id}`),

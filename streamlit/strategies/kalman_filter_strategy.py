@@ -123,7 +123,9 @@ class KalmanFilterStrategy(BaseStrategy):
 
         return hedge_ratio, intercept
 
-    def _calculate_spread_history(self, prices_1: pd.Series, prices_2: pd.Series) -> pd.Series:
+    def _calculate_spread_history(
+        self, prices_1: pd.Series, prices_2: pd.Series
+    ) -> pd.Series:
         """
         Calculate spread using Kalman-filtered hedge ratio
         """
@@ -139,12 +141,18 @@ class KalmanFilterStrategy(BaseStrategy):
                     self._initialize_kalman(
                         pd.DataFrame(
                             {
-                                self.params["asset_1"]: prices_1[: self.params["min_obs"]],
-                                self.params["asset_2"]: prices_2[: self.params["min_obs"]],
+                                self.params["asset_1"]: prices_1[
+                                    : self.params["min_obs"]
+                                ],
+                                self.params["asset_2"]: prices_2[
+                                    : self.params["min_obs"]
+                                ],
                             }
                         )
                     )
-                hedge_ratio, _ = self._initial_hedge_ratio(prices_1[: i + 1], prices_2[: i + 1])
+                hedge_ratio, _ = self._initial_hedge_ratio(
+                    prices_1[: i + 1], prices_2[: i + 1]
+                )
             else:
                 # Update Kalman
                 hedge_ratio, _ = self._update_kalman(prices_1.iloc[i], prices_2.iloc[i])
@@ -153,7 +161,9 @@ class KalmanFilterStrategy(BaseStrategy):
             spread = np.log(prices_1.iloc[i]) - hedge_ratio * np.log(prices_2.iloc[i])
             spreads.append(spread)
 
-        return pd.Series(spreads, index=prices_1.index), pd.Series(hedge_ratios, index=prices_1.index)
+        return pd.Series(spreads, index=prices_1.index), pd.Series(
+            hedge_ratios, index=prices_1.index
+        )
 
     def _initial_hedge_ratio(self, prices_1: pd.Series, prices_2: pd.Series) -> float:
         """Initial OLS estimate before Kalman has enough data"""
@@ -220,7 +230,9 @@ class KalmanFilterStrategy(BaseStrategy):
 
         return signal_info
 
-    def _generate_signal_logic(self, current_z: float, current_spread: float, confidence: float) -> Dict:
+    def _generate_signal_logic(
+        self, current_z: float, current_spread: float, confidence: float
+    ) -> Dict:
         """
         Core signal logic with confidence weighting
         """

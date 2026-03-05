@@ -46,7 +46,9 @@ class PairsTradingStrategy(BaseStrategy):
         except Exception:
             return False
 
-    def _calculate_rolling_hedge_ratio(self, prices_1: pd.Series, prices_2: pd.Series) -> pd.Series:
+    def _calculate_rolling_hedge_ratio(
+        self, prices_1: pd.Series, prices_2: pd.Series
+    ) -> pd.Series:
         """Calculate time-varying hedge ratio"""
         log1, log2 = np.log(prices_1), np.log(prices_2)
         betas = []
@@ -93,7 +95,9 @@ class PairsTradingStrategy(BaseStrategy):
 
         # 3. Calculate spread and z-score
         spread = np.log(prices_1) - current_beta * np.log(prices_2)
-        zscore = (spread - spread.rolling(lookback).mean()) / spread.rolling(lookback).std()
+        zscore = (spread - spread.rolling(lookback).mean()) / spread.rolling(
+            lookback
+        ).std()
         current_z = zscore.iloc[-1]
 
         # 4. Position sizing logic
@@ -102,7 +106,9 @@ class PairsTradingStrategy(BaseStrategy):
         # Entry logic
         if self.current_position == 0:
             if current_z > self.params["entry_z"]:
-                position_size = -self._calculate_position_size(current_z)  # Short spread
+                position_size = -self._calculate_position_size(
+                    current_z
+                )  # Short spread
                 self.entry_z = current_z
             elif current_z < -self.params["entry_z"]:
                 position_size = self._calculate_position_size(-current_z)  # Long spread

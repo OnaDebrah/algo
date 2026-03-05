@@ -5,7 +5,9 @@ Configuration settings for the trading platform
 import logging
 
 # Logging configuration
-logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+)
 
 # Database settings
 DATABASE_PATH = "../trading_platform.db"

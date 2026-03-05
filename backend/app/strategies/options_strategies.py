@@ -11,7 +11,6 @@ from typing import Dict, List
 
 import numpy as np
 import pandas as pd
-from scipy.stats import norm
 
 from ..core.data.providers.providers import ProviderFactory
 
@@ -77,88 +76,6 @@ class Greeks:
     theta: float
     vega: float
     rho: float
-
-
-class BlackScholesCalculator:
-    """Black-Scholes option pricing and Greeks calculation"""
-
-    @staticmethod
-    def calculate_option_price(
-        S: float,  # Current stock price
-        K: float,  # Strike price
-        T: float,  # Time to expiration (years)
-        r: float,  # Risk-free rate
-        sigma: float,  # Volatility
-        option_type: OptionType,
-        q: float = 0.0,  # Dividend yield
-    ) -> float:
-        """Calculate option price using Black-Scholes"""
-
-        if T <= 0:
-            # At expiration
-            if option_type == OptionType.CALL:
-                return max(S - K, 0)
-            else:
-                return max(K - S, 0)
-
-        d1 = (np.log(S / K) + (r - q + 0.5 * sigma**2) * T) / (sigma * np.sqrt(T))
-        d2 = d1 - sigma * np.sqrt(T)
-
-        if option_type == OptionType.CALL:
-            price = S * np.exp(-q * T) * norm.cdf(d1) - K * np.exp(-r * T) * norm.cdf(d2)
-        else:
-            price = K * np.exp(-r * T) * norm.cdf(-d2) - S * np.exp(-q * T) * norm.cdf(-d1)
-
-        return price
-
-    @staticmethod
-    def calculate_greeks(
-        S: float,
-        K: float,
-        T: float,
-        r: float,
-        sigma: float,
-        option_type: OptionType,
-        q: float = 0.0,
-    ) -> Greeks:
-        """Calculate option Greeks"""
-
-        if T <= 0:
-            return Greeks(delta=0, gamma=0, theta=0, vega=0, rho=0)
-
-        d1 = (np.log(S / K) + (r - q + 0.5 * sigma**2) * T) / (sigma * np.sqrt(T))
-        d2 = d1 - sigma * np.sqrt(T)
-
-        # Delta
-        if option_type == OptionType.CALL:
-            delta = np.exp(-q * T) * norm.cdf(d1)
-        else:
-            delta = np.exp(-q * T) * (norm.cdf(d1) - 1)
-
-        # Gamma (same for calls and puts)
-        gamma = np.exp(-q * T) * norm.pdf(d1) / (S * sigma * np.sqrt(T))
-
-        # Theta
-        term1 = -(S * norm.pdf(d1) * sigma * np.exp(-q * T)) / (2 * np.sqrt(T))
-        if option_type == OptionType.CALL:
-            term2 = q * S * norm.cdf(d1) * np.exp(-q * T)
-            term3 = -r * K * np.exp(-r * T) * norm.cdf(d2)
-        else:
-            term2 = -q * S * norm.cdf(-d1) * np.exp(-q * T)
-            term3 = r * K * np.exp(-r * T) * norm.cdf(-d2)
-
-        theta = (term1 + term2 + term3) / 365  # Per day
-
-        # Vega (same for calls and puts)
-        vega = S * np.exp(-q * T) * norm.pdf(d1) * np.sqrt(T) / 100  # Per 1% change
-
-        # Rho
-        if option_type == OptionType.CALL:
-            rho = K * T * np.exp(-r * T) * norm.cdf(d2) / 100
-        else:
-            rho = -K * T * np.exp(-r * T) * norm.cdf(-d2) / 100
-
-        return Greeks(delta=delta, gamma=gamma, theta=theta, vega=vega, rho=rho)
 
 
 class OptionsChain:

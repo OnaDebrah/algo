@@ -30,7 +30,9 @@ class VolatilityBreakoutStrategy(BaseVolatilityStrategy):
         self.in_breakout = False
         self.breakout_direction = 0
 
-    def detect_breakout(self, prices: pd.Series, returns: pd.Series) -> Tuple[bool, int]:
+    def detect_breakout(
+        self, prices: pd.Series, returns: pd.Series
+    ) -> Tuple[bool, int]:
         """
         Detect volatility breakout
 
@@ -44,7 +46,9 @@ class VolatilityBreakoutStrategy(BaseVolatilityStrategy):
         current_vol = self.estimate_volatility(returns)
 
         # Calculate rolling volatility
-        rolling_vol = returns.rolling(window=self.vol_lookback).std().dropna() * np.sqrt(252)
+        rolling_vol = returns.rolling(
+            window=self.vol_lookback
+        ).std().dropna() * np.sqrt(252)
 
         if len(rolling_vol) < 1:
             return False, 0
@@ -114,7 +118,11 @@ class VolatilityBreakoutStrategy(BaseVolatilityStrategy):
         elif self.in_breakout:
             # Check for breakout end
             current_vol = self.volatility_history[-1] if self.volatility_history else 0
-            vol_mean = np.mean(self.volatility_history[-self.vol_lookback :]) if len(self.volatility_history) >= self.vol_lookback else current_vol
+            vol_mean = (
+                np.mean(self.volatility_history[-self.vol_lookback :])
+                if len(self.volatility_history) >= self.vol_lookback
+                else current_vol
+            )
 
             # Exit if volatility returns to normal
             if abs(current_vol - vol_mean) / vol_mean < 0.5:  # Within 50% of mean
@@ -133,7 +141,9 @@ class VolatilityBreakoutStrategy(BaseVolatilityStrategy):
             "position_size": position_size,
             "in_breakout": self.in_breakout,
             "breakout_direction": self.breakout_direction,
-            "current_volatility": (self.volatility_history[-1] if self.volatility_history else 0),
+            "current_volatility": (
+                self.volatility_history[-1] if self.volatility_history else 0
+            ),
             "leverage": self.current_leverage,
             "volatility_bands": self.volatility_bands,
             "metadata": {

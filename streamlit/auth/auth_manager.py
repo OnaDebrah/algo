@@ -128,12 +128,19 @@ class AuthManager:
     def _hash_password(self, password: str, salt: str = None) -> tuple:
         if salt is None:
             salt = secrets.token_hex(32)
-        pwd_hash = hashlib.pbkdf2_hmac("sha256", password.encode("utf-8"), salt.encode("utf-8"), 100000)
+        pwd_hash = hashlib.pbkdf2_hmac(
+            "sha256", password.encode("utf-8"), salt.encode("utf-8"), 100000
+        )
         return pwd_hash.hex(), salt
 
-    def register_user(self, username: str, email: str, password: str, tier: UserTier = UserTier.FREE) -> Dict:
+    def register_user(
+        self, username: str, email: str, password: str, tier: UserTier = UserTier.FREE
+    ) -> Dict:
         if len(password) < 8:
-            return {"success": False, "message": "Password must be at least 8 characters"}
+            return {
+                "success": False,
+                "message": "Password must be at least 8 characters",
+            }
         if "@" not in email:
             return {"success": False, "message": "Invalid email address"}
 
@@ -141,7 +148,10 @@ class AuthManager:
             conn = sqlite3.connect(self.db_path)
             cursor = conn.cursor()
 
-            cursor.execute("SELECT id FROM users WHERE username = ? OR email = ?", (username, email))
+            cursor.execute(
+                "SELECT id FROM users WHERE username = ? OR email = ?",
+                (username, email),
+            )
             if cursor.fetchone():
                 return {"success": False, "message": "Username or email already exists"}
 
@@ -159,7 +169,11 @@ class AuthManager:
             conn.commit()
             conn.close()
 
-            return {"success": True, "message": "User registered successfully", "user_id": user_id}
+            return {
+                "success": True,
+                "message": "User registered successfully",
+                "user_id": user_id,
+            }
         except Exception as e:
             return {"success": False, "message": f"Registration failed: {str(e)}"}
 
@@ -189,7 +203,10 @@ class AuthManager:
             if check_hash != pwd_hash:
                 return {"success": False, "message": "Invalid credentials"}
 
-            cursor.execute("UPDATE users SET last_login = CURRENT_TIMESTAMP WHERE id = ?", (user_id,))
+            cursor.execute(
+                "UPDATE users SET last_login = CURRENT_TIMESTAMP WHERE id = ?",
+                (user_id,),
+            )
 
             token = self._create_session(user_id, cursor)
             conn.commit()
@@ -199,16 +216,28 @@ class AuthManager:
                 "success": True,
                 "message": "Page successful",
                 "token": token,
-                "user": {"id": user_id, "username": uname, "email": email, "tier": tier},
+                "user": {
+                    "id": user_id,
+                    "username": uname,
+                    "email": email,
+                    "tier": tier,
+                },
             }
         except Exception as e:
             return {"success": False, "message": f"Page failed: {str(e)}"}
 
     def _create_session(self, user_id: int, cursor) -> str:
-        payload = {"user_id": user_id, "exp": datetime.now(timezone.utc) + timedelta(days=7), "iat": datetime.now(timezone.utc)}
+        payload = {
+            "user_id": user_id,
+            "exp": datetime.now(timezone.utc) + timedelta(days=7),
+            "iat": datetime.now(timezone.utc),
+        }
         token = jwt.encode(payload, self.secret_key, algorithm="HS256")
         expires_at = datetime.now(timezone.utc) + timedelta(days=7)
-        cursor.execute("INSERT INTO sessions (user_id, token, expires_at) VALUES (?, ?, ?)", (user_id, token, expires_at))
+        cursor.execute(
+            "INSERT INTO sessions (user_id, token, expires_at) VALUES (?, ?, ?)",
+            (user_id, token, expires_at),
+        )
         return token
 
     def verify_token(self, token: str) -> Optional[Dict]:
@@ -218,14 +247,22 @@ class AuthManager:
 
             conn = sqlite3.connect(self.db_path)
             cursor = conn.cursor()
-            cursor.execute("SELECT id, username, email, tier, is_active FROM users WHERE id = ?", (user_id,))
+            cursor.execute(
+                "SELECT id, username, email, tier, is_active FROM users WHERE id = ?",
+                (user_id,),
+            )
             user = cursor.fetchone()
             conn.close()
 
             if not user or not user[4]:
                 return None
 
-            return {"id": user[0], "username": user[1], "email": user[2], "tier": user[3]}
+            return {
+                "id": user[0],
+                "username": user[1],
+                "email": user[2],
+                "tier": user[3],
+            }
         except Exception:
             return None
 
@@ -258,7 +295,9 @@ class AuthManager:
         try:
             conn = sqlite3.connect(self.db_path)
             cursor = conn.cursor()
-            cursor.execute("UPDATE users SET tier = ? WHERE id = ?", (new_tier.value, user_id))
+            cursor.execute(
+                "UPDATE users SET tier = ? WHERE id = ?", (new_tier.value, user_id)
+            )
             conn.commit()
             conn.close()
             return True
@@ -269,7 +308,10 @@ class AuthManager:
         try:
             conn = sqlite3.connect(self.db_path)
             cursor = conn.cursor()
-            cursor.execute("INSERT INTO usage_tracking (user_id, action, metadata) VALUES (?, ?, ?)", (user_id, action, metadata))
+            cursor.execute(
+                "INSERT INTO usage_tracking (user_id, action, metadata) VALUES (?, ?, ?)",
+                (user_id, action, metadata),
+            )
             conn.commit()
             conn.close()
         except Exception:

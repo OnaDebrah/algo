@@ -32,10 +32,14 @@ def render_research():
     )
 
     # Navigation tabs
-    tab1, tab2, tab3 = st.tabs(["🔬 Backtesting Lab", "📈 Options Desk", "📊 Portfolio Optimization"])
+    tab1, tab2, tab3 = st.tabs(
+        ["🔬 Backtesting Lab", "📈 Options Desk", "📊 Portfolio Optimization"]
+    )
 
     with tab1:
-        render_backtest(context.db, context.risk_manager, context.ml_models, context.alert_manager)
+        render_backtest(
+            context.db, context.risk_manager, context.ml_models, context.alert_manager
+        )
 
     with tab2:
         try:

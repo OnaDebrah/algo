@@ -38,7 +38,9 @@ def render_monitor():
         render_dashboard(context.db)
 
     with tab2:
-        render_live_trading(context.db, context.risk_manager, context.ml_models, context.alert_manager)
+        render_live_trading(
+            context.db, context.risk_manager, context.ml_models, context.alert_manager
+        )
 
 
 render_monitor()

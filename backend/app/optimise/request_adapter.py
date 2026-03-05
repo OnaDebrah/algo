@@ -1,7 +1,7 @@
 from types import SimpleNamespace
 from typing import Any, Dict, Optional
 
-from backend.app.schemas.backtest import BacktestRequest, StrategyConfig
+from ..schemas.backtest import BacktestRequest, StrategyConfig
 
 
 class RequestAdapter:

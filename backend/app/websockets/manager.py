@@ -190,7 +190,7 @@ async def equity_snapshot_background_task(db_session_maker):
 
                     if equity_data:
                         # Save snapshot to database
-                        from backend.app.models.live import LiveEquitySnapshot
+                        from ..models.live import LiveEquitySnapshot
 
                         snapshot = LiveEquitySnapshot(
                             strategy_id=strategy.id,

@@ -33,7 +33,9 @@ class FactorMomentumStrategy(CrossSectionalMomentumStrategy, ABC):
 
         return stock_signals
 
-    def _map_factors_to_stocks(self, factor_signals: Dict, stock_data: pd.DataFrame) -> Dict:
+    def _map_factors_to_stocks(
+        self, factor_signals: Dict, stock_data: pd.DataFrame
+    ) -> Dict:
         """
         Map factor momentum signals to individual stocks
         """

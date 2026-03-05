@@ -33,7 +33,9 @@ class VolatilityTargetingStrategy(BaseVolatilityStrategy):
         self.drawdown_level = 0.0
         self.scale_factor = 1.0
 
-    def calculate_required_leverage(self, strategy_returns: pd.Series, target_vol: Optional[float] = None) -> float:
+    def calculate_required_leverage(
+        self, strategy_returns: pd.Series, target_vol: Optional[float] = None
+    ) -> float:
         """
         Calculate required leverage to hit target volatility
 
@@ -74,7 +76,9 @@ class VolatilityTargetingStrategy(BaseVolatilityStrategy):
 
         return required_leverage
 
-    def scale_strategy_signals(self, base_signals: Dict, strategy_returns: pd.Series) -> Dict:
+    def scale_strategy_signals(
+        self, base_signals: Dict, strategy_returns: pd.Series
+    ) -> Dict:
         """
         Scale strategy signals based on volatility target
 
@@ -102,14 +106,20 @@ class VolatilityTargetingStrategy(BaseVolatilityStrategy):
                     scaled_signal["vol_targeting"] = {
                         "required_leverage": required_leverage,
                         "target_volatility": self.target_volatility,
-                        "strategy_volatility": (strategy_returns.std() * np.sqrt(252) if len(strategy_returns) > 0 else 0),
+                        "strategy_volatility": (
+                            strategy_returns.std() * np.sqrt(252)
+                            if len(strategy_returns) > 0
+                            else 0
+                        ),
                     }
 
                     scaled_signals[key] = scaled_signal
 
         return scaled_signals
 
-    def generate_portfolio_signal(self, portfolio_returns: pd.Series, current_exposure: float = 1.0) -> Dict:
+    def generate_portfolio_signal(
+        self, portfolio_returns: pd.Series, current_exposure: float = 1.0
+    ) -> Dict:
         """
         Generate portfolio-level volatility targeting signal
 
@@ -136,7 +146,9 @@ class VolatilityTargetingStrategy(BaseVolatilityStrategy):
                 required_adjustment = 0.0
 
             # Smooth adjustment
-            smooth_adjustment = np.clip(required_adjustment, -0.2, 0.2)  # Max 20% adjustment
+            smooth_adjustment = np.clip(
+                required_adjustment, -0.2, 0.2
+            )  # Max 20% adjustment
 
             new_exposure = current_exposure * (1 + smooth_adjustment)
             new_exposure = np.clip(new_exposure, 0.1, 3.0)  # 10% to 300% exposure
@@ -149,7 +161,9 @@ class VolatilityTargetingStrategy(BaseVolatilityStrategy):
             "new_exposure": new_exposure,
             "current_volatility": portfolio_vol,
             "target_volatility": self.target_volatility,
-            "volatility_ratio": (self.target_volatility / portfolio_vol if portfolio_vol > 0 else 1.0),
+            "volatility_ratio": (
+                self.target_volatility / portfolio_vol if portfolio_vol > 0 else 1.0
+            ),
             "metadata": {
                 "strategy": "portfolio_vol_targeting",
                 "lookforward_vol": self.lookforward_vol,

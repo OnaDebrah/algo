@@ -32,14 +32,14 @@ class PortfolioOptimizer:
         self.cov_matrix = None
         self.mean_returns = None
 
-    def fetch_data(self) -> pd.DataFrame:
+    async def fetch_data(self) -> pd.DataFrame:
         """Fetch historical data for all symbols"""
-        from backend.app.core import fetch_stock_data
+        from ..core import fetch_stock_data
 
         prices = pd.DataFrame()
 
         for symbol in self.symbols:
-            data = fetch_stock_data(symbol, "2y", "1d")
+            data = await fetch_stock_data(symbol, "2y", "1d")
             if not data.empty:
                 prices[symbol] = data["Close"]
             else:
@@ -453,7 +453,7 @@ class PortfolioBacktest:
         self.symbols = symbols
         self.weights = weights
 
-    def run_backtest(self, start_capital: float = 100000, period: str = "1y") -> Dict:
+    async def run_backtest(self, start_capital: float = 100000, period: str = "1y") -> Dict:
         """
         Run portfolio backtest
 
@@ -464,12 +464,12 @@ class PortfolioBacktest:
         Returns:
             Backtest results
         """
-        from backend.app.core import fetch_stock_data
+        from ..core import fetch_stock_data
 
         # Fetch data for all symbols
         prices = pd.DataFrame()
         for symbol in self.symbols:
-            data = fetch_stock_data(symbol, period, "1d")
+            data = await fetch_stock_data(symbol, period, "1d")
             if not data.empty:
                 prices[symbol] = data["Close"]
 

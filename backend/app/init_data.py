@@ -6,6 +6,7 @@ from sqlalchemy import select
 
 from .database import DatabaseSession
 from .models.user import User
+from .models.user_settings import UserSettings
 from .utils.security import get_password_hash
 
 logger = logging.getLogger(__name__)
@@ -30,6 +31,13 @@ async def init_default_data():
                 )
                 db.add(user)
                 await db.commit()
+                await db.refresh(user)
+
+                # Create default UserSettings for admin
+                user_settings = UserSettings(user_id=user.id)
+                db.add(user_settings)
+                await db.commit()
+
                 logger.info("✓ Created admin user: admin@example.com / admin123")
         except Exception as e:
             logger.error(f"Error creating admin user: {e}")

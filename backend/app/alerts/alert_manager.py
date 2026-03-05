@@ -138,6 +138,26 @@ class AlertManager:
 
         return True
 
+    async def send_info(self, message: str) -> bool:
+        """Send info-level system notification (no specific user)"""
+        return await self.send_alert(
+            user_id=0,
+            level=AlertLevel.INFO,
+            title="System Info",
+            message=message,
+            category=AlertCategory.SYSTEM,
+        )
+
+    async def send_error(self, message: str) -> bool:
+        """Send error-level system notification (no specific user)"""
+        return await self.send_alert(
+            user_id=0,
+            level=AlertLevel.ERROR,
+            title="System Error",
+            message=message,
+            category=AlertCategory.SYSTEM,
+        )
+
     async def _process_alerts(self):
         """Background worker to process alert queue"""
         while True:

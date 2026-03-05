@@ -65,7 +65,9 @@ def render_login_page():
                 elif new_password != confirm_password:
                     st.error("Passwords do not match")
                 else:
-                    result = st.session_state.auth_manager.register_user(new_username, new_email, new_password, UserTier.FREE)
+                    result = st.session_state.auth_manager.register_user(
+                        new_username, new_email, new_password, UserTier.FREE
+                    )
                     if result["success"]:
                         st.success("✅ Account created! Please login.")
                     else:
@@ -128,7 +130,9 @@ def require_permission(permission: Permission):
             if not st.session_state.authenticated:
                 render_login_page()
                 st.stop()
-            if not st.session_state.auth_manager.has_permission(st.session_state.user["tier"], permission):
+            if not st.session_state.auth_manager.has_permission(
+                st.session_state.user["tier"], permission
+            ):
                 render_upgrade_page(permission)
                 st.stop()
             return func(*args, **kwargs)
@@ -163,7 +167,9 @@ def require_tier(min_tier: UserTier):
 def render_upgrade_page(permission: Permission):
     """Render upgrade prompt"""
     st.title("🔒 Upgrade Required")
-    st.warning(f"This feature requires **{permission.value.replace('_', ' ').title()}** permission.")
+    st.warning(
+        f"This feature requires **{permission.value.replace('_', ' ').title()}** permission."
+    )
     render_pricing_table()
 
 
@@ -189,7 +195,9 @@ def render_pricing_table():
     with col2:
         st.markdown("### 🥉 BASIC")
         st.markdown("**€0/month**")
-        st.markdown("- Multi-asset backtests\n- Advanced analytics\n- 100 backtests/month")
+        st.markdown(
+            "- Multi-asset backtests\n- Advanced analytics\n- 100 backtests/month"
+        )
         if st.button("Upgrade", key="basic_btn", type="primary"):
             st.info("Contact sales to upgrade")
 
@@ -212,7 +220,9 @@ def check_permission(permission: Permission) -> bool:
     """Check if current user has permission"""
     if not st.session_state.get("authenticated"):
         return False
-    return st.session_state.auth_manager.has_permission(st.session_state.user["tier"], permission)
+    return st.session_state.auth_manager.has_permission(
+        st.session_state.user["tier"], permission
+    )
 
 
 def show_feature_locked(feature_name: str, required_permission: Permission):
@@ -226,4 +236,6 @@ def track_action(action: str, metadata: str = None):
     """Track user action"""
     if not st.session_state.get("authenticated"):
         return
-    st.session_state.auth_manager.track_usage(st.session_state.user["id"], action, metadata)
+    st.session_state.auth_manager.track_usage(
+        st.session_state.user["id"], action, metadata
+    )

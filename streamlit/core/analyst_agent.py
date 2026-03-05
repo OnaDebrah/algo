@@ -110,10 +110,14 @@ class FinancialAnalystAgent:
         news = await self._analyze_news_sentiment(ticker)
 
         # Step 6: Generate AI analysis
-        ai_analysis = await self._generate_ai_analysis(ticker, data, technical, fundamentals, peers, news, depth)
+        ai_analysis = await self._generate_ai_analysis(
+            ticker, data, technical, fundamentals, peers, news, depth
+        )
 
         # Step 7: Compile report
-        report = self._compile_report(ticker, data, technical, fundamentals, peers, news, ai_analysis)
+        report = self._compile_report(
+            ticker, data, technical, fundamentals, peers, news, ai_analysis
+        )
 
         logger.info(f"✅ Analysis complete for {ticker}")
         return report
@@ -208,30 +212,50 @@ class FinancialAnalystAgent:
                     "ma_20": float(ma_20.iloc[-1]),
                     "ma_50": float(ma_50.iloc[-1]),
                     "ma_200": float(ma_200.iloc[-1]),
-                    "price_vs_ma20": ((current - ma_20.iloc[-1]) / ma_20.iloc[-1] * 100),
-                    "price_vs_ma50": ((current - ma_50.iloc[-1]) / ma_50.iloc[-1] * 100),
-                    "price_vs_ma200": ((current - ma_200.iloc[-1]) / ma_200.iloc[-1] * 100),
+                    "price_vs_ma20": (
+                        (current - ma_20.iloc[-1]) / ma_20.iloc[-1] * 100
+                    ),
+                    "price_vs_ma50": (
+                        (current - ma_50.iloc[-1]) / ma_50.iloc[-1] * 100
+                    ),
+                    "price_vs_ma200": (
+                        (current - ma_200.iloc[-1]) / ma_200.iloc[-1] * 100
+                    ),
                 },
                 "momentum": {
                     "rsi": float(rsi.iloc[-1]),
-                    "rsi_signal": ("Oversold" if rsi.iloc[-1] < 30 else "Overbought" if rsi.iloc[-1] > 70 else "Neutral"),
+                    "rsi_signal": (
+                        "Oversold"
+                        if rsi.iloc[-1] < 30
+                        else "Overbought"
+                        if rsi.iloc[-1] > 70
+                        else "Neutral"
+                    ),
                 },
                 "macd": {
                     "macd": float(macd.iloc[-1]),
                     "signal": float(signal.iloc[-1]),
                     "histogram": float(macd.iloc[-1] - signal.iloc[-1]),
-                    "trend": ("Bullish" if macd.iloc[-1] > signal.iloc[-1] else "Bearish"),
+                    "trend": (
+                        "Bullish" if macd.iloc[-1] > signal.iloc[-1] else "Bearish"
+                    ),
                 },
                 "bollinger": {
                     "upper": float(bb_upper.iloc[-1]),
                     "middle": float(bb_middle.iloc[-1]),
                     "lower": float(bb_lower.iloc[-1]),
-                    "position": ("Near Upper" if current > bb_middle.iloc[-1] else "Near Lower"),
+                    "position": (
+                        "Near Upper" if current > bb_middle.iloc[-1] else "Near Lower"
+                    ),
                 },
                 "volume": {
                     "current": float(hist["Volume"].iloc[-1]),
                     "average_20d": float(avg_volume.iloc[-1]),
-                    "volume_trend": ("Above Average" if hist["Volume"].iloc[-1] > avg_volume.iloc[-1] else "Below Average"),
+                    "volume_trend": (
+                        "Above Average"
+                        if hist["Volume"].iloc[-1] > avg_volume.iloc[-1]
+                        else "Below Average"
+                    ),
                 },
                 "support_resistance": {
                     "resistance": float(recent_high),
@@ -281,8 +305,16 @@ class FinancialAnalystAgent:
                     "earnings": info.get("earnings", 0),
                 },
                 "dividends": {
-                    "dividend_yield": (info.get("dividendYield", 0) * 100 if info.get("dividendYield") else 0),
-                    "payout_ratio": (info.get("payoutRatio", 0) * 100 if info.get("payoutRatio") else 0),
+                    "dividend_yield": (
+                        info.get("dividendYield", 0) * 100
+                        if info.get("dividendYield")
+                        else 0
+                    ),
+                    "payout_ratio": (
+                        info.get("payoutRatio", 0) * 100
+                        if info.get("payoutRatio")
+                        else 0
+                    ),
                     "dividend_rate": info.get("dividendRate", 0),
                 },
             }
@@ -346,10 +378,14 @@ class FinancialAnalystAgent:
         print("  🤖 Generating AI analysis...")
 
         if not self.client:
-            return self._generate_fallback_analysis(ticker, data, technical, fundamentals)
+            return self._generate_fallback_analysis(
+                ticker, data, technical, fundamentals
+            )
 
         # Build comprehensive prompt
-        prompt = self._build_analysis_prompt(ticker, data, technical, fundamentals, peers, news, depth)
+        prompt = self._build_analysis_prompt(
+            ticker, data, technical, fundamentals, peers, news, depth
+        )
 
         try:
             message = self.client.messages.create(
@@ -363,14 +399,18 @@ class FinancialAnalystAgent:
 
             # Clean and parse response
             if response_text.startswith("```json"):
-                response_text = response_text.split("```json")[1].split("```")[0].strip()
+                response_text = (
+                    response_text.split("```json")[1].split("```")[0].strip()
+                )
 
             analysis = json.loads(response_text)
             return analysis
 
         except Exception as e:
             print(f"  ⚠️ AI analysis error: {e}, using fallback")
-            return self._generate_fallback_analysis(ticker, data, technical, fundamentals)
+            return self._generate_fallback_analysis(
+                ticker, data, technical, fundamentals
+            )
 
     def _build_analysis_prompt(
         self,
@@ -484,7 +524,9 @@ Be specific, data-driven, and professional. This report will be used by investor
 
         return prompt
 
-    def _generate_fallback_analysis(self, ticker: str, data: Dict, technical: Dict, fundamentals: Dict) -> Dict:
+    def _generate_fallback_analysis(
+        self, ticker: str, data: Dict, technical: Dict, fundamentals: Dict
+    ) -> Dict:
         """Generate rule-based analysis when AI is unavailable"""
 
         info = data.get("info", {})

@@ -6,10 +6,12 @@ import pandas as pd
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.options.pop.probability_of_profit import ProbabilityMethod, ProbabilityOfProfit
+
 from ...analytics.options_analytics import OptionsAnalytics
 from ...api.deps import get_current_active_user
 from ...core.data.providers.providers import ProviderFactory
-from ...core.options_engine import OptionsBacktestEngine, backtest_options_strategy
+from ...core.options_backtest_engine import OptionsBacktestEngine, backtest_options_strategy
 from ...core.quantlib_hedge import OptionContract, QuantLibHedgeEngine
 from ...database import get_db
 from ...models import User
@@ -408,7 +410,9 @@ async def analyze_strategy(
         breakevens = builder.get_breakeven_points()
         max_profit, max_profit_cond = builder.get_max_profit()
         max_loss, max_loss_cond = builder.get_max_loss()
-        prob_profit = builder.calculate_probability_of_profit(volatility=request.volatility)
+
+        pop = ProbabilityOfProfit(ProbabilityMethod.MONTE_CARLO, default_volatility=request.volatility)
+        prob_profit = pop.calculate(volatility=request.volatility)
 
         # Generate payoff diagram
         price_range = np.linspace(current_price * 0.7, current_price * 1.3, 100)
@@ -425,7 +429,7 @@ async def analyze_strategy(
             max_profit_condition=max_profit_cond,
             max_loss=max_loss,
             max_loss_condition=max_loss_cond,
-            probability_of_profit=prob_profit,
+            probability_of_profit=prob_profit.pop,
             payoff_diagram=payoff_diagram,
         )
 
@@ -524,7 +528,8 @@ async def compare_strategies(
             breakevens = builder.get_breakeven_points()
             max_profit, max_profit_cond = builder.get_max_profit()
             max_loss, max_loss_cond = builder.get_max_loss()
-            prob_profit = builder.calculate_probability_of_profit()
+            pop = ProbabilityOfProfit(ProbabilityMethod.MONTE_CARLO)
+            prob_profit = pop.calculate().pop
 
             comparisons.append(
                 {

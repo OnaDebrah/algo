@@ -28,7 +28,9 @@ def render_admin_panel():
 
     st.title("⚙️ Admin Panel")
 
-    tab1, tab2, tab3, tab4 = st.tabs(["👥 Users", "📊 Usage Stats", "💰 Subscriptions", "⚙️ System"])
+    tab1, tab2, tab3, tab4 = st.tabs(
+        ["👥 Users", "📊 Usage Stats", "💰 Subscriptions", "⚙️ System"]
+    )
 
     with tab1:
         render_user_management()
@@ -65,7 +67,18 @@ def render_user_management():
     conn.close()
 
     if users:
-        users_df = pd.DataFrame(users, columns=["ID", "Username", "Email", "Tier", "Created", "Last Page", "Active"])
+        users_df = pd.DataFrame(
+            users,
+            columns=[
+                "ID",
+                "Username",
+                "Email",
+                "Tier",
+                "Created",
+                "Last Page",
+                "Active",
+            ],
+        )
 
         st.dataframe(users_df, use_container_width=True, hide_index=True)
 
@@ -222,7 +235,12 @@ def render_system_settings():
     st.markdown("**Rate Limiting**")
     st.info("Configure rate limits per tier here")
 
-    rate_limits = {"FREE": "10 backtests/month", "BASIC": "100 backtests/month", "PRO": "Unlimited", "ENTERPRISE": "Unlimited + Priority"}
+    rate_limits = {
+        "FREE": "10 backtests/month",
+        "BASIC": "100 backtests/month",
+        "PRO": "Unlimited",
+        "ENTERPRISE": "Unlimited + Priority",
+    }
 
     for tier, limit in rate_limits.items():
         st.text(f"{tier}: {limit}")

@@ -36,17 +36,23 @@ logger = logging.getLogger(__name__)
 
 
 def _sanitize_value(value):
-    """Recursively sanitize values to ensure JSON compliance (no inf/NaN)."""
+    """Recursively sanitize values to ensure JSON compliance (no inf/NaN, no Timestamps)."""
     if isinstance(value, (float, np.floating)):
         if math.isnan(value) or math.isinf(value):
             return 0.0
         return float(value)
     elif isinstance(value, (np.integer,)):
         return int(value)
+    elif isinstance(value, (pd.Timestamp, datetime)):
+        return str(value)
+    elif isinstance(value, np.bool_):
+        return bool(value)
     elif isinstance(value, dict):
-        return {k: _sanitize_value(v) for k, v in value.items()}
-    elif isinstance(value, list):
+        return {str(k): _sanitize_value(v) for k, v in value.items()}
+    elif isinstance(value, (list, np.ndarray)):
         return [_sanitize_value(item) for item in value]
+    elif isinstance(value, pd.Series):
+        return [_sanitize_value(item) for item in value.tolist()]
     return value
 
 
@@ -131,6 +137,7 @@ class BacktestService:
             backtest_run.final_equity = results.get("final_equity")
             backtest_run.equity_curve = results.get("equity_curve")
             backtest_run.trades_json = results.get("trades")
+            backtest_run.extended_results = results.get("extended_results")
 
         if error_message:
             backtest_run.error_message = error_message
@@ -143,13 +150,23 @@ class BacktestService:
 
         logger.info(f"Updated backtest {backtest_id} - Status: {status}")
 
-    async def run_single_backtest(self, request: BacktestRequest, user_id: int) -> BacktestResponse:
+    async def run_single_backtest(self, request: BacktestRequest, user_id: int, backtest_run_id: int = None) -> BacktestResponse:
         """Run single asset backtest"""
         backtest_run = None
 
         try:
-            # Create database record
-            if self.db:
+            # Reuse existing record (Celery path) or create new one (direct API path)
+            if backtest_run_id and self.db:
+                from sqlalchemy import select
+
+                from ..models import BacktestRun as BacktestRunModel
+
+                result = await self.db.execute(select(BacktestRunModel).where(BacktestRunModel.id == backtest_run_id))
+                backtest_run = result.scalars().first()
+                if backtest_run:
+                    backtest_run.status = "running"
+                    await self.db.commit()
+            elif self.db:
                 backtest_run = await self.create_backtest_run(
                     user_id=user_id,
                     backtest_type="single",
@@ -307,6 +324,39 @@ class BacktestService:
                 update_data = metrics.copy()
                 update_data["equity_curve"] = [p.model_dump() for p in equity_curve]
                 update_data["trades"] = [t.model_dump() for t in trades]
+
+                # Package extended results for DB storage (advanced metrics, benchmark, price data)
+                update_data["extended_results"] = _sanitize_value(
+                    {
+                        # Advanced metrics
+                        "sortino_ratio": metrics.get("sortino_ratio", 0),
+                        "calmar_ratio": metrics.get("calmar_ratio", 0),
+                        "var_95": metrics.get("var_95", 0),
+                        "cvar_95": metrics.get("cvar_95", 0),
+                        "volatility": metrics.get("volatility", 0),
+                        "expectancy": metrics.get("expectancy", 0),
+                        "total_commission": metrics.get("total_commission", 0),
+                        "profit_factor": metrics.get("profit_factor", 0),
+                        "winning_trades": metrics.get("winning_trades", 0),
+                        "losing_trades": metrics.get("losing_trades", 0),
+                        "avg_profit": metrics.get("avg_profit", 0),
+                        "avg_win": metrics.get("avg_win", 0),
+                        "avg_loss": metrics.get("avg_loss", 0),
+                        "total_return": metrics.get("total_return", 0),
+                        "initial_capital": metrics.get("initial_capital", request.initial_capital),
+                        # Factor attribution
+                        "alpha": metrics.get("alpha", 0),
+                        "beta": metrics.get("beta", 0),
+                        "r_squared": metrics.get("r_squared", 0),
+                        # Monthly returns matrix
+                        "monthly_returns_matrix": metrics.get("monthly_returns_matrix"),
+                        # Benchmark data (equity curve + comparison)
+                        "benchmark": benchmark,
+                        # OHLCV price data for TradeChart
+                        "price_data": ohlc_price_data,
+                    }
+                )
+
                 await self.update_backtest_status(backtest_run.id, "completed", update_data)
 
             return BacktestResponse(result=result, equity_curve=equity_curve, trades=trades, price_data=ohlc_price_data, benchmark=benchmark)
@@ -317,13 +367,25 @@ class BacktestService:
                 await self.update_backtest_status(backtest_run.id, "failed", error_message=str(e))
             raise ValueError(f"Backtest failed: {str(e)}")
 
-    async def run_multi_asset_backtest(self, request: MultiAssetBacktestRequest, user_id: int) -> MultiAssetBacktestResponse:
+    async def run_multi_asset_backtest(
+        self, request: MultiAssetBacktestRequest, user_id: int, backtest_run_id: int = None
+    ) -> MultiAssetBacktestResponse:
         """Run multi-asset backtest (supports both independent and pairs trading)"""
         backtest_run = None
 
         try:
-            # Create database record
-            if self.db:
+            # Reuse existing record (Celery path) or create new one (direct API path)
+            if backtest_run_id and self.db:
+                from sqlalchemy import select
+
+                from ..models import BacktestRun as BacktestRunModel
+
+                result = await self.db.execute(select(BacktestRunModel).where(BacktestRunModel.id == backtest_run_id))
+                backtest_run = result.scalars().first()
+                if backtest_run:
+                    backtest_run.status = "running"
+                    await self.db.commit()
+            elif self.db:
                 backtest_run = await self.create_backtest_run(
                     user_id=user_id,
                     backtest_type="multi",
@@ -450,9 +512,46 @@ class BacktestService:
 
             # Update database
             if backtest_run:
-                update_data = results.model_dump()
+                result_dict = results.model_dump()
+                update_data = result_dict.copy()
                 update_data["equity_curve"] = [p.model_dump() for p in equity_curve]
                 update_data["trades"] = [t.model_dump() for t in trades]
+
+                # Package extended results for DB storage
+                update_data["extended_results"] = _sanitize_value(
+                    {
+                        # Advanced metrics
+                        "sortino_ratio": result_dict.get("sortino_ratio", 0),
+                        "calmar_ratio": result_dict.get("calmar_ratio", 0),
+                        "var_95": result_dict.get("var_95", 0),
+                        "cvar_95": result_dict.get("cvar_95", 0),
+                        "volatility": result_dict.get("volatility", 0),
+                        "expectancy": result_dict.get("expectancy", 0),
+                        "total_commission": result_dict.get("total_commission", 0),
+                        "profit_factor": result_dict.get("profit_factor", 0),
+                        "winning_trades": result_dict.get("winning_trades", 0),
+                        "losing_trades": result_dict.get("losing_trades", 0),
+                        "avg_profit": result_dict.get("avg_profit", 0),
+                        "avg_win": result_dict.get("avg_win", 0),
+                        "avg_loss": result_dict.get("avg_loss", 0),
+                        "total_return": result_dict.get("total_return", 0),
+                        "initial_capital": result_dict.get("initial_capital", request.initial_capital),
+                        # Factor attribution
+                        "alpha": result_dict.get("alpha", 0),
+                        "beta": result_dict.get("beta", 0),
+                        "r_squared": result_dict.get("r_squared", 0),
+                        # Monthly returns matrix
+                        "monthly_returns_matrix": result_dict.get("monthly_returns_matrix"),
+                        # Benchmark data (equity curve + comparison)
+                        "benchmark": benchmark,
+                        # OHLCV price data for TradeChart
+                        "price_data": ohlc_price_data,
+                        # Multi-asset specific
+                        "symbol_stats": result_dict.get("symbol_stats"),
+                        "num_symbols": result_dict.get("num_symbols"),
+                    }
+                )
+
                 await self.update_backtest_status(backtest_run.id, "completed", update_data)
 
             return MultiAssetBacktestResponse(

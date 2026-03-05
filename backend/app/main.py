@@ -3,10 +3,15 @@
 import logging
 from contextlib import asynccontextmanager
 
+import sentry_sdk
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
+from fastapi.middleware.httpsredirect import HTTPSRedirectMiddleware
+from prometheus_fastapi_instrumentator import Instrumentator
+from pythonjsonlogger.jsonlogger import JsonFormatter
 
+from .api.middleware.rate_limit import RateLimitMiddleware
 from .api.routes import (
     advisor,
     alerts,
@@ -36,7 +41,17 @@ from .database import AsyncSessionLocal, init_db
 from .init_data import init_default_data
 from .services.execution_manager import get_execution_manager, start_execution_manager, stop_execution_manager
 
-logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+if settings.SENTRY_DSN:
+    sentry_sdk.init(
+        dsn=settings.SENTRY_DSN,
+        traces_sample_rate=1.0,
+        profiles_sample_rate=1.0,
+    )
+
+logHandler = logging.StreamHandler()
+formatter = JsonFormatter(fmt="%(asctime)s %(name)s %(levelname)s %(message)s", rename_fields={"levelname": "level", "asctime": "timestamp"})
+logHandler.setFormatter(formatter)
+logging.basicConfig(handlers=[logHandler], level=settings.LOG_LEVEL)
 
 logger = logging.getLogger(__name__)
 
@@ -45,14 +60,16 @@ logger = logging.getLogger(__name__)
 async def lifespan(app: FastAPI):
     """Startup and shutdown events"""
     try:
-        await init_db()
-        await init_default_data()
+        if settings.ENVIRONMENT != "test":
+            await init_db()
+            await init_default_data()
 
-        await start_execution_manager(AsyncSessionLocal)
+            await start_execution_manager(AsyncSessionLocal)
 
-        manager = get_execution_manager(AsyncSessionLocal)
+            manager = get_execution_manager(AsyncSessionLocal)
 
-        logger.info(f"Execution Manager started with {manager.get_executor_count()} strategies")
+            logger.info(f"Execution Manager started with {manager.get_executor_count()} strategies")
+
         logger.info("Platform ready for trading!")
 
     except Exception as e:
@@ -62,8 +79,9 @@ async def lifespan(app: FastAPI):
 
     logger.info("SHUTTING DOWN TRADING PLATFORM")
     try:
-        await stop_execution_manager()
-        logger.info("All strategies stopped cleanly")
+        if settings.ENVIRONMENT != "test":
+            await stop_execution_manager()
+            logger.info("All strategies stopped cleanly")
     except Exception as e:
         logger.error(f"Error during shutdown: {e}")
 
@@ -77,7 +95,18 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# CORS
+if settings.ENFORCE_HTTPS:
+    app.add_middleware(HTTPSRedirectMiddleware)
+
+# Middleware order: last added = outermost (processes first)
+# Desired execution order: CORS → GZip → RateLimit → App
+app.add_middleware(RateLimitMiddleware)
+app.add_middleware(GZipMiddleware, minimum_size=1000)
+
+# Prometheus Metrics
+Instrumentator().instrument(app).expose(app)
+
+# CORS must be outermost to handle preflight OPTIONS before anything else
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.CORS_ORIGINS,
@@ -85,8 +114,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-app.add_middleware(GZipMiddleware, minimum_size=1000)
 
 app.include_router(auth.router)
 app.include_router(backtest.router)

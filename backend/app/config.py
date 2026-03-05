@@ -32,15 +32,15 @@ class Settings(BaseSettings):
         "http://127.0.0.1:3000",
     ]
 
-    # Database Configuration
-    DATABASE_URL: str = os.getenv("DATABASE_URL", "")
-
     # PostgreSQL (Primary - for production and development)
     POSTGRES_USER: str = os.getenv("POSTGRES_USER", "trading_user")
-    POSTGRES_PASSWORD: str = os.getenv("POSTGRES_PASSWORD", "secure_password_here")
-    POSTGRES_HOST: str = os.getenv("POSTGRES_HOST", "localhost")
+    POSTGRES_PASSWORD: str = os.getenv("POSTGRES_PASSWORD", "password")
+    POSTGRES_HOST: str = os.getenv("POSTGRES_HOST", "postgres")
     POSTGRES_PORT: str = os.getenv("POSTGRES_PORT", "5432")
     POSTGRES_DB: str = os.getenv("POSTGRES_DB", "trading_platform")
+
+    # Database Configuration
+    DATABASE_URL: str = os.getenv("DATABASE_URL", "")
 
     @model_validator(mode="after")
     def assemble_db_url(self) -> "Settings":
@@ -72,6 +72,7 @@ class Settings(BaseSettings):
     DEFAULT_INITIAL_CAPITAL: float = float(os.getenv("DEFAULT_INITIAL_CAPITAL", "100000"))
     DEFAULT_COMMISSION_RATE: float = float(os.getenv("DEFAULT_COMMISSION_RATE", "0.001"))
     DEFAULT_SLIPPAGE_RATE: float = float(os.getenv("DEFAULT_SLIPPAGE_RATE", "0.0005"))
+    DEFAULT_RISK_FREE_RATE: float = float(os.getenv("DEFAULT_RISK_FREE_RATE", "0.05"))
     DEFAULT_IB_CLIENT_ID_MODULUS: int = int(os.getenv("DEFAULT_IB_CLIENT_ID_MODULUS", "32700"))
     DEFAULT_MAX_POSITION_SIZE: int = int(os.getenv("DEFAULT_MAX_POSITION_SIZE", "20"))
     DEFAULT_STOP_LOSS_PCT: float = float(os.getenv("DEFAULT_STOP_LOSS_PCT", "0.05"))
@@ -126,12 +127,14 @@ class Settings(BaseSettings):
     SMS_ENABLED: bool = os.getenv("SMS_ENABLED", "false").lower() == "true"
 
     # Redis (for WebSocket/caching)
-    REDIS_URL: str = os.getenv("REDIS_URL", "redis://localhost:6379")
+    REDIS_URL: str = os.getenv("REDIS_URL", "redis://redis:6379/0")
     REDIS_ENABLED: bool = os.getenv("REDIS_ENABLED", "false").lower() == "true"
 
-    # Logging
+    # Logging & Observability
     LOG_LEVEL: str = os.getenv("LOG_LEVEL", "INFO")
     LOG_FILE: str = os.getenv("LOG_FILE", "app.log")
+    SENTRY_DSN: str = os.getenv("SENTRY_DSN", "")
+    ENFORCE_HTTPS: bool = os.getenv("ENFORCE_HTTPS", "false").lower() == "true"
 
     # Brokers
     ALPACA_PAPER_BASE_URL: str = os.getenv("ALPACA_PAPER_BASE_URL", "https://paper-api.alpaca.markets")
@@ -180,14 +183,15 @@ ANTHROPIC_MODEL_HAIKU_3 = settings.ANTHROPIC_MODEL_HAIKU_3
 ANTHROPIC_MODEL_SONNET_4 = settings.ANTHROPIC_MODEL_SONNET_4
 
 
-# Validation on import
 def validate_settings():
     """Validate critical settings on startup"""
-    if settings.ENVIRONMENT == "production":
+    if settings.ENVIRONMENT not in ("development", "test"):
         if settings.JWT_SECRET_KEY == "b4b9dec99638d32897d5b2705755cba147659e02675d4615011951ce24f6aff1":
-            raise ValueError("Production environment must use custom JWT_SECRET_KEY")
+            raise ValueError(f"Environment '{settings.ENVIRONMENT}' must use a custom JWT_SECRET_KEY")
         if settings.SECRET_KEY == "09d25e094faa6ca2556c818166b7a9563b93f7099f6f0f4caa6cf63b88e8d3e7":
-            raise ValueError("Production environment must use custom SECRET_KEY")
+            raise ValueError(f"Environment '{settings.ENVIRONMENT}' must use a custom SECRET_KEY")
+        if settings.POSTGRES_PASSWORD == "password":
+            raise ValueError(f"Environment '{settings.ENVIRONMENT}' must NOT use the default POSTGRES_PASSWORD")
 
     # Ensure database URL is set
     if not settings.DATABASE_URL:

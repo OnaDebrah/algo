@@ -21,7 +21,9 @@ def create_yfinance_session():
     return session
 
 
-def fetch_stock_data(symbol: str, period: str, interval: str, start: Any = None, end: Any = None) -> pd.DataFrame:
+def fetch_stock_data(
+    symbol: str, period: str, interval: str, start: Any = None, end: Any = None
+) -> pd.DataFrame:
     """
     Fetch stock data with better error handling
 

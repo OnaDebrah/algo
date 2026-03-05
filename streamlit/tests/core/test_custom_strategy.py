@@ -51,7 +51,9 @@ def my_strategy(data):
     return pd.Series(0, index=data.index)
 """
     is_valid, error = executor.validate_code(invalid_code)
-    print(f"   Result: {'❌ Correctly Rejected' if not is_valid else '⚠️ Should Have Failed'}")
+    print(
+        f"   Result: {'❌ Correctly Rejected' if not is_valid else '⚠️ Should Have Failed'}"
+    )
     if not is_valid:
         print(f"   Error: {error}")
 
@@ -64,7 +66,9 @@ def generate_signals(data):
     return pd.Series(0, index=data.index)
 """
     is_valid, error = executor.validate_code(dangerous_code)
-    print(f"   Result: {'❌ Correctly Rejected' if not is_valid else '⚠️ SECURITY ISSUE!'}")
+    print(
+        f"   Result: {'❌ Correctly Rejected' if not is_valid else '⚠️ SECURITY ISSUE!'}"
+    )
     if not is_valid:
         print(f"   Error: {error}")
 
@@ -76,7 +80,9 @@ def generate_signals(data):
         return 1
 """
     is_valid, error = executor.validate_code(syntax_error_code)
-    print(f"   Result: {'❌ Correctly Rejected' if not is_valid else '⚠️ Should Have Failed'}")
+    print(
+        f"   Result: {'❌ Correctly Rejected' if not is_valid else '⚠️ Should Have Failed'}"
+    )
     if not is_valid:
         print(f"   Error: {error[:50]}...")
 
@@ -211,11 +217,15 @@ async def test_ai_generation():
         print(f"   Prompt: '{prompt}'")
 
         try:
-            code, explanation, example = await generator.generate_strategy_code(prompt, style="technical")
+            code, explanation, example = await generator.generate_strategy_code(
+                prompt, style="technical"
+            )
 
             print("   ✅ Generation successful")
             print(f"   Code length: {len(code)} characters")
-            print(f"   Has 'generate_signals': {'Yes' if 'generate_signals' in code else 'No'}")
+            print(
+                f"   Has 'generate_signals': {'Yes' if 'generate_signals' in code else 'No'}"
+            )
 
             # Validate generated code
             from streamlit.core.custom_strategy_engine import SafeExecutionEnvironment
@@ -265,7 +275,9 @@ def test_backtest_simulation():
 
     print(f"   Start price: ${data['Close'].iloc[0]:.2f}")
     print(f"   End price: ${data['Close'].iloc[-1]:.2f}")
-    print(f"   B&H return: {((data['Close'].iloc[-1] / data['Close'].iloc[0]) - 1) * 100:.2f}%")
+    print(
+        f"   B&H return: {((data['Close'].iloc[-1] / data['Close'].iloc[0]) - 1) * 100:.2f}%"
+    )
 
     # Test strategy
     print("\nTest 4.1: Backtest SMA crossover strategy")

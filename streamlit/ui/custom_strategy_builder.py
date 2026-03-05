@@ -12,7 +12,10 @@ import plotly.graph_objects as go
 import yfinance as yf
 
 import streamlit as st
-from streamlit.core.custom_strategy_engine import SafeExecutionEnvironment, StrategyCodeGenerator
+from streamlit.core.custom_strategy_engine import (
+    SafeExecutionEnvironment,
+    StrategyCodeGenerator,
+)
 
 
 class CustomStrategyBuilderUI:
@@ -41,7 +44,9 @@ class CustomStrategyBuilderUI:
     def render(self):
         """Render the custom strategy builder interface"""
         st.title("⚡ Custom Strategy Builder")
-        st.markdown("Create and backtest your own trading strategies with code or natural language")
+        st.markdown(
+            "Create and backtest your own trading strategies with code or natural language"
+        )
 
         # Main tabs
         tab1, tab2, tab3, tab4 = st.tabs(
@@ -68,7 +73,9 @@ class CustomStrategyBuilderUI:
     def _render_ai_generator(self):
         """Render AI strategy generator tab"""
         st.markdown("### 🤖 Describe Your Strategy in Plain English")
-        st.markdown("The AI will generate complete, executable Python code for your strategy")
+        st.markdown(
+            "The AI will generate complete, executable Python code for your strategy"
+        )
 
         # Example prompts
         with st.expander("💡 Example Prompts", expanded=False):
@@ -116,7 +123,9 @@ class CustomStrategyBuilderUI:
 
             col1, col2, col3 = st.columns([1, 1, 2])
             with col1:
-                generate_btn = st.form_submit_button("🚀 Generate Code", type="primary", use_container_width=True)
+                generate_btn = st.form_submit_button(
+                    "🚀 Generate Code", type="primary", use_container_width=True
+                )
             with col2:
                 if st.form_submit_button("Clear", use_container_width=True):
                     st.session_state["current_strategy_code"] = ""
@@ -129,7 +138,9 @@ class CustomStrategyBuilderUI:
                 return
 
             with st.spinner("🤖 AI is generating your strategy code..."):
-                code, explanation, example = asyncio.run(self.generator.generate_strategy_code(user_prompt, strategy_style))
+                code, explanation, example = asyncio.run(
+                    self.generator.generate_strategy_code(user_prompt, strategy_style)
+                )
 
                 # Store generated code
                 st.session_state["current_strategy_code"] = code
@@ -263,7 +274,9 @@ class CustomStrategyBuilderUI:
                     st.error("⚠️ Please write some code first")
 
         with col4:
-            strategy_name = st.text_input("Name:", placeholder="Strategy name", label_visibility="collapsed")
+            strategy_name = st.text_input(
+                "Name:", placeholder="Strategy name", label_visibility="collapsed"
+            )
             if st.button("💾 Save", use_container_width=True):
                 if strategy_name and code:
                     self._save_strategy(strategy_name, code, "Custom strategy")
@@ -370,7 +383,9 @@ class CustomStrategyBuilderUI:
         # Trade log
         if "trades" in results and not results["trades"].empty:
             st.markdown("### 📋 Trade Log")
-            st.dataframe(results["trades"].tail(20), use_container_width=True, height=300)
+            st.dataframe(
+                results["trades"].tail(20), use_container_width=True, height=300
+            )
 
         # Export options
         st.markdown("### 📥 Export Results")
@@ -402,14 +417,18 @@ class CustomStrategyBuilderUI:
         strategies = st.session_state.get("custom_strategies", {})
 
         if not strategies:
-            st.info("💡 No saved strategies yet. Create and save strategies from other tabs!")
+            st.info(
+                "💡 No saved strategies yet. Create and save strategies from other tabs!"
+            )
             return
 
         # Display strategies as cards
         for name, strategy_data in strategies.items():
             with st.expander(f"📈 {name}", expanded=False):
                 st.markdown(f"**Created:** {strategy_data.get('created', 'Unknown')}")
-                st.markdown(f"**Description:** {strategy_data.get('description', 'No description')}")
+                st.markdown(
+                    f"**Description:** {strategy_data.get('description', 'No description')}"
+                )
 
                 # Show code preview
                 st.code(strategy_data["code"][:300] + "...", language="python")
@@ -418,7 +437,9 @@ class CustomStrategyBuilderUI:
 
                 with col1:
                     if st.button("📝 Load", key=f"load_{name}"):
-                        st.session_state["current_strategy_code"] = strategy_data["code"]
+                        st.session_state["current_strategy_code"] = strategy_data[
+                            "code"
+                        ]
                         st.success(f"✅ Loaded '{name}' into editor")
 
                 with col2:
@@ -513,9 +534,13 @@ class CustomStrategyBuilderUI:
         with col1:
             ticker = st.text_input("Ticker:", value="AAPL")
         with col2:
-            start_date = st.date_input("Start Date:", value=datetime.now() - timedelta(days=365))
+            start_date = st.date_input(
+                "Start Date:", value=datetime.now() - timedelta(days=365)
+            )
         with col3:
-            initial_capital = st.number_input("Initial Capital:", value=10000, step=1000)
+            initial_capital = st.number_input(
+                "Initial Capital:", value=10000, step=1000
+            )
 
         if st.button("🚀 Run Backtest", type="primary"):
             with st.spinner("📊 Running backtest..."):
@@ -528,7 +553,9 @@ class CustomStrategyBuilderUI:
                         return
 
                     # Execute strategy
-                    success, signals, output = self.executor.execute_strategy(code, data)
+                    success, signals, output = self.executor.execute_strategy(
+                        code, data
+                    )
 
                     if not success:
                         st.error(f"❌ Strategy execution failed:\n{signals}")
@@ -545,7 +572,9 @@ class CustomStrategyBuilderUI:
                 except Exception as e:
                     st.error(f"❌ Backtest error: {str(e)}")
 
-    def _simulate_backtest(self, data: pd.DataFrame, signals: pd.Series, initial_capital: float) -> Dict:
+    def _simulate_backtest(
+        self, data: pd.DataFrame, signals: pd.Series, initial_capital: float
+    ) -> Dict:
         """Simulate backtest and calculate metrics"""
 
         # Initialize
@@ -566,11 +595,15 @@ class CustomStrategyBuilderUI:
                 if shares > 0:
                     position = shares
                     cash -= shares * price
-                    trades.append({"date": date, "type": "BUY", "price": price, "shares": shares})
+                    trades.append(
+                        {"date": date, "type": "BUY", "price": price, "shares": shares}
+                    )
 
             elif signal == -1 and position > 0:  # Sell
                 cash += position * price
-                trades.append({"date": date, "type": "SELL", "price": price, "shares": position})
+                trades.append(
+                    {"date": date, "type": "SELL", "price": price, "shares": position}
+                )
                 position = 0
 
             # Calculate equity
@@ -584,7 +617,9 @@ class CustomStrategyBuilderUI:
         # Performance metrics
         total_return = ((equity_curve.iloc[-1] / initial_capital) - 1) * 100
         volatility = returns.std() * np.sqrt(252) * 100
-        sharpe = (returns.mean() / returns.std() * np.sqrt(252)) if returns.std() > 0 else 0
+        sharpe = (
+            (returns.mean() / returns.std() * np.sqrt(252)) if returns.std() > 0 else 0
+        )
 
         # Drawdown
         cummax = equity_curve.cummax()

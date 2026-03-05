@@ -232,26 +232,26 @@ const WalkForwardAnalysis: React.FC<WalkForwardAnalysisProps> = ({ strategies }:
                         <ResultMetricCard
                             icon={<ShieldCheck className="text-emerald-400" />}
                             label="Walk-Forward Efficiency"
-                            value={`${(results.wfe * 100).toFixed(1)}%`}
+                            value={`${((results.wfe ?? 0) * 100).toFixed(1)}%`}
                             description="Ratio of OOS vs IS performance"
-                            highlight={results.wfe > 0.5 ? 'emerald' : 'rose'}
+                            highlight={(results.wfe ?? 0) > 0.5 ? 'emerald' : 'rose'}
                         />
                         <ResultMetricCard
                             icon={<TrendingUp className="text-blue-400" />}
                             label="OOS Total Return"
-                            value={formatPercent(results.aggregated_oos_metrics.total_return_pct)}
+                            value={formatPercent(results.aggregated_oos_metrics?.total_return_pct ?? 0)}
                             description="Consolidated Out-of-Sample return"
                         />
                         <ResultMetricCard
                             icon={<Zap className="text-amber-400" />}
                             label="Total Folds"
-                            value={results.folds.length.toString()}
+                            value={(results.folds?.length ?? 0).toString()}
                             description="Individual validation steps"
                         />
                         <ResultMetricCard
                             icon={<BarChart3 className="text-fuchsia-400" />}
                             label="OOS Sharpe"
-                            value={results.aggregated_oos_metrics.sharpe_ratio.toFixed(2)}
+                            value={(results.aggregated_oos_metrics?.sharpe_ratio ?? 0).toFixed(2)}
                             description="Consolidated Risk-adjusted return"
                         />
                     </div>
@@ -264,7 +264,7 @@ const WalkForwardAnalysis: React.FC<WalkForwardAnalysisProps> = ({ strategies }:
                                 <span>Validation Folds</span>
                             </h4>
                             <div className="space-y-3 max-h-[600px] overflow-y-auto pr-2 custom-scrollbar">
-                                {results.folds.map((fold, idx) => (
+                                {(results.folds ?? []).map((fold, idx) => (
                                     <FoldCard key={idx} fold={fold} />
                                 ))}
                             </div>

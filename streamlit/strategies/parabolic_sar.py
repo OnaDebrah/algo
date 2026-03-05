@@ -10,7 +10,9 @@ from streamlit.strategies.base_strategy import BaseStrategy
 class ParabolicSARStrategy(BaseStrategy):
     """Parabolic SAR Strategy"""
 
-    def __init__(self, start: float = 0.02, increment: float = 0.02, maximum: float = 0.2):
+    def __init__(
+        self, start: float = 0.02, increment: float = 0.02, maximum: float = 0.2
+    ):
         """
         Initialize Parabolic SAR strategy
 
@@ -37,7 +39,9 @@ class ParabolicSARStrategy(BaseStrategy):
         af = pd.Series(index=data.index, dtype=float)  # Acceleration Factor
 
         # Initialize
-        trend.iloc[0] = 1 if close.iloc[0] > close.iloc[0] else 1  # Default to up for start or check
+        trend.iloc[0] = (
+            1 if close.iloc[0] > close.iloc[0] else 1
+        )  # Default to up for start or check
         sar.iloc[0] = low.iloc[0] if trend.iloc[0] == 1 else high.iloc[0]
         ep.iloc[0] = high.iloc[0] if trend.iloc[0] == 1 else low.iloc[0]
         af.iloc[0] = self.params["start"]
@@ -66,7 +70,9 @@ class ParabolicSARStrategy(BaseStrategy):
                 else:
                     new_ep = max(prev_ep, high.iloc[i])
                     if new_ep > prev_ep and prev_af < self.params["maximum"]:
-                        new_af = min(prev_af + self.params["increment"], self.params["maximum"])
+                        new_af = min(
+                            prev_af + self.params["increment"], self.params["maximum"]
+                        )
                     else:
                         new_af = prev_af
 
@@ -84,7 +90,9 @@ class ParabolicSARStrategy(BaseStrategy):
                 else:
                     new_ep = min(prev_ep, low.iloc[i])
                     if new_ep < prev_ep and prev_af < self.params["maximum"]:
-                        new_af = min(prev_af + self.params["increment"], self.params["maximum"])
+                        new_af = min(
+                            prev_af + self.params["increment"], self.params["maximum"]
+                        )
                     else:
                         new_af = prev_af
 

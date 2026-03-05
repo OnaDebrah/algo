@@ -34,7 +34,7 @@ class PortfolioOptimizer:
 
     async def fetch_data(self) -> pd.DataFrame:
         """Fetch historical data for all symbols"""
-        from backend.app.core import fetch_stock_data
+        from ..core import fetch_stock_data
 
         prices = pd.DataFrame()
 

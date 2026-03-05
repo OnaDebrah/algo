@@ -116,7 +116,9 @@ class CrossSectionalMomentumStrategy(BaseStrategy, ABC):
     # CORE MOMENTUM CALCULATION METHODS
     # ============================================================================
 
-    def calculate_momentum(self, price_data: pd.DataFrame, method: str = "skip_period") -> pd.DataFrame:
+    def calculate_momentum(
+        self, price_data: pd.DataFrame, method: str = "skip_period"
+    ) -> pd.DataFrame:
         """
         Calculate momentum scores with different methodologies
 
@@ -136,7 +138,9 @@ class CrossSectionalMomentumStrategy(BaseStrategy, ABC):
             # Standard academic approach: skip most recent period
             for asset in price_data.columns:
                 if len(price_data[asset].dropna()) >= self.formation_period:
-                    past_price = price_data[asset].iloc[-self.formation_period - self.skip_period]
+                    past_price = price_data[asset].iloc[
+                        -self.formation_period - self.skip_period
+                    ]
                     recent_price = price_data[asset].iloc[-self.skip_period - 1]
                     momentum = (recent_price / past_price) - 1
                     momentum_scores.loc[asset, "momentum"] = momentum
@@ -147,10 +151,16 @@ class CrossSectionalMomentumStrategy(BaseStrategy, ABC):
 
             for horizon in self.momentum_horizons:
                 if len(price_data) >= horizon + self.skip_period:
-                    horizon_momentum = price_data.iloc[-self.skip_period - 1] / price_data.iloc[-horizon - self.skip_period] - 1
+                    horizon_momentum = (
+                        price_data.iloc[-self.skip_period - 1]
+                        / price_data.iloc[-horizon - self.skip_period]
+                        - 1
+                    )
                     # Weight by horizon (longer horizons typically more predictive)
                     weight = np.log(horizon) / np.log(max(self.momentum_horizons))
-                    momentum_series = momentum_series.add(horizon_momentum * weight, fill_value=0)
+                    momentum_series = momentum_series.add(
+                        horizon_momentum * weight, fill_value=0
+                    )
 
             momentum_scores["momentum"] = momentum_series
 
@@ -160,28 +170,40 @@ class CrossSectionalMomentumStrategy(BaseStrategy, ABC):
                 prices = price_data[asset].dropna()
                 if len(prices) >= self.formation_period:
                     # Calculate return
-                    momentum_return = prices.iloc[-self.skip_period - 1] / prices.iloc[-self.formation_period - self.skip_period] - 1
+                    momentum_return = (
+                        prices.iloc[-self.skip_period - 1]
+                        / prices.iloc[-self.formation_period - self.skip_period]
+                        - 1
+                    )
 
                     # Calculate volatility
                     returns = np.log(prices / prices.shift(1))
                     if len(returns) >= 63:
                         volatility = returns.rolling(63).std().iloc[-1] * np.sqrt(252)
                     else:
-                        volatility = returns.std() * np.sqrt(252) if len(returns) > 0 else 0.15
+                        volatility = (
+                            returns.std() * np.sqrt(252) if len(returns) > 0 else 0.15
+                        )
 
                     # Risk-adjusted momentum (Sharpe-like)
                     if volatility > 0:
-                        momentum_scores.loc[asset, "momentum"] = momentum_return / volatility
+                        momentum_scores.loc[asset, "momentum"] = (
+                            momentum_return / volatility
+                        )
                     else:
                         momentum_scores.loc[asset, "momentum"] = momentum_return
 
         else:
             # Simple momentum (no skip period)
-            momentum_scores["momentum"] = price_data.iloc[-1] / price_data.iloc[-self.formation_period] - 1
+            momentum_scores["momentum"] = (
+                price_data.iloc[-1] / price_data.iloc[-self.formation_period] - 1
+            )
 
         return momentum_scores.dropna()
 
-    def calculate_volatility(self, price_data: pd.DataFrame, lookback: int = 63) -> pd.Series:
+    def calculate_volatility(
+        self, price_data: pd.DataFrame, lookback: int = 63
+    ) -> pd.Series:
         """
         Calculate volatility for each asset
 
@@ -213,7 +235,9 @@ class CrossSectionalMomentumStrategy(BaseStrategy, ABC):
     # PORTFOLIO CONSTRUCTION METHODS
     # ============================================================================
 
-    def construct_sector_neutral_portfolio(self, momentum_scores: pd.DataFrame, sector_mapping: Dict[str, str]) -> Dict[str, float]:
+    def construct_sector_neutral_portfolio(
+        self, momentum_scores: pd.DataFrame, sector_mapping: Dict[str, str]
+    ) -> Dict[str, float]:
         """
         Construct sector-neutral momentum portfolio
 
@@ -240,7 +264,9 @@ class CrossSectionalMomentumStrategy(BaseStrategy, ABC):
 
         for sector, sector_assets in sectors.items():
             # Get momentum scores for this sector
-            sector_scores = momentum_scores.loc[momentum_scores.index.intersection(sector_assets)]
+            sector_scores = momentum_scores.loc[
+                momentum_scores.index.intersection(sector_assets)
+            ]
 
             if len(sector_scores) >= 2:  # Need at least 2 assets
                 # Rank within sector
@@ -256,7 +282,9 @@ class CrossSectionalMomentumStrategy(BaseStrategy, ABC):
                     if rank <= top_cutoff:
                         sector_positions[asset] = 1.0 / top_cutoff  # Equal weight long
                     elif rank >= bottom_cutoff:
-                        sector_positions[asset] = -1.0 / (n_sector - bottom_cutoff + 1)  # Equal weight short
+                        sector_positions[asset] = -1.0 / (
+                            n_sector - bottom_cutoff + 1
+                        )  # Equal weight short
 
         # Normalize to equal dollar long/short
         long_exposure = sum(w for w in sector_positions.values() if w > 0)
@@ -272,7 +300,9 @@ class CrossSectionalMomentumStrategy(BaseStrategy, ABC):
 
         return positions
 
-    def apply_volatility_scaling(self, positions: Dict[str, float], volatilities: pd.Series) -> Dict[str, float]:
+    def apply_volatility_scaling(
+        self, positions: Dict[str, float], volatilities: pd.Series
+    ) -> Dict[str, float]:
         """
         Scale positions inversely by volatility
 
@@ -294,7 +324,9 @@ class CrossSectionalMomentumStrategy(BaseStrategy, ABC):
                 scaled_weight = weight
 
             # Apply position size limit
-            scaled_weight = np.clip(scaled_weight, -self.max_position_size, self.max_position_size)
+            scaled_weight = np.clip(
+                scaled_weight, -self.max_position_size, self.max_position_size
+            )
             scaled_positions[asset] = scaled_weight
 
         return scaled_positions
@@ -392,7 +424,11 @@ class CrossSectionalMomentumStrategy(BaseStrategy, ABC):
         # Store momentum scores for analysis
         self.momentum_scores_history.append(
             {
-                "date": (price_data.index[-1] if hasattr(price_data.index, "__len__") else len(price_data)),
+                "date": (
+                    price_data.index[-1]
+                    if hasattr(price_data.index, "__len__")
+                    else len(price_data)
+                ),
                 "scores": momentum_scores["momentum"].to_dict(),
             }
         )
@@ -400,7 +436,9 @@ class CrossSectionalMomentumStrategy(BaseStrategy, ABC):
         # Construct initial portfolio
         if self.sector_mapping:
             # Sector-neutral construction
-            raw_positions = self.construct_sector_neutral_portfolio(momentum_scores, self.sector_mapping)
+            raw_positions = self.construct_sector_neutral_portfolio(
+                momentum_scores, self.sector_mapping
+            )
         else:
             # Simple cross-sectional ranking
             raw_positions = self._simple_cross_sectional(momentum_scores)
@@ -414,7 +452,9 @@ class CrossSectionalMomentumStrategy(BaseStrategy, ABC):
 
         # Apply momentum crash protection
         if self.momentum_crash_protection and market_index is not None:
-            positions = self.apply_momentum_crash_protection(positions, pd.DataFrame({"market": market_index}))
+            positions = self.apply_momentum_crash_protection(
+                positions, pd.DataFrame({"market": market_index})
+            )
 
         # Ensure zero-cost portfolio if required
         if self.zero_cost_portfolio:
@@ -429,7 +469,11 @@ class CrossSectionalMomentumStrategy(BaseStrategy, ABC):
 
         # Update current positions
         self.current_positions = positions
-        self.rebalance_dates.append(price_data.index[-1] if hasattr(price_data.index, "__len__") else len(price_data))
+        self.rebalance_dates.append(
+            price_data.index[-1]
+            if hasattr(price_data.index, "__len__")
+            else len(price_data)
+        )
 
         return {
             "signals": positions,
@@ -442,11 +486,17 @@ class CrossSectionalMomentumStrategy(BaseStrategy, ABC):
                 "num_short": sum(1 for v in positions.values() if v < 0),
                 "gross_exposure": sum(abs(v) for v in positions.values()),
                 "net_exposure": sum(positions.values()),
-                "date": (price_data.index[-1] if hasattr(price_data.index, "__len__") else len(price_data)),
+                "date": (
+                    price_data.index[-1]
+                    if hasattr(price_data.index, "__len__")
+                    else len(price_data)
+                ),
             },
         }
 
-    def _simple_cross_sectional(self, momentum_scores: pd.DataFrame) -> Dict[str, float]:
+    def _simple_cross_sectional(
+        self, momentum_scores: pd.DataFrame
+    ) -> Dict[str, float]:
         """Simple cross-sectional ranking without sector constraints"""
         ranks = momentum_scores["momentum"].rank(ascending=False)
         n_assets = len(ranks)
@@ -485,7 +535,9 @@ class CrossSectionalMomentumStrategy(BaseStrategy, ABC):
 
         return positions
 
-    def _calculate_turnover(self, old_positions: Dict[str, float], new_positions: Dict[str, float]) -> Dict:
+    def _calculate_turnover(
+        self, old_positions: Dict[str, float], new_positions: Dict[str, float]
+    ) -> Dict:
         """Calculate portfolio turnover and estimated transaction costs"""
         all_assets = set(old_positions.keys()).union(set(new_positions.keys()))
 
@@ -523,7 +575,9 @@ class CrossSectionalMomentumStrategy(BaseStrategy, ABC):
 
         # Simple implementation: rebalance every holding_period days
         if isinstance(price_data.index, pd.DatetimeIndex):
-            days_since_rebalance = (price_data.index[-1] - self.rebalance_dates[-1]).days
+            days_since_rebalance = (
+                price_data.index[-1] - self.rebalance_dates[-1]
+            ).days
         else:
             days_since_rebalance = len(price_data) - self.rebalance_dates[-1]
 
@@ -570,7 +624,9 @@ class CrossSectionalMomentumStrategy(BaseStrategy, ABC):
             rebalance = days_since_start % self.holding_period == 0
 
             # Generate signals
-            signal_result = self.generate_signals(historical_data, market_slice, positions, rebalance)
+            signal_result = self.generate_signals(
+                historical_data, market_slice, positions, rebalance
+            )
 
             # Update positions
             positions = signal_result["signals"]
@@ -582,7 +638,9 @@ class CrossSectionalMomentumStrategy(BaseStrategy, ABC):
             for asset, weight in positions.items():
                 if i > 0 and asset in price_data.columns:
                     # Calculate asset return
-                    asset_return = price_data[asset].iloc[i] / price_data[asset].iloc[i - 1] - 1
+                    asset_return = (
+                        price_data[asset].iloc[i] / price_data[asset].iloc[i - 1] - 1
+                    )
                     position_return = weight * asset_return * capital
                     daily_returns[asset] = position_return
                     portfolio_return += position_return
@@ -596,7 +654,9 @@ class CrossSectionalMomentumStrategy(BaseStrategy, ABC):
                     "date": current_date,
                     "capital": capital,
                     "return": portfolio_return / capital if capital > 0 else 0,
-                    "num_positions": len([v for v in positions.values() if abs(v) > 0.001]),
+                    "num_positions": len(
+                        [v for v in positions.values() if abs(v) > 0.001]
+                    ),
                     "gross_exposure": sum(abs(v) for v in positions.values()),
                     "net_exposure": sum(positions.values()),
                     "turnover": signal_result["metadata"].get("turnover", 0),
@@ -652,11 +712,15 @@ class CrossSectionalMomentumStrategy(BaseStrategy, ABC):
                 "information_ratio": information_ratio,
                 "avg_annual_turnover": avg_annual_turnover,
                 "win_rate": win_rate,
-                "calmar_ratio": (annual_return / abs(max_drawdown) if max_drawdown < 0 else 0),
+                "calmar_ratio": (
+                    annual_return / abs(max_drawdown) if max_drawdown < 0 else 0
+                ),
             }
         )
 
-    def optimize_parameters(self, price_data: pd.DataFrame, parameter_grid: Optional[Dict] = None) -> Dict:
+    def optimize_parameters(
+        self, price_data: pd.DataFrame, parameter_grid: Optional[Dict] = None
+    ) -> Dict:
         """
         Optimize strategy parameters using walk-forward optimization
 
@@ -694,7 +758,9 @@ class CrossSectionalMomentumStrategy(BaseStrategy, ABC):
             param_dict = dict(zip(param_names, params))
 
             # Test on training data
-            temp_strategy = CrossSectionalMomentumStrategy(universe=self.universe, **param_dict)
+            temp_strategy = CrossSectionalMomentumStrategy(
+                universe=self.universe, **param_dict
+            )
 
             results = temp_strategy.backtest(train_data)
 
@@ -707,14 +773,18 @@ class CrossSectionalMomentumStrategy(BaseStrategy, ABC):
 
         # Validate on test data
         if best_params:
-            test_strategy = CrossSectionalMomentumStrategy(universe=self.universe, **best_params)
+            test_strategy = CrossSectionalMomentumStrategy(
+                universe=self.universe, **best_params
+            )
             test_results = test_strategy.backtest(test_data)
 
             logger.info(f"TEST RESULTS SIZE: {test_results.size}")
         return {
             "best_params": best_params,
             "best_sharpe": best_sharpe,
-            "test_sharpe": (test_strategy.performance_metrics["sharpe_ratio"] if best_params else 0),
+            "test_sharpe": (
+                test_strategy.performance_metrics["sharpe_ratio"] if best_params else 0
+            ),
         }
 
     def generate_report(self) -> Dict:
@@ -736,92 +806,29 @@ class CrossSectionalMomentumStrategy(BaseStrategy, ABC):
             "performance": self.performance_metrics,
             "portfolio_characteristics": {
                 "avg_gross_exposure": (
-                    np.mean([r.get("gross_exposure", 0) for r in self.momentum_scores_history]) if self.momentum_scores_history else 0
+                    np.mean(
+                        [
+                            r.get("gross_exposure", 0)
+                            for r in self.momentum_scores_history
+                        ]
+                    )
+                    if self.momentum_scores_history
+                    else 0
                 ),
                 "avg_net_exposure": (
-                    np.mean([r.get("net_exposure", 0) for r in self.momentum_scores_history]) if self.momentum_scores_history else 0
+                    np.mean(
+                        [r.get("net_exposure", 0) for r in self.momentum_scores_history]
+                    )
+                    if self.momentum_scores_history
+                    else 0
                 ),
                 "num_rebalances": len(self.rebalance_dates),
             },
-            "recent_signals": (self.momentum_scores_history[-5:] if len(self.momentum_scores_history) > 5 else self.momentum_scores_history),
+            "recent_signals": (
+                self.momentum_scores_history[-5:]
+                if len(self.momentum_scores_history) > 5
+                else self.momentum_scores_history
+            ),
         }
 
         return report
-
-
-# ============================================================================
-# EXAMPLE USAGE
-# ============================================================================
-
-if __name__ == "__main__":
-    print("=== Enhanced Cross-Sectional Momentum Strategy ===")
-
-    # Create sample universe
-    np.random.seed(42)
-    n_assets = 50
-    dates = pd.date_range("2010-01-01", periods=1000, freq="D")
-
-    # Simulate asset prices with momentum factor
-    asset_prices = {}
-    for i in range(n_assets):
-        # Base returns with momentum persistence
-        base_returns = np.random.randn(1000) * 0.01
-
-        # Add momentum factor
-        momentum_factor = np.random.randn(1000) * 0.005
-        momentum_factor = np.convolve(momentum_factor, np.ones(30) / 30, mode="same")
-
-        # Combine
-        total_returns = base_returns + momentum_factor
-        prices = 100 * np.exp(np.cumsum(total_returns))
-        asset_prices[f"ASSET_{i:02d}"] = prices
-
-    price_data = pd.DataFrame(asset_prices, index=dates)
-
-    # Create sector mapping
-    sectors = ["TECH", "FINANCIAL", "HEALTHCARE", "INDUSTRIAL", "CONSUMER"]
-    sector_mapping = {f"ASSET_{i:02d}": sectors[i % len(sectors)] for i in range(n_assets)}
-
-    print(f"Created universe of {n_assets} assets across {len(sectors)} sectors")
-
-    # Initialize strategy
-    momentum_strategy = CrossSectionalMomentumStrategy(
-        universe=list(asset_prices.keys()),
-        formation_period=252,
-        skip_period=21,
-        holding_period=21,
-        top_quantile=0.3,
-        bottom_quantile=0.3,
-        sector_mapping=sector_mapping,
-        volatility_adjustment=True,
-        momentum_crash_protection=True,
-        max_position_size=0.05,
-        transaction_cost_bps=5.0,
-    )
-
-    # Run backtest
-    print("\nRunning backtest...")
-    results = momentum_strategy.backtest(price_data)
-
-    print("\nPerformance Metrics:")
-    for metric, value in momentum_strategy.performance_metrics.items():
-        print(f"  {metric}: {value:.4f}")
-
-    # Generate report
-    report = momentum_strategy.generate_report()
-    print("\nStrategy Characteristics:")
-    print(f"  Average gross exposure: {report['portfolio_characteristics']['avg_gross_exposure']:.2f}")
-    print(f"  Number of rebalances: {report['portfolio_characteristics']['num_rebalances']}")
-
-    # Test parameter optimization
-    print("\nOptimizing parameters...")
-    optimal_params = momentum_strategy.optimize_parameters(
-        price_data.iloc[:700],  # Use first 70% for optimization
-        parameter_grid={
-            "formation_period": [126, 252],
-            "skip_period": [5, 21],
-            "top_quantile": [0.2, 0.3],
-        },
-    )
-
-    print(f"Optimal parameters: {optimal_params}")

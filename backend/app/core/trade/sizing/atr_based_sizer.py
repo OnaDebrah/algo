@@ -1,6 +1,6 @@
 import logging
 
-from core.trade.sizing.position_sizer import PositionSizer
+from app.core.trade.sizing.position_sizer import PositionSizer
 
 logger = logging.getLogger(__name__)
 

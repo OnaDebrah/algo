@@ -10,12 +10,13 @@ from typing import Dict, List
 import numpy as np
 import pandas as pd
 
+from ..config import settings
 from ..strategies.options_builder import OptionsStrategyBuilder, create_preset_strategy
 from ..strategies.options_strategies import (
-    BlackScholesCalculator,
     OptionsStrategy,
     OptionType,
 )
+from .options.pricers.engine import OptionsPricingEngine
 
 logger = logging.getLogger(__name__)
 
@@ -27,9 +28,9 @@ class OptionsBacktestEngine:
 
     def __init__(
         self,
-        initial_capital: float = 100000,
-        risk_free_rate: float = 0.05,
-        commission_per_contract: float = 0.65,
+        initial_capital: float = settings.DEFAULT_INITIAL_CAPITAL,
+        risk_free_rate: float = settings.DEFAULT_RISK_FREE_RATE,
+        commission_per_contract: float = settings.DEFAULT_COMMISSION_RATE,
     ):
         self.initial_capital = initial_capital
         self.capital = initial_capital
@@ -421,17 +422,12 @@ class OptionsBacktestEngine:
 
                 value += leg.quantity * intrinsic * 100
             else:
-                # Calculate current option price
-                current_premium = BlackScholesCalculator.calculate_option_price(
-                    S=current_price,
-                    K=leg.strike,
-                    T=T,
-                    r=self.risk_free_rate,
-                    sigma=volatility,
-                    option_type=leg.option_type,
+                engine = OptionsPricingEngine()
+                current_premium = engine.price(
+                    S=current_price, K=leg.strike, T=T, r=self.risk_free_rate, sigma=volatility, option_type=leg.option_type
                 )
 
-                value += leg.quantity * current_premium * 100
+                value += leg.quantity * current_premium.price * 100
 
         return value
 
