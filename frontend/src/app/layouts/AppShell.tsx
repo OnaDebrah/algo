@@ -2,6 +2,7 @@
 
 import React, { lazy, Suspense, useState, useEffect, useCallback } from 'react';
 import LoginPage from "@/components/auth/LoginPage";
+import LandingPage from "@/components/landing/LandingPage";
 import ErrorBoundary from "@/components/common/ErrorBoundary";
 import Sidebar from "@/app/layouts/Sidebar";
 import Header from "@/app/layouts/Header";
@@ -63,6 +64,7 @@ type AppShellProps = object
 const AppShell: React.FC<AppShellProps> = () => {
   const [currentPage, setCurrentPage] = useState<PageKey>('dashboard');
   const [user, setUser] = useState<User | null>(null);
+  const [showLanding, setShowLanding] = useState(true);
   const [serverStatus, setServerStatus] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
@@ -168,12 +170,21 @@ const AppShell: React.FC<AppShellProps> = () => {
     );
   }
 
-  // Show login page if no user
+  // Show landing page or login page if no user
   if (!user) {
+    if (showLanding) {
+      return (
+        <LandingPage
+          onGetStarted={() => setShowLanding(false)}
+          onSignIn={() => setShowLanding(false)}
+        />
+      );
+    }
     return (
       <LoginPage
         onLogin={handleLogin}
         setCurrentPage={(page: string) => setCurrentPage(page as PageKey)}
+        onBackToLanding={() => setShowLanding(true)}
       />
     );
   }
