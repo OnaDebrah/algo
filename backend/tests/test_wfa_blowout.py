@@ -3,6 +3,7 @@ import unittest
 from unittest.mock import MagicMock, patch
 
 import pandas as pd
+
 from backend.app.schemas.backtest import BacktestResult, ParamRange, WFARequest
 from backend.app.services.walk_forward_service import WalkForwardService
 

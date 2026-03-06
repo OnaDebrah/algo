@@ -20,12 +20,18 @@ export interface User {
     is_active: boolean;
     created_at: string;
     last_login: string | null;
+    country: string | null;
+    investor_type: string | null;
+    risk_profile: string | null;
 }
 
 export interface UserCreate {
     username: string;
     email: string;
     password: string;
+    country?: string;
+    investor_type?: string;
+    risk_profile?: string;
 }
 
 export interface UserLogin {

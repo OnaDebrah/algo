@@ -3,6 +3,8 @@
 import React, { lazy, Suspense, useState, useEffect, useCallback } from 'react';
 import LoginPage from "@/components/auth/LoginPage";
 import LandingPage from "@/components/landing/LandingPage";
+import { TickerTape } from "@/components/widgets/TickerTape";
+import { CommandPalette } from "@/components/common/CommandPalette";
 import ErrorBoundary from "@/components/common/ErrorBoundary";
 import Sidebar from "@/app/layouts/Sidebar";
 import Header from "@/app/layouts/Header";
@@ -83,6 +85,9 @@ const AppShell: React.FC<AppShellProps> = () => {
         is_active: userData.is_active,
         created_at: userData.created_at,
         last_login: userData.last_login,
+        country: userData.country ?? null,
+        investor_type: userData.investor_type ?? null,
+        risk_profile: userData.risk_profile ?? null,
       });
     } catch {
       // No valid session — user will see login page
@@ -191,6 +196,7 @@ const AppShell: React.FC<AppShellProps> = () => {
 
   return (
     <div className="flex min-h-screen bg-slate-950 text-slate-200 font-sans selection:bg-violet-500/30">
+      <CommandPalette />
       <Sidebar
         currentPage={currentPage}
         setCurrentPage={handlePageChange}
@@ -199,8 +205,13 @@ const AppShell: React.FC<AppShellProps> = () => {
         serverStatus={serverStatus}
       />
 
-      <div className="flex-1 ml-64 min-h-screen">
-        <div className="max-w-[1600px] mx-auto px-8 py-6">
+      <div className="flex-1 ml-64 min-h-screen flex flex-col">
+        {/* Global Ticker */}
+        <div className="w-full border-b border-slate-800/80 bg-slate-900/50">
+          <TickerTape />
+        </div>
+
+        <div className="max-w-[1600px] mx-auto w-full px-8 py-6 flex-1">
           <Header
             user={user}
             currentPage={currentPage}
