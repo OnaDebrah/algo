@@ -19,9 +19,16 @@ import requests
 import tweepy
 from nltk.sentiment.vader import SentimentIntensityAnalyzer
 
-from streamlit.strategies.base_strategy import BaseStrategy
+from analytics.sentiment.news_sentiment import NewsSentimentAnalyzer
+from analytics.sentiment.options_senttiment import OptionsSentimentAnalyzer
+from config import (
+    NEWSAPI_KEY,
+    TWITTER_BEARER_TOKEN,
+    REDDIT_CLIENT_SECRET,
+    REDDIT_CLIENT_ID,
+)
+from ...strategies.base_strategy import BaseStrategy
 
-# ML imports
 try:
     from sklearn.ensemble import GradientBoostingRegressor, RandomForestRegressor
     from sklearn.model_selection import train_test_split
@@ -44,10 +51,12 @@ class SentimentAnalyzer:
     """
 
     def __init__(self, sources: List[str] = None):
-        self.sources = sources or ["news", "twitter", "options"]
+        self.sources = sources or ["news", "twitter", "stocktwits", "reddit", "options"]
         self.sentiment_cache = {}
 
-    def get_sentiment_features(self, symbol: str, date: datetime) -> Dict[str, float]:
+    async def get_sentiment_features(
+        self, symbol: str, date: datetime
+    ) -> Dict[str, float]:
         """
         Extract sentiment features for a given symbol and date
 
@@ -70,11 +79,10 @@ class SentimentAnalyzer:
             elif source == "reddit":
                 features["reddit_sentiment"] = self._get_reddit_sentiment(symbol, date)
             elif source == "options":
-                features["options_sentiment"] = self._get_options_sentiment(
+                features["options_sentiment"] = await self._get_options_sentiment(
                     symbol, date
                 )
 
-        # Add aggregate sentiment
         if features:
             features["sentiment_aggregate"] = np.mean(list(features.values()))
             features["sentiment_volatility"] = np.std(list(features.values()))
@@ -86,9 +94,9 @@ class SentimentAnalyzer:
         Get news sentiment score
         In production: Use APIs like RavenPack, Bloomberg, or NewsAPI
         """
-        # Placeholder: Random walk with mean reversion for demo
-        np.random.seed(hash(f"{symbol}{date}") % (2**32))
-        return np.clip(np.random.normal(0, 0.3), -1, 1)
+        sentiment = NewsSentimentAnalyzer(NEWSAPI_KEY)
+        result = sentiment.get_news_sentiment(symbol, date)
+        return result
 
     def _get_stocktwits_sentiment(self, symbol: str, date: datetime) -> float:
         """
@@ -158,7 +166,6 @@ class SentimentAnalyzer:
         """
         Institutional grade sentiment analysis using VADER and Weighted Influence.
         """
-        BEARER_TOKEN = "YOUR_TWITTER_BEARER_TOKEN"
         query = f"({symbol} OR #{symbol}) -is:retweet lang:en"
 
         analyzer = SentimentIntensityAnalyzer()
@@ -166,7 +173,9 @@ class SentimentAnalyzer:
         total_weight = 0
 
         try:
-            client = tweepy.Client(bearer_token=BEARER_TOKEN, wait_on_rate_limit=True)
+            client = tweepy.Client(
+                bearer_token=TWITTER_BEARER_TOKEN, wait_on_rate_limit=True
+            )
 
             # We request user fields to calculate influence/weight
             tweets = client.search_recent_tweets(
@@ -221,10 +230,9 @@ class SentimentAnalyzer:
         Scrapes high-signal subreddits using PRAW and calculates
         a weighted sentiment score based on post engagement.
         """
-        # 1. Authentication (Use environment variables for these)
         reddit = praw.Reddit(
-            client_id="YOUR_CLIENT_ID",
-            client_secret="YOUR_CLIENT_SECRET",
+            client_id=REDDIT_CLIENT_ID,
+            client_secret=REDDIT_CLIENT_SECRET,
             user_agent="FinancialAnalystBot/1.0 by /u/YourUsername",
         )
 
@@ -286,16 +294,14 @@ class SentimentAnalyzer:
 
         return float(np.sum(weighted_scores) / total_weight)
 
-    def _get_options_sentiment(self, symbol: str, date: datetime) -> float:
+    async def _get_options_sentiment(self, symbol: str, date: datetime) -> float:
         """
         Get options market sentiment (put/call ratio, IV skew)
         In production: Calculate from actual options data
         """
-        np.random.seed(hash(f"options{symbol}{date}") % (2**32))
-        # Put/call ratio: >1 = bearish, <1 = bullish
-        put_call_ratio = np.random.uniform(0.5, 1.5)
-        sentiment = (1.0 - put_call_ratio) / 0.5  # Normalize to [-1, 1]
-        return np.clip(sentiment, -1, 1)
+        sentiment = OptionsSentimentAnalyzer()
+        result = await sentiment.get_options_sentiment(symbol, date)
+        return result
 
 
 class MLPredictor:
@@ -555,7 +561,7 @@ class PositionSizer:
         kelly_fraction = max(0, kelly_fraction * 0.5)
 
         # Cap at risk per trade limit
-        position_fraction = min(kelly_fraction, self.risk_per_trade)
+        position_fraction = min(kelly_fraction, round(self.risk_per_trade))
 
         # Calculate position size
         position_value = portfolio_value * position_fraction
@@ -608,7 +614,7 @@ class MonteCarloMLSentimentStrategy(BaseStrategy):
         self.simulation_results = {}
         self.sentiment_history = pd.DataFrame()
 
-    def calculate_indicators(self, data: pd.DataFrame) -> pd.DataFrame:
+    async def calculate_indicators(self, data: pd.DataFrame) -> pd.DataFrame:
         """
         Calculate technical indicators and gather sentiment data
         """
@@ -618,7 +624,7 @@ class MonteCarloMLSentimentStrategy(BaseStrategy):
         sentiment_data = []
         for date in df.index:
             # Get sentiment for current symbol (assuming single symbol for now)
-            sentiment_features = self.sentiment_analyzer.get_sentiment_features(
+            sentiment_features = await self.sentiment_analyzer.get_sentiment_features(
                 "SYMBOL", date
             )
             sentiment_features["date"] = date
@@ -654,12 +660,12 @@ class MonteCarloMLSentimentStrategy(BaseStrategy):
 
         return False
 
-    def train_model(self, data: pd.DataFrame):
+    async def train_model(self, data: pd.DataFrame):
         """
         Train or retrain the ML model
         """
         # Prepare features
-        df = self.calculate_indicators(data)
+        df = await self.calculate_indicators(data)
 
         # Get feature columns (exclude price data)
         feature_cols = [
@@ -678,7 +684,7 @@ class MonteCarloMLSentimentStrategy(BaseStrategy):
 
         return metrics
 
-    def generate_signals(self, data: pd.DataFrame) -> pd.DataFrame:
+    async def generate_signal(self, data: pd.DataFrame) -> pd.DataFrame:
         """
         Generate trading signals using Monte Carlo simulation
         """
@@ -696,13 +702,13 @@ class MonteCarloMLSentimentStrategy(BaseStrategy):
         if not self.ml_predictor.is_trained or self.should_retrain(df.index[-1]):
             train_data = df.iloc[-self.lookback_period :]
             try:
-                self.train_model(train_data)
+                await self.train_model(train_data)
             except Exception as e:
                 logger.error(f"Training failed: {e}")
                 return df
 
         # Generate features for prediction
-        df_with_features = self.calculate_indicators(df)
+        df_with_features = await self.calculate_indicators(df)
 
         # Get feature columns
         feature_cols = [
