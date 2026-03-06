@@ -10,6 +10,7 @@ type RiskProfile = 'Conservative' | 'Moderate' | 'Aggressive';
 interface LoginPageProps {
     onLogin: (userData: User, token: string) => void;
     setCurrentPage: (page: string) => void;
+    onBackToLanding?: () => void;
 }
 
 interface LoginFormData {
@@ -27,7 +28,7 @@ interface LoginResponse {
     token_type?: string;
 }
 
-const LoginPage = ({ onLogin, setCurrentPage }: LoginPageProps) => {
+const LoginPage = ({ onLogin, setCurrentPage, onBackToLanding }: LoginPageProps) => {
     const [isLogin, setIsLogin] = useState(true);
     const [formData, setFormData] = useState<LoginFormData>({
         username: '',
@@ -37,7 +38,7 @@ const LoginPage = ({ onLogin, setCurrentPage }: LoginPageProps) => {
         riskProfile: 'Moderate'
     });
 
-        const features = [
+    const features = [
         {
             title: 'Performance Monitoring',
             icon: Activity,
@@ -250,9 +251,18 @@ const LoginPage = ({ onLogin, setCurrentPage }: LoginPageProps) => {
     };
 
     return (
-                   <div className="min-h-screen w-full flex">
+        <div className="min-h-screen w-full flex">
             {/* Left Panel - Authentication */}
             <div className="w-full lg:w-[480px] flex flex-col justify-center p-8 md:p-12 border-r border-slate-800/80 bg-slate-900/95 backdrop-blur-xl z-10 shadow-2xl">
+                {onBackToLanding && (
+                    <button
+                        onClick={onBackToLanding}
+                        className="flex items-center gap-2 text-sm text-slate-400 hover:text-slate-200 transition-colors mb-6 group"
+                    >
+                        <ArrowRight size={16} className="rotate-180 group-hover:-translate-x-1 transition-transform" />
+                        Back to Home
+                    </button>
+                )}
                 <div className="mb-12">
                     <div className="flex items-center space-x-3 mb-8">
                         <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-violet-500 to-fuchsia-500 flex items-center justify-center shadow-xl shadow-violet-500/30">
