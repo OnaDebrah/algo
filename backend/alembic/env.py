@@ -1,4 +1,6 @@
 import asyncio
+import os
+import sys
 from logging.config import fileConfig
 
 from sqlalchemy import pool
@@ -6,37 +8,35 @@ from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import async_engine_from_config
 
 from alembic import context
+from app.config import settings
+from app.database import Base
+from app.models.backtest import BacktestRun  # noqa: F401
+from app.models.bubble_detection import BubbleDetection  # noqa: F401
+from app.models.crash_prediction import CrashPrediction  # noqa: F401
+from app.models.custom_strategy import CustomStrategy  # noqa: F401
+from app.models.live import LiveEquitySnapshot, LiveStrategy, LiveStrategySnapshot, LiveTrade, StrategyMarketplace  # noqa: F401
+from app.models.market_data import MacroCacheEntry, MarketDataCacheModel, RateLimitEntry  # noqa: F401
+from app.models.marketplace import MarketplaceStrategy, StrategyBacktest, StrategyDownload, StrategyFavorite, StrategyReview  # noqa: F401
+from app.models.options_leg import OptionsLeg  # noqa: F401
+from app.models.options_position import HedgeExecution, OptionsPosition  # noqa: F401
+from app.models.performance_history import PerformanceHistory  # noqa: F401
+from app.models.portfolio import Portfolio  # noqa: F401
+from app.models.position import Position  # noqa: F401
+from app.models.social import Activity  # noqa: F401
+from app.models.trade import Trade  # noqa: F401
+from app.models.usage import UsageTracking  # noqa: F401
+
+# Import ALL models so Base.metadata picks up every table
+from app.models.user import User  # noqa: F401
+from app.models.user_settings import UserSettings  # noqa: F401
 
 config = context.config
 
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
-import os
-import sys
-
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 
-from app.config import settings
-from app.database import Base
-
-# Import ALL models so Base.metadata picks up every table
-from app.models.user import User  # noqa: F401
-from app.models.user_settings import UserSettings  # noqa: F401
-from app.models.portfolio import Portfolio  # noqa: F401
-from app.models.position import Position  # noqa: F401
-from app.models.trade import Trade  # noqa: F401
-from app.models.backtest import BacktestRun  # noqa: F401
-from app.models.usage import UsageTracking  # noqa: F401
-from app.models.crash_prediction import CrashPrediction  # noqa: F401
-from app.models.bubble_detection import BubbleDetection  # noqa: F401
-from app.models.options_position import OptionsPosition, HedgeExecution  # noqa: F401
-from app.models.options_leg import OptionsLeg  # noqa: F401
-from app.models.marketplace import MarketplaceStrategy, StrategyBacktest, StrategyReview, StrategyFavorite, StrategyDownload  # noqa: F401
-from app.models.live import LiveStrategy, LiveEquitySnapshot, LiveTrade, StrategyMarketplace, LiveStrategySnapshot  # noqa: F401
-from app.models.market_data import MarketDataCacheModel, MacroCacheEntry, RateLimitEntry  # noqa: F401
-from app.models.performance_history import PerformanceHistory  # noqa: F401
-from app.models.social import Activity  # noqa: F401
 
 config.set_main_option("sqlalchemy.url", settings.DATABASE_URL)
 

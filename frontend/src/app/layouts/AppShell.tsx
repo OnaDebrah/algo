@@ -1,26 +1,29 @@
 'use client'
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { lazy, Suspense, useState, useEffect, useCallback } from 'react';
 import LoginPage from "@/components/auth/LoginPage";
-import Dashboard from "@/components/dashboard/Dashboard";
-import PortfolioOptimization from "@/components/portfolio/PortfolioOptimisation";
-import SettingsPage from "@/components/settings/SettingsPage";
-import Marketplace from "@/components/marketplace/Marketplace";
-import StrategyBuilder from "@/components/strategies/StrategyBuilder";
-import MLStudio from "@/components/mlstudio/MLStudio";
-import OptionsDesk from "@/components/optionsdesk/OptionsDesk";
-import BacktestPage from "@/components/backtest/BacktestPage";
-import AIAnalyst from "@/components/aianalyst/AIAnalyst";
-import RegimeDetector from "@/components/regime/RegimeDetector";
-import AIAdvisor from "@/components/advisor/AIAdvisor";
-import LiveExecution from "@/components/live/LiveExecution";
-import SectorScanner from "@/components/sector/SectorScanner";
-import CrashPredictionDashboard from "@/components/crash/CrashPredictionDashboard";
+import ErrorBoundary from "@/components/common/ErrorBoundary";
 import Sidebar from "@/app/layouts/Sidebar";
 import Header from "@/app/layouts/Header";
 import { User } from "@/types/all_types";
 import { api } from '@/utils/api';
 import { useNavigationStore } from '@/store/useNavigationStore';
+
+// ── Lazy-loaded page components (each gets its own chunk) ─────────
+const Dashboard = lazy(() => import("@/components/dashboard/Dashboard"));
+const BacktestPage = lazy(() => import("@/components/backtest/BacktestPage"));
+const MLStudio = lazy(() => import("@/components/mlstudio/MLStudio"));
+const LiveExecution = lazy(() => import("@/components/live/LiveExecution"));
+const AIAdvisor = lazy(() => import("@/components/advisor/AIAdvisor"));
+const RegimeDetector = lazy(() => import("@/components/regime/RegimeDetector"));
+const CrashPredictionDashboard = lazy(() => import("@/components/crash/CrashPredictionDashboard"));
+const AIAnalyst = lazy(() => import("@/components/aianalyst/AIAnalyst"));
+const OptionsDesk = lazy(() => import("@/components/optionsdesk/OptionsDesk"));
+const PortfolioOptimization = lazy(() => import("@/components/portfolio/PortfolioOptimisation"));
+const SectorScanner = lazy(() => import("@/components/sector/SectorScanner"));
+const StrategyBuilder = lazy(() => import("@/components/strategies/StrategyBuilder"));
+const Marketplace = lazy(() => import("@/components/marketplace/Marketplace"));
+const SettingsPage = lazy(() => import("@/components/settings/SettingsPage"));
 
 export type PageKey =
   | 'dashboard'
@@ -63,19 +66,11 @@ const AppShell: React.FC<AppShellProps> = () => {
   const [serverStatus, setServerStatus] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
-  // Session restoration
+  // Session restoration — cookie is sent automatically with the request
   const restoreSession = useCallback(async () => {
     try {
-      const token = localStorage.getItem('access_token');
-      if (!token) {
-        setIsLoading(false);
-        return;
-      }
-
-      // Set token in API client
-      api.setAuthToken(token);
-
-      // Get user info
+      // Call /auth/me — the httpOnly cookie is sent automatically.
+      // No need to read localStorage for the token.
       const userData = await api.auth.getMe();
 
       setUser({
@@ -87,15 +82,9 @@ const AppShell: React.FC<AppShellProps> = () => {
         created_at: userData.created_at,
         last_login: userData.last_login,
       });
-
-      // Store user in localStorage for quick access
-      localStorage.setItem('user', JSON.stringify(userData));
-    } catch (error) {
-      console.error("Session restoration failed:", error);
-      localStorage.removeItem('access_token');
-      localStorage.removeItem('refresh_token');
-      localStorage.removeItem('user');
-      api.clearAuthToken();
+    } catch {
+      // No valid session — user will see login page
+      setUser(null);
     } finally {
       setIsLoading(false);
     }
@@ -131,29 +120,20 @@ const AppShell: React.FC<AppShellProps> = () => {
     }
   }, [user, checkHealth]);
 
-  // Handle login
-  const handleLogin = useCallback((userData: User, token: string) => {
+  // Handle login — httpOnly cookie is set by the server response automatically
+  const handleLogin = useCallback((userData: User, _token: string) => {
     setUser(userData);
-    api.setAuthToken(token);
-
-    // Store tokens and user data
-    localStorage.setItem('access_token', token);
-    localStorage.setItem('user', JSON.stringify(userData));
 
     if ((userData?.tier ?? 'FREE') === 'FREE') {
       setCurrentPage('dashboard');
     }
   }, []);
 
-  // Handle logout
+  // Handle logout — server clears the httpOnly cookie
   const handleLogout = useCallback(() => {
     setUser(null);
-    api.clearAuthToken();
-    localStorage.removeItem('access_token');
-    localStorage.removeItem('refresh_token');
-    localStorage.removeItem('user');
 
-    // Optional: call logout endpoint
+    // Call logout endpoint to clear httpOnly cookies
     api.auth.logout().catch(console.error);
 
     // Redirect to login page
@@ -218,7 +198,20 @@ const AppShell: React.FC<AppShellProps> = () => {
           />
 
           <main className="mt-6 animate-fade-in">
-            {PAGE_COMPONENTS[currentPage]}
+            <Suspense
+              fallback={
+                <div className="flex items-center justify-center min-h-[60vh]">
+                  <div className="text-center">
+                    <div className="w-10 h-10 border-3 border-violet-500 border-t-transparent rounded-full animate-spin mx-auto" />
+                    <p className="mt-3 text-sm text-slate-400">Loading…</p>
+                  </div>
+                </div>
+              }
+            >
+              <ErrorBoundary key={currentPage} onReset={() => setCurrentPage('dashboard')}>
+                {PAGE_COMPONENTS[currentPage]}
+              </ErrorBoundary>
+            </Suspense>
           </main>
 
           {/* Status indicator */}

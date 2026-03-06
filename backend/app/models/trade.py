@@ -9,7 +9,7 @@ class Trade(Base):
     __tablename__ = "trades"
 
     id = Column(Integer, primary_key=True, index=True)
-    portfolio_id = Column(Integer, ForeignKey("portfolios.id"), nullable=False)
+    portfolio_id = Column(Integer, ForeignKey("portfolios.id"), nullable=False, index=True)
     symbol = Column(String, nullable=False)
     order_type = Column(String, nullable=False)  # BUY, SELL
     quantity = Column(Float, nullable=False)

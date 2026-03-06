@@ -36,6 +36,7 @@ from backend.app.schemas.alerts import (
 )
 <<<<<<< HEAD
 from ...services.auth_service import AuthService
+from ...utils.errors import safe_detail
 
 logger = logging.getLogger(__name__)
 =======
@@ -149,7 +150,7 @@ async def send_email_alert(
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Failed to send email alert: {str(e)}")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=safe_detail("Failed to send email alert", e))
 
 
 @router.post("/sms")
@@ -205,7 +206,7 @@ async def send_sms_alert(
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Failed to send SMS alert: {str(e)}")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=safe_detail("Failed to send SMS alert", e))
 
 
 @router.get("/test", response_model=AlertTestResponse)
@@ -235,7 +236,7 @@ async def test_alerts(
         )
 
     except Exception as e:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Failed to test alert system: {str(e)}")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=safe_detail("Failed to test alert system", e))
 
 
 @router.get("/preferences", response_model=AlertPreferencesResponse)
@@ -314,7 +315,7 @@ async def update_preferences(
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Failed to update preferences: {str(e)}")
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=safe_detail("Failed to update preferences", e))
 
 
 @router.get("/history", response_model=List[AlertResponse])
@@ -348,7 +349,7 @@ async def get_history(
         ]
 
     except Exception as e:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Failed to get history: {str(e)}")
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=safe_detail("Failed to get history", e))
 
 
 @router.post("/test", response_model=SuccessResponse)
@@ -389,7 +390,7 @@ async def send_test(
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Failed to send test alert: {str(e)}")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=safe_detail("Failed to send test alert", e))
 
 
 @router.post("/", response_model=SuccessResponse)
@@ -414,4 +415,4 @@ async def send_alert(
         return SuccessResponse(success=True)
 
     except Exception as e:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Failed to send alert: {str(e)}")
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=safe_detail("Failed to send alert", e))

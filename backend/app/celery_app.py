@@ -28,22 +28,20 @@ celery_app.conf.update(
     task_serializer="json",
     accept_content=["json"],
     result_serializer="json",
-
     # Result expiry (24 hours)
     result_expires=86400,
-
     # Timezone
     timezone="UTC",
     enable_utc=True,
-
     # Task execution
     task_acks_late=True,
     worker_prefetch_multiplier=1,  # Fair scheduling for long tasks
-
     # Retry policy
     task_default_retry_delay=60,
     task_max_retries=3,
-
+    # Task timeouts (global defaults — tasks can override with per-task limits)
+    task_time_limit=3600,  # 1 hour hard kill (SIGKILL)
+    task_soft_time_limit=3300,  # 55 min soft limit (raises SoftTimeLimitExceeded)
     # All tasks use the default queue (single worker setup)
     task_default_queue="default",
 )

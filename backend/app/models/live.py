@@ -39,7 +39,7 @@ class LiveStrategy(Base):
     __tablename__ = "live_strategies"
 
     id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
 
     # Strategy Definition
     name = Column(String(255), nullable=False)
@@ -50,7 +50,7 @@ class LiveStrategy(Base):
     # Deployment Info
     backtest_id = Column(Integer, ForeignKey("backtest_runs.id"), nullable=True)
     deployment_mode = Column(SQLEnum(DeploymentMode), nullable=False)
-    status = Column(SQLEnum(StrategyStatus), nullable=False, default=StrategyStatus.PENDING)
+    status = Column(SQLEnum(StrategyStatus), nullable=False, default=StrategyStatus.PENDING, index=True)
     is_deleted = Column(Boolean, default=False, nullable=False)
 
     # Capital & Risk Management
@@ -203,7 +203,7 @@ class LiveTrade(Base):
     __tablename__ = "live_trades"
 
     id = Column(Integer, primary_key=True, index=True)
-    strategy_id = Column(Integer, ForeignKey("live_strategies.id"), nullable=False)
+    strategy_id = Column(Integer, ForeignKey("live_strategies.id"), nullable=False, index=True)
 
     # Trade Details
     symbol = Column(String(20), nullable=False, index=True)
