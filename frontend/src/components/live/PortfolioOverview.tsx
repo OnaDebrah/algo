@@ -37,9 +37,7 @@ export default function PortfolioOverview() {
     const loadPortfolio = async () => {
         try {
             const response = await fetch('/api/live/strategies', {
-                headers: {
-                    'Authorization': `Bearer ${localStorage.getItem('token')}`
-                }
+                credentials: 'include',  // Send httpOnly cookies
             });
 
             if (response.ok) {

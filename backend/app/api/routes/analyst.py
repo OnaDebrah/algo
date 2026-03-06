@@ -9,6 +9,7 @@ from ...core.permissions import Permission
 from ...models import User
 from ...schemas.analyst import AnalystReport, FundamentalData, MACDData, RisksData, SentimentData, TechnicalData, ValuationMetric
 from ...services.auth_service import AuthService
+from ...utils.errors import safe_detail
 from ..deps import check_permission, get_current_active_user, get_db
 
 router = APIRouter(prefix="/analyst", tags=["Analyst"])
@@ -167,7 +168,7 @@ async def get_analyst_report(
 
     except Exception as e:
         # If analysis fails, return a basic error report
-        raise HTTPException(status_code=500, detail=f"Failed to generate analyst report for {ticker}: {str(e)}")
+        raise HTTPException(status_code=500, detail=safe_detail(f"Failed to generate analyst report for {ticker}", e))
 
 
 @router.get("/sentiment/{ticker}")
@@ -186,4 +187,4 @@ async def get_sentiment_analysis(
         sentiment = await analyst_agent.sentiment_service.get_sentiment(ticker)
         return sentiment
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Sentiment analysis failed for {ticker}: {str(e)}")
+        raise HTTPException(status_code=500, detail=safe_detail(f"Sentiment analysis failed for {ticker}", e))

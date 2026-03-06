@@ -21,6 +21,7 @@ from ...models.user import User
 from ...services.analysis.hedge_service import HedgeRecommendationService
 from ...services.analysis.historical_accuracy_service import HistoricalAccuracyService
 from ...services.analysis.lstm_stress_service import LSTMStressService
+from ...utils.errors import safe_detail
 from ..deps import get_current_active_user
 
 logger = logging.getLogger(__name__)
@@ -140,7 +141,7 @@ async def predict_crash(
 
     except Exception as e:
         logger.error(f"Crash prediction failed for {symbol}: {e}")
-        raise HTTPException(status_code=500, detail=f"Crash prediction failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=safe_detail("Crash prediction failed", e))
 
 
 @router.get("/stress")
@@ -178,7 +179,7 @@ async def get_market_stress(
         raise
     except Exception as e:
         logger.error(f"Market stress analysis failed: {e}")
-        raise HTTPException(status_code=500, detail=f"Market stress analysis failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=safe_detail("Market stress analysis failed", e))
 
 
 @router.get("/hedge-recommendation")
@@ -207,7 +208,7 @@ async def get_hedge_recommendation(
 
     except Exception as e:
         logger.error(f"Hedge recommendation failed: {e}")
-        raise HTTPException(status_code=500, detail=f"Hedge recommendation failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=safe_detail("Hedge recommendation failed", e))
 
 
 @router.get("/history")
@@ -245,7 +246,7 @@ async def get_prediction_history(
 
     except Exception as e:
         logger.error(f"Failed to fetch prediction history: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to fetch history: {str(e)}")
+        raise HTTPException(status_code=500, detail=safe_detail("Failed to fetch history", e))
 
 
 @router.get("/dashboard/{symbol}")
@@ -397,7 +398,7 @@ async def get_crash_dashboard(
 
     except Exception as e:
         logger.error(f"Crash dashboard failed for {symbol}: {e}")
-        raise HTTPException(status_code=500, detail=f"Dashboard failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=safe_detail("Dashboard failed", e))
 
 
 @router.post("/alert/configure")
@@ -453,7 +454,7 @@ async def configure_crash_alerts(
             await db.rollback()
         except Exception:
             pass
-        raise HTTPException(status_code=500, detail=f"Failed to configure alerts: {str(e)}")
+        raise HTTPException(status_code=500, detail=safe_detail("Failed to configure alerts", e))
 
 
 @router.get("/accuracy/{symbol}")
@@ -491,4 +492,4 @@ async def get_historical_accuracy(
         raise
     except Exception as e:
         logger.error(f"Historical accuracy failed for {symbol}: {e}")
-        raise HTTPException(status_code=500, detail=f"Accuracy backtest failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=safe_detail("Accuracy backtest failed", e))

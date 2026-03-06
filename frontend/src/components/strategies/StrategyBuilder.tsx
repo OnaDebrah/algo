@@ -1,5 +1,5 @@
 'use client'
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
     Target, Wand2, Code2, FlaskConical, BookOpen,
     Play, Save, Download, ChevronRight, Sparkles,
@@ -17,6 +17,8 @@ import {
     CartesianGrid, Tooltip, Legend, Line,
     BarChart, Bar, ScatterChart, Scatter, ZAxis
 } from 'recharts';
+import { strategy as strategyApi } from '@/utils/api';
+import type { CustomStrategy as CustomStrategyType, StrategyGenerateResponse } from '@/utils/api';
 
 const STRATEGY_TEMPLATES = [
     {
@@ -153,44 +155,65 @@ class QuantumMomentumStrategy:
     ]);
     const [isMaximized, setIsMaximized] = useState(false);
 
-    // Enhanced Backtest Data
-    const equityData = Array.from({ length: 50 }, (_, i) => ({
-        time: `Day ${i+1}`,
-        strategy: 10000 + (Math.random() * 400 * i * (0.8 + Math.random() * 0.4)),
-        benchmark: 10000 + (Math.random() * 200 * i * (0.9 + Math.random() * 0.2)),
-        drawdown: Math.random() * 15,
-        volatility: 10 + Math.random() * 20
-    }));
+    // API-driven state
+    const [generationResult, setGenerationResult] = useState<StrategyGenerateResponse | null>(null);
+    const [validationResult, setValidationResult] = useState<{is_valid: boolean; errors: string[]; warnings: string[]} | null>(null);
+    const [backtestResult, setBacktestResult] = useState<any>(null);
+    const [savedStrategies, setSavedStrategies] = useState<CustomStrategyType[]>([]);
+    const [currentStrategyId, setCurrentStrategyId] = useState<number | null>(null);
+    const [error, setError] = useState<string | null>(null);
+    const [strategyType, setStrategyType] = useState('technical');
+    const [timeframe, setTimeframe] = useState('1d');
+    const [backtestSymbol, setBacktestSymbol] = useState('AAPL');
+    const [backtestPeriod, setBacktestPeriod] = useState('1y');
+    const [backtestCapital, setBacktestCapital] = useState(10000);
+    const [isSaving, setIsSaving] = useState(false);
+    const [isValidating, setIsValidating] = useState(false);
 
-    const tradeData = Array.from({ length: 30 }, (_, i) => ({
-        trade: i + 1,
-        pnl: (Math.random() - 0.45) * 2000,
-        duration: Math.floor(Math.random() * 10) + 1,
-        size: Math.random() * 10000
-    }));
+    // Derived chart data from backtest results
+    const equityChartData = useMemo(() => {
+        if (!backtestResult?.equity_curve?.length) return [];
+        return backtestResult.equity_curve.map((pt: any, i: number) => ({
+            time: pt.date || `Day ${i+1}`,
+            strategy: pt.equity ?? pt.value ?? 0,
+            benchmark: backtestResult.benchmark?.equity_curve?.[i]?.equity ?? null,
+        }));
+    }, [backtestResult]);
 
-    const handleGenerate = () => {
+    const tradeChartData = useMemo(() => {
+        if (!backtestResult?.trades?.length) return [];
+        return backtestResult.trades.map((t: any, i: number) => ({
+            trade: i + 1,
+            pnl: t.pnl ?? 0,
+            duration: t.duration_days ?? 1,
+            size: Math.abs(t.pnl ?? 0),
+        }));
+    }, [backtestResult]);
+
+    // Load library when switching to library tab
+    useEffect(() => {
+        if (activeTab === 'library') loadLibrary();
+    }, [activeTab]);
+
+    // --- API handlers ---
+
+    const handleGenerate = async () => {
         setIsGenerating(true);
-        setTimeout(() => {
+        setError(null);
+        try {
+            const result = await strategyApi.generate({
+                prompt,
+                style: strategyType,
+                timeframe,
+            });
+            setCode(result.code);
+            setGenerationResult(result);
             setActiveTab('editor');
+        } catch (err: any) {
+            setError(err?.response?.data?.detail || err?.message || 'Failed to generate strategy');
+        } finally {
             setIsGenerating(false);
-            // Update code with generated strategy
-            setCode(`# Generated Strategy: ${prompt.slice(0, 50)}...
-import pandas as pd
-import numpy as np
-
-def generated_strategy(data):
-    """
-    AI-Generated Strategy based on: "${prompt}"
-    """
-    # Advanced signal generation...
-    signals = pd.Series(0, index=data.index)
-
-    # Your AI logic here
-    # ...
-
-    return signals`);
-        }, 1500);
+        }
     };
 
     const handleDragStart = (component: string) => {
@@ -212,9 +235,99 @@ def generated_strategy(data):
         setCanvasComponents(canvasComponents.filter(c => c !== component));
     };
 
-    const runBacktest = () => {
+    const runBacktest = async () => {
         setIsBacktesting(true);
-        setTimeout(() => setIsBacktesting(false), 2500);
+        setError(null);
+        setBacktestResult(null);
+        try {
+            const result = await strategyApi.backtestCustom({
+                code,
+                symbol: backtestSymbol,
+                period: backtestPeriod,
+                initial_capital: backtestCapital,
+                strategy_name: strategyName,
+                custom_strategy_id: currentStrategyId || undefined,
+            });
+            setBacktestResult(result);
+        } catch (err: any) {
+            setError(err?.response?.data?.detail || err?.message || 'Backtest failed');
+        } finally {
+            setIsBacktesting(false);
+        }
+    };
+
+    const handleSave = async () => {
+        setIsSaving(true);
+        setError(null);
+        try {
+            if (currentStrategyId) {
+                await strategyApi.updateCustom(currentStrategyId, {
+                    name: strategyName,
+                    code,
+                    strategy_type: strategyType,
+                });
+            } else {
+                const saved = await strategyApi.createCustom({
+                    name: strategyName,
+                    code,
+                    strategy_type: strategyType,
+                    ai_generated: generationResult !== null,
+                    ai_explanation: generationResult?.explanation,
+                });
+                setCurrentStrategyId(saved.id);
+            }
+            await loadLibrary();
+        } catch (err: any) {
+            setError(err?.response?.data?.detail || err?.message || 'Failed to save');
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
+    const handleValidate = async () => {
+        setIsValidating(true);
+        setValidationResult(null);
+        try {
+            const result = await strategyApi.validate({ code });
+            setValidationResult(result);
+        } catch (err: any) {
+            setError(err?.response?.data?.detail || err?.message || 'Validation failed');
+        } finally {
+            setIsValidating(false);
+        }
+    };
+
+    const loadLibrary = async () => {
+        try {
+            const strategies = await strategyApi.listCustom();
+            setSavedStrategies(strategies);
+        } catch (err) {
+            console.error('Failed to load library:', err);
+        }
+    };
+
+    const loadStrategy = (s: CustomStrategyType) => {
+        setCode(s.code);
+        setStrategyName(s.name);
+        setCurrentStrategyId(s.id);
+        if (s.ai_explanation) {
+            setGenerationResult({ code: s.code, explanation: s.ai_explanation, example_usage: '', provider: 'saved' });
+        }
+        setActiveTab('editor');
+    };
+
+    const deleteStrategy = async (id: number) => {
+        try {
+            await strategyApi.deleteCustom(id);
+            await loadLibrary();
+            if (currentStrategyId === id) setCurrentStrategyId(null);
+        } catch (err: any) {
+            setError(err?.response?.data?.detail || err?.message || 'Failed to delete');
+        }
+    };
+
+    const handleCopyCode = () => {
+        navigator.clipboard.writeText(code);
     };
 
     return (
@@ -330,10 +443,10 @@ def generated_strategy(data):
                         </div>
 
                         <div className="flex items-center gap-2">
-                            <button className="p-2.5 bg-slate-800/50 hover:bg-slate-700/50 rounded-xl text-slate-400 hover:text-white transition-all">
-                                <Save size={18} />
+                            <button onClick={handleSave} disabled={isSaving} className="p-2.5 bg-slate-800/50 hover:bg-slate-700/50 rounded-xl text-slate-400 hover:text-white transition-all">
+                                {isSaving ? <RefreshCw className="animate-spin" size={18} /> : <Save size={18} />}
                             </button>
-                            <button className="p-2.5 bg-slate-800/50 hover:bg-slate-700/50 rounded-xl text-slate-400 hover:text-green-400 transition-all">
+                            <button onClick={handleCopyCode} className="p-2.5 bg-slate-800/50 hover:bg-slate-700/50 rounded-xl text-slate-400 hover:text-green-400 transition-all">
                                 <Copy size={18} />
                             </button>
                             <button className="p-2.5 bg-slate-800/50 hover:bg-slate-700/50 rounded-xl text-slate-400 hover:text-red-400 transition-all">
@@ -350,6 +463,17 @@ def generated_strategy(data):
 
                     {/* Tab Content */}
                     <div className={`${isMaximized ? 'fixed inset-4 z-50 bg-slate-950 rounded-2xl p-6 overflow-auto' : ''}`}>
+
+                        {/* Error Banner */}
+                        {error && (
+                            <div className="mb-4 p-4 bg-red-500/10 border border-red-500/30 rounded-xl flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                    <AlertCircle className="text-red-400" size={16} />
+                                    <span className="text-sm text-red-400">{error}</span>
+                                </div>
+                                <button onClick={() => setError(null)} className="text-red-400 hover:text-red-300 text-xs">&#x2715;</button>
+                            </div>
+                        )}
 
                         {/* AI Generator Tab */}
                         {activeTab === 'ai' && (
@@ -377,21 +501,22 @@ def generated_strategy(data):
                                             <div className="grid grid-cols-2 gap-4">
                                                 <div className="space-y-2">
                                                     <label className="text-xs font-semibold text-slate-400">Strategy Type</label>
-                                                    <select className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-sm text-slate-300">
-                                                        <option>Momentum</option>
-                                                        <option>Mean Reversion</option>
-                                                        <option>Breakout</option>
-                                                        <option>Arbitrage</option>
+                                                    <select value={strategyType} onChange={(e) => setStrategyType(e.target.value)} className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-sm text-slate-300">
+                                                        <option value="momentum">Momentum</option>
+                                                        <option value="mean_reversion">Mean Reversion</option>
+                                                        <option value="breakout">Breakout</option>
+                                                        <option value="technical">Technical</option>
+                                                        <option value="hybrid">Hybrid</option>
                                                     </select>
                                                 </div>
                                                 <div className="space-y-2">
                                                     <label className="text-xs font-semibold text-slate-400">Timeframe</label>
-                                                    <select className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-sm text-slate-300">
-                                                        <option>1 Minute</option>
-                                                        <option>5 Minutes</option>
-                                                        <option>1 Hour</option>
-                                                        <option>4 Hours</option>
-                                                        <option>1 Day</option>
+                                                    <select value={timeframe} onChange={(e) => setTimeframe(e.target.value)} className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-sm text-slate-300">
+                                                        <option value="1m">1 Minute</option>
+                                                        <option value="5m">5 Minutes</option>
+                                                        <option value="1h">1 Hour</option>
+                                                        <option value="4h">4 Hours</option>
+                                                        <option value="1d">1 Day</option>
                                                     </select>
                                                 </div>
                                             </div>
@@ -414,6 +539,16 @@ def generated_strategy(data):
                                                 </>
                                             )}
                                         </button>
+
+                                        {generationResult && (
+                                            <div className="mt-4 p-4 bg-slate-900/50 border border-slate-800/50 rounded-xl">
+                                                <div className="flex items-center gap-2 mb-2">
+                                                    <CheckCircle2 className="text-emerald-400" size={14} />
+                                                    <span className="text-xs font-semibold text-emerald-400">Generated via {generationResult.provider}</span>
+                                                </div>
+                                                <p className="text-xs text-slate-400 leading-relaxed">{generationResult.explanation.slice(0, 300)}...</p>
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
 
@@ -457,10 +592,10 @@ def generated_strategy(data):
                                             AI Tips
                                         </h4>
                                         <ul className="space-y-2">
-                                            <li className="text-xs text-purple-400/80">• Be specific about entry/exit conditions</li>
-                                            <li className="text-xs text-purple-400/80">• Include risk management parameters</li>
-                                            <li className="text-xs text-purple-400/80">• Mention preferred indicators</li>
-                                            <li className="text-xs text-purple-400/80">• Specify timeframe and asset class</li>
+                                            <li className="text-xs text-purple-400/80">&#x2022; Be specific about entry/exit conditions</li>
+                                            <li className="text-xs text-purple-400/80">&#x2022; Include risk management parameters</li>
+                                            <li className="text-xs text-purple-400/80">&#x2022; Mention preferred indicators</li>
+                                            <li className="text-xs text-purple-400/80">&#x2022; Specify timeframe and asset class</li>
                                         </ul>
                                     </div>
                                 </div>
@@ -485,7 +620,7 @@ def generated_strategy(data):
                                         <button className="text-xs text-slate-400 hover:text-slate-200">
                                             <Eye size={14} />
                                         </button>
-                                        <button className="text-xs text-slate-400 hover:text-green-400">
+                                        <button onClick={handleCopyCode} className="text-xs text-slate-400 hover:text-green-400">
                                             <Copy size={14} />
                                         </button>
                                         <button className="text-xs text-slate-400 hover:text-red-400">
@@ -507,11 +642,21 @@ def generated_strategy(data):
                                 </div>
 
                                 <div className="bg-slate-900/50 px-6 py-3 border-t border-slate-800 flex items-center justify-between">
-                                    <div className="text-xs text-slate-500">
-                                        Lines: {code.split('\n').length} • Characters: {code.length}
+                                    <div className="flex items-center text-xs text-slate-500">
+                                        <span>Lines: {code.split('\n').length} &bull; Characters: {code.length}</span>
+                                        {validationResult && (
+                                            <span className={`ml-3 ${validationResult.is_valid ? 'text-emerald-400' : 'text-red-400'}`}>
+                                                {validationResult.is_valid ? '\u2713 Valid code' : `\u2717 ${validationResult.errors.join(', ')}`}
+                                                {validationResult.warnings.length > 0 && ` (${validationResult.warnings.length} warnings)`}
+                                            </span>
+                                        )}
                                     </div>
-                                    <button className="px-4 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 text-white text-xs font-semibold rounded-lg hover:opacity-90 transition-all">
-                                        Validate Syntax
+                                    <button
+                                        onClick={handleValidate}
+                                        disabled={isValidating}
+                                        className="px-4 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 text-white text-xs font-semibold rounded-lg hover:opacity-90 transition-all disabled:opacity-50"
+                                    >
+                                        {isValidating ? 'Validating...' : 'Validate Syntax'}
                                     </button>
                                 </div>
                             </div>
@@ -604,21 +749,27 @@ def generated_strategy(data):
                                         <div className="space-y-4">
                                             <div className="space-y-2">
                                                 <label className="text-xs font-semibold text-slate-400">Asset</label>
-                                                <select className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-sm text-slate-300">
-                                                    <option>BTC-USD (Bitcoin)</option>
-                                                    <option>ETH-USD (Ethereum)</option>
-                                                    <option>AAPL (Apple)</option>
-                                                    <option>TSLA (Tesla)</option>
+                                                <select value={backtestSymbol} onChange={(e) => setBacktestSymbol(e.target.value)} className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-sm text-slate-300">
+                                                    <option value="AAPL">AAPL (Apple)</option>
+                                                    <option value="TSLA">TSLA (Tesla)</option>
+                                                    <option value="MSFT">MSFT (Microsoft)</option>
+                                                    <option value="GOOGL">GOOGL (Google)</option>
+                                                    <option value="AMZN">AMZN (Amazon)</option>
+                                                    <option value="SPY">SPY (S&P 500)</option>
+                                                    <option value="QQQ">QQQ (Nasdaq)</option>
+                                                    <option value="BTC-USD">BTC-USD (Bitcoin)</option>
+                                                    <option value="ETH-USD">ETH-USD (Ethereum)</option>
                                                 </select>
                                             </div>
 
                                             <div className="space-y-2">
                                                 <label className="text-xs font-semibold text-slate-400">Time Period</label>
-                                                <select className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-sm text-slate-300">
-                                                    <option>Last 30 Days</option>
-                                                    <option>Last 90 Days</option>
-                                                    <option>Last 1 Year</option>
-                                                    <option>Last 3 Years</option>
+                                                <select value={backtestPeriod} onChange={(e) => setBacktestPeriod(e.target.value)} className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-sm text-slate-300">
+                                                    <option value="1mo">Last 30 Days</option>
+                                                    <option value="3mo">Last 90 Days</option>
+                                                    <option value="1y">Last 1 Year</option>
+                                                    <option value="2y">Last 2 Years</option>
+                                                    <option value="5y">Last 5 Years</option>
                                                 </select>
                                             </div>
 
@@ -627,8 +778,9 @@ def generated_strategy(data):
                                                 <div className="relative">
                                                     <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500">$</span>
                                                     <input
-                                                        type="text"
-                                                        defaultValue="10,000"
+                                                        type="number"
+                                                        value={backtestCapital}
+                                                        onChange={(e) => setBacktestCapital(Number(e.target.value) || 10000)}
                                                         className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-8 pr-4 py-3 text-sm text-slate-300"
                                                     />
                                                 </div>
@@ -660,48 +812,48 @@ def generated_strategy(data):
                                             {[
                                                 {
                                                     label: 'Total Return',
-                                                    value: '+42.8%',
-                                                    sub: 'vs +18.2% Benchmark',
+                                                    value: backtestResult ? `${(backtestResult.result.total_return_pct ?? 0).toFixed(1)}%` : '--',
+                                                    sub: backtestResult ? `Final: $${(backtestResult.result.final_equity ?? 0).toLocaleString()}` : 'Run backtest',
                                                     icon: TrendingUp,
-                                                    color: 'text-emerald-400',
+                                                    color: backtestResult && backtestResult.result.total_return_pct > 0 ? 'text-emerald-400' : 'text-red-400',
                                                     bg: 'from-emerald-900/20 to-teal-900/20'
                                                 },
                                                 {
                                                     label: 'Sharpe Ratio',
-                                                    value: '2.15',
-                                                    sub: 'Excellent Risk-Adjusted',
+                                                    value: backtestResult ? (backtestResult.result.sharpe_ratio ?? 0).toFixed(2) : '--',
+                                                    sub: backtestResult ? (backtestResult.result.sharpe_ratio > 1 ? 'Good Risk-Adjusted' : 'Below Average') : 'Run backtest',
                                                     icon: Target,
                                                     color: 'text-purple-400',
                                                     bg: 'from-purple-900/20 to-indigo-900/20'
                                                 },
                                                 {
                                                     label: 'Max Drawdown',
-                                                    value: '-12.4%',
-                                                    sub: 'During Market Volatility',
+                                                    value: backtestResult ? `${(backtestResult.result.max_drawdown ?? 0).toFixed(1)}%` : '--',
+                                                    sub: 'Peak-to-trough decline',
                                                     icon: AlertCircle,
                                                     color: 'text-amber-400',
                                                     bg: 'from-amber-900/20 to-orange-900/20'
                                                 },
                                                 {
                                                     label: 'Win Rate',
-                                                    value: '68.3%',
-                                                    sub: '143 Winning Trades',
+                                                    value: backtestResult ? `${(backtestResult.result.win_rate ?? 0).toFixed(1)}%` : '--',
+                                                    sub: backtestResult ? `${backtestResult.result.total_trades ?? 0} trades` : 'Run backtest',
                                                     icon: CheckCircle2,
                                                     color: 'text-blue-400',
                                                     bg: 'from-blue-900/20 to-cyan-900/20'
                                                 },
                                                 {
                                                     label: 'Profit Factor',
-                                                    value: '2.84',
-                                                    sub: 'High Profit Efficiency',
+                                                    value: backtestResult ? (backtestResult.result.profit_factor ?? 0).toFixed(2) : '--',
+                                                    sub: backtestResult ? 'Gross profits / losses' : 'Run backtest',
                                                     icon: DollarSign,
                                                     color: 'text-green-400',
                                                     bg: 'from-green-900/20 to-emerald-900/20'
                                                 },
                                                 {
-                                                    label: 'Avg Trade Duration',
-                                                    value: '2.4 Days',
-                                                    sub: 'Medium-Term Strategy',
+                                                    label: 'Total Trades',
+                                                    value: backtestResult ? `${backtestResult.result.total_trades ?? 0}` : '--',
+                                                    sub: backtestResult ? `Win: ${backtestResult.result.winning_trades ?? 0} / Loss: ${backtestResult.result.losing_trades ?? 0}` : 'Run backtest',
                                                     icon: Timer,
                                                     color: 'text-slate-400',
                                                     bg: 'from-slate-900/20 to-slate-800/20'
@@ -737,57 +889,65 @@ def generated_strategy(data):
                                                 </div>
                                             </div>
                                             <div className="h-[300px]">
-                                                <ResponsiveContainer width="100%" height="100%">
-                                                    <AreaChart data={equityData}>
-                                                        <defs>
-                                                            <linearGradient id="colorStrategy" x1="0" y1="0" x2="0" y2="1">
-                                                                <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.3}/>
-                                                                <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0}/>
-                                                            </linearGradient>
-                                                        </defs>
-                                                        <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} />
-                                                        <XAxis
-                                                            dataKey="time"
-                                                            stroke="#64748b"
-                                                            fontSize={10}
-                                                            axisLine={false}
-                                                            tickLine={false}
-                                                        />
-                                                        <YAxis
-                                                            stroke="#64748b"
-                                                            fontSize={10}
-                                                            axisLine={false}
-                                                            tickLine={false}
-                                                            tickFormatter={(value) => `$${value.toLocaleString()}`}
-                                                        />
-                                                        <Tooltip
-                                                            contentStyle={{
-                                                                backgroundColor: '#0f172a',
-                                                                border: '1px solid #1e293b',
-                                                                borderRadius: '8px',
-                                                                color: '#e2e8f0'
-                                                            }}
-                                                            formatter={(value) => [`$${(value ?? 0).toLocaleString()}`, 'Value']}
-                                                        />
-                                                        <Area
-                                                            type="monotone"
-                                                            dataKey="strategy"
-                                                            stroke="#8b5cf6"
-                                                            fill="url(#colorStrategy)"
-                                                            strokeWidth={2}
-                                                            name="My Strategy"
-                                                        />
-                                                        <Area
-                                                            type="monotone"
-                                                            dataKey="benchmark"
-                                                            stroke="#475569"
-                                                            fill="transparent"
-                                                            strokeWidth={2}
-                                                            strokeDasharray="5 5"
-                                                            name="Buy & Hold"
-                                                        />
-                                                    </AreaChart>
-                                                </ResponsiveContainer>
+                                                {equityChartData.length > 0 ? (
+                                                    <ResponsiveContainer width="100%" height="100%">
+                                                        <AreaChart data={equityChartData}>
+                                                            <defs>
+                                                                <linearGradient id="colorStrategy" x1="0" y1="0" x2="0" y2="1">
+                                                                    <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.3}/>
+                                                                    <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0}/>
+                                                                </linearGradient>
+                                                            </defs>
+                                                            <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} />
+                                                            <XAxis
+                                                                dataKey="time"
+                                                                stroke="#64748b"
+                                                                fontSize={10}
+                                                                axisLine={false}
+                                                                tickLine={false}
+                                                            />
+                                                            <YAxis
+                                                                stroke="#64748b"
+                                                                fontSize={10}
+                                                                axisLine={false}
+                                                                tickLine={false}
+                                                                tickFormatter={(value) => `$${value.toLocaleString()}`}
+                                                            />
+                                                            <Tooltip
+                                                                contentStyle={{
+                                                                    backgroundColor: '#0f172a',
+                                                                    border: '1px solid #1e293b',
+                                                                    borderRadius: '8px',
+                                                                    color: '#e2e8f0'
+                                                                }}
+                                                                formatter={(value) => [`$${(value ?? 0).toLocaleString()}`, 'Value']}
+                                                            />
+                                                            <Area
+                                                                type="monotone"
+                                                                dataKey="strategy"
+                                                                stroke="#8b5cf6"
+                                                                fill="url(#colorStrategy)"
+                                                                strokeWidth={2}
+                                                                name="My Strategy"
+                                                            />
+                                                            <Area
+                                                                type="monotone"
+                                                                dataKey="benchmark"
+                                                                stroke="#475569"
+                                                                fill="transparent"
+                                                                strokeWidth={2}
+                                                                strokeDasharray="5 5"
+                                                                name="Buy & Hold"
+                                                            />
+                                                        </AreaChart>
+                                                    </ResponsiveContainer>
+                                                ) : (
+                                                    <div className="flex flex-col items-center justify-center h-full text-center">
+                                                        <LineChart className="text-slate-700 mb-3" size={48} />
+                                                        <p className="text-slate-600 font-medium">No backtest data yet</p>
+                                                        <p className="text-sm text-slate-700 mt-1">Run a backtest to see the equity curve</p>
+                                                    </div>
+                                                )}
                                             </div>
                                         </div>
 
@@ -796,41 +956,48 @@ def generated_strategy(data):
                                             <div className="bg-gradient-to-br from-slate-900/50 to-slate-800/30 border border-slate-800/50 rounded-2xl p-6">
                                                 <h4 className="text-sm font-semibold text-slate-200 mb-6">Trade Distribution</h4>
                                                 <div className="h-[200px]">
-                                                    <ResponsiveContainer width="100%" height="100%">
-                                                        <ScatterChart>
-                                                            <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
-                                                            <XAxis
-                                                                dataKey="duration"
-                                                                name="Duration"
-                                                                stroke="#64748b"
-                                                                fontSize={10}
-                                                            />
-                                                            <YAxis
-                                                                dataKey="pnl"
-                                                                name="PnL"
-                                                                stroke="#64748b"
-                                                                fontSize={10}
-                                                                tickFormatter={(value) => `$${value}`}
-                                                            />
-                                                            <ZAxis range={[50, 1000]} />
-                                                            <Tooltip
-                                                                contentStyle={{
-                                                                    backgroundColor: '#0f172a',
-                                                                    border: '1px solid #1e293b'
-                                                                }}
-                                                                formatter={(value, name) => [
-                                                                    name === 'pnl' ? `$${value}` : `${value} days`,
-                                                                    name === 'pnl' ? 'Profit' : 'Duration'
-                                                                ]}
-                                                            />
-                                                            <Scatter
-                                                                name="Trades"
-                                                                data={tradeData}
-                                                                fill="#8b5cf6"
-                                                                shape="circle"
-                                                            />
-                                                        </ScatterChart>
-                                                    </ResponsiveContainer>
+                                                    {tradeChartData.length > 0 ? (
+                                                        <ResponsiveContainer width="100%" height="100%">
+                                                            <ScatterChart>
+                                                                <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
+                                                                <XAxis
+                                                                    dataKey="duration"
+                                                                    name="Duration"
+                                                                    stroke="#64748b"
+                                                                    fontSize={10}
+                                                                />
+                                                                <YAxis
+                                                                    dataKey="pnl"
+                                                                    name="PnL"
+                                                                    stroke="#64748b"
+                                                                    fontSize={10}
+                                                                    tickFormatter={(value) => `$${value}`}
+                                                                />
+                                                                <ZAxis range={[50, 1000]} />
+                                                                <Tooltip
+                                                                    contentStyle={{
+                                                                        backgroundColor: '#0f172a',
+                                                                        border: '1px solid #1e293b'
+                                                                    }}
+                                                                    formatter={(value, name) => [
+                                                                        name === 'pnl' ? `$${value}` : `${value} days`,
+                                                                        name === 'pnl' ? 'Profit' : 'Duration'
+                                                                    ]}
+                                                                />
+                                                                <Scatter
+                                                                    name="Trades"
+                                                                    data={tradeChartData}
+                                                                    fill="#8b5cf6"
+                                                                    shape="circle"
+                                                                />
+                                                            </ScatterChart>
+                                                        </ResponsiveContainer>
+                                                    ) : (
+                                                        <div className="flex flex-col items-center justify-center h-full text-center">
+                                                            <BarChart3 className="text-slate-700 mb-3" size={36} />
+                                                            <p className="text-sm text-slate-600">Run a backtest to see trades</p>
+                                                        </div>
+                                                    )}
                                                 </div>
                                             </div>
 
@@ -839,25 +1006,90 @@ def generated_strategy(data):
                                                 <div className="space-y-4">
                                                     <div className="flex items-center justify-between p-3 bg-slate-900/30 rounded-xl">
                                                         <span className="text-sm text-slate-400">Best Trade</span>
-                                                        <span className="text-lg font-bold text-emerald-400">+$2,450</span>
+                                                        <span className="text-lg font-bold text-emerald-400">
+                                                            {backtestResult ? `$${Math.max(...(backtestResult.trades || []).map((t: any) => t.pnl ?? 0)).toLocaleString()}` : '--'}
+                                                        </span>
                                                     </div>
                                                     <div className="flex items-center justify-between p-3 bg-slate-900/30 rounded-xl">
                                                         <span className="text-sm text-slate-400">Worst Trade</span>
-                                                        <span className="text-lg font-bold text-red-400">-$890</span>
+                                                        <span className="text-lg font-bold text-red-400">
+                                                            {backtestResult ? `$${Math.min(...(backtestResult.trades || []).map((t: any) => t.pnl ?? 0)).toLocaleString()}` : '--'}
+                                                        </span>
                                                     </div>
                                                     <div className="flex items-center justify-between p-3 bg-slate-900/30 rounded-xl">
                                                         <span className="text-sm text-slate-400">Avg Win / Loss</span>
-                                                        <span className="text-lg font-bold text-slate-300">$420 / $210</span>
+                                                        <span className="text-lg font-bold text-slate-300">
+                                                            {backtestResult ? `$${(backtestResult.result.avg_win ?? 0).toFixed(0)} / $${Math.abs(backtestResult.result.avg_loss ?? 0).toFixed(0)}` : '--'}
+                                                        </span>
                                                     </div>
                                                     <div className="flex items-center justify-between p-3 bg-slate-900/30 rounded-xl">
-                                                        <span className="text-sm text-slate-400">Longest Drawdown</span>
-                                                        <span className="text-lg font-bold text-amber-400">14 days</span>
+                                                        <span className="text-sm text-slate-400">Sortino Ratio</span>
+                                                        <span className="text-lg font-bold text-amber-400">
+                                                            {backtestResult ? (backtestResult.result.sortino_ratio ?? 0).toFixed(2) : '--'}
+                                                        </span>
                                                     </div>
                                                 </div>
                                             </div>
                                         </div>
                                     </div>
                                 </div>
+                            </div>
+                        )}
+
+                        {/* Library Tab */}
+                        {activeTab === 'library' && (
+                            <div className="space-y-6 animate-in slide-in-from-bottom-4">
+                                <div className="flex items-center justify-between">
+                                    <h3 className="text-lg font-bold text-slate-100 flex items-center gap-2">
+                                        <BookOpen className="text-purple-400" size={20} />
+                                        My Strategy Library
+                                    </h3>
+                                    <span className="text-sm text-slate-500">{savedStrategies.length} saved</span>
+                                </div>
+
+                                {savedStrategies.length === 0 ? (
+                                    <div className="bg-gradient-to-br from-slate-900/50 to-slate-800/30 border border-slate-800/50 rounded-2xl p-12 text-center">
+                                        <BookOpen className="mx-auto text-slate-700 mb-4" size={48} />
+                                        <p className="text-slate-400 font-medium mb-2">No saved strategies yet</p>
+                                        <p className="text-sm text-slate-600">Generate or write a strategy and save it to build your library</p>
+                                    </div>
+                                ) : (
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        {savedStrategies.map((s) => (
+                                            <div key={s.id} className="bg-gradient-to-br from-slate-900/50 to-slate-800/30 border border-slate-800/50 rounded-2xl p-5 hover:border-purple-500/30 transition-all">
+                                                <div className="flex items-center justify-between mb-3">
+                                                    <h4 className="text-sm font-bold text-slate-200 truncate">{s.name}</h4>
+                                                    <div className="flex gap-1.5 flex-shrink-0">
+                                                        {s.ai_generated && (
+                                                            <span className="px-2 py-0.5 bg-purple-500/10 text-purple-400 text-[10px] font-semibold rounded-lg">AI</span>
+                                                        )}
+                                                        {s.is_validated && (
+                                                            <span className="px-2 py-0.5 bg-emerald-500/10 text-emerald-400 text-[10px] font-semibold rounded-lg">Valid</span>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                                <p className="text-xs text-slate-500 mb-1">{s.strategy_type}</p>
+                                                <p className="text-[10px] text-slate-600 mb-4">
+                                                    Created {new Date(s.created_at).toLocaleDateString()} &middot; {s.code.split('\n').length} lines
+                                                </p>
+                                                <div className="flex gap-2">
+                                                    <button
+                                                        onClick={() => loadStrategy(s)}
+                                                        className="flex-1 px-3 py-2 bg-purple-600/20 text-purple-400 text-xs font-semibold rounded-lg hover:bg-purple-600/30 transition-all"
+                                                    >
+                                                        Load
+                                                    </button>
+                                                    <button
+                                                        onClick={() => deleteStrategy(s.id)}
+                                                        className="px-3 py-2 bg-red-500/10 text-red-400 text-xs font-semibold rounded-lg hover:bg-red-500/20 transition-all"
+                                                    >
+                                                        <Trash2 size={14} />
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
                             </div>
                         )}
                     </div>

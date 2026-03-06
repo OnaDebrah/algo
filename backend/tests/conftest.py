@@ -29,7 +29,7 @@ async def db_session(setup_db):
     async with test_engine.connect() as conn:
         # Start a transaction block
         await conn.begin()
-        
+
         # Start a nested transaction (savepoint)
         await conn.begin_nested()
 
@@ -50,7 +50,7 @@ async def client(db_session):
     Provides an async test client.
     Overrides the FastAPI `get_db` dependency to inject our isolated `db_session`.
     """
-    
+
     # We must use an async generator for get_db
     async def override_get_db():
         yield db_session
