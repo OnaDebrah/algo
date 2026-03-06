@@ -43,6 +43,7 @@ from ....schemas.strategy import (
     UpdateStrategyRequest,
 )
 from ....services.execution_manager import get_execution_manager
+from ....utils.errors import safe_detail
 
 logger = logging.getLogger(__name__)
 
@@ -313,7 +314,7 @@ async def get_account():
         return account_info
     except Exception as e:
         logger.error(f"Error getting account info: {e}")
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Failed to get account info: {str(e)}")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=safe_detail("Failed to get account info", e))
 
 
 @router.get("/positions")
@@ -328,7 +329,7 @@ async def get_positions():
         return {"positions": positions}
     except Exception as e:
         logger.error(f"Error getting positions: {e}")
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Failed to get positions: {str(e)}")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=safe_detail("Failed to get positions", e))
 
 
 @router.get("/market-hours")
@@ -348,7 +349,7 @@ async def get_market_hours():
             return {"is_open": is_open, "message": "Detailed market hours not available for this broker"}
     except Exception as e:
         logger.error(f"Error getting market hours: {e}")
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Failed to get market hours: {str(e)}")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=safe_detail("Failed to get market hours", e))
 
 
 # ============================================================================

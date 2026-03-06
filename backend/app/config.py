@@ -3,10 +3,15 @@ Configuration settings for FastAPI backend
 """
 
 import os
+import secrets
 from typing import List
 
 from pydantic import model_validator
 from pydantic_settings import BaseSettings
+
+# Ephemeral dev-only secret — regenerated on each server restart.
+# Production deployments MUST set JWT_SECRET_KEY and SECRET_KEY env vars.
+_DEV_SECRET = secrets.token_hex(32)
 
 
 class Settings(BaseSettings):
@@ -15,13 +20,13 @@ class Settings(BaseSettings):
     VERSION: str = "1.0.0"
     ENVIRONMENT: str = os.getenv("ENVIRONMENT", "development")
 
-    # Security - JWT
-    JWT_SECRET_KEY: str = os.getenv("JWT_SECRET_KEY", "b4b9dec99638d32897d5b2705755cba147659e02675d4615011951ce24f6aff1")
+    # Security - JWT  (no hardcoded secret — uses ephemeral random in dev)
+    JWT_SECRET_KEY: str = os.getenv("JWT_SECRET_KEY", _DEV_SECRET)
     JWT_ALGORITHM: str = "HS256"
     JWT_EXPIRATION_MINUTES: int = 60 * 24 * 7  # 7 days
 
-    # Security - General
-    SECRET_KEY: str = os.getenv("SECRET_KEY", "09d25e094faa6ca2556c818166b7a9563b93f7099f6f0f4caa6cf63b88e8d3e7")
+    # Security - General  (no hardcoded secret — uses ephemeral random in dev)
+    SECRET_KEY: str = os.getenv("SECRET_KEY", _DEV_SECRET)
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 10080  # 7 days
 
@@ -67,6 +72,10 @@ class Settings(BaseSettings):
     ANTHROPIC_API_KEY: str = os.getenv("ANTHROPIC_API_KEY", "")
     ANTHROPIC_MODEL_HAIKU_3: str = os.getenv("ANTHROPIC_MODEL_HAIKU_3", "claude-3-haiku-20240307")
     ANTHROPIC_MODEL_SONNET_4: str = os.getenv("ANTHROPIC_MODEL_SONNET_4", "claude-sonnet-4-20250514")
+
+    # DeepSeek (fallback for AI code generation)
+    DEEPSEEK_API_KEY: str = os.getenv("DEEPSEEK_API_KEY", "")
+    DEEPSEEK_MODEL: str = os.getenv("DEEPSEEK_MODEL", "deepseek-coder")
 
     # Trading Defaults
     DEFAULT_INITIAL_CAPITAL: float = float(os.getenv("DEFAULT_INITIAL_CAPITAL", "100000"))
@@ -185,17 +194,44 @@ ANTHROPIC_MODEL_SONNET_4 = settings.ANTHROPIC_MODEL_SONNET_4
 
 def validate_settings():
     """Validate critical settings on startup"""
+    import logging
+
+    _logger = logging.getLogger("app.config")
+
     if settings.ENVIRONMENT not in ("development", "test"):
-        if settings.JWT_SECRET_KEY == "b4b9dec99638d32897d5b2705755cba147659e02675d4615011951ce24f6aff1":
-            raise ValueError(f"Environment '{settings.ENVIRONMENT}' must use a custom JWT_SECRET_KEY")
-        if settings.SECRET_KEY == "09d25e094faa6ca2556c818166b7a9563b93f7099f6f0f4caa6cf63b88e8d3e7":
-            raise ValueError(f"Environment '{settings.ENVIRONMENT}' must use a custom SECRET_KEY")
-        if settings.POSTGRES_PASSWORD == "password":
+        # Production: require explicitly-set secrets (reject ephemeral dev defaults)
+        if not settings.JWT_SECRET_KEY or settings.JWT_SECRET_KEY == _DEV_SECRET:
+            raise ValueError(f"Environment '{settings.ENVIRONMENT}' must set JWT_SECRET_KEY env var")
+        if not settings.SECRET_KEY or settings.SECRET_KEY == _DEV_SECRET:
+            raise ValueError(f"Environment '{settings.ENVIRONMENT}' must set SECRET_KEY env var")
+        if settings.POSTGRES_PASSWORD == "password" or not settings.POSTGRES_PASSWORD:
             raise ValueError(f"Environment '{settings.ENVIRONMENT}' must NOT use the default POSTGRES_PASSWORD")
 
     # Ensure database URL is set
     if not settings.DATABASE_URL:
         raise ValueError("DATABASE_URL must be configured")
+
+    # ── Warn about missing optional API keys ──────────────────────────
+    _optional_keys = {
+        "ANTHROPIC_API_KEY": "AI Analyst / AI Advisor",
+        "POLYGON_API_KEY": "Polygon data provider",
+        "IEX_API_KEY": "IEX data provider",
+        "FRED_API_KEY": "FRED macro data",
+        "BLS_API_KEY": "BLS economic data",
+        "ALPACA_API_KEY": "Alpaca broker",
+        "DEEPSEEK_API_KEY": "DeepSeek code generation (Strategy Builder fallback)",
+    }
+    for _key, _feature in _optional_keys.items():
+        if not getattr(settings, _key, ""):
+            _logger.warning(f"{_key} not set — {_feature} will be unavailable")
+
+    # ── Validate data provider ↔ API key consistency ──────────────────
+    if settings.DATA_PROVIDER == "polygon" and not settings.POLYGON_API_KEY:
+        raise ValueError("DATA_PROVIDER is 'polygon' but POLYGON_API_KEY is not set")
+    if settings.DATA_PROVIDER == "iex" and not settings.IEX_API_KEY:
+        raise ValueError("DATA_PROVIDER is 'iex' but IEX_API_KEY is not set")
+    if settings.DATA_PROVIDER == "alpaca" and not settings.ALPACA_API_KEY:
+        raise ValueError("DATA_PROVIDER is 'alpaca' but ALPACA_API_KEY is not set")
 
 
 # Run validation

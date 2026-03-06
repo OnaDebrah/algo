@@ -55,6 +55,7 @@ pytz==2025.2
 PyYAML==6.0.3
 QuantLib==1.41
 ib_insync==0.9.86
+openai>=1.0
 optuna==4.7.0
 regex==2026.1.15
 requests==2.32.5

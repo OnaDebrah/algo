@@ -32,9 +32,7 @@ class RateLimitMiddleware:
         client_ip = client[0] if client else "unknown"
 
         if client_ip not in self.limiters:
-            self.limiters[client_ip] = RateLimiter(
-                max_requests=self.max_requests, window_seconds=self.window_seconds
-            )
+            self.limiters[client_ip] = RateLimiter(max_requests=self.max_requests, window_seconds=self.window_seconds)
 
         if not self.limiters[client_ip].allow_request():
             response = JSONResponse(

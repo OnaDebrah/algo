@@ -9,7 +9,7 @@ class Position(Base):
     __tablename__ = "positions"
 
     id = Column(Integer, primary_key=True, index=True)
-    portfolio_id = Column(Integer, ForeignKey("portfolios.id"), nullable=False)
+    portfolio_id = Column(Integer, ForeignKey("portfolios.id"), nullable=False, index=True)
     symbol = Column(String, nullable=False)
     side = Column(String, nullable=False)  # Added to match raw SQL side
     quantity = Column(Float, nullable=False)

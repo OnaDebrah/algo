@@ -4,12 +4,15 @@ import logging
 from contextlib import asynccontextmanager
 
 import sentry_sdk
-from fastapi import FastAPI
+from fastapi import FastAPI, Request, status
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.middleware.httpsredirect import HTTPSRedirectMiddleware
+from fastapi.responses import JSONResponse
 from prometheus_fastapi_instrumentator import Instrumentator
 from pythonjsonlogger.jsonlogger import JsonFormatter
+from sqlalchemy.exc import SQLAlchemyError
 
 from .api.middleware.rate_limit import RateLimitMiddleware
 from .api.routes import (
@@ -40,6 +43,7 @@ from .config import settings
 from .database import AsyncSessionLocal, init_db
 from .init_data import init_default_data
 from .services.execution_manager import get_execution_manager, start_execution_manager, stop_execution_manager
+from .utils.errors import safe_detail
 
 if settings.SENTRY_DSN:
     sentry_sdk.init(
@@ -137,3 +141,33 @@ app.include_router(health.router)
 app.include_router(sector.router)
 app.include_router(crash_prediction.router)
 app.include_router(root.router)
+
+
+# ── Global exception handlers (registered on app, not a router) ────────────
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    """Return validation errors (safe — no internal details)."""
+    return JSONResponse(
+        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+        content={"detail": exc.errors(), "message": "Validation error"},
+    )
+
+
+@app.exception_handler(SQLAlchemyError)
+async def sqlalchemy_exception_handler(request: Request, exc: SQLAlchemyError):
+    """Catch DB errors — log details server-side, return generic message."""
+    logger.error(f"Database error on {request.url.path}: {exc}", exc_info=True)
+    return JSONResponse(
+        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        content={"detail": "Database error occurred", "message": "Internal server error"},
+    )
+
+
+@app.exception_handler(Exception)
+async def general_exception_handler(request: Request, exc: Exception):
+    """Catch-all — never leak raw exception strings to clients."""
+    logger.error(f"Unhandled exception on {request.url.path}: {exc}", exc_info=True)
+    return JSONResponse(
+        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        content={"detail": safe_detail("Internal server error", exc), "message": "Internal server error"},
+    )

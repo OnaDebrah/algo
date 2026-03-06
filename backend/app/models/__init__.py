@@ -1,6 +1,7 @@
 from ..models.backtest import BacktestRun
 from ..models.bubble_detection import BubbleDetection
 from ..models.crash_prediction import CrashPrediction
+from ..models.custom_strategy import CustomStrategy
 from ..models.live import (
     LiveEquitySnapshot,
     LiveStrategy,
@@ -32,6 +33,7 @@ __all__ = [
     "BacktestRun",
     "BubbleDetection",
     "CrashPrediction",
+    "CustomStrategy",
     "HedgeExecution",
     "LiveEquitySnapshot",
     "LiveStrategy",

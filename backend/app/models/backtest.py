@@ -13,7 +13,7 @@ class BacktestRun(Base):
     __tablename__ = "backtest_runs"
 
     id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
     name = Column(String, nullable=True)
     backtest_type = Column(String, nullable=False)  # single, multi, options
 
@@ -41,10 +41,10 @@ class BacktestRun(Base):
     extended_results = Column(JSON, nullable=True)
 
     # Metadata
-    status = Column(String, default="pending")  # pending, running, completed, failed
+    status = Column(String, default="pending", index=True)  # pending, running, completed, failed
     celery_task_id = Column(String, nullable=True, index=True)
     error_message = Column(String, nullable=True)
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)
     completed_at = Column(DateTime(timezone=True), nullable=True)
 
     # Relationships

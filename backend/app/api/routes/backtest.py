@@ -32,6 +32,7 @@ from ...services.auth_service import AuthService
 from ...services.backtest_service import BacktestService
 from ...services.market_service import get_market_service
 from ...tasks.backtest_tasks import run_multi_backtest_task, run_single_backtest_task, run_wfa_task
+from ...utils.errors import safe_detail
 from ...utils.helpers import pairs
 
 logger = logging.getLogger(__name__)
@@ -424,7 +425,7 @@ async def validate_pairs(request: PairsValidationRequest):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Validation failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=safe_detail("Validation failed", e))
 
 
 @router.get("/suggested")

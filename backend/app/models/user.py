@@ -22,8 +22,9 @@ class User(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     last_login = Column(DateTime(timezone=True), nullable=True)
 
-    backtest_runs = relationship("BacktestRun", back_populates="user")
-    portfolios = relationship("Portfolio", back_populates="user")
+    backtest_runs = relationship("BacktestRun", back_populates="user", cascade="all, delete-orphan")
+    custom_strategies = relationship("CustomStrategy", back_populates="user", cascade="all, delete-orphan")
+    portfolios = relationship("Portfolio", back_populates="user", cascade="all, delete-orphan")
     settings = relationship("UserSettings", back_populates="user", uselist=False, cascade="all, delete-orphan")
 
     def to_dict(self):

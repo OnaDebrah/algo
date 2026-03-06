@@ -23,17 +23,15 @@ export default function RootLayout({
 }>) {
     useEffect(() => {
         const autoConnect = async () => {
-            // Only attempt auto-connect if user is authenticated
-            const token = typeof window !== 'undefined' ? localStorage.getItem('access_token') : null;
-            if (!token) return;
-
+            // Auto-connect relies on the httpOnly cookie being present.
+            // If the user isn't authenticated the API call will 401 and we skip.
             try {
                 const result = await live.autoConnect();
                 if (result.status === 'connected') {
                     console.log(`Auto-connected to ${result.broker}`);
                 }
-            } catch (error) {
-                console.error('Auto-connect failed:', error);
+            } catch {
+                // Not authenticated or broker unavailable — silently skip
             }
         };
 
