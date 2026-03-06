@@ -195,3 +195,17 @@
 .animate-fade-in {
   animation: fadeIn 0.5s ease-out;
 }
+
+/* Landing page animations */
+@keyframes float {
+  0%, 100% { transform: translateY(0) scale(1); }
+  50% { transform: translateY(-20px) scale(1.02); }
+}
+
+.animate-float {
+  animation: float 8s ease-in-out infinite;
+}
+
+.animate-float-delayed {
+  animation: float 10s ease-in-out 2s infinite;
+}
