@@ -245,7 +245,6 @@ def validate_settings():
     _optional_keys = {
         "ANTHROPIC_API_KEY": "AI Analyst / AI Advisor",
         "POLYGON_API_KEY": "Polygon data provider",
-        "IEX_API_KEY": "IEX data provider",
         "FRED_API_KEY": "FRED macro data",
         "BLS_API_KEY": "BLS economic data",
         "ALPACA_API_KEY": "Alpaca broker",
