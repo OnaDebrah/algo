@@ -64,7 +64,7 @@ class OptionsPricingEngine:
         if model == PricingModel.BLACK_SCHOLES:
             if exercise_type == ExerciseType.AMERICAN:
                 logger.warning(
-                    "Black-Scholes model is for European options only. " "Consider using Binomial Tree or Finite Difference for American options."
+                    "Black-Scholes model is for European options only. Consider using Binomial Tree or Finite Difference for American options."
                 )
 
             price = self.models[model].price(S, K, T, r, sigma, option_type, q)

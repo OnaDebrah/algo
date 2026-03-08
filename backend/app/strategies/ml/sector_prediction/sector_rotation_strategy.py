@@ -344,7 +344,7 @@ class SectorRotationStrategy(BaseStrategy):
         all_returns = []
         for symbol in top_stocks:
             try:
-                data = await fetch_stock_data(symbol, period=f"{self.lookback_years+1}y", interval="1mo")
+                data = await fetch_stock_data(symbol, period=f"{self.lookback_years + 1}y", interval="1mo")
 
                 if data is not None and not data.empty:
                     # Calculate forward returns

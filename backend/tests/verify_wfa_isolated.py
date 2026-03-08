@@ -60,7 +60,7 @@ async def verify_wfa_logic():
     continuity_error = False
     for i in range(len(folds) - 1):
         if folds[i + 1]["oos_start"] <= folds[i]["oos_end"]:
-            print(f"FAIL: Fold {i} and {i+1} OOS overlap!")
+            print(f"FAIL: Fold {i} and {i + 1} OOS overlap!")
             continuity_error = True
 
     if not continuity_error:

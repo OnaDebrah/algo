@@ -749,7 +749,7 @@ class MonteCarloMLSentimentStrategy(BaseStrategy):
         # Need sufficient data for lookback + some forward bars
         min_required = self.lookback_period + 50
         if len(df) < min_required:
-            logger.warning(f"Insufficient data: {len(df)} bars, need {min_required}. " f"Returning zeros.")
+            logger.warning(f"Insufficient data: {len(df)} bars, need {min_required}. Returning zeros.")
             return df
 
         # --- Step 1: Pre-compute sentiment for all dates in one pass ---

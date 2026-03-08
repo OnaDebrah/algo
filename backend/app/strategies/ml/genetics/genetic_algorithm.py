@@ -877,7 +877,7 @@ class GeneticAlgorithmStrategy(BaseStrategy):
 
             # Progress update
             if (generation + 1) % 10 == 0:
-                print(f"Generation {generation + 1}: Best Fitness = {best_fitness:.4f}, " f"Diversity = {diversity:.4f}")
+                print(f"Generation {generation + 1}: Best Fitness = {best_fitness:.4f}, Diversity = {diversity:.4f}")
 
         # Validate best on validation data
         if best_chromosome:
@@ -903,7 +903,7 @@ class GeneticAlgorithmStrategy(BaseStrategy):
         train_data = data.iloc[:split_idx]
         val_data = data.iloc[split_idx:]
 
-        print(f"Training GA with {self.params['population_size']} individuals " f"for {self.params['generations']} generations...")
+        print(f"Training GA with {self.params['population_size']} individuals for {self.params['generations']} generations...")
         print(f"Strategy: {self.params['strategy_type'].value}")
         print(f"Objective: {self.params['optimization_objective'].value if not self.params['multi_objective'] else 'multi-objective'}")
 

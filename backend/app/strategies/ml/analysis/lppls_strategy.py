@@ -247,7 +247,7 @@ class LPPLSModel:
 
                 if verbose:
                     logger.info(
-                        f"LPPLS optimization: initial tc={init_params[0]:.3f}, " f"final tc={tc_norm:.3f}, improvement={init_params[0]-tc_norm:.3f}"
+                        f"LPPLS optimization: initial tc={init_params[0]:.3f}, final tc={tc_norm:.3f}, improvement={init_params[0] - tc_norm:.3f}"
                     )
 
                 return param_dict

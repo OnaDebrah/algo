@@ -375,7 +375,7 @@ class TemporalGATService:
                 total_loss += loss.item()
 
             if epoch % 10 == 0:
-                logger.info(f"Epoch {epoch}, Loss: {total_loss/len(loader):.6f}")
+                logger.info(f"Epoch {epoch}, Loss: {total_loss / len(loader):.6f}")
 
     def predict(self, X: np.ndarray, adj: np.ndarray) -> np.ndarray:
         """Predict future volatility"""

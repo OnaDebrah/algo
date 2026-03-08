@@ -181,7 +181,7 @@ class BacktestService:
             # Validate strategy is compatible with single-asset mode
             strategy_info = self.catalog.get_info(request.strategy_key)
             if strategy_info and strategy_info.backtest_mode == "multi":
-                raise ValueError(f"Strategy '{strategy_info.name}' requires multi-asset mode. " f"Please use the multi-asset backtest instead.")
+                raise ValueError(f"Strategy '{strategy_info.name}' requires multi-asset mode. Please use the multi-asset backtest instead.")
 
             # Fetch data (ensure we have enough for warm-up)
             # We fetch 'max' or the requested period, then slice manually to ensure history exists
@@ -408,9 +408,7 @@ class BacktestService:
             for symbol, config in request.strategy_configs.items():
                 strategy_info = self.catalog.get_info(config.strategy_key)
                 if strategy_info and strategy_info.backtest_mode == "single":
-                    raise ValueError(
-                        f"Strategy '{strategy_info.name}' only supports single-asset mode. " f"It cannot be used in multi-asset backtests."
-                    )
+                    raise ValueError(f"Strategy '{strategy_info.name}' only supports single-asset mode. It cannot be used in multi-asset backtests.")
 
             # Detect if this is a pairs trading strategy
             is_pairs_strategy = self._is_pairs_strategy(request.strategy_configs, request.symbols)

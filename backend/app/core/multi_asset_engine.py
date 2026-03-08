@@ -107,7 +107,7 @@ class MultiAssetEngine:
             interval: Data interval
         """
         logger.info(
-            f"Starting {'pairs' if self.pairs_mode else 'multi-asset'} backtest: " f"{len(symbols)} symbols, period: {period}, interval: {interval}"
+            f"Starting {'pairs' if self.pairs_mode else 'multi-asset'} backtest: {len(symbols)} symbols, period: {period}, interval: {interval}"
         )
 
         # Fetch data for all symbols
@@ -144,7 +144,7 @@ class MultiAssetEngine:
             # Calculate portfolio equity
             self._update_equity(timestamp, aligned_data, i)
 
-        logger.info(f"Backtest complete: {len(self.trades)} trades, " f"Final equity: ${self.equity_curve[-1]['equity']:,.2f}")
+        logger.info(f"Backtest complete: {len(self.trades)} trades, Final equity: ${self.equity_curve[-1]['equity']:,.2f}")
 
     def _process_pairs_trading(self, aligned_data: Dict, index: int, timestamp):
         """Process pairs trading strategy (e.g., Kalman Filter)"""
@@ -510,9 +510,7 @@ class MultiAssetEngine:
                 "profit_pct": profit_pct,
             }
             self.trades.append(trade_data)
-            logger.debug(
-                f"SELL: {position['quantity']} {symbol} @ ${execution_price:.2f} " f"(Net P&L: ${profit:.2f}, Fees: ${total_commissions:.2f})"
-            )
+            logger.debug(f"SELL: {position['quantity']} {symbol} @ ${execution_price:.2f} (Net P&L: ${profit:.2f}, Fees: ${total_commissions:.2f})")
 
             del self.positions[symbol]
 
