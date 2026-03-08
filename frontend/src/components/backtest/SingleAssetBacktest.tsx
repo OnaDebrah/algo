@@ -33,6 +33,7 @@ import {
     X,
     Zap
 } from 'lucide-react';
+import TickerSearch from "@/components/common/TickerSearch";
 import SingleBacktestResults from "@/components/backtest/SingleBacktestResults";
 import StrategyParameterForm from "@/components/backtest/StrategyParameterForm";
 import RiskAnalysisModal from "@/components/backtest/RiskAnalysisModal";
@@ -254,18 +255,14 @@ const SingleAssetBacktest: React.FC<SingleAssetBacktestProps> = ({
                 <div className="p-5">
                     <div className="flex items-end gap-4">
                         {/* Asset */}
-                        <div className="flex-1 min-w-[140px] max-w-[200px]">
+                        <div className="flex-1 min-w-[140px] max-w-[220px]">
                             <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1.5 block">Asset</label>
-                            <div className="relative group">
-                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-600 group-focus-within:text-violet-500 transition-colors" size={14} />
-                                <input
-                                    type="text"
-                                    value={config.symbol}
-                                    onChange={(e) => setConfig({ ...config, symbol: e.target.value.toUpperCase() })}
-                                    className="w-full pl-9 pr-3 py-2.5 bg-slate-800/60 border border-slate-700/50 rounded-xl focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20 outline-none text-sm text-slate-200 font-mono"
-                                    placeholder="AAPL"
-                                />
-                            </div>
+                            <TickerSearch
+                                value={config.symbol}
+                                onChange={(sym) => setConfig({ ...config, symbol: sym })}
+                                placeholder="AAPL"
+                                size="md"
+                            />
                         </div>
 
                         {/* Strategy dropdown */}

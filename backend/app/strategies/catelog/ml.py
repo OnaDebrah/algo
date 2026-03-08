@@ -245,7 +245,12 @@ class ML:
                     "num_simulations": {
                         "default": 10000,
                         "range": (1000, 50000),
-                        "description": "Number of Monte Carlo paths",
+                        "description": "Number of Monte Carlo paths (live)",
+                    },
+                    "backtest_num_simulations": {
+                        "default": 500,
+                        "range": (100, 5000),
+                        "description": "MC simulations per bar during backtest (lower = faster)",
                     },
                     "confidence_level": {
                         "default": 0.95,

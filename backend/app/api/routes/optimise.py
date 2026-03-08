@@ -12,18 +12,15 @@ from ...api.deps import check_permission, get_db
 from ...core.permissions import Permission
 from ...models.user import User
 from ...optimise import PortfolioBacktest, PortfolioOptimizer
-from ...optimise.optimisation_runner import OptimizationRunner
 from ...schemas.optimise import (
     BacktestRequest,
     BacktestResponse,
     BayesianOptimizationRequest,
-    BayesianOptimizationResponse,
     BlackLittermanRequest,
     EfficientFrontierRequest,
     OptimizationResponse,
     PortfolioRequest,
     TargetReturnRequest,
-    TrialResult,
 )
 
 router = APIRouter(prefix="/optimise", tags=["Optimise"])
@@ -223,55 +220,67 @@ async def compare_strategies(request: PortfolioRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.post("/bayesian", response_model=BayesianOptimizationResponse)
+@router.post("/bayesian")
 async def bayesian_optimization(
     request: BayesianOptimizationRequest,
     current_user: User = Depends(check_permission(Permission.BASIC_BACKTEST)),
     db: AsyncSession = Depends(get_db),
 ):
     """
-    Run Bayesian optimization on strategy parameters
+    Dispatch Bayesian optimization as a background Celery task.
 
-    This endpoint:
-    1. Creates an isolated database connection pool for optimization
-    2. Runs multiple backtest trials with different parameters
-    3. Uses Bayesian optimization (TPE) to find optimal parameters
-    4. Returns best parameters and all trial results
-
-    Note: This can take several minutes depending on n_trials
+    Returns immediately with a backtest_id that the frontend can poll
+    via ``/backtest/history/{id}`` (same pattern as single/multi backtests).
+    Optimization results are stored in ``extended_results.bayesian``.
     """
+    from ...services.backtest_service import BacktestService
+    from ...tasks.backtest_tasks import run_bayesian_optimization_task
+
+    # Validate request
+    if request.n_trials < 1:
+        raise HTTPException(status_code=400, detail="n_trials must be at least 1")
+    if request.n_trials > 200:
+        raise HTTPException(status_code=400, detail="n_trials cannot exceed 200 (performance limit)")
+
     try:
-        # Validate request
-        if request.n_trials < 1:
-            raise HTTPException(status_code=400, detail="n_trials must be at least 1")
-
-        if request.n_trials > 200:
-            raise HTTPException(status_code=400, detail="n_trials cannot exceed 200 (performance limit)")
-
-        async with OptimizationRunner(request=request, user_id=current_user.id, max_workers=4) as runner:
-            study = await runner.run_optimization()
-
-        trials = []
-        for t in study.trials:
-            if t.value is not None and t.value != float("-inf"):
-                trials.append(TrialResult(trial_id=t.number, params=t.params, value=t.value, status=str(t.state)))
-
-        if not trials:
-            raise HTTPException(status_code=500, detail="All optimization trials failed. Check strategy configuration.")
-
-        return BayesianOptimizationResponse(
-            best_params=study.best_params,
-            best_value=study.best_value,
-            trials=trials,
-            tickers=request.tickers,
-            strategy_key=request.strategy_key,
-            metric=request.metric,
-            n_completed=len(trials),
-            n_failed=request.n_trials - len(trials),
+        # Create a BacktestRun entry so we can poll for status
+        service = BacktestService(db)
+        backtest_run = await service.create_backtest_run(
+            user_id=current_user.id,
+            backtest_type="bayesian_optimization",
+            symbols=request.tickers,
+            strategy_config={
+                "strategy_key": request.strategy_key,
+                "param_ranges": {k: v.model_dump() for k, v in request.param_ranges.items()},
+                "metric": request.metric,
+                "n_trials": request.n_trials,
+            },
+            period=request.period,
+            interval=request.interval,
+            initial_capital=request.initial_capital,
         )
+
+        # Dispatch to Celery worker
+        task = run_bayesian_optimization_task.delay(
+            backtest_run.id,
+            request.model_dump(),
+            current_user.id,
+        )
+
+        # Store the Celery task ID
+        backtest_run.celery_task_id = task.id
+        await db.commit()
+
+        logger.info(f"Bayesian optimization dispatched: backtest_id={backtest_run.id}, " f"task_id={task.id}, n_trials={request.n_trials}")
+
+        return {
+            "backtest_id": backtest_run.id,
+            "task_id": task.id,
+            "status": "pending",
+        }
 
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Bayesian optimization failed: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Optimization failed: {str(e)[:200]}")
+        logger.error(f"Failed to dispatch Bayesian optimization: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Optimization dispatch failed: {str(e)[:200]}")

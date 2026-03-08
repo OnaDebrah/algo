@@ -20,6 +20,8 @@ const BayesianOptimizerModal: React.FC<BayesianOptimizerModalProps> = ({ symbols
     const [bestValue, setBestValue] = useState<number | null>(null);
     const [bestParams, setBestParams] = useState<Record<string, any> | null>(null);
     const [optimizationHistory, setOptimizationHistory] = useState<any[]>([]);
+    const [error, setError] = useState<string | null>(null);
+    const [elapsedTime, setElapsedTime] = useState(0);
 
     // Initialize ranges from strategy parameters
     useMemo(() => {
@@ -96,23 +98,16 @@ const BayesianOptimizerModal: React.FC<BayesianOptimizerModalProps> = ({ symbols
     }, [strategy]);
 
     const handleRunOptimization = async () => {
+        console.log('[BayesianModal] handleRunOptimization called - v2');
         setIsOptimizing(true);
         setBestValue(null);
         setBestParams(null);
+        setError(null);
+        setElapsedTime(0);
+
+        const timer = setInterval(() => setElapsedTime(t => t + 1), 1000);
 
         try {
-            // Ideally call the API here
-            // const response = await optimization.bayesian({
-            //     ticker: symbol,
-            //     strategy_key: strategy.id,
-            //     param_ranges: paramRanges,
-            //     n_trials: trials,
-            //     metric: metric
-            // });
-
-            // For now, let's mock the API call if the backend isn't ready
-            // or just assume the backend is ready and call it.
-
             const request = {
                 tickers: symbols,
                 strategy_key: strategy.id,
@@ -122,13 +117,21 @@ const BayesianOptimizerModal: React.FC<BayesianOptimizerModalProps> = ({ symbols
             };
 
             const result = await backtest.bayesian(request);
+            console.log('[BayesianModal] Result received:', JSON.stringify(result, null, 2)?.slice(0, 500));
+            console.log('[BayesianModal] best_value:', result.best_value, 'best_params:', result.best_params);
             setBestValue(result.best_value);
             setBestParams(result.best_params);
             setOptimizationHistory(result.trials || []);
 
-        } catch (error) {
-            console.error("Optimization failed", error);
+        } catch (err: any) {
+            console.error("[BayesianModal] Optimization failed:", err);
+            setError(
+                err?.message ||
+                err?.data?.detail ||
+                "Optimization failed. Check Celery worker logs."
+            );
         } finally {
+            clearInterval(timer);
             setIsOptimizing(false);
         }
     };
@@ -290,14 +293,31 @@ const BayesianOptimizerModal: React.FC<BayesianOptimizerModalProps> = ({ symbols
                     )}
 
                     {isOptimizing && (
-                        <div className="flex flex-col items-center justify-center py-20 animate-pulse">
-                            <Activity className="text-violet-500 mb-4" size={48} />
-                            <p className="text-lg font-black text-slate-400 italic">MOCKING UNIVERSES... COLLAPSING PROBABILITIES...</p>
-                            <p className="text-[10px] text-slate-600 font-bold uppercase mt-2 tracking-tighter">Running backtests across the probability cloud</p>
+                        <div className="flex flex-col items-center justify-center py-20">
+                            <Activity className="text-violet-500 mb-4 animate-pulse" size={48} />
+                            <p className="text-lg font-black text-slate-400 italic">OPTIMIZING PARAMETERS...</p>
+                            <p className="text-sm text-violet-400 font-bold mt-2">
+                                {elapsedTime < 5
+                                    ? "Dispatching optimization task..."
+                                    : `Running trials \u2022 ${Math.floor(elapsedTime / 60)}:${(elapsedTime % 60).toString().padStart(2, '0')} elapsed`}
+                            </p>
+                            <p className="text-[10px] text-slate-600 font-bold uppercase mt-2 tracking-tighter">
+                                Polling for results every 2 seconds
+                            </p>
                         </div>
                     )}
 
-                    {!bestParams && !isOptimizing && (
+                    {error && !isOptimizing && (
+                        <div className="p-4 bg-red-500/10 border border-red-500/30 rounded-2xl flex items-start gap-3">
+                            <AlertCircle className="text-red-400 mt-0.5 shrink-0" size={20} />
+                            <div>
+                                <p className="text-sm font-bold text-red-400">Optimization Failed</p>
+                                <p className="text-xs text-red-400/70 mt-1">{error}</p>
+                            </div>
+                        </div>
+                    )}
+
+                    {!bestParams && !isOptimizing && !error && (
                         <div className="flex flex-col items-center justify-center py-20 text-slate-700">
                             <Target size={48} className="mb-4 opacity-20" />
                             <p className="text-sm font-black uppercase tracking-widest italic">Ready for Alpha Generation</p>
