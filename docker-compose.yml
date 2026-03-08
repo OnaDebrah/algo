@@ -5,18 +5,16 @@ services:
   postgres:
     image: postgres:16-alpine
     container_name: algo_postgres
+    env_file:
+      - ./backend/.env
     environment:
-      POSTGRES_DB: ${POSTGRES_DB:-trading_platform}
-      POSTGRES_USER: ${POSTGRES_USER:-trading_user}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-password}
-      POSTGRES_HOST: ${POSTGRES_HOST:-postgres}
-      POSTGRES_PORT: ${POSTGRES_PORT:-5432}
+      POSTGRES_HOST: postgres
     ports:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: [ "CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}" ]
+      test: [ "CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-trading_user} -d ${POSTGRES_DB:-trading_platform}" ]
       interval: 5s
       timeout: 5s
       retries: 10
@@ -44,12 +42,10 @@ services:
     build: ./backend
     container_name: app_migrate
     command: alembic upgrade head
+    env_file:
+      - ./backend/.env
     environment:
-      POSTGRES_DB: ${POSTGRES_DB:-trading_platform}
-      POSTGRES_USER: ${POSTGRES_USER:-trading_user}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-password}
-      POSTGRES_HOST: ${POSTGRES_HOST:-postgres}
-      POSTGRES_PORT: ${POSTGRES_PORT:-5432}
+      POSTGRES_HOST: postgres
     volumes:
       - ./backend:/app
     depends_on:
@@ -63,12 +59,10 @@ services:
     build: ./backend
     container_name: app_api
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload --loop asyncio
+    env_file:
+      - ./backend/.env
     environment:
-      POSTGRES_DB: ${POSTGRES_DB:-trading_platform}
-      POSTGRES_USER: ${POSTGRES_USER:-trading_user}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-password}
-      POSTGRES_HOST: ${POSTGRES_HOST:-postgres}
-      POSTGRES_PORT: ${POSTGRES_PORT:-5432}
+      POSTGRES_HOST: postgres
     volumes:
       - ./backend:/app
     ports:
@@ -86,12 +80,10 @@ services:
     build: ./backend
     container_name: app_worker
     command: celery -A app.celery_app worker --loglevel=info
+    env_file:
+      - ./backend/.env
     environment:
-      POSTGRES_DB: ${POSTGRES_DB:-trading_platform}
-      POSTGRES_USER: ${POSTGRES_USER:-trading_user}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-password}
-      POSTGRES_HOST: ${POSTGRES_HOST:-postgres}
-      POSTGRES_PORT: ${POSTGRES_PORT:-5432}
+      POSTGRES_HOST: postgres
     volumes:
       - ./backend:/app
     depends_on:
@@ -107,12 +99,10 @@ services:
     build: ./backend
     container_name: app_beat
     command: celery -A app.celery_app beat --loglevel=info
+    env_file:
+      - ./backend/.env
     environment:
-      POSTGRES_DB: ${POSTGRES_DB:-trading_platform}
-      POSTGRES_USER: ${POSTGRES_USER:-trading_user}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-password}
-      POSTGRES_HOST: ${POSTGRES_HOST:-postgres}
-      POSTGRES_PORT: ${POSTGRES_PORT:-5432}
+      POSTGRES_HOST: postgres
     volumes:
       - ./backend:/app
     depends_on:
