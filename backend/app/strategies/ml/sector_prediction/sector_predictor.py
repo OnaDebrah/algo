@@ -172,7 +172,7 @@ class SectorPredictor:
             sector_rets = []
             for stock in stocks[:5]:  # Use top 5 for efficiency
                 try:
-                    data = await fetch_stock_data(stock, period=f"{self.lookback_years+1}y", interval="1mo")
+                    data = await fetch_stock_data(stock, period=f"{self.lookback_years + 1}y", interval="1mo")
                     if not data.empty:
                         rets = data["Close"].pct_change(self.forecast_horizon).shift(-self.forecast_horizon)
                         sector_rets.append(rets)

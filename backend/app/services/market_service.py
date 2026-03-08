@@ -6,6 +6,7 @@ from typing import Dict, List, Optional
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from ..config import YAHOO_SEARCH_URL
 from ..core.data.market_data_cache import MarketDataCache
 from ..core.data.providers.providers import ProviderFactory
 from ..utils.helpers import SECTOR_MAP
@@ -245,10 +246,48 @@ class MarketService:
     # ============================================================
 
     async def search_symbols(self, query: str, limit: int = 10) -> List[Dict]:
-        """Search for symbols"""
+        """Fuzzy search for symbols via Yahoo Finance search API.
+
+        Returns matches with full company names, exchange, and asset type.
+        Falls back to an exact-match provider lookup if the search API is
+        unavailable.
+        """
+        import httpx
+
+        params = {
+            "q": query,
+            "quotesCount": min(limit, 20),
+            "newsCount": 0,
+            "lang": "en-US",
+            "region": "US",
+        }
+        headers = {
+            "User-Agent": ("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"),
+        }
+
+        try:
+            async with httpx.AsyncClient(timeout=5.0) as client:
+                resp = await client.get(YAHOO_SEARCH_URL, params=params, headers=headers)
+                resp.raise_for_status()
+                data = resp.json()
+
+            results = []
+            for q in data.get("quotes", [])[:limit]:
+                results.append(
+                    {
+                        "symbol": q.get("symbol", ""),
+                        "name": q.get("shortname") or q.get("longname", ""),
+                        "type": q.get("quoteType", "EQUITY"),
+                        "exchange": q.get("exchange", ""),
+                    }
+                )
+            return results
+        except Exception as e:
+            logger.warning(f"Yahoo search API failed for '{query}': {e}")
+
+        # Fallback: exact-match via provider
         try:
             info = await self._provider.get_ticker_info(query.upper())
-
             if info.get("symbol"):
                 return [
                     {
@@ -256,12 +295,10 @@ class MarketService:
                         "name": info.get("longName", query),
                         "type": info.get("quoteType", "EQUITY"),
                         "exchange": info.get("exchange", ""),
-                        "currency": info.get("currency", "USD"),
-                        "market_cap": info.get("marketCap", 0),
                     }
                 ]
         except Exception as e:
-            logger.error(f"Error searching symbols for '{query}': {str(e)}")
+            logger.error(f"Fallback search failed for '{query}': {e}")
 
         return []
 

@@ -15,6 +15,9 @@ class UserBase(BaseModel):
 
 class UserCreate(UserBase):
     password: str = Field(..., min_length=8)
+    country: Optional[str] = None
+    investor_type: Optional[str] = None
+    risk_profile: Optional[str] = None
 
 
 class UserLogin(BaseModel):
@@ -28,6 +31,9 @@ class User(UserBase):
     is_active: bool
     created_at: datetime
     last_login: Optional[datetime]
+    country: Optional[str] = None
+    investor_type: Optional[str] = None
+    risk_profile: Optional[str] = None
 
     class Config:
         from_attributes = True

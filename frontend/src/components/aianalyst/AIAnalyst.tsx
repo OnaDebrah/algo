@@ -18,7 +18,6 @@ import {
     MessageSquare,
     Network,
     Percent,
-    Search,
     Shield as ShieldIcon,
     Target as TargetIcon,
     ThumbsUp,
@@ -55,6 +54,8 @@ import {
     TechnicalData,
     ValuationMetric
 } from "@/types/all_types";
+import {toPrecision} from "@/utils/formatters";
+import TickerSearch from "@/components/common/TickerSearch";
 
 interface PriceDataPoint {
     date: string;
@@ -868,7 +869,7 @@ const AIAnalyst = () => {
                         </div>
                         <div className="text-center p-4 bg-slate-900/50 rounded-xl">
                             <p className="text-2xl font-bold text-purple-400">{
-                                report.valuation.reduce((acc, metric) => acc + metric.score, 0) / report.valuation.length
+                                toPrecision(report.valuation.reduce((acc, metric) => acc + metric.score, 0) / report.valuation.length)
                             }</p>
                             <p className="text-xs text-slate-400 mt-1">Avg Score</p>
                         </div>
@@ -919,18 +920,12 @@ const AIAnalyst = () => {
                     className="bg-gradient-to-br from-slate-900/60 to-slate-950/60 border border-slate-800/50 rounded-2xl p-6">
                     <div className="flex items-center gap-4">
                         <div className="flex-1">
-                            <div className="relative">
-                                <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-slate-500"
-                                        size={20}/>
-                                <input
-                                    type="text"
-                                    value={ticker}
-                                    onChange={(e) => setTicker(e.target.value.toUpperCase())}
-                                    placeholder="Enter ticker symbol (e.g., AAPL, GOOGL, TSLA)"
-                                    className="w-full bg-slate-800/50 border border-slate-700/50 rounded-xl pl-12 pr-4 py-4 text-slate-200 placeholder:text-slate-600 focus:border-violet-500 focus:ring-1 focus:ring-violet-500 outline-none transition-all"
-                                    onKeyPress={(e) => e.key === 'Enter' && handleAnalyze()}
-                                />
-                            </div>
+                            <TickerSearch
+                                value={ticker}
+                                onChange={setTicker}
+                                onSelect={() => handleAnalyze()}
+                                placeholder="Enter ticker symbol (e.g., AAPL, GOOGL, TSLA)"
+                            />
                         </div>
                         <div className="flex items-center gap-3">
                             <select

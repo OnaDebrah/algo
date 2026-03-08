@@ -20,12 +20,18 @@ export interface User {
     is_active: boolean;
     created_at: string;
     last_login: string | null;
+    country: string | null;
+    investor_type: string | null;
+    risk_profile: string | null;
 }
 
 export interface UserCreate {
     username: string;
     email: string;
     password: string;
+    country?: string;
+    investor_type?: string;
+    risk_profile?: string;
 }
 
 export interface UserLogin {
@@ -440,6 +446,9 @@ export interface BacktestHistoryItem {
     // These need to match the Backend's List[Type] | None
     equity_curve?: EquityCurvePoint[] | null;
     trades?: Trade[] | null;
+
+    // Extended results (advanced metrics, benchmark, price data, factor attribution)
+    extended_results?: Record<string, any> | null;
 
     // Metadata
     status: string;

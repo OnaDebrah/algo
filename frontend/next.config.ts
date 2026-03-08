@@ -1,15 +1,15 @@
-/** @type {import('next').NextConfig} *\/
-const nextConfig = {
-  reactStrictMode: true,
-  swcMinify: true,
-  images: {
-    domains: ['localhost'],
-  },
-  env: {
-    NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000',
-    NEXT_PUBLIC_WS_URL: process.env.NEXT_PUBLIC_WS_URL || 'ws://localhost:8000',
-  },
-}
+import type { NextConfig } from 'next';
 
-module.exports = nextConfig
-*/
+const nextConfig: NextConfig = {
+    reactStrictMode: true,
+    output: 'standalone',  // Optimized Docker builds — copies only needed files
+    images: {
+        domains: ['localhost'],
+    },
+    env: {
+        NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000',
+        NEXT_PUBLIC_WS_URL: process.env.NEXT_PUBLIC_WS_URL || 'ws://localhost:8000',
+    },
+};
+
+export default nextConfig;

@@ -124,7 +124,7 @@ import {
     UpdateResponse
 } from "@/types/live";
 import { ActivityResponse } from "@/types/social";
-import {AnalystReportParams} from "@/types/analyst";
+import { AnalystReportParams } from "@/types/analyst";
 
 // Use environment variable or default to localhost
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
@@ -132,23 +132,17 @@ const IS_BROWSER = typeof window !== 'undefined';
 
 const client = axios.create({
     baseURL: API_URL,
+    timeout: 30000,
     headers: {
         'Content-Type': 'application/json',
     },
     withCredentials: true,
 });
 
-// Request interceptor to add auth token
+// Request interceptor — auth is handled via httpOnly cookies (sent automatically
+// with withCredentials: true). No need to read localStorage for tokens.
 client.interceptors.request.use(
-    (config) => {
-        if (IS_BROWSER) {
-            const token = localStorage.getItem('access_token');
-            if (token) {
-                config.headers.Authorization = `Bearer ${token}`;
-            }
-        }
-        return config;
-    },
+    (config) => config,
     (error) => Promise.reject(error)
 );
 
@@ -156,18 +150,11 @@ client.interceptors.request.use(
 client.interceptors.response.use(
     (response) => response.data,
     (error) => {
-        if (error.response?.status === 401) {
-            // Handle unauthorized access
-            if (IS_BROWSER) {
-                localStorage.removeItem('access_token');
-                localStorage.removeItem('refresh_token');
-                localStorage.removeItem('user');
-                // Redirect to login if not already there
-                if (!window.location.pathname.includes('/login') && !window.location.pathname.includes('/register')) {
-                    window.location.href = '/login';
-                }
-            }
-        }
+        // 401 handling: Don't redirect — AppShell renders <LoginPage /> when
+        // user is null. Redirecting to '/login' breaks the app because no
+        // such Next.js route exists; login is handled by conditional rendering.
+        // The error propagates to the caller (restoreSession, autoConnect, etc.)
+        // which already handles it gracefully.
 
         if (error.response?.data) {
             return Promise.reject({
@@ -194,14 +181,151 @@ export const auth = {
 };
 
 // ==================== BACKTEST ====================
+
+/** Response from POST endpoints after Celery dispatch */
+export interface BacktestSubmission {
+    backtest_id: number;
+    task_id: string;
+    status: string;
+    message: string;
+}
+
+/**
+ * Poll /backtest/history/{id} until status is 'completed' or 'failed'.
+ * Returns the full BacktestHistoryItem once done.
+ */
+async function pollForResult(
+    backtestId: number,
+    intervalMs: number = 2000,
+    maxAttempts: number = 300  // 10 minutes at 2s
+): Promise<BacktestHistoryItem> {
+    console.log(`[pollForResult] Starting poll for backtest_id=${backtestId}`);
+    for (let i = 0; i < maxAttempts; i++) {
+        const details = await client.get<BacktestHistoryItem>(
+            `/backtest/history/${backtestId}`
+        );
+
+        console.log(`[pollForResult] Poll #${i + 1}: status=${details.status}`);
+
+        if (details.status === 'completed' || details.status === 'failed') {
+            if (details.status === 'failed') {
+                throw new Error(details.error_message || 'Backtest failed');
+            }
+            console.log(`[pollForResult] Completed! extended_results keys:`, details.extended_results ? Object.keys(details.extended_results) : 'null');
+            return details;
+        }
+
+        // Wait before next poll
+        await new Promise(resolve => setTimeout(resolve, intervalMs));
+    }
+    throw new Error('Backtest timed out');
+}
+
 export const backtest = {
-    // Single asset backtest
+    /**
+     * Submit a single-asset backtest (returns immediately, polls for result).
+     * Returns the same shape as before so callers are unaffected.
+     */
     runSingle: async (request: SingleBacktestRequest): Promise<SingleBacktestResponse> => {
-        return client.post<SingleBacktestResponse>('/backtest/single', request);
+        const submission = await client.post<BacktestSubmission>('/backtest/single', request);
+        const completed = await pollForResult(submission.backtest_id);
+
+        // Reconstruct the nested response shape the store expects
+        // from the flat BacktestHistoryItem returned by polling
+        const item = completed as any;
+        const ext = item.extended_results || {};
+        return {
+            result: {
+                // Core metrics from top-level columns
+                total_return: ext.total_return ?? item.total_return_pct ?? 0,
+                total_return_pct: item.total_return_pct ?? 0,
+                win_rate: item.win_rate ?? 0,
+                sharpe_ratio: item.sharpe_ratio ?? 0,
+                max_drawdown: item.max_drawdown ?? 0,
+                total_trades: item.total_trades ?? 0,
+                final_equity: item.final_equity ?? 0,
+                initial_capital: ext.initial_capital ?? item.initial_capital ?? 0,
+                // Trade statistics from extended_results
+                winning_trades: ext.winning_trades ?? 0,
+                losing_trades: ext.losing_trades ?? 0,
+                avg_profit: ext.avg_profit ?? 0,
+                avg_win: ext.avg_win ?? 0,
+                avg_loss: ext.avg_loss ?? 0,
+                profit_factor: ext.profit_factor ?? 0,
+                symbol_stats: ext.symbol_stats ?? {},
+                // Factor attribution from extended_results
+                alpha: ext.alpha ?? 0,
+                beta: ext.beta ?? 0,
+                r_squared: ext.r_squared ?? 0,
+                // Advanced metrics from extended_results
+                sortino_ratio: ext.sortino_ratio ?? 0,
+                calmar_ratio: ext.calmar_ratio ?? 0,
+                var_95: ext.var_95 ?? 0,
+                cvar_95: ext.cvar_95 ?? 0,
+                volatility: ext.volatility ?? 0,
+                expectancy: ext.expectancy ?? 0,
+                total_commission: ext.total_commission ?? 0,
+                // Monthly returns matrix from extended_results
+                monthly_returns_matrix: ext.monthly_returns_matrix ?? undefined,
+            },
+            equity_curve: item.equity_curve ?? [],
+            trades: item.trades ?? [],
+            // Price data and benchmark from extended_results
+            price_data: ext.price_data ?? null,
+            benchmark: ext.benchmark ?? null,
+        } as SingleBacktestResponse;
     },
 
+    /**
+     * Submit a multi-asset backtest (returns immediately, polls for result).
+     */
     runMulti: async (request: MultiAssetBacktestRequest): Promise<MultiAssetBacktestResponse> => {
-        return client.post<MultiAssetBacktestResponse>('/backtest/multi', request);
+        const submission = await client.post<BacktestSubmission>('/backtest/multi', request);
+        const completed = await pollForResult(submission.backtest_id);
+
+        // Reconstruct the nested response shape from flat BacktestHistoryItem
+        const item = completed as any;
+        const ext = item.extended_results || {};
+        return {
+            result: {
+                // Core metrics from top-level columns
+                total_return: ext.total_return ?? item.total_return_pct ?? 0,
+                total_return_pct: item.total_return_pct ?? 0,
+                win_rate: item.win_rate ?? 0,
+                sharpe_ratio: item.sharpe_ratio ?? 0,
+                max_drawdown: item.max_drawdown ?? 0,
+                total_trades: item.total_trades ?? 0,
+                final_equity: item.final_equity ?? 0,
+                initial_capital: ext.initial_capital ?? item.initial_capital ?? 0,
+                // Trade statistics from extended_results
+                winning_trades: ext.winning_trades ?? 0,
+                losing_trades: ext.losing_trades ?? 0,
+                avg_profit: ext.avg_profit ?? 0,
+                avg_win: ext.avg_win ?? 0,
+                avg_loss: ext.avg_loss ?? 0,
+                profit_factor: ext.profit_factor ?? 0,
+                symbol_stats: ext.symbol_stats ?? {},
+                // Factor attribution from extended_results
+                alpha: ext.alpha ?? 0,
+                beta: ext.beta ?? 0,
+                r_squared: ext.r_squared ?? 0,
+                // Advanced metrics from extended_results
+                sortino_ratio: ext.sortino_ratio ?? 0,
+                calmar_ratio: ext.calmar_ratio ?? 0,
+                var_95: ext.var_95 ?? 0,
+                cvar_95: ext.cvar_95 ?? 0,
+                volatility: ext.volatility ?? 0,
+                expectancy: ext.expectancy ?? 0,
+                total_commission: ext.total_commission ?? 0,
+                // Multi-asset specific
+                num_symbols: ext.num_symbols ?? item.symbols?.length ?? 0,
+            },
+            equity_curve: item.equity_curve ?? [],
+            trades: item.trades ?? [],
+            // Price data and benchmark from extended_results
+            price_data: ext.price_data ?? null,
+            benchmark: ext.benchmark ?? null,
+        } as MultiAssetBacktestResponse;
     },
 
     runValidateKalman: async (request: PairsValidationRequest): Promise<PairsValidationResponse> => {
@@ -239,13 +363,44 @@ export const backtest = {
         client.get<Record<string, unknown>>('/backtest/history/stats/summary'),
 
     /**
-     * Run Bayesian optimization on strategy parameters
+     * Run Bayesian optimization on strategy parameters.
+     * Dispatches a Celery task and polls for the result (same pattern as WFA).
      */
-    bayesian: (request: any) =>
-        client.post<any>('/optimise/bayesian', request),
+    bayesian: async (request: any) => {
+        const submission = await client.post<BacktestSubmission>('/optimise/bayesian', request);
+        console.log('[bayesian] Submission response:', JSON.stringify(submission));
+        const completed = await pollForResult(submission.backtest_id);
+        console.log('[bayesian] Poll completed. Status:', completed.status, 'Has extended_results.bayesian:', !!completed.extended_results?.bayesian);
+        const result = completed.extended_results?.bayesian || completed;
+        console.log('[bayesian] Returning result with keys:', Object.keys(result));
+        return result;
+    },
 
-    walkForward: (request: WFARequest) =>
-        client.post<WFAResponse>('/backtest/walk-forward', request)
+    /**
+     * Submit Walk-Forward Analysis (returns immediately, polls for result).
+     */
+    walkForward: async (request: WFARequest): Promise<WFAResponse> => {
+        const submission = await client.post<BacktestSubmission>('/backtest/walk-forward', request);
+        const completed = await pollForResult(submission.backtest_id);
+        // WFA results are stored in extended_results.wfa_results (moved from trades_json)
+        const wfaData = completed.extended_results?.wfa_results;
+        if (wfaData) {
+            return wfaData as unknown as WFAResponse;
+        }
+        // Fallback: check trades for backward compatibility with older data
+        if (completed.trades && !Array.isArray(completed.trades)) {
+            return completed.trades as unknown as WFAResponse;
+        }
+        return completed as unknown as WFAResponse;
+    },
+
+    /**
+     * Check Celery task status directly (optional, for advanced UIs).
+     */
+    getTaskStatus: (taskId: string) =>
+        client.get<{ task_id: string; status: string; result?: any; error?: string }>(
+            `/backtest/task/${taskId}`
+        ),
 };
 
 // ==================== PORTFOLIO ====================
@@ -332,6 +487,62 @@ export const market = {
 };
 
 // ==================== STRATEGY ====================
+
+export interface StrategyGenerateRequest {
+    prompt: string;
+    style: string;
+    timeframe?: string;
+}
+
+export interface StrategyGenerateResponse {
+    code: string;
+    explanation: string;
+    example_usage: string;
+    provider: string;
+}
+
+export interface StrategyValidateResponse {
+    is_valid: boolean;
+    errors: string[];
+    warnings: string[];
+}
+
+export interface CustomStrategy {
+    id: number;
+    name: string;
+    description: string | null;
+    code: string;
+    strategy_type: string;
+    parameters: Record<string, unknown> | null;
+    is_validated: boolean;
+    ai_generated: boolean;
+    ai_explanation: string | null;
+    created_at: string;
+    updated_at: string;
+}
+
+export interface CustomStrategyCreate {
+    name: string;
+    description?: string;
+    code: string;
+    strategy_type?: string;
+    parameters?: Record<string, unknown>;
+    ai_generated?: boolean;
+    ai_explanation?: string;
+}
+
+export interface CustomBacktestRequest {
+    code: string;
+    symbol: string;
+    period?: string;
+    interval?: string;
+    initial_capital?: number;
+    commission_rate?: number;
+    slippage_rate?: number;
+    strategy_name?: string;
+    custom_strategy_id?: number;
+}
+
 export const strategy = {
     list: async (mode?: 'single' | 'multi'): Promise<StrategyInfo[]> => {
         const params = mode ? { mode } : {};
@@ -340,6 +551,74 @@ export const strategy = {
 
     get: (strategy_key: string) =>
         client.get<StrategyInfo>(`/strategy/${strategy_key}`),
+
+    // AI Code Generation
+    generate: (request: StrategyGenerateRequest) =>
+        client.post<StrategyGenerateResponse>('/strategy/generate', request),
+
+    // Code Validation
+    validate: (request: { code: string }) =>
+        client.post<StrategyValidateResponse>('/strategy/validate', request),
+
+    // Custom strategy backtest (polls for result like backtest.runSingle)
+    backtestCustom: async (request: CustomBacktestRequest): Promise<SingleBacktestResponse> => {
+        const submission = await client.post<BacktestSubmission>('/strategy/backtest', request);
+        const completed = await pollForResult(submission.backtest_id);
+
+        // Reconstruct the nested response shape (same mapping as backtest.runSingle)
+        const item = completed as Record<string, any>;
+        const ext = item.extended_results || {};
+        return {
+            result: {
+                total_return: ext.total_return ?? item.total_return_pct ?? 0,
+                total_return_pct: item.total_return_pct ?? 0,
+                win_rate: item.win_rate ?? 0,
+                sharpe_ratio: item.sharpe_ratio ?? 0,
+                max_drawdown: item.max_drawdown ?? 0,
+                total_trades: item.total_trades ?? 0,
+                final_equity: item.final_equity ?? 0,
+                initial_capital: ext.initial_capital ?? item.initial_capital ?? 0,
+                winning_trades: ext.winning_trades ?? 0,
+                losing_trades: ext.losing_trades ?? 0,
+                avg_profit: ext.avg_profit ?? 0,
+                avg_win: ext.avg_win ?? 0,
+                avg_loss: ext.avg_loss ?? 0,
+                profit_factor: ext.profit_factor ?? 0,
+                symbol_stats: ext.symbol_stats ?? {},
+                alpha: ext.alpha ?? 0,
+                beta: ext.beta ?? 0,
+                r_squared: ext.r_squared ?? 0,
+                sortino_ratio: ext.sortino_ratio ?? 0,
+                calmar_ratio: ext.calmar_ratio ?? 0,
+                var_95: ext.var_95 ?? 0,
+                cvar_95: ext.cvar_95 ?? 0,
+                volatility: ext.volatility ?? 0,
+                expectancy: ext.expectancy ?? 0,
+                total_commission: ext.total_commission ?? 0,
+                monthly_returns_matrix: ext.monthly_returns_matrix ?? undefined,
+            },
+            equity_curve: item.equity_curve ?? [],
+            trades: item.trades ?? [],
+            price_data: ext.price_data ?? null,
+            benchmark: ext.benchmark ?? null,
+        } as SingleBacktestResponse;
+    },
+
+    // CRUD for saved custom strategies
+    listCustom: () =>
+        client.get<CustomStrategy[]>('/strategy/custom'),
+
+    getCustom: (id: number) =>
+        client.get<CustomStrategy>(`/strategy/custom/${id}`),
+
+    createCustom: (data: CustomStrategyCreate) =>
+        client.post<CustomStrategy>('/strategy/custom', data),
+
+    updateCustom: (id: number, data: Partial<CustomStrategyCreate>) =>
+        client.put<CustomStrategy>(`/strategy/custom/${id}`, data),
+
+    deleteCustom: (id: number) =>
+        client.delete(`/strategy/custom/${id}`),
 };
 
 // ==================== ANALYTICS ====================
@@ -557,7 +836,7 @@ export const mlstudio = {
         client.post<{ success: boolean; deployed: boolean; endpoint?: string }>(`/mlstudio/undeploy/${model_id}`),
 
     updateModelStatus: (request: MLModelStatusRequest) =>
-            client.post<{ success: boolean; deployed: boolean; endpoint?: string }>(`/mlstudio/update-status/`, request),
+        client.post<{ success: boolean; deployed: boolean; endpoint?: string }>(`/mlstudio/update-status/`, request),
 
     exportModel: (model_id: string) =>
         client.post<Blob | MediaSource>(`/mlstudio/export/${model_id}`),
@@ -840,20 +1119,14 @@ export const api = {
     client: client,
 
     // Helper methods
-    setAuthToken: (token: string) => {
-        if (IS_BROWSER) {
-            localStorage.setItem('access_token', token);
-        }
-        client.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+    // Auth tokens are now handled via httpOnly cookies — these are kept
+    // as no-ops for backward compatibility with any callers.
+    setAuthToken: (_token: string) => {
+        // No-op: auth is managed via httpOnly cookies set by the server
     },
 
     clearAuthToken: () => {
-        if (IS_BROWSER) {
-            localStorage.removeItem('access_token');
-            localStorage.removeItem('refresh_token');
-            localStorage.removeItem('user');
-        }
-        delete client.defaults.headers.common['Authorization'];
+        // No-op: cookies are cleared by calling POST /auth/logout
     },
 
     // File upload helper (if needed)

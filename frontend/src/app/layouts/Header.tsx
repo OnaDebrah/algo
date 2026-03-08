@@ -3,8 +3,9 @@
 import React, { useEffect, useState } from "react";
 import { ChevronRight, Clock, Globe, Shield, TrendingUp } from "lucide-react";
 import {formatCurrency, toPrecision} from "@/utils/formatters";
-import { api } from "@/utils/api";
+import { api, live } from "@/utils/api";
 import { QuoteData, User } from "@/types/all_types";
+import { useNavigationStore } from "@/store/useNavigationStore";
 
 interface HeaderProps {
     user: User;
@@ -39,6 +40,28 @@ type PageKey =
 const Header = ({ user, currentPage, serverStatus = false, onLogout }: HeaderProps) => {
     const [marketData, setMarketData] = useState<QuoteData[]>([]);
     const [loading, setLoading] = useState<boolean>(false);
+    const [accountInfo, setAccountInfo] = useState<{ buying_power: number; equity: number } | null>(null);
+    const navigateTo = useNavigationStore(state => state.navigateTo);
+
+    const showMainHeader = currentPage === 'live' || currentPage === 'dashboard';
+
+    // Poll live account data when header is visible
+    useEffect(() => {
+        if (!serverStatus || !showMainHeader) return;
+
+        const fetchAccount = async () => {
+            try {
+                const data = await live.getAccount();
+                setAccountInfo({ buying_power: data.buying_power, equity: data.equity });
+            } catch {
+                setAccountInfo(null);
+            }
+        };
+
+        fetchAccount();
+        const interval = setInterval(fetchAccount, 10000);
+        return () => clearInterval(interval);
+    }, [serverStatus, showMainHeader]);
 
     useEffect(() => {
         const fetchMarketData = async () => {
@@ -68,10 +91,10 @@ const Header = ({ user, currentPage, serverStatus = false, onLogout }: HeaderPro
     // Prepare display data
     const displayData: MarketDisplayData[] = marketData.length > 0
         ? marketData.map((q: QuoteData) => ({
-            symbol: q.symbol,
-            price: formatCurrency(q.price),
-            change: `${q.changePercent >= 0 ? '+' : ''}${q.changePercent.toFixed(2)}%`,
-            up: q.changePercent >= 0
+            symbol: q.symbol ?? '---',
+            price: formatCurrency(q.price ?? 0),
+            change: `${(q.changePercent ?? 0) >= 0 ? '+' : ''}${(q.changePercent ?? 0).toFixed(2)}%`,
+            up: (q.changePercent ?? 0) >= 0
         }))
         : loading
             ? [
@@ -84,8 +107,6 @@ const Header = ({ user, currentPage, serverStatus = false, onLogout }: HeaderPro
                 { symbol: 'QQQ', price: '---', change: '---', up: true },
                 { symbol: 'BTC', price: '---', change: '---', up: false }
             ];
-
-    const showMainHeader = currentPage === 'live' || currentPage === 'dashboard';
 
     return (
         <header className="space-y-4">
@@ -104,7 +125,7 @@ const Header = ({ user, currentPage, serverStatus = false, onLogout }: HeaderPro
                     {/* User info */}
                     <div className="flex items-center space-x-2 border-l border-slate-800 pl-6">
                         <span className="font-medium text-slate-400">
-                            {user.username} • {user.tier} Tier
+                            {user?.username ?? 'User'} • {user?.tier ?? 'FREE'} Tier
                         </span>
                         {onLogout && (
                             <button
@@ -151,19 +172,18 @@ const Header = ({ user, currentPage, serverStatus = false, onLogout }: HeaderPro
                                 <p className="text-xs font-semibold text-slate-500 tracking-wider mb-1">BUYING POWER</p>
                                 <div className="flex items-baseline space-x-2">
                                     <span className="text-2xl font-bold text-slate-100">
-                                        {formatCurrency(124500.00)}
+                                        {accountInfo ? formatCurrency(accountInfo.buying_power) : '—'}
                                     </span>
-                                    <span className="text-sm font-semibold text-emerald-400">+2.4%</span>
+                                    {!accountInfo && (
+                                        <span className="text-xs font-medium text-slate-500">Not Connected</span>
+                                    )}
                                 </div>
                             </div>
                         </div>
 
                         {/* Quick Action */}
                         <button
-                            onClick={() => {
-                                // Navigate to live trading or open order modal
-                                console.log('New order clicked');
-                            }}
+                            onClick={() => navigateTo('live')}
                             className="bg-gradient-to-r from-violet-600 to-fuchsia-600 hover:from-violet-500 hover:to-fuchsia-500 text-white px-5 py-4 rounded-xl transition-all shadow-xl shadow-violet-500/20 flex items-center group"
                         >
                             <div className="bg-white/20 p-2 rounded-lg mr-3">

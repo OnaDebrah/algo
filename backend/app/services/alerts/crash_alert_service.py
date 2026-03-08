@@ -6,9 +6,8 @@ import logging
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
-from alerts import AlertManager
-from core.data.providers.providers import ProviderFactory
-
+from ...alerts.alert_manager import AlertManager
+from ...core.data.providers.providers import ProviderFactory
 from ...schemas.alert import AlertCategory, AlertLevel
 
 logger = logging.getLogger(__name__)
@@ -194,7 +193,7 @@ class CrashAlertService:
         for pos in positions[:3]:  # Show top 3
             position_lines.append(f"  • {pos['quantity']}x {pos['symbol']} {pos['type']} @ ${pos['strike']}")
         if len(positions) > 3:
-            position_lines.append(f"  • ... and {len(positions)-3} more positions")
+            position_lines.append(f"  • ... and {len(positions) - 3} more positions")
 
         message = (
             f"**Hedge Position Executed**\n\n"
@@ -332,7 +331,7 @@ class CrashAlertService:
         # Create risk factors section
         risk_factors_text = "\n".join([f"• {factor}" for factor in risk_factors[:5]])
         if len(risk_factors) > 5:
-            risk_factors_text += f"\n• ... and {len(risk_factors)-5} more factors"
+            risk_factors_text += f"\n• ... and {len(risk_factors) - 5} more factors"
 
         # Map intensity to emoji
         intensity_emoji = {"severe": "🔴", "moderate": "🟡", "mild": "🟢"}.get(intensity, "⚪")

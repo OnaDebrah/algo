@@ -13,7 +13,7 @@ class BacktestRun(Base):
     __tablename__ = "backtest_runs"
 
     id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
     name = Column(String, nullable=True)
     backtest_type = Column(String, nullable=False)  # single, multi, options
 
@@ -37,10 +37,14 @@ class BacktestRun(Base):
     equity_curve = Column(JSON, nullable=True)
     trades_json = Column(JSON, nullable=True)
 
+    # Extended results (advanced metrics, benchmark, price data, factor attribution)
+    extended_results = Column(JSON, nullable=True)
+
     # Metadata
-    status = Column(String, default="pending")  # pending, running, completed, failed
+    status = Column(String, default="pending", index=True)  # pending, running, completed, failed
+    celery_task_id = Column(String, nullable=True, index=True)
     error_message = Column(String, nullable=True)
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)
     completed_at = Column(DateTime(timezone=True), nullable=True)
 
     # Relationships
@@ -64,6 +68,7 @@ class BacktestRun(Base):
             "win_rate": self.win_rate,
             "total_trades": self.total_trades,
             "final_equity": self.final_equity,
+            "extended_results": self.extended_results,
             "status": self.status,
             "error_message": self.error_message,
             "created_at": self.created_at.isoformat() if self.created_at else None,

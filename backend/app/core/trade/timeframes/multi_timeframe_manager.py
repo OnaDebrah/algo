@@ -4,8 +4,8 @@ from typing import Any, Dict, List, Optional
 
 import pandas as pd
 
-from core.trade.timeframes.timeframe_aggregator import TimeframeAggregator
-from core.trade.timeframes.timeframe_bar import TimeframeBar
+from app.core.trade.timeframes.timeframe_aggregator import TimeframeAggregator
+from app.core.trade.timeframes.timeframe_bar import TimeframeBar
 
 logger = logging.getLogger(__name__)
 

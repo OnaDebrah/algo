@@ -234,9 +234,9 @@ export default function LiveStrategyDashboard() {
                         >
                             <div className="flex items-center gap-3">
                                 <div className={`w-2 h-2 rounded-full ${
-                                    strategy.status === 'running' ? 'bg-emerald-500 animate-pulse' :
-                                        strategy.status === 'paused' ? 'bg-amber-500' :
-                                            strategy.status === 'error' ? 'bg-red-500' :
+                                    strategy.status === 'RUNNING' ? 'bg-emerald-500 animate-pulse' :
+                                        strategy.status === 'PAUSED' ? 'bg-amber-500' :
+                                            strategy.status === 'ERROR' ? 'bg-red-500' :
                                                 'bg-slate-600'
                                 }`} />
                                 <div className="text-left">
@@ -367,21 +367,21 @@ export default function LiveStrategyDashboard() {
                                     <div>
                                         <label className="text-xs font-bold text-slate-500 uppercase block mb-2">Status</label>
                                         <div className={`px-4 py-2 rounded-lg flex items-center gap-2 ${
-                                            currentStrategy.status === 'running' ? 'bg-emerald-500/20 text-emerald-400' :
-                                                currentStrategy.status === 'paused' ? 'bg-amber-500/20 text-amber-400' :
-                                                    currentStrategy.status === 'error' ? 'bg-red-500/20 text-red-400' :
+                                            currentStrategy.status === 'RUNNING' ? 'bg-emerald-500/20 text-emerald-400' :
+                                                currentStrategy.status === 'PAUSED' ? 'bg-amber-500/20 text-amber-400' :
+                                                    currentStrategy.status === 'ERROR' ? 'bg-red-500/20 text-red-400' :
                                                         'bg-slate-800 text-slate-400'
                                         }`}>
-                                            {currentStrategy.status === 'running' && <Play size={16} className="fill-current" />}
-                                            {currentStrategy.status === 'paused' && <Pause size={16} />}
-                                            {currentStrategy.status === 'stopped' && <Square size={16} />}
+                                            {currentStrategy.status === 'RUNNING' && <Play size={16} className="fill-current" />}
+                                            {currentStrategy.status === 'PAUSED' && <Pause size={16} />}
+                                            {currentStrategy.status === 'STOPPED' && <Square size={16} />}
                                             <span className="font-semibold uppercase text-sm">{currentStrategy.status}</span>
                                         </div>
                                     </div>
 
                                     {/* Action Buttons */}
                                     <div className="space-y-2">
-                                        {currentStrategy.status === 'running' && (
+                                        {currentStrategy.status === 'RUNNING' && (
                                             <>
                                                 <button
                                                     onClick={() => controlStrategy(currentStrategy.id, 'pause')}
@@ -400,7 +400,7 @@ export default function LiveStrategyDashboard() {
                                             </>
                                         )}
 
-                                        {currentStrategy.status === 'paused' && (
+                                        {currentStrategy.status === 'PAUSED' && (
                                             <button
                                                 onClick={() => controlStrategy(currentStrategy.id, 'start')}
                                                 className="w-full px-4 py-3 bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/50 rounded-lg text-emerald-400 font-semibold flex items-center justify-center gap-2"

@@ -9,6 +9,7 @@ from ...core.permissions import Permission
 from ...models import User
 from ...schemas.analyst import AnalystReport, FundamentalData, MACDData, RisksData, SentimentData, TechnicalData, ValuationMetric
 from ...services.auth_service import AuthService
+from ...utils.errors import safe_detail
 from ..deps import check_permission, get_current_active_user, get_db
 
 router = APIRouter(prefix="/analyst", tags=["Analyst"])
@@ -88,11 +89,11 @@ def convert_core_report_to_api(core_report, ticker_info: Dict) -> AnalystReport:
     # Format market cap
     market_cap_val = fund.get("market_cap", 0)
     if market_cap_val > 1e12:
-        market_cap = f"{market_cap_val/1e12:.1f}T"
+        market_cap = f"{market_cap_val / 1e12:.1f}T"
     elif market_cap_val > 1e9:
-        market_cap = f"{market_cap_val/1e9:.1f}B"
+        market_cap = f"{market_cap_val / 1e9:.1f}B"
     elif market_cap_val > 1e6:
-        market_cap = f"{market_cap_val/1e6:.1f}M"
+        market_cap = f"{market_cap_val / 1e6:.1f}M"
     else:
         market_cap = "N/A"
 
@@ -167,7 +168,7 @@ async def get_analyst_report(
 
     except Exception as e:
         # If analysis fails, return a basic error report
-        raise HTTPException(status_code=500, detail=f"Failed to generate analyst report for {ticker}: {str(e)}")
+        raise HTTPException(status_code=500, detail=safe_detail(f"Failed to generate analyst report for {ticker}", e))
 
 
 @router.get("/sentiment/{ticker}")
@@ -186,4 +187,4 @@ async def get_sentiment_analysis(
         sentiment = await analyst_agent.sentiment_service.get_sentiment(ticker)
         return sentiment
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Sentiment analysis failed for {ticker}: {str(e)}")
+        raise HTTPException(status_code=500, detail=safe_detail(f"Sentiment analysis failed for {ticker}", e))

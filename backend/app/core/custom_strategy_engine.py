@@ -4,14 +4,19 @@ Custom Strategy Engine - Execute user-defined strategies with safety checks
 
 import ast
 import io
+import logging
 import re
 import traceback
 from contextlib import redirect_stderr, redirect_stdout
 from datetime import datetime
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Dict, Optional, Tuple, Union
 
 import numpy as np
 import pandas as pd
+
+from ..strategies.base_strategy import BaseStrategy
+
+logger = logging.getLogger(__name__)
 
 
 class SafeExecutionEnvironment:
@@ -171,52 +176,127 @@ class SafeExecutionEnvironment:
             return False, None, error_msg
 
 
+class CustomStrategyAdapter(BaseStrategy):
+    """
+    Adapter that wraps a standalone generate_signals(data) function
+    inside a BaseStrategy-compatible interface for TradingEngine.
+    """
+
+    def __init__(self, name: str, code: str, params: Dict = None):
+        super().__init__(name=name, params=params or {})
+        self.code = code
+        self._env = SafeExecutionEnvironment()
+        self._compiled_func = None
+        self._compile()
+
+    def _compile(self):
+        """Pre-compile the code and extract the generate_signals function."""
+        is_valid, error = self._env.validate_code(self.code)
+        if not is_valid:
+            raise ValueError(f"Invalid strategy code: {error}")
+        safe_globals = self._env.create_safe_globals()
+        safe_locals: Dict[str, Any] = {}
+        exec(self.code, safe_globals, safe_locals)  # noqa: S102 - sandboxed
+        if "generate_signals" not in safe_locals:
+            raise ValueError("Strategy code must define 'generate_signals(data)' function")
+        self._compiled_func = safe_locals["generate_signals"]
+
+    def generate_signal(self, data: pd.DataFrame) -> Union[int, Dict]:
+        """Loop-based: call generate_signals and return the last signal."""
+        signals = self._compiled_func(data.copy())
+        if isinstance(signals, pd.Series) and len(signals) > 0:
+            return int(signals.iloc[-1])
+        return 0
+
+    def generate_signals_vectorized(self, data: pd.DataFrame) -> pd.Series:
+        """Vectorized: return the full signal series from user code."""
+        result = self._compiled_func(data.copy())
+        if isinstance(result, pd.Series):
+            return result
+        return pd.Series(0, index=data.index)
+
+
 class StrategyCodeGenerator:
     """Generate strategy code from natural language prompts using AI"""
 
-    def __init__(self, api_key: Optional[str] = None):
-        self.api_key = api_key
-        self.client = None
-        if api_key:
-            import anthropic
+    def __init__(
+        self,
+        anthropic_api_key: Optional[str] = None,
+        deepseek_api_key: Optional[str] = None,
+        # Legacy compat: positional api_key maps to anthropic
+        api_key: Optional[str] = None,
+    ):
+        anthropic_api_key = anthropic_api_key or api_key
+        self.anthropic_client = None
+        self.deepseek_client = None
+        if anthropic_api_key:
+            try:
+                import anthropic
 
-            self.client = anthropic.Anthropic(api_key=api_key)
+                self.anthropic_client = anthropic.Anthropic(api_key=anthropic_api_key)
+            except Exception as e:
+                logger.warning(f"Failed to initialize Anthropic client: {e}")
+        if deepseek_api_key:
+            try:
+                from openai import OpenAI
+
+                self.deepseek_client = OpenAI(
+                    api_key=deepseek_api_key,
+                    base_url="https://api.deepseek.com",
+                )
+            except Exception as e:
+                logger.warning(f"Failed to initialize DeepSeek client: {e}")
 
     async def generate_strategy_code(
         self,
         prompt: str,
-        style: str = "technical",  # technical, fundamental, hybrid
-    ) -> Tuple[str, str, str]:
+        style: str = "technical",
+    ) -> Tuple[str, str, str, str]:
         """
-        Generate strategy code from natural language
+        Generate strategy code from natural language.
+
+        Fallback chain: Anthropic → DeepSeek → Template
 
         Returns:
-            (code, explanation, example_usage)
+            (code, explanation, example_usage, provider)
         """
-        if not self.client:
-            return self._generate_template_strategy(prompt, style)
-
-        # Build AI prompt
         ai_prompt = self._build_code_generation_prompt(prompt, style)
 
-        try:
-            message = self.client.messages.create(
-                model="claude-sonnet-4-20250514",
-                max_tokens=3000,
-                temperature=0.3,
-                messages=[{"role": "user", "content": ai_prompt}],
-            )
+        # Attempt 1: Anthropic Claude
+        if self.anthropic_client:
+            try:
+                message = self.anthropic_client.messages.create(
+                    model="claude-sonnet-4-20250514",
+                    max_tokens=3000,
+                    temperature=0.3,
+                    messages=[{"role": "user", "content": ai_prompt}],
+                )
+                response = message.content[0].text
+                code, explanation, example = self._parse_ai_response(response)
+                return code, explanation, example, "anthropic"
+            except Exception as e:
+                logger.warning(f"Anthropic generation failed: {e}, trying DeepSeek...")
 
-            response = message.content[0].text
+        # Attempt 2: DeepSeek
+        if self.deepseek_client:
+            try:
+                from ..config import settings
 
-            # Parse response
-            code, explanation, example = self._parse_ai_response(response)
+                response = self.deepseek_client.chat.completions.create(
+                    model=settings.DEEPSEEK_MODEL,
+                    messages=[{"role": "user", "content": ai_prompt}],
+                    max_tokens=3000,
+                    temperature=0.3,
+                )
+                text = response.choices[0].message.content
+                code, explanation, example = self._parse_ai_response(text)
+                return code, explanation, example, "deepseek"
+            except Exception as e:
+                logger.warning(f"DeepSeek generation failed: {e}, using templates...")
 
-            return code, explanation, example
-
-        except Exception as e:
-            print(f"AI generation error: {e}")
-            return self._generate_template_strategy(prompt, style)
+        # Attempt 3: Template fallback
+        code, explanation, example = self._generate_template_strategy(prompt, style)
+        return code, explanation, example, "template"
 
     def _build_code_generation_prompt(self, prompt: str, style: str) -> str:
         """Build prompt for Claude to generate strategy code"""

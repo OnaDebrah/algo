@@ -138,6 +138,26 @@ class AlertManager:
 
         return True
 
+    async def send_info(self, message: str) -> bool:
+        """Send info-level system notification (no specific user)"""
+        return await self.send_alert(
+            user_id=0,
+            level=AlertLevel.INFO,
+            title="System Info",
+            message=message,
+            category=AlertCategory.SYSTEM,
+        )
+
+    async def send_error(self, message: str) -> bool:
+        """Send error-level system notification (no specific user)"""
+        return await self.send_alert(
+            user_id=0,
+            level=AlertLevel.ERROR,
+            title="System Error",
+            message=message,
+            category=AlertCategory.SYSTEM,
+        )
+
     async def _process_alerts(self):
         """Background worker to process alert queue"""
         while True:
@@ -192,12 +212,12 @@ class AlertManager:
         <body>
             <h2>{alert.title}</h2>
             <p><strong>Level:</strong> {alert.level.value.upper()}</p>
-            <p><strong>Time:</strong> {alert.created_at.strftime('%Y-%m-%d %H:%M:%S UTC')}</p>
-            {f'<p><strong>Strategy ID:</strong> {alert.strategy_id}</p>' if alert.strategy_id else ''}
+            <p><strong>Time:</strong> {alert.created_at.strftime("%Y-%m-%d %H:%M:%S UTC")}</p>
+            {f"<p><strong>Strategy ID:</strong> {alert.strategy_id}</p>" if alert.strategy_id else ""}
             <hr>
             <p>{alert.message}</p>
 
-            {self._format_metadata_html(alert.metadata) if alert.metadata else ''}
+            {self._format_metadata_html(alert.metadata) if alert.metadata else ""}
         </body>
         </html>
         """

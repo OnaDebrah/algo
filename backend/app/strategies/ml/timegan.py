@@ -189,7 +189,7 @@ class TimeGAN:
                 self.optimizer_d.step()
 
             if epoch % 100 == 0:
-                logger.info(f"Epoch {epoch}: E_loss={e_loss.item():.4f}, " f"G_loss={g_loss.item():.4f}, D_loss={d_loss.item():.4f}")
+                logger.info(f"Epoch {epoch}: E_loss={e_loss.item():.4f}, G_loss={g_loss.item():.4f}, D_loss={d_loss.item():.4f}")
 
     def generate(self, n_samples: int) -> np.ndarray:
         """

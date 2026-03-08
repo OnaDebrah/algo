@@ -89,7 +89,7 @@ class SectorRotationAltStrategy(BaseStrategy):
         self.SECTORS = SECTOR_MAPPINGS
 
         logger.info(
-            f"SectorRotationStrategy initialized with model={model_type}, " f"alternative_data={use_alternative_data}, shap={use_shap_explanations}"
+            f"SectorRotationStrategy initialized with model={model_type}, alternative_data={use_alternative_data}, shap={use_shap_explanations}"
         )
 
     def _run_async(self, coro):
