@@ -203,15 +203,19 @@ async function pollForResult(
     intervalMs: number = 2000,
     maxAttempts: number = 300  // 10 minutes at 2s
 ): Promise<BacktestHistoryItem> {
+    console.log(`[pollForResult] Starting poll for backtest_id=${backtestId}`);
     for (let i = 0; i < maxAttempts; i++) {
         const details = await client.get<BacktestHistoryItem>(
             `/backtest/history/${backtestId}`
         );
 
+        console.log(`[pollForResult] Poll #${i + 1}: status=${details.status}`);
+
         if (details.status === 'completed' || details.status === 'failed') {
             if (details.status === 'failed') {
                 throw new Error(details.error_message || 'Backtest failed');
             }
+            console.log(`[pollForResult] Completed! extended_results keys:`, details.extended_results ? Object.keys(details.extended_results) : 'null');
             return details;
         }
 
@@ -363,10 +367,18 @@ export const backtest = {
         client.get<Record<string, unknown>>('/backtest/history/stats/summary'),
 
     /**
-     * Run Bayesian optimization on strategy parameters
+     * Run Bayesian optimization on strategy parameters.
+     * Dispatches a Celery task and polls for the result (same pattern as WFA).
      */
-    bayesian: (request: any) =>
-        client.post<any>('/optimise/bayesian', request),
+    bayesian: async (request: any) => {
+        const submission = await client.post<BacktestSubmission>('/optimise/bayesian', request);
+        console.log('[bayesian] Submission response:', JSON.stringify(submission));
+        const completed = await pollForResult(submission.backtest_id);
+        console.log('[bayesian] Poll completed. Status:', completed.status, 'Has extended_results.bayesian:', !!completed.extended_results?.bayesian);
+        const result = completed.extended_results?.bayesian || completed;
+        console.log('[bayesian] Returning result with keys:', Object.keys(result));
+        return result;
+    },
 
     /**
      * Submit Walk-Forward Analysis (returns immediately, polls for result).

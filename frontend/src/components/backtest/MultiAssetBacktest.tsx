@@ -40,6 +40,7 @@ import BayesianOptimizerModal from "@/components/backtest/BayesianOptimizerModal
 import {assetSuggestions} from "@/utils/suggestions";
 import KalmanFilterParameters from "@/components/backtest/KalmanFilterParameters";
 import StrategyInfoPopover from "@/components/backtest/StrategyInfoPopover";
+import TickerSearch from "@/components/common/TickerSearch";
 
 interface MultiAssetBacktestProps {
     config: MultiAssetConfig;
@@ -384,15 +385,16 @@ const MultiAssetBacktest: React.FC<MultiAssetBacktestProps> = ({
                                         Portfolio Assets
                                     </h4>
                                     <div className="flex gap-2 mb-3">
-                                        <div className="relative flex-1 group">
-                                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-600 group-focus-within:text-violet-500 transition-colors" size={14} />
-                                            <input
-                                                type="text"
-                                                placeholder="Search ticker (e.g. AAPL)"
+                                        <div className="flex-1">
+                                            <TickerSearch
                                                 value={config.symbolInput}
-                                                onChange={(e) => setConfig({ ...config, symbolInput: e.target.value.toUpperCase() })}
-                                                onKeyUp={(e) => e.key === 'Enter' && addSymbol()}
-                                                className="w-full pl-9 pr-3 py-2.5 bg-slate-800/50 border border-slate-700/50 rounded-xl focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20 outline-none text-sm text-slate-200 font-mono"
+                                                onChange={(symbol) => setConfig({ ...config, symbolInput: symbol })}
+                                                onSelect={(symbol) => {
+                                                    setConfig({ ...config, symbolInput: symbol });
+                                                    setTimeout(addSymbol, 0);
+                                                }}
+                                                placeholder="Search ticker (e.g. AAPL)"
+                                                size="sm"
                                             />
                                         </div>
                                         <button

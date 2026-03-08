@@ -19,6 +19,7 @@ import {
 } from 'recharts';
 import { strategy as strategyApi } from '@/utils/api';
 import type { CustomStrategy as CustomStrategyType, StrategyGenerateResponse } from '@/utils/api';
+import TickerSearch from "@/components/common/TickerSearch";
 
 const STRATEGY_TEMPLATES = [
     {
@@ -749,17 +750,12 @@ class QuantumMomentumStrategy:
                                         <div className="space-y-4">
                                             <div className="space-y-2">
                                                 <label className="text-xs font-semibold text-slate-400">Asset</label>
-                                                <select value={backtestSymbol} onChange={(e) => setBacktestSymbol(e.target.value)} className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-sm text-slate-300">
-                                                    <option value="AAPL">AAPL (Apple)</option>
-                                                    <option value="TSLA">TSLA (Tesla)</option>
-                                                    <option value="MSFT">MSFT (Microsoft)</option>
-                                                    <option value="GOOGL">GOOGL (Google)</option>
-                                                    <option value="AMZN">AMZN (Amazon)</option>
-                                                    <option value="SPY">SPY (S&P 500)</option>
-                                                    <option value="QQQ">QQQ (Nasdaq)</option>
-                                                    <option value="BTC-USD">BTC-USD (Bitcoin)</option>
-                                                    <option value="ETH-USD">ETH-USD (Ethereum)</option>
-                                                </select>
+                                                <TickerSearch
+                                                    value={backtestSymbol}
+                                                    onChange={setBacktestSymbol}
+                                                    placeholder="Search asset..."
+                                                    size="sm"
+                                                />
                                             </div>
 
                                             <div className="space-y-2">

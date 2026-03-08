@@ -20,6 +20,7 @@ from ..providers.base_provider import (
 from ..providers.iex_provider import IEXProvider
 from ..providers.polygon_provider import PolygonProvider
 from ..providers.yahoo_provider import YahooProvider
+from .alpha_vantage_provider import AlphaVantageProvider
 
 logger = logging.getLogger(__name__)
 
@@ -43,7 +44,7 @@ class ProviderFactory:
 
     async def _get_provider(
         self, user: Optional[User] = None, db: Optional[AsyncSession] = None
-    ) -> Union[PolygonProvider, AlpacaProvider, IEXProvider, YahooProvider]:
+    ) -> Union[PolygonProvider, AlpacaProvider, IEXProvider, YahooProvider, AlphaVantageProvider]:
         """Get provider for user or default"""
         if not user or not db:
             return self._default_provider
@@ -66,6 +67,10 @@ class ProviderFactory:
             if provider_type == "iex" and settings.IEX_API_KEY:
                 logger.debug("Using IEX provider")
                 return IEXProvider()
+
+            if provider_type == "alpha_vantage" and settings.ALPHA_VANTAGE_API_KEY:
+                logger.debug("Using Alpha Vantage provider")
+                return AlphaVantageProvider()
 
             if provider_type == "yahoo":
                 logger.debug("Using YAHOO provider")

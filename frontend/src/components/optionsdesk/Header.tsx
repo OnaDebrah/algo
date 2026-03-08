@@ -1,5 +1,6 @@
-import {BrainCircuit, Loader2, RefreshCw, Search, Zap} from "lucide-react";
+import {BrainCircuit, Loader2, RefreshCw, Zap} from "lucide-react";
 import React from "react";
+import TickerSearch from "@/components/common/TickerSearch";
 
 interface HeaderProps {
     selectedSymbol: string,
@@ -35,14 +36,12 @@ const Header: React.FC<HeaderProps> = ({
             </div>
 
             <div className="flex gap-3">
-                <div className="relative">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={16}/>
-                    <input
-                        type="text"
+                <div>
+                    <TickerSearch
                         value={selectedSymbol}
-                        onChange={(e) => setSelectedSymbol(e.target.value.toUpperCase())}
-                        className="pl-9 pr-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-sm text-slate-200 outline-none focus:border-amber-500 w-32"
+                        onChange={setSelectedSymbol}
                         placeholder="Symbol..."
+                        size="sm"
                     />
                 </div>
                 <button
