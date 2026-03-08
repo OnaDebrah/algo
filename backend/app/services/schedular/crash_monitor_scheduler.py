@@ -395,7 +395,7 @@ class CrashMonitorScheduler:
                 train_losses.append(avg_loss)
 
                 if (epoch + 1) % 10 == 0:
-                    logger.debug(f"LSTM Epoch {epoch+1}/{n_epochs}, Loss: {avg_loss:.4f}")
+                    logger.debug(f"LSTM Epoch {epoch + 1}/{n_epochs}, Loss: {avg_loss:.4f}")
 
             training_time = (datetime.now() - start_time).total_seconds()
 

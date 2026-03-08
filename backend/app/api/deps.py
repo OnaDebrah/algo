@@ -32,10 +32,10 @@ def check_permission(permission: Permission):
 
         # Regular permission check
         if not AuthService.has_permission(current_user.tier, permission):
-            logger.warning(f"❌ Permission denied: {current_user.email} (tier={current_user.tier}) " f"lacks permission {permission.value}")
+            logger.warning(f"❌ Permission denied: {current_user.email} (tier={current_user.tier}) lacks permission {permission.value}")
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail=f"Feature '{permission.value}' requires a higher subscription tier. " f"Current tier: {current_user.tier}",
+                detail=f"Feature '{permission.value}' requires a higher subscription tier. Current tier: {current_user.tier}",
             )
 
         logger.info(f"✅ Permission granted: {current_user.email} can access {permission.value}")

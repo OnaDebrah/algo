@@ -137,7 +137,7 @@ class SectorNeutralStockSelector:
                     continue
 
                 # Calculate forward returns
-                price_data = await fetch_stock_data(symbol, period=f"{self.lookback_years+1}y", interval="1d")
+                price_data = await fetch_stock_data(symbol, period=f"{self.lookback_years + 1}y", interval="1d")
 
                 if price_data.empty:
                     continue

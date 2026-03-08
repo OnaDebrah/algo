@@ -1050,9 +1050,7 @@ class DifferentialEvolutionStrategy(BaseStrategy):
             # Progress update
             if (generation + 1) % 10 == 0:
                 print(
-                    f"Generation {generation + 1}/{self.params['generations']}: "
-                    f"Best Fitness = {self.best_fitness:.6f}, "
-                    f"Diversity = {diversity:.4f}"
+                    f"Generation {generation + 1}/{self.params['generations']}: Best Fitness = {self.best_fitness:.6f}, Diversity = {diversity:.4f}"
                 )
 
         return self.best_individual
@@ -1102,9 +1100,9 @@ class DifferentialEvolutionStrategy(BaseStrategy):
             data: DataFrame with OHLCV data
             cross_validate: Whether to perform cross-validation
         """
-        print(f"\n{'='*60}")
+        print(f"\n{'=' * 60}")
         print("Training Differential Evolution Strategy")
-        print(f"{'='*60}")
+        print(f"{'=' * 60}")
         print(f"Strategy: {self.params['strategy_type'].value}")
         print(f"Variant: {self.params['variant'].value}")
         print(f"Population: {self.params['population_size']}, Generations: {self.params['generations']}")
@@ -1132,9 +1130,9 @@ class DifferentialEvolutionStrategy(BaseStrategy):
         val_fitness = self._calculate_fitness(self.best_individual, val_data)
         self.oos_performance = {"val_fitness": val_fitness, "train_fitness": self.best_fitness, "fitness_drop": self.best_fitness - val_fitness}
 
-        print(f"\n{'='*60}")
+        print(f"\n{'=' * 60}")
         print("Training Complete!")
-        print(f"{'='*60}")
+        print(f"{'=' * 60}")
         print(f"Best Training Fitness: {self.best_fitness:.6f}")
         print(f"Validation Fitness: {val_fitness:.6f}")
         print(f"Fitness Drop: {self.oos_performance['fitness_drop']:.6f}")

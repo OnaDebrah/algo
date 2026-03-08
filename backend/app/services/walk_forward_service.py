@@ -71,7 +71,7 @@ class WalkForwardService:
         # Validate window sizes
         if len(df_index) < request.is_window_days + request.oos_window_days:
             raise ValueError(
-                f"Data period ({len(df_index)} days) insufficient for " f"IS ({request.is_window_days}) + OOS ({request.oos_window_days}) windows"
+                f"Data period ({len(df_index)} days) insufficient for IS ({request.is_window_days}) + OOS ({request.oos_window_days}) windows"
             )
 
         # Start from the beginning of data
@@ -163,7 +163,7 @@ class WalkForwardService:
 
                 # Check capital adequacy
                 if last_equity < request.initial_capital * 0.1:  # 10% of initial
-                    logger.warning(f"WFA: Account drawdown too severe (equity {last_equity:.2f}). " f"Stopping at fold {fold['fold_index']}")
+                    logger.warning(f"WFA: Account drawdown too severe (equity {last_equity:.2f}). Stopping at fold {fold['fold_index']}")
                     break
 
                 try:
@@ -185,7 +185,7 @@ class WalkForwardService:
                     is_metrics = optimization_result.best_metrics
 
                     # Log optimization insights
-                    logger.info(f"Fold {fold['fold_index']} IS {request.metric}: " f"{optimization_result.best_value:.4f}")
+                    logger.info(f"Fold {fold['fold_index']} IS {request.metric}: {optimization_result.best_value:.4f}")
 
                     if optimization_result.overfitting_ratio:
                         logger.info(f"Overfitting ratio: {optimization_result.overfitting_ratio:.2f}")

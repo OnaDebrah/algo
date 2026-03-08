@@ -66,7 +66,7 @@ class OptimizationRunner:
         if self.engine:
             await self.engine.dispose()
 
-        logger.info(f"Optimization cleanup: " f"{self.completed_trials} completed, " f"{self.failed_trials} failed")
+        logger.info(f"Optimization cleanup: {self.completed_trials} completed, {self.failed_trials} failed")
 
     def create_objective(self):
         """Create objective function with proper error handling"""
@@ -88,7 +88,7 @@ class OptimizationRunner:
 
                 # 4. Log progress
                 if self.completed_trials % 5 == 0:
-                    logger.info(f"Progress: {self.completed_trials}/{self.request.n_trials} trials, " f"best={trial.study.best_value:.4f}")
+                    logger.info(f"Progress: {self.completed_trials}/{self.request.n_trials} trials, best={trial.study.best_value:.4f}")
 
                 return result_value
 
@@ -193,7 +193,7 @@ class OptimizationRunner:
         objective = self.create_objective()
 
         # Run optimization in thread pool
-        logger.info(f"Starting optimization: " f"{self.request.n_trials} trials, " f"metric={self.request.metric}")
+        logger.info(f"Starting optimization: {self.request.n_trials} trials, metric={self.request.metric}")
 
         try:
             # Run optimization (blocks until complete)
@@ -206,7 +206,7 @@ class OptimizationRunner:
                 callbacks=[self._create_callback()],
             )
 
-            logger.info(f"Optimization complete: " f"best_value={study.best_value:.4f}, " f"best_params={study.best_params}")
+            logger.info(f"Optimization complete: best_value={study.best_value:.4f}, best_params={study.best_params}")
 
             return study
 
@@ -219,6 +219,6 @@ class OptimizationRunner:
 
         def callback(study: optuna.Study, trial: optuna.Trial):
             if trial.value is not None and trial.value != float("-inf"):
-                logger.info(f"Trial {trial.number}: " f"value={trial.value:.4f}, " f"params={trial.params}")
+                logger.info(f"Trial {trial.number}: value={trial.value:.4f}, params={trial.params}")
 
         return callback

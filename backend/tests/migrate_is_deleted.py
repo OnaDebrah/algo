@@ -26,7 +26,7 @@ async def migrate():
             async with temp_engine.begin() as conn:
                 # Check if column exists first
                 result = await conn.execute(
-                    text("SELECT column_name FROM information_schema.columns " "WHERE table_name='live_strategies' AND column_name='is_deleted';")
+                    text("SELECT column_name FROM information_schema.columns WHERE table_name='live_strategies' AND column_name='is_deleted';")
                 )
                 if not result.fetchone():
                     logger.info("Adding column 'is_deleted' to 'live_strategies' table...")

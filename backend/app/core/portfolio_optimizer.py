@@ -219,7 +219,7 @@ class PortfolioOptimizer:
         returns, volatility = self.calculate_portfolio_performance(optimal_weights)
         sharpe = (returns - 0.02) / volatility
 
-        logger.info(f"Target return optimization complete - " f"Return: {returns:.2%}, Vol: {volatility:.2%}")
+        logger.info(f"Target return optimization complete - Return: {returns:.2%}, Vol: {volatility:.2%}")
 
         return {
             "weights": dict(zip(self.symbols, optimal_weights)),

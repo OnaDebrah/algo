@@ -271,7 +271,7 @@ async def bayesian_optimization(
         backtest_run.celery_task_id = task.id
         await db.commit()
 
-        logger.info(f"Bayesian optimization dispatched: backtest_id={backtest_run.id}, " f"task_id={task.id}, n_trials={request.n_trials}")
+        logger.info(f"Bayesian optimization dispatched: backtest_id={backtest_run.id}, task_id={task.id}, n_trials={request.n_trials}")
 
         return {
             "backtest_id": backtest_run.id,

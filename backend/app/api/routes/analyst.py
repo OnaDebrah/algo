@@ -89,11 +89,11 @@ def convert_core_report_to_api(core_report, ticker_info: Dict) -> AnalystReport:
     # Format market cap
     market_cap_val = fund.get("market_cap", 0)
     if market_cap_val > 1e12:
-        market_cap = f"{market_cap_val/1e12:.1f}T"
+        market_cap = f"{market_cap_val / 1e12:.1f}T"
     elif market_cap_val > 1e9:
-        market_cap = f"{market_cap_val/1e9:.1f}B"
+        market_cap = f"{market_cap_val / 1e9:.1f}B"
     elif market_cap_val > 1e6:
-        market_cap = f"{market_cap_val/1e6:.1f}M"
+        market_cap = f"{market_cap_val / 1e6:.1f}M"
     else:
         market_cap = "N/A"
 

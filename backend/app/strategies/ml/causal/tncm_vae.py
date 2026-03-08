@@ -692,7 +692,7 @@ class CausalMarketSimulator:
                 go.Scatter(
                     x=time_points,
                     y=counterfactuals[i, :, var_idx],
-                    name=f"CF {i+1}" if i == 0 else None,
+                    name=f"CF {i + 1}" if i == 0 else None,
                     line=dict(color="red", width=1, dash="dash"),
                     opacity=0.3,
                     showlegend=(i == 0),

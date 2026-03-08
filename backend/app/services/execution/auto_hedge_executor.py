@@ -195,7 +195,7 @@ class AutoHedgeExecutor:
         )
         logger.info(f"VIX order placed: {vix_order}")
 
-        logger.info(f"Tail risk hedge executed: {contracts} OTM puts, {int(contracts*0.5)} VIX calls")
+        logger.info(f"Tail risk hedge executed: {contracts} OTM puts, {int(contracts * 0.5)} VIX calls")
 
     async def _execute_covered_calls(self, user_id: int):
         """Execute covered calls on existing positions"""

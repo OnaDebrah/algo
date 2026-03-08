@@ -195,7 +195,7 @@ class CrashPredictionDashboard:
             # Add bubble parameters
             params = bubble_data.get("parameters", {})
             fig.add_annotation(
-                text=f"m: {params.get('m', 0):.3f}<br>" f"ω: {params.get('omega', 0):.1f}<br>" f"tc: {params.get('tc_days_ahead', 0):.0f} days",
+                text=f"m: {params.get('m', 0):.3f}<br>ω: {params.get('omega', 0):.1f}<br>tc: {params.get('tc_days_ahead', 0):.0f} days",
                 xref="paper",
                 yref="paper",
                 x=0.5,

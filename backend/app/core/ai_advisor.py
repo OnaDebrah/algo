@@ -165,13 +165,13 @@ class AIStrategyAdvisor:
         prompt = f"""You are an expert trading strategy advisor. Based on the user's profile, recommend 3-5 optimal trading strategies.
 
 USER PROFILE:
-- Investment Goals: {profile.get('goals', 'Not specified')}
-- Risk Tolerance: {profile.get('risk_tolerance', 'medium')}
-- Time Horizon: {profile.get('time_horizon', 'medium')}
-- Experience Level: {profile.get('experience', 'intermediate')}
-- Time Commitment: {profile.get('time_commitment', 'medium')}
-- Capital: ${profile.get('capital', 10000):,}
-- Preferred Market Conditions: {profile.get('market_preference', 'any')}
+- Investment Goals: {profile.get("goals", "Not specified")}
+- Risk Tolerance: {profile.get("risk_tolerance", "medium")}
+- Time Horizon: {profile.get("time_horizon", "medium")}
+- Experience Level: {profile.get("experience", "intermediate")}
+- Time Commitment: {profile.get("time_commitment", "medium")}
+- Capital: ${profile.get("capital", 10000):,}
+- Preferred Market Conditions: {profile.get("market_preference", "any")}
 
 AVAILABLE STRATEGIES:
 {strategies_info}

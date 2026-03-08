@@ -220,9 +220,7 @@ class HMMRegimeDetector(MarketRegimeDetector):
         bad_rows = np.where(np.isclose(row_sums, 0))[0]
         if len(bad_rows) > 0:
             logger.warning(
-                f"HMM transmat_ has {len(bad_rows)} zero-sum row(s) "
-                f"(states {bad_rows.tolist()} never observed). "
-                f"Replacing with uniform distribution."
+                f"HMM transmat_ has {len(bad_rows)} zero-sum row(s) (states {bad_rows.tolist()} never observed). Replacing with uniform distribution."
             )
             n = model.n_components
             for row_idx in bad_rows:
