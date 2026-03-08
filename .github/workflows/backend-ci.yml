@@ -73,12 +73,12 @@ jobs:
 
     env:
       ENVIRONMENT: test
-      DATABASE_URL: postgresql+asyncpg://trading_user:secure_password_here@localhost:5432/trading_platform
+      DATABASE_URL: postgresql+asyncpg://trading_user:password@localhost:5432/trading_platform
       POSTGRES_HOST: localhost
       POSTGRES_PORT: 5432
       POSTGRES_DB: trading_platform
       POSTGRES_USER: trading_user
-      POSTGRES_PASSWORD: secure_password_here
+      POSTGRES_PASSWORD: password
       JWT_SECRET_KEY: test_jwt_secret_key_12345678901234567890
       SECRET_KEY: test_secret_key_12345678901234567890
       SENTRY_DSN: ""
