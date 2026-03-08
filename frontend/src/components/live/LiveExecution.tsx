@@ -227,8 +227,8 @@ const LiveExecution = () => {
 
         const payload: ConnectRequest = {
             broker: activeBroker,
-            api_key: null,
-            api_secret: null,
+            api_key: "",
+            api_secret: "",
         };
 
         try {
@@ -413,7 +413,7 @@ const LiveExecution = () => {
                                             <span className={`px-2 py-1 rounded text-[10px] font-black uppercase ${strategy.status === 'RUNNING' ? 'bg-emerald-500/20 text-emerald-400' :
                                                 strategy.status === 'PAUSED' ? 'bg-amber-500/20 text-amber-400' :
                                                     'bg-slate-700 text-slate-400'
-                                                }`}>
+                                            }`}>
                                                 {strategy.status}
                                             </span>
                                             <button
@@ -439,7 +439,7 @@ const LiveExecution = () => {
                                             <div className="flex justify-between text-sm">
                                                 <span className="text-slate-500">Return:</span>
                                                 <span className={`font-semibold ${(perf.strategy.total_return_pct || 0) >= 0 ? 'text-emerald-400' : 'text-red-400'
-                                                    }`}>
+                                                }`}>
                                                     {(perf.strategy.total_return_pct || 0) >= 0 ? '+' : ''}{(perf.strategy.total_return_pct || 0).toFixed(2)}%
                                                 </span>
                                             </div>
@@ -462,7 +462,7 @@ const LiveExecution = () => {
                                 <Link size={16} className="text-emerald-500" /> Connectivity
                             </h3>
                             <span className={`px-2 py-1 rounded text-[10px] font-black uppercase ${isConnected ? 'bg-emerald-500/20 text-emerald-400' : 'bg-slate-800 text-slate-500'
-                                }`}>
+                            }`}>
                                 {isConnected ? 'Connected' : 'Disconnected'}
                             </span>
                         </div>
@@ -514,7 +514,7 @@ const LiveExecution = () => {
                                 className={`w-full py-3 rounded-xl text-xs font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${isConnected
                                     ? 'bg-red-500/20 border border-red-500/50 text-red-400 hover:bg-red-500/30'
                                     : 'bg-emerald-500/20 border border-emerald-500/50 text-emerald-400 hover:bg-emerald-500/30'
-                                    }`}
+                                }`}
                             >
                                 {isLoading ? (
                                     <Loader2 size={14} className="animate-spin" />
@@ -555,7 +555,7 @@ const LiveExecution = () => {
                                         className={`flex items-start gap-3 p-3 rounded-xl cursor-pointer transition-all ${selectedStrategyIds.includes(strategy.id)
                                             ? 'bg-violet-500/20 border border-violet-500/50'
                                             : 'bg-slate-800/30 border border-slate-700/50 hover:bg-slate-800/50'
-                                            }`}
+                                        }`}
                                     >
                                         <input
                                             type="checkbox"
@@ -572,7 +572,7 @@ const LiveExecution = () => {
                                                     <span className={`px-1.5 py-0.5 rounded text-[9px] font-black uppercase ${strategy.status === 'RUNNING' ? 'bg-emerald-500/20 text-emerald-400' :
                                                         strategy.status === 'PAUSED' ? 'bg-amber-500/20 text-amber-400' :
                                                             'bg-slate-700 text-slate-400'
-                                                        }`}>
+                                                    }`}>
                                                         {strategy.status}
                                                     </span>
                                                     <button
@@ -585,7 +585,7 @@ const LiveExecution = () => {
                                                         className={`p-1 rounded transition-colors ${strategy.status === 'RUNNING'
                                                             ? 'opacity-30 cursor-not-allowed'
                                                             : 'hover:bg-red-500/20 text-slate-500 hover:text-red-400'
-                                                            }`}
+                                                        }`}
                                                         title={strategy.status === 'RUNNING' ? 'Stop strategy before deleting' : 'Delete strategy'}
                                                     >
                                                         <Trash2 size={14} />
@@ -650,7 +650,7 @@ const LiveExecution = () => {
                                 </h3>
                                 <p className="text-xs text-slate-500">
                                     Status: <span className={`font-bold ${engineStatus === EngineStatus.RUNNING ? 'text-emerald-400' : 'text-slate-400'
-                                        }`}>{engineStatus.toUpperCase()}</span>
+                                }`}>{engineStatus.toUpperCase()}</span>
                                 </p>
                                 {selectedStrategyIds.length > 0 && (
                                     <p className="text-xs text-violet-400 mt-1">
@@ -666,7 +666,7 @@ const LiveExecution = () => {
                                     className={`px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center gap-2 transition-all ${engineStatus === EngineStatus.RUNNING
                                         ? 'bg-red-500 text-white shadow-lg shadow-red-500/20'
                                         : 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/20 hover:bg-emerald-600 disabled:opacity-50 disabled:cursor-not-allowed'
-                                        }`}
+                                    }`}
                                 >
                                     {engineStatus === EngineStatus.RUNNING
                                         ? <><Square size={14} className="fill-current" /> STOP ENGINE</>
@@ -700,50 +700,50 @@ const LiveExecution = () => {
                             <div className="overflow-x-auto">
                                 <table className="w-full text-left">
                                     <thead>
-                                        <tr className="border-b border-slate-800">
-                                            <th className="pb-3 text-[10px] font-black text-slate-600 uppercase">Symbol</th>
-                                            <th className="pb-3 text-[10px] font-black text-slate-600 uppercase">Side</th>
-                                            <th className="pb-3 text-[10px] font-black text-slate-600 uppercase">Qty</th>
-                                            <th className="pb-3 text-[10px] font-black text-slate-600 uppercase">Status</th>
-                                            <th className="pb-3 text-[10px] font-black text-slate-600 uppercase text-right">Price</th>
-                                        </tr>
+                                    <tr className="border-b border-slate-800">
+                                        <th className="pb-3 text-[10px] font-black text-slate-600 uppercase">Symbol</th>
+                                        <th className="pb-3 text-[10px] font-black text-slate-600 uppercase">Side</th>
+                                        <th className="pb-3 text-[10px] font-black text-slate-600 uppercase">Qty</th>
+                                        <th className="pb-3 text-[10px] font-black text-slate-600 uppercase">Status</th>
+                                        <th className="pb-3 text-[10px] font-black text-slate-600 uppercase text-right">Price</th>
+                                    </tr>
                                     </thead>
                                     <tbody className="divide-y divide-slate-800/50">
-                                        {orders.length === 0 ? (
-                                            <tr>
-                                                <td colSpan={5} className="py-8 text-center text-slate-500 text-xs italic">
-                                                    {engineStatus === EngineStatus.RUNNING
-                                                        ? 'No active orders yet - waiting for signals...'
-                                                        : 'No active orders. Start the engine to begin trading.'}
-                                                </td>
-                                            </tr>
-                                        ) : orders.map((order) => (
-                                            <tr key={order.id} className="group hover:bg-white/5 transition-colors">
-                                                <td className="py-4">
-                                                    <span className="text-xs font-bold text-slate-200">{order.symbol}</span>
-                                                    <p className="text-[9px] text-slate-600 font-mono">{order.time}</p>
-                                                </td>
-                                                <td className="py-4">
+                                    {orders.length === 0 ? (
+                                        <tr>
+                                            <td colSpan={5} className="py-8 text-center text-slate-500 text-xs italic">
+                                                {engineStatus === EngineStatus.RUNNING
+                                                    ? 'No active orders yet - waiting for signals...'
+                                                    : 'No active orders. Start the engine to begin trading.'}
+                                            </td>
+                                        </tr>
+                                    ) : orders.map((order) => (
+                                        <tr key={order.id} className="group hover:bg-white/5 transition-colors">
+                                            <td className="py-4">
+                                                <span className="text-xs font-bold text-slate-200">{order.symbol}</span>
+                                                <p className="text-[9px] text-slate-600 font-mono">{order.time}</p>
+                                            </td>
+                                            <td className="py-4">
                                                     <span className={`text-[10px] font-black px-2 py-0.5 rounded ${order.side === 'BUY' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-red-500/10 text-red-400'
-                                                        }`}>
+                                                    }`}>
                                                         {order.side}
                                                     </span>
-                                                </td>
-                                                <td className="py-4 text-xs text-slate-400 font-mono">{order.qty}</td>
-                                                <td className="py-4">
-                                                    <div className="flex items-center gap-1.5">
-                                                        <div className={`w-1.5 h-1.5 rounded-full ${order.status === 'FILLED' ? 'bg-emerald-500' : 'bg-amber-500 animate-pulse'
-                                                            }`} />
-                                                        <span className="text-[10px] font-bold text-slate-300 uppercase tracking-tight">
+                                            </td>
+                                            <td className="py-4 text-xs text-slate-400 font-mono">{order.qty}</td>
+                                            <td className="py-4">
+                                                <div className="flex items-center gap-1.5">
+                                                    <div className={`w-1.5 h-1.5 rounded-full ${order.status === 'FILLED' ? 'bg-emerald-500' : 'bg-amber-500 animate-pulse'
+                                                    }`} />
+                                                    <span className="text-[10px] font-bold text-slate-300 uppercase tracking-tight">
                                                             {order.status}
                                                         </span>
-                                                    </div>
-                                                </td>
-                                                <td className="py-4 text-xs font-bold text-slate-200 text-right font-mono">
-                                                    ${order.price?.toFixed(2) || 'MKT'}
-                                                </td>
-                                            </tr>
-                                        ))}
+                                                </div>
+                                            </td>
+                                            <td className="py-4 text-xs font-bold text-slate-200 text-right font-mono">
+                                                ${order.price?.toFixed(2) || 'MKT'}
+                                            </td>
+                                        </tr>
+                                    ))}
                                     </tbody>
                                 </table>
                             </div>

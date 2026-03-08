@@ -8,7 +8,7 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Dict, List, Literal, Type
 
-from ..strategies import (
+from backend.app.strategies import (
     BaseStrategy,
     DynamicStrategy,
     KAMAStrategy,
@@ -16,42 +16,39 @@ from ..strategies import (
     MLStrategy,
     MultiTimeframeKAMAStrategy,
 )
-from ..strategies.adpative_trend_ff_strategy import AdaptiveTrendFollowingStrategy
-from ..strategies.cs_momentum_strategy import CrossSectionalMomentumStrategy
-from ..strategies.donchain_strategy import DonchianATRStrategy, DonchianChannelStrategy, FilteredDonchianStrategy
-from ..strategies.kalman_filter_strategy import KalmanFilterStrategy
-from ..strategies.lstm_strategy import LSTMStrategy
+from backend.app.strategies.adpative_trend_ff_strategy import AdaptiveTrendFollowingStrategy
+from backend.app.strategies.cs_momentum_strategy import CrossSectionalMomentumStrategy
+from backend.app.strategies.donchain_strategy import DonchianATRStrategy, DonchianChannelStrategy, FilteredDonchianStrategy
+from backend.app.strategies.kalman_filter_strategy import KalmanFilterStrategy
+from backend.app.strategies.lstm_strategy import LSTMStrategy
 
 # ML Strategies
-from ..strategies.ml.mc_ml_sentiment_strategy import MonteCarloMLSentimentStrategy
-from ..strategies.ml.regime_aware.adaptive_strategy_switcher import AdaptiveStrategySwitcher
-from ..strategies.ml.regime_aware.regime_specific_models import RegimeSpecificStrategy
-from ..strategies.ml.sector_prediction.sector_rotation_alt_strategy import SectorRotationAltStrategy
-from ..strategies.ml.sector_prediction.sector_rotation_strategy import SectorRotationStrategy
-from ..strategies.pairs_trading_strategy import PairsTradingStrategy
-from ..strategies.parabolic_sar import ParabolicSARStrategy
-from ..strategies.stat_arb.base_stat_arb import RiskParityStatArb
-from ..strategies.stat_arb.sector_neutral import SectorNeutralStrategy
-from ..strategies.technical.bb_mean_reversion import BollingerMeanReversionStrategy
-from ..strategies.technical.rsi_strategy import RSIStrategy
-from ..strategies.technical.sma_crossover import SMACrossoverStrategy
+from backend.app.strategies.ml.mc_ml_sentiment_strategy import MonteCarloMLSentimentStrategy
+from backend.app.strategies.options_strategies import OptionsStrategy
+from backend.app.strategies.pairs_trading_strategy import PairsTradingStrategy
+from backend.app.strategies.parabolic_sar import ParabolicSARStrategy
+from backend.app.strategies.stat_arb.base_stat_arb import RiskParityStatArb
+from backend.app.strategies.stat_arb.sector_neutral import SectorNeutralStrategy
+from backend.app.strategies.technical.bb_mean_reversion import BollingerMeanReversionStrategy
+from backend.app.strategies.technical.rsi_strategy import RSIStrategy
+from backend.app.strategies.technical.sma_crossover import SMACrossoverStrategy
 
 # Statistical Arbitrage
-from ..strategies.ts_momentum_strategy import TimeSeriesMomentumStrategy
+from backend.app.strategies.ts_momentum_strategy import TimeSeriesMomentumStrategy
 
 # Kalman Filter HFT (conditional on numba)
 try:
-    from ..strategies.kalman_filter_strategy import KalmanFilterStrategyHFT
+    from backend.app.strategies.kalman_filter_strategy import KalmanFilterStrategyHFT
 
     HFT_AVAILABLE = True
 except ImportError:
     HFT_AVAILABLE = False
-from ..strategies.volatility.dynamic_scaling import DynamicVolatilityScalingStrategy
-from ..strategies.volatility.variance_risk_premium import VarianceRiskPremiumStrategy
+from backend.app.strategies.volatility.dynamic_scaling import DynamicVolatilityScalingStrategy
+from backend.app.strategies.volatility.variance_risk_premium import VarianceRiskPremiumStrategy
 
 # Volatility strategies
-from ..strategies.volatility.volatility_breakout import VolatilityBreakoutStrategy
-from ..strategies.volatility.volatility_targeting import VolatilityTargetingStrategy
+from backend.app.strategies.volatility.volatility_breakout import VolatilityBreakoutStrategy
+from backend.app.strategies.volatility.volatility_targeting import VolatilityTargetingStrategy
 
 logger = logging.getLogger(__name__)
 
@@ -67,6 +64,7 @@ class StrategyCategory(Enum):
     VOLATILITY = "Volatility"
     STATISTICAL_ARBITRAGE = "Statistical Arbitrage"
     PAIRS_TRADING = "Pairs Trading"
+    OPTIONS = "Options Strategies"
     PRICE_ACTION = "Price Action"
     ADAPTIVE = "Adaptive Strategies"
     HYBRID = "Hybrid"
@@ -1082,6 +1080,165 @@ class StrategyCatalog:
                 backtest_mode="multi",
             ),
             # ============================================================
+            # OPTIONS STRATEGIES
+            # ============================================================
+            "covered_call": StrategyInfo(
+                name="Covered Call",
+                class_type=OptionsStrategy,
+                category=StrategyCategory.OPTIONS,
+                description="Hold stock and sell call options to generate income. Limited upside, downside protected by premium.",
+                complexity="Intermediate",
+                time_horizon="Short to Medium-term",
+                best_for=[
+                    "Income generation",
+                    "Range-bound markets",
+                    "Conservative traders",
+                ],
+                parameters={
+                    "strategy_type": {"default": "covered_call", "range": None, "description": "Options strategy type"},
+                    "strike_pct": {
+                        "default": 0.05,
+                        "range": (0.01, 0.15),
+                        "description": "Strike price % above current",
+                    },
+                    "dte": {
+                        "default": 30,
+                        "range": (7, 90),
+                        "description": "Days to expiration",
+                    },
+                },
+                pros=[
+                    "Generates income",
+                    "Reduces cost basis",
+                    "Lower risk than naked long",
+                    "Consistent returns in flat markets",
+                ],
+                cons=[
+                    "Limited upside",
+                    "Still exposed to downside",
+                    "Opportunity cost if stock rallies",
+                    "Early assignment risk",
+                ],
+                backtest_mode="single",
+            ),
+            "iron_condor": StrategyInfo(
+                name="Iron Condor",
+                class_type=OptionsStrategy,
+                category=StrategyCategory.OPTIONS,
+                description="Market-neutral options strategy. Profits when underlying stays within a range. Limited risk and reward.",
+                complexity="Advanced",
+                time_horizon="Short-term",
+                best_for=[
+                    "Low volatility markets",
+                    "Income generation",
+                    "Range-bound stocks",
+                ],
+                parameters={
+                    "strategy_type": {"default": "iron_condor", "range": None, "description": "Options strategy type"},
+                    "wing_width": {
+                        "default": 0.05,
+                        "range": (0.03, 0.10),
+                        "description": "Width of wings (% of price)",
+                    },
+                    "dte": {
+                        "default": 30,
+                        "range": (14, 60),
+                        "description": "Days to expiration",
+                    },
+                },
+                pros=[
+                    "Defined risk",
+                    "High probability strategy",
+                    "Profits from time decay",
+                    "Market neutral",
+                ],
+                cons=[
+                    "Limited profit potential",
+                    "Requires careful management",
+                    "Pin risk near expiration",
+                    "Complex adjustments needed",
+                ],
+                backtest_mode="single",
+            ),
+            "butterfly_spread": StrategyInfo(
+                name="Butterfly Spread",
+                class_type=OptionsStrategy,
+                category=StrategyCategory.OPTIONS,
+                description="Limited risk strategy with concentrated profit zone. Profits when price stays near middle strike.",
+                complexity="Advanced",
+                time_horizon="Short-term",
+                best_for=[
+                    "Neutral outlook",
+                    "Low volatility expected",
+                    "Precise targets",
+                ],
+                parameters={
+                    "strategy_type": {"default": "butterfly_spread", "range": None, "description": "Options strategy type"},
+                    "wing_width": {
+                        "default": 0.03,
+                        "range": (0.02, 0.08),
+                        "description": "Distance between strikes",
+                    },
+                    "dte": {
+                        "default": 30,
+                        "range": (14, 60),
+                        "description": "Days to expiration",
+                    },
+                },
+                pros=[
+                    "Low cost to enter",
+                    "Defined max loss",
+                    "High reward/risk ratio at target",
+                    "Works in neutral markets",
+                ],
+                cons=[
+                    "Narrow profit zone",
+                    "Lower probability of max profit",
+                    "Time decay works against you early",
+                    "Complex to manage",
+                ],
+                backtest_mode="single",
+            ),
+            "straddle": StrategyInfo(
+                name="Long Straddle",
+                class_type=OptionsStrategy,
+                category=StrategyCategory.OPTIONS,
+                description="Profits from large moves in either direction. Buy ATM call and put. Volatility play.",
+                complexity="Intermediate",
+                time_horizon="Short-term",
+                best_for=[
+                    "Earnings events",
+                    "High expected volatility",
+                    "Direction unknown",
+                ],
+                parameters={
+                    "strategy_type": {"default": "straddle", "range": None, "description": "Options strategy type"},
+                    "dte": {
+                        "default": 30,
+                        "range": (7, 90),
+                        "description": "Days to expiration",
+                    },
+                    "iv_threshold": {
+                        "default": 0.30,
+                        "range": (0.20, 0.60),
+                        "description": "Implied volatility entry threshold",
+                    },
+                },
+                pros=[
+                    "Profits from big moves",
+                    "Direction doesn't matter",
+                    "Defined max loss",
+                    "Great for events",
+                ],
+                cons=[
+                    "Expensive to enter",
+                    "Needs significant move",
+                    "Time decay hurts",
+                    "IV crush risk after event",
+                ],
+                backtest_mode="single",
+            ),
+            # ============================================================
             # STATISTICAL ARBITRAGE - RISK PARITY
             # ============================================================
             "risk_parity_stat_arb": StrategyInfo(
@@ -1157,9 +1314,7 @@ class StrategyCatalog:
                 name="Monte Carlo ML Sentiment",
                 class_type=MonteCarloMLSentimentStrategy,
                 category=StrategyCategory.MACHINE_LEARNING,
-                description="Combines sentiment analysis, machine learning predictions, "
-                "and Monte Carlo simulation for probabilistic price forecasting. "
-                "Uses Kelly Criterion for risk-aware position sizing.",
+                description="Combines sentiment analysis, machine learning predictions, and Monte Carlo simulation for probabilistic price forecasting. Uses Kelly Criterion for risk-aware position sizing.",
                 complexity="Expert",
                 time_horizon="Short to Medium-term",
                 best_for=[
@@ -1213,132 +1368,6 @@ class StrategyCatalog:
                     "Complex pipeline with multiple failure points",
                     "Sentiment data quality varies",
                     "ML model overfitting risk",
-                ],
-                backtest_mode="single",
-            ),
-            # ============================================================
-            # ML SECTOR ROTATION & REGIME-AWARE
-            # ============================================================
-            "sector_rotation": StrategyInfo(
-                name="Sector Rotation",
-                class_type=SectorRotationStrategy,
-                category=StrategyCategory.MACHINE_LEARNING,
-                description="ML-based sector rotation using macro ETF data and fundamental analysis. Predicts top-performing sectors and selects best stocks within them.",
-                complexity="Advanced",
-                time_horizon="Medium-term",
-                best_for=["Sector allocation", "Macro-driven trading", "Portfolio rotation"],
-                parameters={
-                    "lookback_years": {"default": 5, "range": (2, 10), "description": "Years of historical data for training"},
-                    "forecast_horizon_days": {"default": 60, "range": (20, 120), "description": "Forward return prediction horizon (days)"},
-                    "top_sectors": {"default": 3, "range": (1, 5), "description": "Number of sectors to allocate to"},
-                    "stocks_per_sector": {"default": 5, "range": (3, 10), "description": "Number of stocks per sector"},
-                    "model_type": {
-                        "default": "random_forest",
-                        "range": ["random_forest", "gradient_boosting", "ensemble"],
-                        "description": "ML model type",
-                    },
-                    "rebalance_frequency_days": {"default": 30, "range": (7, 90), "description": "Rebalancing frequency (days)"},
-                },
-                pros=[
-                    "Combines macro and fundamental analysis",
-                    "Dynamic sector allocation",
-                    "Regime-aware predictions",
-                    "Confidence-weighted positions",
-                ],
-                cons=[
-                    "Requires multiple data sources",
-                    "Computationally intensive",
-                    "Model retraining needed",
-                    "Sector ETF data quality dependent",
-                ],
-                backtest_mode="multi",
-            ),
-            "sector_rotation_alt": StrategyInfo(
-                name="Enhanced Sector Rotation",
-                class_type=SectorRotationAltStrategy,
-                category=StrategyCategory.MACHINE_LEARNING,
-                description="Sector rotation with SHAP explanations, alternative data (sentiment/news), and progressive ML complexity.",
-                complexity="Advanced",
-                time_horizon="Medium-term",
-                best_for=["Explainable ML", "Alternative data", "Sentiment-driven rotation"],
-                parameters={
-                    "lookback_years": {"default": 5, "range": (2, 10), "description": "Years of historical data"},
-                    "forecast_horizon_days": {"default": 60, "range": (20, 120), "description": "Forecast horizon (days)"},
-                    "top_sectors": {"default": 3, "range": (1, 5), "description": "Number of sectors to select"},
-                    "model_type": {
-                        "default": "random_forest",
-                        "range": ["random_forest", "gradient_boosting", "ensemble"],
-                        "description": "ML model type",
-                    },
-                    "sentiment_weight": {"default": 0.2, "range": (0.0, 0.5), "description": "Weight of sentiment in scoring"},
-                    "use_shap_explanations": {"default": True, "range": [True, False], "description": "Enable SHAP-based explanations"},
-                },
-                pros=[
-                    "SHAP-based explainability",
-                    "Alternative data integration",
-                    "Sentiment-aware scoring",
-                    "Transparent decision process",
-                ],
-                cons=[
-                    "Requires sentiment API access",
-                    "SHAP computation overhead",
-                    "Complex pipeline",
-                    "Sentiment data quality varies",
-                ],
-                backtest_mode="multi",
-            ),
-            "regime_adaptive": StrategyInfo(
-                name="Regime-Adaptive Strategy",
-                class_type=RegimeSpecificStrategy,
-                category=StrategyCategory.ADAPTIVE,
-                description="Dynamically switches between specialist strategies based on HMM regime detection. Uses different strategy configurations for bull, bear, and neutral markets.",
-                complexity="Advanced",
-                time_horizon="Medium-term",
-                best_for=["Regime-aware trading", "Dynamic allocation", "Multi-strategy portfolio"],
-                parameters={
-                    "lookback_days": {"default": 252, "range": (60, 504), "description": "Historical data lookback (days)"},
-                    "regime_update_freq": {"default": 5, "range": (1, 20), "description": "Regime re-detection frequency (days)"},
-                    "use_markov_chain": {"default": True, "range": [True, False], "description": "Use Markov chain regime transitions"},
-                },
-                pros=[
-                    "Adapts to market regimes automatically",
-                    "Specialist strategies per regime",
-                    "Reduces drawdowns in bear markets",
-                    "HMM-based regime detection",
-                ],
-                cons=[
-                    "Complex multi-model architecture",
-                    "Regime detection lag",
-                    "Requires substantial historical data",
-                    "Multiple strategies to maintain",
-                ],
-                backtest_mode="single",
-            ),
-            "adaptive_strategy_switcher": StrategyInfo(
-                name="Adaptive Strategy Switcher",
-                class_type=AdaptiveStrategySwitcher,
-                category=StrategyCategory.ADAPTIVE,
-                description="Multi-strategy portfolio that weights strategies by their historical performance in the current market regime. Continuously adapts allocation.",
-                complexity="Advanced",
-                time_horizon="Medium-term",
-                best_for=["Portfolio of strategies", "Regime-aware switching", "Strategy ensemble"],
-                parameters={
-                    "performance_lookback": {"default": 60, "range": (20, 120), "description": "Performance evaluation window (days)"},
-                    "rebalance_frequency": {"default": 20, "range": (5, 60), "description": "Rebalance frequency (days)"},
-                    "min_regime_confidence": {"default": 0.6, "range": (0.3, 0.9), "description": "Minimum confidence for regime signal"},
-                    "use_ensemble": {"default": True, "range": [True, False], "description": "Use ensemble of strategies"},
-                },
-                pros=[
-                    "Combines multiple strategy signals",
-                    "Performance-weighted allocation",
-                    "Regime-aware switching",
-                    "Diversification across strategies",
-                ],
-                cons=[
-                    "Complexity of multi-strategy system",
-                    "Performance chasing risk",
-                    "Higher computational cost",
-                    "Requires all sub-strategies to be functional",
                 ],
                 backtest_mode="single",
             ),

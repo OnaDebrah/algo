@@ -8,13 +8,13 @@ import pandas as pd
 
 from ..core.data.fetchers.fundamentals_fetcher import FundamentalsFetcher
 from ..core.data.providers.providers import ProviderFactory
+from ..strategies.catelog.strategy_catalog import get_catalog
 from ..strategies.ml.stock_selection.factor_engine import FactorEngine
 from ..strategies.ml.stock_selection.ranking_pipeline import (
     RankingConfig,
     RankingMethod,
     RankingPipeline,
 )
-from ..strategies.strategy_catalog import get_catalog
 
 logger = logging.getLogger(__name__)
 

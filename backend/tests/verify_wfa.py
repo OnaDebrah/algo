@@ -41,9 +41,9 @@ async def verify_wfa():
     # Verify dates do not overlap incorrectly
     for i in range(len(folds) - 1):
         if folds[i + 1]["oos_start"] <= folds[i]["oos_end"]:
-            print(f"Overlap detected between Fold {i} and {i+1} OOS!")
+            print(f"Overlap detected between Fold {i} and {i + 1} OOS!")
         else:
-            print(f"Fold {i} -> {i+1} OOS sequence OK.")
+            print(f"Fold {i} -> {i + 1} OOS sequence OK.")
 
     # Test a dummy optimization sampling
     best_params, metrics = await service._optimize_in_sample(request, folds[0]["is_start"], folds[0]["is_end"], 100000)

@@ -382,7 +382,7 @@ COMPANY INFORMATION:
 - Ticker: {ticker}
 - Sector: {sector}
 - Industry: {industry}
-- Current Price: ${data.get('current_price', 0):.2f}
+- Current Price: ${data.get("current_price", 0):.2f}
 
 FUNDAMENTAL DATA:
 {json.dumps(fundamentals, indent=2)}
@@ -394,8 +394,8 @@ PEER ANALYSIS:
 {json.dumps(peers, indent=2)}
 
 RECENT NEWS:
-News Items: {news.get('news_count', 0)}
-Sentiment: {news.get('sentiment', 'N/A')}
+News Items: {news.get("news_count", 0)}
+Sentiment: {news.get("sentiment", "N/A")}
 
 ANALYSIS DEPTH: {depth}
 

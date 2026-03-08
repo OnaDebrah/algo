@@ -256,7 +256,7 @@ class WalkForwardOptimizer:
         end_date: Optional[str] = None,
     ) -> Tuple:
         """Run backtest with given parameters using BacktestService"""
-        from backend.app.optimise.request_adapter import RequestAdapter
+        from ..optimise.request_adapter import RequestAdapter
 
         try:
             test_request = RequestAdapter.to_backtest_request(request, params, capital, start_date=start_date, end_date=end_date)

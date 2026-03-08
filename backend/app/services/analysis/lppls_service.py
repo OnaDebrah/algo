@@ -12,7 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from ...core.data.providers.providers import ProviderFactory
 from ...models.user import User
-from ...strategies.analysis.lppls_bubbles_strategy import LPPLSBubbleStrategy
+from ...strategies.ml.analysis.lppls_bubbles_strategy import LPPLSBubbleStrategy
 
 logger = logging.getLogger(__name__)
 
@@ -105,8 +105,7 @@ class LPPLSService:
             if result["bubble_detected"] and result["confidence"] >= 0.6:
                 result["alert"] = {
                     "level": "HIGH" if result["crash_probability"] >= 0.5 else "MODERATE",
-                    "message": f"Bubble detected with {result['confidence']:.1%} confidence. "
-                    f"Crash probability: {result['crash_probability']:.1%}",
+                    "message": f"Bubble detected with {result['confidence']:.1%} confidence. Crash probability: {result['crash_probability']:.1%}",
                     "recommendation": "Consider hedging or reducing exposure",
                 }
 

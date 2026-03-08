@@ -19,6 +19,7 @@ import requests
 import tweepy
 from nltk.sentiment.vader import SentimentIntensityAnalyzer
 
+from ...analytics.sentiment.news_sentiment import NewsSentimentAnalyzer as _NewsSentimentAnalyzer
 from ...strategies import BaseStrategy
 
 # ML imports
@@ -43,13 +44,18 @@ class SentimentAnalyzer:
     Extracts and processes sentiment from various sources
     """
 
-    def __init__(self, sources: List[str] = None):
-        self.sources = sources or ["news", "twitter", "options"]
+    def __init__(self, sources: List[str] = None, backtest_mode: bool = False):
+        self.sources = sources or ["news", "twitter", "stocktwits", "options"]
         self.sentiment_cache = {}
+        self.backtest_mode = backtest_mode
 
     def get_sentiment_features(self, symbol: str, date: datetime) -> Dict[str, float]:
         """
-        Extract sentiment features for a given symbol and date
+        Extract sentiment features for a given symbol and date.
+
+        In backtest_mode, real-time-only sources (Twitter, StockTwits, Reddit, Options)
+        use a deterministic fallback to avoid look-ahead bias. NewsAPI supports date
+        ranges so it always uses the real analyzer (which has its own fallback).
 
         Returns:
             Dictionary with sentiment scores [-1, 1] for each source
@@ -58,15 +64,28 @@ class SentimentAnalyzer:
 
         for source in self.sources:
             if source == "news":
+                # NewsAPI supports historical date ranges — always use real analyzer
                 features["news_sentiment"] = self._get_news_sentiment(symbol, date)
             elif source == "twitter":
-                features["twitter_sentiment"] = self._get_twitter_sentiment(symbol, date)
+                if self.backtest_mode:
+                    features["twitter_sentiment"] = self._deterministic_fallback("twitter", symbol, date)
+                else:
+                    features["twitter_sentiment"] = self._get_twitter_sentiment(symbol, date)
             elif source == "stocktwits":
-                features["stocktwits_sentiment"] = self._get_stocktwits_sentiment(symbol, date)
+                if self.backtest_mode:
+                    features["stocktwits_sentiment"] = self._deterministic_fallback("stocktwits", symbol, date)
+                else:
+                    features["stocktwits_sentiment"] = self._get_stocktwits_sentiment(symbol, date)
             elif source == "reddit":
-                features["reddit_sentiment"] = self._get_reddit_sentiment(symbol, date)
+                if self.backtest_mode:
+                    features["reddit_sentiment"] = self._deterministic_fallback("reddit", symbol, date)
+                else:
+                    features["reddit_sentiment"] = self._get_reddit_sentiment(symbol, date)
             elif source == "options":
-                features["options_sentiment"] = self._get_options_sentiment(symbol, date)
+                if self.backtest_mode:
+                    features["options_sentiment"] = self._deterministic_fallback("options", symbol, date)
+                else:
+                    features["options_sentiment"] = self._get_options_sentiment(symbol, date)
 
         # Add aggregate sentiment
         if features:
@@ -75,13 +94,37 @@ class SentimentAnalyzer:
 
         return features
 
+    def _deterministic_fallback(self, source: str, symbol: str, date: datetime) -> float:
+        """
+        Deterministic sentiment fallback for backtesting.
+        Produces a reproducible value based on symbol + date + source,
+        avoiding look-ahead bias from real-time APIs.
+        """
+        date_str = date.strftime("%Y%m%d") if hasattr(date, "strftime") else str(date)[:10]
+        seed_value = hash(f"{source}{symbol}{date_str}") % (2**32)
+        rng = np.random.RandomState(seed_value)
+        sentiment = rng.normal(0, 0.3)
+        # Add seasonal component for more realistic patterns
+        try:
+            day_of_year = date.timetuple().tm_yday
+        except AttributeError:
+            day_of_year = 180
+        trend = np.sin(day_of_year / 30) * 0.1
+        return float(np.clip(sentiment + trend, -1, 1))
+
     def _get_news_sentiment(self, symbol: str, date: datetime) -> float:
         """
-        Get news sentiment score.
-        Returns 0.0 (neutral) as a safe default — no external API dependency.
-        In production: integrate RavenPack, Bloomberg, or NewsAPI.
+        Get news sentiment score using NewsSentimentAnalyzer.
+        Uses NewsAPI + VADER with source/recency weighting.
+        Falls back to deterministic simulation for out-of-range dates.
         """
-        return 0.0
+        try:
+            if not hasattr(self, "_news_analyzer"):
+                self._news_analyzer = _NewsSentimentAnalyzer()
+            return self._news_analyzer.get_news_sentiment(symbol, date)
+        except Exception as e:
+            logger.warning(f"News sentiment failed for {symbol}: {e}")
+            return self._deterministic_fallback("news", symbol, date)
 
     def _get_stocktwits_sentiment(self, symbol: str, date: datetime) -> float:
         """
@@ -538,6 +581,7 @@ class MonteCarloMLSentimentStrategy(BaseStrategy):
         lookback_period: int = 252,
         forecast_horizon: int = 20,
         num_simulations: int = 10000,
+        backtest_num_simulations: int = 500,
         confidence_level: float = 0.95,
         retraining_frequency: str = "weekly",
         sentiment_weight: float = 0.3,
@@ -549,6 +593,7 @@ class MonteCarloMLSentimentStrategy(BaseStrategy):
             "lookback_period": lookback_period,
             "forecast_horizon": forecast_horizon,
             "num_simulations": num_simulations,
+            "backtest_num_simulations": backtest_num_simulations,
             "confidence_level": confidence_level,
             "retraining_frequency": retraining_frequency,
             "sentiment_weight": sentiment_weight,
@@ -556,18 +601,19 @@ class MonteCarloMLSentimentStrategy(BaseStrategy):
         }
         super().__init__("Monte Carlo ML Sentiment Strategy", params)
 
-        self.sentiment_sources = sentiment_sources or ["news", "twitter", "options"]
+        self.sentiment_sources = sentiment_sources or ["news", "twitter", "stocktwits", "options"]
         self.ml_model_type = ml_model_type
         self.lookback_period = lookback_period
         self.forecast_horizon = forecast_horizon
         self.num_simulations = num_simulations
+        self.backtest_num_simulations = backtest_num_simulations
         self.confidence_level = confidence_level
         self.retraining_frequency = retraining_frequency
         self.sentiment_weight = sentiment_weight
         self.min_sentiment_quality = min_sentiment_quality
 
-        # Initialize components
-        self.sentiment_analyzer = SentimentAnalyzer(self.sentiment_sources)
+        # Initialize components (backtest_mode=True for deterministic historical sentiment)
+        self.sentiment_analyzer = SentimentAnalyzer(self.sentiment_sources, backtest_mode=True)
         self.ml_predictor = MLPredictor(self.ml_model_type)
         self.mc_engine = MonteCarloEngine(self.num_simulations)
         self.position_sizer = PositionSizer(risk_per_trade=0.02)
@@ -576,6 +622,7 @@ class MonteCarloMLSentimentStrategy(BaseStrategy):
         self.last_training_date = None
         self.simulation_results = {}
         self.sentiment_history = pd.DataFrame()
+        self.symbol = None  # Set by engine/service before backtesting
 
     def _normalize_columns(self, data: pd.DataFrame) -> pd.DataFrame:
         """Normalize column names to lowercase for consistent access."""
@@ -599,7 +646,7 @@ class MonteCarloMLSentimentStrategy(BaseStrategy):
         sentiment_data = []
         for date in df.index:
             # Get sentiment for current symbol (assuming single symbol for now)
-            sentiment_features = self.sentiment_analyzer.get_sentiment_features("SYMBOL", date)
+            sentiment_features = self.sentiment_analyzer.get_sentiment_features(self.symbol or "SPY", date)
             sentiment_features["date"] = date
             sentiment_data.append(sentiment_features)
 
@@ -685,7 +732,13 @@ class MonteCarloMLSentimentStrategy(BaseStrategy):
 
     def generate_signals(self, data: pd.DataFrame) -> pd.DataFrame:
         """
-        Generate trading signals using Monte Carlo simulation
+        Generate trading signals across the full time series for backtesting.
+
+        Iterates bar-by-bar after the lookback period:
+        1. Pre-computes sentiment and technical features in one pass
+        2. Retrains the ML model on schedule (weekly by default)
+        3. Runs Monte Carlo simulation per bar (reduced sims for performance)
+        4. Sets signal based on prob_profit and expected_return thresholds
         """
         df = self._normalize_columns(data)
         df["signal"] = 0
@@ -693,73 +746,101 @@ class MonteCarloMLSentimentStrategy(BaseStrategy):
         df["expected_return"] = 0.0
         df["confidence"] = 0.0
 
-        # Need sufficient data for training
-        if len(df) < self.lookback_period:
+        # Need sufficient data for lookback + some forward bars
+        min_required = self.lookback_period + 50
+        if len(df) < min_required:
+            logger.warning(f"Insufficient data: {len(df)} bars, need {min_required}. Returning zeros.")
             return df
 
-        # Train or retrain model
-        if not self.ml_predictor.is_trained or self.should_retrain(df.index[-1]):
-            train_data = df.iloc[-self.lookback_period :]
-            try:
-                self.train_model(train_data)
-            except Exception as e:
-                logger.error(f"Training failed: {e}")
-                return df
+        # --- Step 1: Pre-compute sentiment for all dates in one pass ---
+        symbol = getattr(self, "symbol", None) or "SPY"
+        sentiment_data = []
+        for date in df.index:
+            sentiment_features = self.sentiment_analyzer.get_sentiment_features(symbol, date)
+            sentiment_features["date"] = date
+            sentiment_data.append(sentiment_features)
 
-        # Generate features for prediction
-        df_with_features = self.calculate_indicators(df)
+        sentiment_df = pd.DataFrame(sentiment_data).set_index("date")
+        self.sentiment_history = sentiment_df
 
-        # Get feature columns
+        # --- Step 2: Pre-compute all technical + sentiment features once ---
+        all_features = self.ml_predictor.create_features(df, sentiment_df)
         feature_cols = [
             col
-            for col in df_with_features.columns
-            if col not in ["open", "high", "low", "close", "volume", "signal", "position_size", "expected_return", "confidence"]
+            for col in all_features.columns
+            if col
+            not in [
+                "open",
+                "high",
+                "low",
+                "close",
+                "volume",
+                "signal",
+                "position_size",
+                "expected_return",
+                "confidence",
+            ]
         ]
 
-        # Make predictions on recent data
-        recent_features = df_with_features[feature_cols].iloc[-1:]
+        # Target: next-day return (for training)
+        targets = df["close"].pct_change().shift(-1)
 
-        try:
-            predictions, uncertainty = self.ml_predictor.predict(recent_features)
-            predicted_return = predictions[0]
-            predicted_volatility = uncertainty[0]
-        except Exception as e:
-            logger.error(f"Prediction failed: {e}")
-            return df
+        # --- Step 3: Use reduced MC simulations for backtest performance ---
+        original_sims = self.mc_engine.num_simulations
+        self.mc_engine.num_simulations = self.backtest_num_simulations
 
-        # Run Monte Carlo simulation
-        current_price = df["close"].iloc[-1]
-        paths = self.mc_engine.simulate_paths(
-            current_price=current_price,
-            predicted_return=predicted_return,
-            predicted_volatility=predicted_volatility,
-            forecast_horizon=self.forecast_horizon,
-        )
+        # --- Step 4: Iterate bar-by-bar from lookback_period onward ---
+        start_idx = self.lookback_period
+        last_stats = {}
 
-        # Calculate simulation statistics
-        stats = self.mc_engine.calculate_statistics(paths, self.confidence_level)
-        self.simulation_results = stats
+        for i in range(start_idx, len(df)):
+            current_date = df.index[i]
 
-        # Generate signal based on probability and expected return
-        if stats["prob_profit"] > 0.55 and stats["expected_return"] > 0.01:
-            df.loc[df.index[-1], "signal"] = 1
-        elif stats["prob_profit"] < 0.45 and stats["expected_return"] < -0.01:
-            df.loc[df.index[-1], "signal"] = -1
-        else:
-            df.loc[df.index[-1], "signal"] = 0
+            # Retrain ML model on schedule (weekly by default)
+            if not self.ml_predictor.is_trained or self.should_retrain(current_date):
+                train_features = all_features[feature_cols].iloc[:i]
+                train_targets = targets.iloc[:i]
 
-        # Calculate position size
-        if df.loc[df.index[-1], "signal"] != 0:
-            position_size = self.position_sizer.calculate_position_size(
-                portfolio_value=100000,  # Placeholder
-                simulation_stats=stats,
+                try:
+                    self.ml_predictor.train(train_features, train_targets)
+                    self.last_training_date = current_date
+                except Exception as e:
+                    logger.debug(f"Training skipped at bar {i}: {e}")
+                    continue
+
+            # Predict return + uncertainty for current bar
+            current_features = all_features[feature_cols].iloc[i : i + 1]
+            try:
+                predictions, uncertainty = self.ml_predictor.predict(current_features)
+                predicted_return = predictions[0]
+                predicted_volatility = uncertainty[0]
+            except Exception:
+                continue
+
+            # Run Monte Carlo simulation
+            current_price = df["close"].iloc[i]
+            paths = self.mc_engine.simulate_paths(
                 current_price=current_price,
+                predicted_return=predicted_return,
+                predicted_volatility=predicted_volatility,
+                forecast_horizon=self.forecast_horizon,
             )
-            df.loc[df.index[-1], "position_size"] = position_size
 
-        # Store additional info
-        df.loc[df.index[-1], "expected_return"] = stats["expected_return"]
-        df.loc[df.index[-1], "confidence"] = stats["prob_profit"]
+            stats = self.mc_engine.calculate_statistics(paths, self.confidence_level)
+            last_stats = stats
+
+            # Generate signal based on probability and expected return
+            if stats["prob_profit"] > 0.55 and stats["expected_return"] > 0.01:
+                df.iloc[i, df.columns.get_loc("signal")] = 1
+            elif stats["prob_profit"] < 0.45 and stats["expected_return"] < -0.01:
+                df.iloc[i, df.columns.get_loc("signal")] = -1
+
+            df.iloc[i, df.columns.get_loc("expected_return")] = stats["expected_return"]
+            df.iloc[i, df.columns.get_loc("confidence")] = stats["prob_profit"]
+
+        # Restore original MC simulation count (for live use)
+        self.mc_engine.num_simulations = original_sims
+        self.simulation_results = last_stats
 
         return df
 

@@ -8,9 +8,10 @@ from typing import Any, Dict, List, Optional
 
 import numpy as np
 
+from app.strategies.ml.analysis.lppls_bubbles_strategy import LPPLSBubbleStrategy
+from app.strategies.ml.analysis.lstm_stress_strategy import LSTMStressStrategy
+
 from ...services.analysis.ensemble.enhanced_rf import EnhancedRandomForest
-from ..analysis.lppls_bubbles_strategy import LPPLSBubbleStrategy
-from ..analysis.lstm_stress_strategy import LSTMStressStrategy
 from .drl_portfolio import DRLPortfolioOptimizer, DynamicFactorDRL
 from .temporal_gat import TemporalGATService
 from .timegan import TimeGAN

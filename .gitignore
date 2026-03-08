@@ -41,9 +41,13 @@ wheels/
 *.log
 logs/
 
-# Environmen
+# Environment / Secrets
 .env
-.env.local
+.env.*
+!.env.example
+backend/.env
+backend/.env.*
+!backend/.env.example
 
 # OS
 .DS_Store

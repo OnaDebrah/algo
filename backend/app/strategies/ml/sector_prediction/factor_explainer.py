@@ -542,7 +542,7 @@ class FactorExplainer:
             if factor.get("is_interaction"):
                 # Handle interaction factors
                 factor_name = factor["factor"]
-                factor["interpretation"] = f'Interaction effect: {factor["description"]}'
+                factor["interpretation"] = f"Interaction effect: {factor['description']}"
                 factor["action"] = "interaction"
                 continue
 

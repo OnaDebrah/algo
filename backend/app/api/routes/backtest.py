@@ -6,12 +6,14 @@ import asyncio
 import logging
 from typing import List, Optional
 
+from celery.result import AsyncResult
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import desc, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from statsmodels.tsa.stattools import coint
 
 from ...api.deps import check_permission, get_current_active_user, get_current_user, get_db
+from ...celery_app import celery_app
 from ...core import fetch_stock_data
 from ...core.permissions import Permission
 from ...models import BacktestRun
@@ -19,52 +21,94 @@ from ...models.user import User
 from ...schemas.backtest import (
     BacktestHistoryItem,
     BacktestRequest,
-    BacktestResponse,
     MultiAssetBacktestRequest,
-    MultiAssetBacktestResponse,
     OptionsBacktestRequest,
     OptionsBacktestResponse,
     PairsValidationRequest,
     PairsValidationResponse,
     WFARequest,
-    WFAResponse,
 )
 from ...services.auth_service import AuthService
 from ...services.backtest_service import BacktestService
 from ...services.market_service import get_market_service
-from ...services.walk_forward_service import WalkForwardService
+from ...tasks.backtest_tasks import run_multi_backtest_task, run_single_backtest_task, run_wfa_task
+from ...utils.errors import safe_detail
 from ...utils.helpers import pairs
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/backtest", tags=["Backtest"])
 
 
-@router.post("/single", response_model=BacktestResponse)
+@router.post("/single")
 async def run_single_backtest(
     request: BacktestRequest, current_user: User = Depends(check_permission(Permission.BASIC_BACKTEST)), db: AsyncSession = Depends(get_db)
 ):
-    """Run single asset backtest"""
+    """Run single asset backtest (dispatched to background worker)"""
     # Track usage
     await AuthService.track_usage(db, current_user.id, "run_backtest_single", {"symbol": request.symbol})
 
+    # Create the backtest run record
     service = BacktestService(db)
-    result = await service.run_single_backtest(request, current_user.id)
-    return result
+    backtest_run = await service.create_backtest_run(
+        user_id=current_user.id,
+        backtest_type="single",
+        symbols=[request.symbol],
+        strategy_config=request.model_dump().get("strategy", {}),
+        period=request.period,
+        interval=request.interval,
+        initial_capital=request.initial_capital,
+    )
+
+    # Dispatch to Celery worker
+    task = run_single_backtest_task.delay(backtest_run.id, request.model_dump(mode="json"), current_user.id)
+
+    # Store task ID for correlation
+    backtest_run.celery_task_id = task.id
+    await db.commit()
+
+    return {
+        "backtest_id": backtest_run.id,
+        "task_id": task.id,
+        "status": "pending",
+        "message": "Backtest submitted. Poll /backtest/history/{backtest_id} for results.",
+    }
 
 
-@router.post("/multi", response_model=MultiAssetBacktestResponse)
+@router.post("/multi")
 async def run_multi_asset_backtest(
     request: MultiAssetBacktestRequest,
     current_user: User = Depends(check_permission(Permission.MULTI_ASSET_BACKTEST)),
     db: AsyncSession = Depends(get_db),
 ):
-    """Run multi-asset backtest"""
+    """Run multi-asset backtest (dispatched to background worker)"""
     # Track usage
     await AuthService.track_usage(db, current_user.id, "run_backtest_multi", {"symbols": request.symbols})
 
+    # Create the backtest run record
     service = BacktestService(db)
-    result = await service.run_multi_asset_backtest(request, current_user.id)
-    return result
+    strategy_configs = request.model_dump(mode="json").get("strategy_configs", {})
+    backtest_run = await service.create_backtest_run(
+        user_id=current_user.id,
+        backtest_type="multi",
+        symbols=request.symbols,
+        strategy_config=strategy_configs,
+        period=request.period,
+        interval=request.interval,
+        initial_capital=request.initial_capital,
+    )
+
+    # Dispatch to Celery worker
+    task = run_multi_backtest_task.delay(backtest_run.id, request.model_dump(mode="json"), current_user.id)
+
+    backtest_run.celery_task_id = task.id
+    await db.commit()
+
+    return {
+        "backtest_id": backtest_run.id,
+        "task_id": task.id,
+        "status": "pending",
+        "message": "Multi-asset backtest submitted. Poll /backtest/history/{backtest_id} for results.",
+    }
 
 
 @router.post("/options", response_model=OptionsBacktestResponse)
@@ -143,7 +187,9 @@ async def get_backtest_history(
             status=run.status,
             error_message=run.error_message,
             equity_curve=run.equity_curve,
-            trades=run.trades_json,
+            # WFA backtests store the full WFA result dict in trades_json, not a list of trades
+            trades=run.trades_json if isinstance(run.trades_json, list) else None,
+            extended_results=({"wfa_results": run.trades_json} if isinstance(run.trades_json, dict) else None),
             created_at=run.created_at.isoformat() if run.created_at else None,
             completed_at=run.completed_at.isoformat() if run.completed_at else None,
         )
@@ -186,6 +232,13 @@ async def get_backtest_details(backtest_id: int, current_user: User = Depends(ge
     if not backtest:
         raise HTTPException(status_code=404, detail="Backtest not found")
 
+    # WFA backtests store the full WFA result dict in trades_json, not a list of trades
+    is_wfa = isinstance(backtest.trades_json, dict)
+    trades_data = None if is_wfa else backtest.trades_json
+    extended = backtest.extended_results or {}
+    if is_wfa:
+        extended = {**extended, "wfa_results": backtest.trades_json}
+
     return BacktestHistoryItem(
         id=backtest.id,
         name=backtest.name,
@@ -204,7 +257,8 @@ async def get_backtest_details(backtest_id: int, current_user: User = Depends(ge
         status=backtest.status,
         error_message=backtest.error_message,
         equity_curve=backtest.equity_curve,
-        trades=backtest.trades_json,
+        trades=trades_data,
+        extended_results=extended if extended else None,
         created_at=backtest.created_at.isoformat() if backtest.created_at else None,
         completed_at=backtest.completed_at.isoformat() if backtest.completed_at else None,
     )
@@ -371,7 +425,7 @@ async def validate_pairs(request: PairsValidationRequest):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Validation failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=safe_detail("Validation failed", e))
 
 
 @router.get("/suggested")
@@ -382,21 +436,58 @@ async def get_suggested_pairs():
     return {"pairs": pairs}
 
 
-@router.post("/walk-forward", response_model=WFAResponse)
+@router.post("/walk-forward")
 async def walk_forward(request: WFARequest, db: AsyncSession = Depends(get_db), current_user=Depends(get_current_user)):
     """
-    Run Walk-Forward Analysis on a strategy.
+    Run Walk-Forward Analysis on a strategy (dispatched to background worker).
 
     This performs iterative Optimization (In-Sample) and Validation (Out-of-Sample)
     to verify strategy robustness and detect overfitting.
     """
-    try:
-        service = WalkForwardService(db, current_user.id)
-        result = await service.run_wfa(request)
-        return result
-    except ValueError as e:
-        logger.error(f"WFA validation error: {e}")
-        raise HTTPException(status_code=400, detail=str(e))
-    except Exception as e:
-        logger.error(f"WFA execution failed: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail="Internal server error during Walk-Forward Analysis")
+    # Create a backtest run to track the WFA
+    service = BacktestService(db)
+    backtest_run = await service.create_backtest_run(
+        user_id=current_user.id,
+        backtest_type="wfa",
+        symbols=[request.symbol],
+        strategy_config=request.model_dump(mode="json").get("strategy", {}),
+        period=request.period,
+        interval=request.interval,
+        initial_capital=request.initial_capital,
+    )
+
+    # Dispatch to Celery worker
+    task = run_wfa_task.delay(backtest_run.id, request.model_dump(mode="json"), current_user.id)
+
+    backtest_run.celery_task_id = task.id
+    await db.commit()
+
+    return {
+        "backtest_id": backtest_run.id,
+        "task_id": task.id,
+        "status": "pending",
+        "message": "Walk-Forward Analysis submitted. Poll /backtest/history/{backtest_id} for results.",
+    }
+
+
+@router.get("/task/{task_id}")
+async def get_task_status(task_id: str, current_user: User = Depends(get_current_active_user)):
+    """
+    Check Celery task status.
+
+    Returns the current state of a background task.
+    For full results, use /backtest/history/{backtest_id} once status is 'completed'.
+    """
+    result = AsyncResult(task_id, app=celery_app)
+    response = {
+        "task_id": task_id,
+        "status": result.status,  # PENDING, STARTED, SUCCESS, FAILURE, RETRY
+    }
+
+    if result.ready():
+        if result.successful():
+            response["result"] = result.result
+        else:
+            response["error"] = str(result.result)
+
+    return response

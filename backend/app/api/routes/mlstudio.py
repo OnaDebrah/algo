@@ -13,6 +13,7 @@ from ...core import fetch_stock_data
 from ...models import User
 from ...schemas.mlstudio import MLModel, TrainingConfig
 from ...strategies import MLStrategy
+from ...utils.errors import safe_detail
 
 logger = logging.getLogger(__name__)
 
@@ -256,7 +257,7 @@ async def train_model(config: TrainingConfig, current_user: User = Depends(get_c
         return MLModel(**metadata)
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to train model: {str(e)}")
+        raise HTTPException(status_code=500, detail=safe_detail("Failed to train model", e))
 
 
 @router.post("/deploy/{model_id}")
@@ -287,7 +288,7 @@ async def deploy_model(model_id: str, current_user: User = Depends(get_current_a
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Deployment failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=safe_detail("Deployment failed", e))
 
 
 @router.delete("/models/{model_id}")
@@ -318,7 +319,7 @@ async def delete_model(model_id: str, current_user: User = Depends(get_current_a
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Deletion failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=safe_detail("Deletion failed", e))
 
 
 @router.get("/models/{model_id}/predict")
@@ -360,4 +361,4 @@ async def predict_with_model(model_id: str, current_user: User = Depends(get_cur
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Prediction failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=safe_detail("Prediction failed", e))

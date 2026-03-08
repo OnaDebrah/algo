@@ -52,7 +52,7 @@ class TradingEngine:
         self.commission_rate = commission_rate
         self.slippage_rate = slippage_rate
         self.db = db
-        logger.info(f"Trading engine initialized - Strategy: {strategy.name}, " f"Capital: ${initial_capital:,.2f}")
+        logger.info(f"Trading engine initialized - Strategy: {strategy.name}, Capital: ${initial_capital:,.2f}")
 
     async def execute_trade(self, symbol: str, signal: int, current_price: float, timestamp, start_timestamp=None):
         """
@@ -103,7 +103,7 @@ class TradingEngine:
 
                 self.trades.append(trade_data)
 
-                logger.info(f"BUY: {quantity} {symbol} @ ${slipped_price:.2f} " f"(Cost: ${total_cost:.2f}, Comm: ${commission:.2f})")
+                logger.info(f"BUY: {quantity} {symbol} @ ${slipped_price:.2f} (Cost: ${total_cost:.2f}, Comm: ${commission:.2f})")
 
         # Sell signal
         elif signal == -1 and self.position is not None:
@@ -137,8 +137,7 @@ class TradingEngine:
             self.trades.append(trade_data)
 
             logger.info(
-                f"SELL: {self.position['quantity']} {symbol} @ ${slipped_price:.2f} "
-                f"(P&L: ${profit:.2f}, {profit_pct:.2f}%, Comm: ${commission:.2f})"
+                f"SELL: {self.position['quantity']} {symbol} @ ${slipped_price:.2f} (P&L: ${profit:.2f}, {profit_pct:.2f}%, Comm: ${commission:.2f})"
             )
 
             self.position = None
@@ -166,6 +165,10 @@ class TradingEngine:
         import numpy as np
 
         logger.info(f"Starting VECTORIZED backtest - Symbol: {symbol}, start: {start_timestamp}")
+
+        # Ensure strategy has access to the symbol for sentiment lookups
+        if hasattr(self.strategy, "symbol") and self.strategy.symbol is None:
+            self.strategy.symbol = symbol
 
         # 1. Get raw signals
         signals = self.strategy.generate_signals_vectorized(data)

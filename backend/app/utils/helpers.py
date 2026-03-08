@@ -571,3 +571,26 @@ MACRO_INDICATORS = [
     "vix",
     "m2_money_supply",
 ]
+
+SYMBOL_TO_COMPANY = {
+    "AAPL": "Apple",
+    "MSFT": "Microsoft",
+    "GOOGL": "Google",
+    "GOOG": "Google",
+    "AMZN": "Amazon",
+    "META": "Meta",
+    "TSLA": "Tesla",
+    "NVDA": "NVIDIA",
+    "JPM": "JPMorgan",
+    "V": "Visa",
+    "JNJ": "Johnson & Johnson",
+    "WMT": "Walmart",
+    "PG": "Procter & Gamble",
+    "UNH": "UnitedHealth",
+    "HD": "Home Depot",
+    "DIS": "Walt Disney",
+    "MA": "Mastercard",
+    "BAC": "Bank of America",
+    "NFLX": "Netflix",
+    "ADBE": "Adobe",
+}

@@ -2,7 +2,7 @@ from typing import List
 
 import numpy as np
 
-from core.trade.sizing.position_sizer import PositionSizer
+from app.core.trade.sizing.position_sizer import PositionSizer
 
 
 class AdaptivePositionSizer(PositionSizer):

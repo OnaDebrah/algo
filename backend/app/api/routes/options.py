@@ -6,10 +6,12 @@ import pandas as pd
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.options.pop.probability_of_profit import ProbabilityMethod, ProbabilityOfProfit
+
 from ...analytics.options_analytics import OptionsAnalytics
 from ...api.deps import get_current_active_user
 from ...core.data.providers.providers import ProviderFactory
-from ...core.options_engine import OptionsBacktestEngine, backtest_options_strategy
+from ...core.options_backtest_engine import OptionsBacktestEngine, backtest_options_strategy
 from ...core.quantlib_hedge import OptionContract, QuantLibHedgeEngine
 from ...database import get_db
 from ...models import User
@@ -42,6 +44,7 @@ from ...services.auth_service import AuthService
 from ...services.market_service import get_market_service
 from ...strategies.options_builder import OptionsStrategy, OptionsStrategyBuilder, OptionType, create_preset_strategy
 from ...strategies.options_strategies import OptionsChain
+from ...utils.errors import safe_detail
 from .. import deps
 
 logger = logging.getLogger(__name__)
@@ -261,7 +264,7 @@ async def get_option_chain(
 
         logger.error(f"❌ Option chain error: {str(e)}")
         logger.debug(traceback.format_exc())
-        raise HTTPException(status_code=500, detail=f"Failed to fetch option chain for {request.symbol}: {str(e)}")
+        raise HTTPException(status_code=500, detail=safe_detail("Failed to fetch option chain", e))
 
 
 @router.post("/backtest", response_model=BacktestResult)
@@ -372,7 +375,7 @@ async def run_backtest(request: BacktestRequest, current_user: User = Depends(ge
 
         logger.info(f"❌ Backtest error: {str(e)}")
         logger.info(traceback.format_exc())
-        raise HTTPException(status_code=500, detail=f"Backtest failed for {request.symbol}: {str(e)}")
+        raise HTTPException(status_code=500, detail=safe_detail("Backtest failed", e))
 
 
 @router.post("/analyze", response_model=StrategyAnalysisResponse)
@@ -408,7 +411,9 @@ async def analyze_strategy(
         breakevens = builder.get_breakeven_points()
         max_profit, max_profit_cond = builder.get_max_profit()
         max_loss, max_loss_cond = builder.get_max_loss()
-        prob_profit = builder.calculate_probability_of_profit(volatility=request.volatility)
+
+        pop = ProbabilityOfProfit(ProbabilityMethod.MONTE_CARLO, default_volatility=request.volatility)
+        prob_profit = pop.calculate(volatility=request.volatility)
 
         # Generate payoff diagram
         price_range = np.linspace(current_price * 0.7, current_price * 1.3, 100)
@@ -425,12 +430,12 @@ async def analyze_strategy(
             max_profit_condition=max_profit_cond,
             max_loss=max_loss,
             max_loss_condition=max_loss_cond,
-            probability_of_profit=prob_profit,
+            probability_of_profit=prob_profit.pop,
             payoff_diagram=payoff_diagram,
         )
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Strategy analysis failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=safe_detail("Strategy analysis failed", e))
 
 
 @router.post("/greeks", response_model=GreeksResponse)
@@ -465,7 +470,7 @@ async def calculate_greeks(request: GreeksRequest, current_user: User = Depends(
         return GreeksResponse(**greeks)
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Greeks calculation failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=safe_detail("Greeks calculation failed", e))
 
 
 @router.post("/compare", response_model=StrategyComparisonResponse)
@@ -524,7 +529,8 @@ async def compare_strategies(
             breakevens = builder.get_breakeven_points()
             max_profit, max_profit_cond = builder.get_max_profit()
             max_loss, max_loss_cond = builder.get_max_loss()
-            prob_profit = builder.calculate_probability_of_profit()
+            pop = ProbabilityOfProfit(ProbabilityMethod.MONTE_CARLO)
+            prob_profit = pop.calculate().pop
 
             comparisons.append(
                 {
@@ -543,7 +549,7 @@ async def compare_strategies(
         return StrategyComparisonResponse(symbol=request.symbol, current_price=current_price, comparisons=comparisons)
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Strategy comparison failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=safe_detail("Strategy comparison failed", e))
 
 
 # ============================================================
@@ -612,7 +618,7 @@ async def calculate_probability(
         )
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Probability calculation failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=safe_detail("Probability calculation failed", e))
 
 
 @router.post("/analytics/optimize-strike", response_model=StrikeOptimizerResponse)
@@ -644,7 +650,7 @@ async def optimize_strike(
         )
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Strike optimization failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=safe_detail("Strike optimization failed", e))
 
 
 @router.post("/analytics/risk-metrics", response_model=RiskMetricsResponse)
@@ -696,7 +702,7 @@ async def calculate_risk_metrics(
         return RiskMetricsResponse(var_95=var, cvar_95=cvar, kelly_fraction=kelly_fraction, recommendation=recommendation)
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Risk metrics calculation failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=safe_detail("Risk metrics calculation failed", e))
 
 
 @router.post("/analytics/portfolio-stats", response_model=PortfolioStatsResponse)
@@ -715,7 +721,7 @@ async def calculate_portfolio_stats(
         return PortfolioStatsResponse(**stats)
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Portfolio stats calculation failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=safe_detail("Portfolio stats calculation failed", e))
 
 
 @router.post("/analytics/monte-carlo", response_model=MonteCarloResponse)
@@ -757,7 +763,7 @@ async def run_monte_carlo(request: MonteCarloRequest, current_user: User = Depen
         )
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Monte Carlo simulation failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=safe_detail("Monte Carlo simulation failed", e))
 
 
 @router.get("/hedge/recommendation")

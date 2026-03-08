@@ -24,6 +24,7 @@ from ...schemas.settings import (
     UserSettings,
 )
 from ...services.brokers.ib_client import IBClient
+from ...utils.errors import safe_detail
 
 router = APIRouter(prefix="/settings", tags=["Settings"])
 
@@ -288,4 +289,4 @@ async def test_broker_connection(current_user: User = Depends(get_current_active
         }
 
     except Exception as e:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Failed to connect to broker: {str(e)}")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=safe_detail("Failed to connect to broker", e))

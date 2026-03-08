@@ -1,4 +1,4 @@
-from core.trade.sizing.position_sizer import PositionSizer
+from app.core.trade.sizing.position_sizer import PositionSizer
 
 
 class FixedSharesSizer(PositionSizer):

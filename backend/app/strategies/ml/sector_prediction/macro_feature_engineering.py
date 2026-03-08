@@ -316,7 +316,7 @@ class MacroFeatureEngine:
             X_pca = self.pca_model.transform(X_scaled)
 
         # Create PCA features
-        pca_df = pd.DataFrame(X_pca, index=features.index, columns=[f"PC{i+1}" for i in range(X_pca.shape[1])])
+        pca_df = pd.DataFrame(X_pca, index=features.index, columns=[f"PC{i + 1}" for i in range(X_pca.shape[1])])
 
         return pca_df
 

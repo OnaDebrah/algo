@@ -62,15 +62,13 @@ async def get_db() -> AsyncGenerator[AsyncSession, None]:
 
 async def init_db() -> None:
     """
-    Initialize database tables
-    Call this on application startup
+    Initialize database
+    Call this on application startup.
+    Note: Schema creation is now handled by Alembic migrations.
     """
-    async with engine.begin() as conn:
-        # Import all models here to ensure they're registered with Base
-
-        # Create all tables
-        await conn.run_sync(Base.metadata.create_all)
-        logger.info("Database tables created successfully")
+    # We no longer run Base.metadata.create_all() here.
+    # Run `alembic upgrade head` to apply schema changes.
+    logger.info("Database initialized (schema managed by Alembic)")
 
 
 async def close_db() -> None:

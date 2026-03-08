@@ -1,6 +1,6 @@
 import logging
 
-from core.trade.order.order import Order, OrderSide, OrderType, TimeInForce
+from app.core.trade.order.order import Order, OrderSide, OrderType, TimeInForce
 
 logger = logging.getLogger(__name__)
 

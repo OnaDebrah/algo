@@ -48,7 +48,7 @@ class RiskManager:
         quantity = int(max_investment / entry_price)
         calculated_quantity = max(1, quantity)
 
-        logger.debug(f"Position size: {calculated_quantity} shares " f"(${max_investment:.2f} / ${entry_price:.2f})")
+        logger.debug(f"Position size: {calculated_quantity} shares (${max_investment:.2f} / ${entry_price:.2f})")
 
         return calculated_quantity
 
@@ -69,7 +69,7 @@ class RiskManager:
             drawdown = (self.peak_value - current_value) / self.peak_value
 
             if drawdown >= self.max_drawdown:
-                logger.warning(f"Drawdown limit exceeded: {drawdown:.2%} " f"(limit: {self.max_drawdown:.2%})")
+                logger.warning(f"Drawdown limit exceeded: {drawdown:.2%} (limit: {self.max_drawdown:.2%})")
                 return True
 
         return False
