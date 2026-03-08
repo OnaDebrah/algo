@@ -9,16 +9,16 @@ from ..strategies import BaseStrategy
 
 class PairsTradingStrategy(BaseStrategy):
     def __init__(
-            self,
-            asset_1: str,
-            asset_2: str,
-            lookback: int = 60,
-            entry_z: float = 2.0,
-            exit_z: float = 0.5,
-            stop_loss_z: float = 3.0,
-            min_coint_pvalue: float = 0.05,
-            hedge_ratio_lookback: int = 20,
-            max_position: float = 1.0,
+        self,
+        asset_1: str,
+        asset_2: str,
+        lookback: int = 60,
+        entry_z: float = 2.0,
+        exit_z: float = 0.5,
+        stop_loss_z: float = 3.0,
+        min_coint_pvalue: float = 0.05,
+        hedge_ratio_lookback: int = 20,
+        max_position: float = 1.0,
     ):
         params = {
             "asset_1": asset_1,

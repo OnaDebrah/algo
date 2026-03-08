@@ -39,7 +39,7 @@ async def get_quote(symbol: str, use_cache: bool = True, current_user: User = De
 
 @router.post("/quotes")
 async def get_quotes(
-        symbols: List[str], use_cache: bool = True, current_user: User = Depends(get_current_active_user), db: AsyncSession = Depends(get_db)
+    symbols: List[str], use_cache: bool = True, current_user: User = Depends(get_current_active_user), db: AsyncSession = Depends(get_db)
 ):
     """
     Get quotes for multiple symbols
@@ -59,14 +59,14 @@ async def get_quotes(
 
 @router.get("/historical/{symbol}")
 async def get_historical_data(
-        symbol: str,
-        period: str = Query("1mo", description="Data period (1d, 5d, 1mo, 3mo, 6mo, 1y, 2y, 5y, 10y, ytd, max)"),
-        interval: str = Query("1d", description="Data interval (1m, 2m, 5m, 15m, 30m, 60m, 90m, 1h, 1d, 5d, 1wk, 1mo, 3mo)"),
-        start: Optional[str] = Query(None, description="Start date (YYYY-MM-DD)"),
-        end: Optional[str] = Query(None, description="End date (YYYY-MM-DD)"),
-        use_cache: bool = False,
-        current_user: User = Depends(get_current_active_user),
-        db: AsyncSession = Depends(get_db),
+    symbol: str,
+    period: str = Query("1mo", description="Data period (1d, 5d, 1mo, 3mo, 6mo, 1y, 2y, 5y, 10y, ytd, max)"),
+    interval: str = Query("1d", description="Data interval (1m, 2m, 5m, 15m, 30m, 60m, 90m, 1h, 1d, 5d, 1wk, 1mo, 3mo)"),
+    start: Optional[str] = Query(None, description="Start date (YYYY-MM-DD)"),
+    end: Optional[str] = Query(None, description="End date (YYYY-MM-DD)"),
+    use_cache: bool = False,
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db),
 ):
     """
     Get historical OHLCV data
@@ -115,10 +115,10 @@ async def get_historical_data(
 
 @router.get("/options/{symbol}")
 async def get_option_chain(
-        symbol: str,
-        expiration: Optional[str] = Query(None, description="Expiration date (YYYY-MM-DD)"),
-        current_user: User = Depends(get_current_active_user),
-        db: AsyncSession = Depends(get_db),
+    symbol: str,
+    expiration: Optional[str] = Query(None, description="Expiration date (YYYY-MM-DD)"),
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db),
 ):
     """
     Get option chain data
@@ -155,10 +155,10 @@ async def get_fundamentals(symbol: str, current_user: User = Depends(get_current
 
 @router.get("/news/{symbol}")
 async def get_news(
-        symbol: str,
-        limit: int = Query(10, ge=1, le=50, description="Maximum number of news items"),
-        current_user: User = Depends(get_current_active_user),
-        db: AsyncSession = Depends(get_db),
+    symbol: str,
+    limit: int = Query(10, ge=1, le=50, description="Maximum number of news items"),
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db),
 ):
     """
     Get news for a symbol
@@ -178,9 +178,9 @@ async def get_news(
 
 @router.get("/search")
 async def search_symbols(
-        q: str = Query(..., min_length=1, description="Search query"),
-        limit: int = Query(10, ge=1, le=50),
-        current_user: User = Depends(get_current_active_user),
+    q: str = Query(..., min_length=1, description="Search query"),
+    limit: int = Query(10, ge=1, le=50),
+    current_user: User = Depends(get_current_active_user),
 ):
     """
     Search for symbols
@@ -227,8 +227,8 @@ async def get_market_status(current_user: User = Depends(get_current_active_user
 
 @router.get("/cache/stats")
 async def get_cache_stats(
-        db: AsyncSession = Depends(get_db),
-        current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_active_user),
 ):
     """
     Get cache statistics
@@ -242,9 +242,9 @@ async def get_cache_stats(
 
 @router.post("/cache/clear")
 async def clear_cache(
-        data_type: Optional[str] = Query(None, description="Data type to clear (quote, historical, fundamentals, etc.)"),
-        db: AsyncSession = Depends(get_db),
-        current_user: User = Depends(get_current_active_user),
+    data_type: Optional[str] = Query(None, description="Data type to clear (quote, historical, fundamentals, etc.)"),
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_active_user),
 ):
     """
     Clear market data cache
@@ -262,8 +262,8 @@ async def clear_cache(
 
 @router.post("/cache/cleanup")
 async def cleanup_cache(
-        db: AsyncSession = Depends(get_db),
-        current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_active_user),
 ):
     """
     Clean up expired cache entries

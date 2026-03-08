@@ -4,7 +4,6 @@ from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-<<<<<<< HEAD
 from ...alerts.alert_manager import AlertManager
 from ...alerts.alert_preferences import AlertPreferences
 from ...alerts.email_provider import EmailProvider
@@ -14,17 +13,6 @@ from ...config import settings
 from ...models.user import User
 from ...schemas.alert import AlertChannel, AlertLevel
 from ...schemas.alerts import (
-=======
-from backend.app.alerts.alert_manager import AlertManager
-from backend.app.alerts.alert_preferences import AlertPreferences
-from backend.app.alerts.email_provider import EmailProvider
-from backend.app.alerts.sms_provider import SMSProvider
-from backend.app.api.deps import get_current_active_user, get_db
-from backend.app.config import settings
-from backend.app.models.user import User
-from backend.app.schemas.alert import AlertChannel, AlertLevel
-from backend.app.schemas.alerts import (
->>>>>>> 1d0cda0 (strategy deploy)
     AlertPreferencesResponse,
     AlertPreferencesUpdate,
     AlertResponse,
@@ -34,14 +22,8 @@ from backend.app.schemas.alerts import (
     SuccessResponse,
     TestAlertRequest,
 )
-<<<<<<< HEAD
 from ...services.auth_service import AuthService
 from ...utils.errors import safe_detail
-
-logger = logging.getLogger(__name__)
-=======
-from backend.app.services.auth_service import AuthService
->>>>>>> 1d0cda0 (strategy deploy)
 
 logger = logging.getLogger(__name__)
 

@@ -13,10 +13,10 @@ class RiskManager:
     """Risk management system for position sizing and drawdown control"""
 
     def __init__(
-            self,
-            max_position_size: float = settings.DEFAULT_MAX_POSITION_SIZE,
-            stop_loss_pct: float = settings.DEFAULT_STOP_LOSS_PCT,
-            max_drawdown: float = settings.DEFAULT_MAX_DRAWDOWN,
+        self,
+        max_position_size: float = settings.DEFAULT_MAX_POSITION_SIZE,
+        stop_loss_pct: float = settings.DEFAULT_STOP_LOSS_PCT,
+        max_drawdown: float = settings.DEFAULT_MAX_DRAWDOWN,
     ):
         """
         Initialize risk manager

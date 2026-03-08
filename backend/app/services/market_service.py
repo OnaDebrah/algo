@@ -102,14 +102,14 @@ class MarketService:
     # ============================================================
 
     async def get_historical_data(
-            self,
-            db: AsyncSession,
-            symbol: str,
-            period: str = "1mo",
-            interval: str = "1d",
-            start: Optional[str] = None,
-            end: Optional[str] = None,
-            use_cache: bool = False,
+        self,
+        db: AsyncSession,
+        symbol: str,
+        period: str = "1mo",
+        interval: str = "1d",
+        start: Optional[str] = None,
+        end: Optional[str] = None,
+        use_cache: bool = False,
     ) -> Dict:
         """Get historical OHLCV data"""
         cache_key = f"hist_{symbol}_{period}_{interval}_{start}_{end}"

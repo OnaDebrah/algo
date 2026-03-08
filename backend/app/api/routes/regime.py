@@ -43,7 +43,7 @@ def get_detector(symbol: str) -> MarketRegimeDetector:
 
 @router.get("/detect/{symbol}", response_model=CurrentRegimeResponse)
 async def detect_market_regime(
-        symbol: str, period: str = "2y", current_user: User = Depends(get_current_active_user), db: AsyncSession = Depends(get_db)
+    symbol: str, period: str = "2y", current_user: User = Depends(get_current_active_user), db: AsyncSession = Depends(get_db)
 ):
     """Detect current market regime for a symbol"""
     await AuthService.track_usage(db, current_user.id, "detect_market_regime", {"symbol": symbol})
@@ -115,7 +115,7 @@ async def detect_market_regime(
 
 @router.get("/history/{symbol}")
 async def get_regime_history_data(
-        symbol: str, period: str = "2y", current_user: User = Depends(get_current_active_user), db: AsyncSession = Depends(get_db)
+    symbol: str, period: str = "2y", current_user: User = Depends(get_current_active_user), db: AsyncSession = Depends(get_db)
 ):
     """Get historical regime changes"""
     await AuthService.track_usage(db, current_user.id, "get_regime_history_data", {"symbol": symbol})
@@ -153,7 +153,7 @@ async def get_regime_history_data(
 
 @router.get("/report/{symbol}")
 async def get_regime_report(
-        symbol: str, period: str = "2y", current_user: User = Depends(get_current_active_user), db: AsyncSession = Depends(get_db)
+    symbol: str, period: str = "2y", current_user: User = Depends(get_current_active_user), db: AsyncSession = Depends(get_db)
 ):
     """Get comprehensive regime analysis report"""
     await AuthService.track_usage(db, current_user.id, "get_regime_report", {"symbol": symbol})
@@ -182,7 +182,7 @@ async def get_regime_report(
 
 @router.post("/batch")
 async def detect_batch_regimes(
-        symbols: List[str], period: str = "2y", current_user: User = Depends(get_current_active_user), db: AsyncSession = Depends(get_db)
+    symbols: List[str], period: str = "2y", current_user: User = Depends(get_current_active_user), db: AsyncSession = Depends(get_db)
 ):
     await AuthService.track_usage(db, current_user.id, "detect_batch_regimes", {"symbols": symbols})
 
@@ -255,7 +255,7 @@ async def train_ml_model(symbol: str, period: str = "5y", current_user: User = D
 
 @router.get("/warning/{symbol}")
 async def get_regime_change_warning(
-        symbol: str, period: str = "2y", current_user: User = Depends(get_current_active_user), db: AsyncSession = Depends(get_db)
+    symbol: str, period: str = "2y", current_user: User = Depends(get_current_active_user), db: AsyncSession = Depends(get_db)
 ):
     """Get early warning signals for potential regime changes"""
     await AuthService.track_usage(db, current_user.id, "get_regime_change_warning", {"symbol": symbol})
@@ -313,7 +313,7 @@ async def clear_all_cache(current_user: User = Depends(get_current_active_user),
 # ============================================================
 @router.get("/allocation/{symbol}", response_model=AllocationResponse)
 async def get_strategy_allocation(
-        symbol: str, period: str = "2y", current_user: User = Depends(get_current_active_user), db: AsyncSession = Depends(get_db)
+    symbol: str, period: str = "2y", current_user: User = Depends(get_current_active_user), db: AsyncSession = Depends(get_db)
 ):
     """
     Get recommended strategy allocation based on current market regime
@@ -352,7 +352,7 @@ async def get_strategy_allocation(
 
 @router.get("/strength/{symbol}", response_model=RegimeStrengthResponse)
 async def get_regime_strength(
-        symbol: str, period: str = "2y", current_user: User = Depends(get_current_active_user), db: AsyncSession = Depends(get_db)
+    symbol: str, period: str = "2y", current_user: User = Depends(get_current_active_user), db: AsyncSession = Depends(get_db)
 ):
     """
     Calculate how strongly the current regime is presenting itself
