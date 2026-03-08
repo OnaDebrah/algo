@@ -22,14 +22,14 @@ class TradingEngine:
     """Main trading engine for backtesting"""
 
     def __init__(
-            self,
-            strategy: BaseStrategy,
-            initial_capital: float = DEFAULT_INITIAL_CAPITAL,
-            risk_manager: RiskManager = None,
-            trading_service: TradingService = None,
-            commission_rate: float = 0.0,
-            slippage_rate: float = 0.0,
-            db: AsyncSession = None,
+        self,
+        strategy: BaseStrategy,
+        initial_capital: float = DEFAULT_INITIAL_CAPITAL,
+        risk_manager: RiskManager = None,
+        trading_service: TradingService = None,
+        commission_rate: float = 0.0,
+        slippage_rate: float = 0.0,
+        db: AsyncSession = None,
     ):
         """
         Initialize trading engine

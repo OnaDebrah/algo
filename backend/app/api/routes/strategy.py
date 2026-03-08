@@ -38,9 +38,9 @@ router = APIRouter(prefix="/strategy", tags=["Strategy"])
 
 @router.post("/generate", response_model=StrategyGenerateResponse)
 async def generate_strategy(
-        request: StrategyGenerateRequest,
-        current_user: User = Depends(check_permission(Permission.CUSTOM_STRATEGIES)),
-        db: AsyncSession = Depends(get_db),
+    request: StrategyGenerateRequest,
+    current_user: User = Depends(check_permission(Permission.CUSTOM_STRATEGIES)),
+    db: AsyncSession = Depends(get_db),
 ):
     """Generate strategy code from a natural language prompt using AI (Anthropic → DeepSeek → template)"""
     await AuthService.track_usage(db, current_user.id, "generate_strategy", {"prompt": request.prompt[:100]})
@@ -70,8 +70,8 @@ async def generate_strategy(
 
 @router.post("/validate", response_model=StrategyValidateResponse)
 async def validate_strategy(
-        request: StrategyValidateRequest,
-        current_user: User = Depends(get_current_active_user),
+    request: StrategyValidateRequest,
+    current_user: User = Depends(get_current_active_user),
 ):
     """Validate strategy code for syntax errors and forbidden operations"""
     env = SafeExecutionEnvironment()
@@ -96,9 +96,9 @@ async def validate_strategy(
 
 @router.post("/backtest")
 async def backtest_custom_strategy(
-        request: CustomBacktestRequest,
-        current_user: User = Depends(check_permission(Permission.CUSTOM_STRATEGIES)),
-        db: AsyncSession = Depends(get_db),
+    request: CustomBacktestRequest,
+    current_user: User = Depends(check_permission(Permission.CUSTOM_STRATEGIES)),
+    db: AsyncSession = Depends(get_db),
 ):
     """Run a backtest using custom strategy code (dispatched to Celery worker)"""
     await AuthService.track_usage(db, current_user.id, "backtest_custom", {"symbol": request.symbol})
@@ -147,9 +147,9 @@ async def backtest_custom_strategy(
 
 @router.post("/custom", response_model=CustomStrategyResponse, status_code=201)
 async def create_custom_strategy(
-        request: CustomStrategyCreate,
-        current_user: User = Depends(check_permission(Permission.CUSTOM_STRATEGIES)),
-        db: AsyncSession = Depends(get_db),
+    request: CustomStrategyCreate,
+    current_user: User = Depends(check_permission(Permission.CUSTOM_STRATEGIES)),
+    db: AsyncSession = Depends(get_db),
 ):
     """Save a custom strategy to the user's library"""
     # Auto-validate code
@@ -176,8 +176,8 @@ async def create_custom_strategy(
 
 @router.get("/custom", response_model=List[CustomStrategyResponse])
 async def list_custom_strategies(
-        current_user: User = Depends(get_current_active_user),
-        db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db),
 ):
     """List all custom strategies for the current user"""
     result = await db.execute(select(CustomStrategy).filter(CustomStrategy.user_id == current_user.id).order_by(desc(CustomStrategy.updated_at)))
@@ -187,9 +187,9 @@ async def list_custom_strategies(
 
 @router.get("/custom/{strategy_id}", response_model=CustomStrategyResponse)
 async def get_custom_strategy(
-        strategy_id: int,
-        current_user: User = Depends(get_current_active_user),
-        db: AsyncSession = Depends(get_db),
+    strategy_id: int,
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db),
 ):
     """Get a specific custom strategy"""
     strategy = await _get_owned_strategy(db, strategy_id, current_user.id)
@@ -198,10 +198,10 @@ async def get_custom_strategy(
 
 @router.put("/custom/{strategy_id}", response_model=CustomStrategyResponse)
 async def update_custom_strategy(
-        strategy_id: int,
-        request: CustomStrategyUpdate,
-        current_user: User = Depends(get_current_active_user),
-        db: AsyncSession = Depends(get_db),
+    strategy_id: int,
+    request: CustomStrategyUpdate,
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db),
 ):
     """Update an existing custom strategy"""
     strategy = await _get_owned_strategy(db, strategy_id, current_user.id)
@@ -228,9 +228,9 @@ async def update_custom_strategy(
 
 @router.delete("/custom/{strategy_id}", status_code=204)
 async def delete_custom_strategy(
-        strategy_id: int,
-        current_user: User = Depends(get_current_active_user),
-        db: AsyncSession = Depends(get_db),
+    strategy_id: int,
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db),
 ):
     """Delete a custom strategy"""
     strategy = await _get_owned_strategy(db, strategy_id, current_user.id)
@@ -247,7 +247,7 @@ async def _get_owned_strategy(db: AsyncSession, strategy_id: int, user_id: int) 
         select(CustomStrategy).filter(
             CustomStrategy.id == strategy_id,
             CustomStrategy.user_id == user_id,
-            )
+        )
     )
     strategy = result.scalar_one_or_none()
     if not strategy:
@@ -276,9 +276,9 @@ def _strategy_to_response(s: CustomStrategy) -> CustomStrategyResponse:
 
 @router.get("/list", response_model=List[StrategyInfo])
 async def list_strategies(
-        mode: Optional[str] = Query(None, description="Filter by backtest mode: 'single' or 'multi'"),
-        current_user: User = Depends(get_current_active_user),
-        db: AsyncSession = Depends(get_db),
+    mode: Optional[str] = Query(None, description="Filter by backtest mode: 'single' or 'multi'"),
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db),
 ):
     """List all available strategies, optionally filtered by backtest mode"""
     await AuthService.track_usage(db, current_user.id, "list_strategies")
@@ -311,9 +311,9 @@ async def list_strategies(
 
 @router.get("/{strategy_key}", response_model=StrategyInfo)
 async def get_strategy(
-        strategy_key: str,
-        current_user: User = Depends(check_permission(Permission.BASIC_BACKTEST)),
-        db: AsyncSession = Depends(get_db),
+    strategy_key: str,
+    current_user: User = Depends(check_permission(Permission.BASIC_BACKTEST)),
+    db: AsyncSession = Depends(get_db),
 ):
     """Get strategy details"""
     await AuthService.track_usage(db, current_user.id, "get_strategy", {"strategy_key": strategy_key})

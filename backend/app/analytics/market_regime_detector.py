@@ -45,16 +45,16 @@ class MarketRegimeDetector:
     """
 
     def __init__(
-            self,
-            lookback_period: int = 252,
-            regime_types: List[str] = None,
-            primary_index: str = "SPY",
-            volatility_thresholds: Dict = None,
-            trend_thresholds: Dict = None,
-            use_ml: bool = True,
-            retrain_frequency: int = 63,
-            confidence_threshold: float = 0.7,
-            **kwargs,
+        self,
+        lookback_period: int = 252,
+        regime_types: List[str] = None,
+        primary_index: str = "SPY",
+        volatility_thresholds: Dict = None,
+        trend_thresholds: Dict = None,
+        use_ml: bool = True,
+        retrain_frequency: int = 63,
+        confidence_threshold: float = 0.7,
+        **kwargs,
     ):
         """
         Initialize Market Regime Detector
@@ -127,9 +127,9 @@ class MarketRegimeDetector:
         self.markov_chain = MarkovRegimeChain()
 
     def calculate_features(
-            self,
-            price_data: Union[pd.Series, pd.DataFrame],
-            volume_data: Optional[pd.Series] = None,
+        self,
+        price_data: Union[pd.Series, pd.DataFrame],
+        volume_data: Optional[pd.Series] = None,
     ) -> pd.DataFrame:
         """
         Calculate features for regime detection
@@ -1090,10 +1090,10 @@ class MarketRegimeDetector:
             )
 
     def detect_current_regime(
-            self,
-            price_data: Union[pd.Series, pd.DataFrame],
-            volume_data: Optional[pd.Series] = None,
-            update_history: bool = True,
+        self,
+        price_data: Union[pd.Series, pd.DataFrame],
+        volume_data: Optional[pd.Series] = None,
+        update_history: bool = True,
     ) -> Dict:
         """
         Detect current market regime
@@ -1165,10 +1165,10 @@ class MarketRegimeDetector:
         return regime_info
 
     def train_ml_model(
-            self,
-            historical_data: pd.DataFrame,
-            volume_data: Optional[pd.Series] = None,
-            labels: Optional[pd.Series] = None,
+        self,
+        historical_data: pd.DataFrame,
+        volume_data: Optional[pd.Series] = None,
+        labels: Optional[pd.Series] = None,
     ):
         """Train ML model for regime classification"""
         if not self.use_ml:

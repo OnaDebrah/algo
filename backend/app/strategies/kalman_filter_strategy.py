@@ -61,16 +61,16 @@ class KalmanFilterStrategy(BaseStrategy):
     """
 
     def __init__(
-            self,
-            asset_1: str,
-            asset_2: str,
-            entry_z: float = 2.0,
-            exit_z: float = 0.5,
-            stop_loss_z: float = 3.0,
-            min_obs: int = 20,
-            transitory_std: float = 0.01,
-            observation_std: float = 0.1,
-            decay_factor: float = 0.99,
+        self,
+        asset_1: str,
+        asset_2: str,
+        entry_z: float = 2.0,
+        exit_z: float = 0.5,
+        stop_loss_z: float = 3.0,
+        min_obs: int = 20,
+        transitory_std: float = 0.01,
+        observation_std: float = 0.1,
+        decay_factor: float = 0.99,
     ):
         params = {
             "asset_1": asset_1,

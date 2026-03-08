@@ -80,14 +80,14 @@ class BacktestService:
         self.db = db
 
     async def create_backtest_run(
-            self,
-            user_id: int,
-            backtest_type: str,
-            symbols: List[str],
-            strategy_config: dict,
-            period: str,
-            interval: str,
-            initial_capital: float,
+        self,
+        user_id: int,
+        backtest_type: str,
+        symbols: List[str],
+        strategy_config: dict,
+        period: str,
+        interval: str,
+        initial_capital: float,
     ) -> BacktestRun:
         """Create a new backtest run in database"""
         if not self.db:
@@ -369,7 +369,7 @@ class BacktestService:
             raise ValueError(f"Backtest failed: {str(e)}")
 
     async def run_multi_asset_backtest(
-            self, request: MultiAssetBacktestRequest, user_id: int, backtest_run_id: int = None
+        self, request: MultiAssetBacktestRequest, user_id: int, backtest_run_id: int = None
     ) -> MultiAssetBacktestResponse:
         """Run multi-asset backtest (supports both independent and pairs trading)"""
         backtest_run = None

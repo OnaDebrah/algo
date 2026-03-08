@@ -124,11 +124,7 @@ class StrategyExecutor:
         # Update status in DB
         self.strategy.status = StrategyStatus.RUNNING
         self.strategy.started_at = datetime.now(timezone.utc)
-<<<<<<< HEAD:backend/app/services/strategy_executor_service.py
         await self.db.commit()
-=======
-        self.db.commit()
->>>>>>> 1d0cda0 (strategy deploy):backend/app/services/strategy_executor.py
 
         # Main execution loop
         await self._execution_loop()
@@ -145,16 +141,10 @@ class StrategyExecutor:
         await self._close_all_positions()
 
         # Update status in DB
-<<<<<<< HEAD:backend/app/services/strategy_executor_service.py
         if self.strategy:
             self.strategy.status = StrategyStatus.STOPPED
             self.strategy.stopped_at = datetime.now(timezone.utc)
             await self.db.commit()
-=======
-        self.strategy.status = StrategyStatus.STOPPED
-        self.strategy.stopped_at = datetime.now(timezone.utc)
-        self.db.commit()
->>>>>>> 1d0cda0 (strategy deploy):backend/app/services/strategy_executor.py
 
     async def pause(self):
         """Pause strategy execution"""
@@ -367,11 +357,7 @@ class StrategyExecutor:
         self.strategy.daily_trades += 1
         self.trades_today += 1
         self.strategy.last_trade_at = datetime.now(timezone.utc)
-<<<<<<< HEAD:backend/app/services/strategy_executor_service.py
         await self.db.commit()
-=======
-        self.db.commit()
->>>>>>> 1d0cda0 (strategy deploy):backend/app/services/strategy_executor.py
 
         # Broadcast trade execution
         await ws_manager.broadcast_trade_executed(
@@ -570,11 +556,7 @@ class StrategyExecutor:
         self.strategy.current_equity = equity
         self.strategy.daily_pnl = daily_pnl
         self.strategy.last_equity_update = datetime.now(timezone.utc)
-<<<<<<< HEAD:backend/app/services/strategy_executor_service.py
         await self.db.commit()
-=======
-        self.db.commit()
->>>>>>> 1d0cda0 (strategy deploy):backend/app/services/strategy_executor.py
 
         # Broadcast to WebSocket clients
         await ws_manager.broadcast_equity_update(

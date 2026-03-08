@@ -467,7 +467,7 @@ class MonteCarloEngine:
         self.num_simulations = num_simulations
 
     def simulate_paths(
-            self, current_price: float, predicted_return: float, predicted_volatility: float, forecast_horizon: int, dt: float = 1 / 252
+        self, current_price: float, predicted_return: float, predicted_volatility: float, forecast_horizon: int, dt: float = 1 / 252
     ) -> np.ndarray:
         """
         Generate Monte Carlo price paths using Geometric Brownian Motion
@@ -575,18 +575,18 @@ class MonteCarloMLSentimentStrategy(BaseStrategy):
     """
 
     def __init__(
-            self,
-            sentiment_sources: List[str] = None,
-            ml_model_type: str = "gradient_boosting",
-            lookback_period: int = 252,
-            forecast_horizon: int = 20,
-            num_simulations: int = 10000,
-            backtest_num_simulations: int = 500,
-            confidence_level: float = 0.95,
-            retraining_frequency: str = "weekly",
-            sentiment_weight: float = 0.3,
-            min_sentiment_quality: float = 0.7,
-            **kwargs,
+        self,
+        sentiment_sources: List[str] = None,
+        ml_model_type: str = "gradient_boosting",
+        lookback_period: int = 252,
+        forecast_horizon: int = 20,
+        num_simulations: int = 10000,
+        backtest_num_simulations: int = 500,
+        confidence_level: float = 0.95,
+        retraining_frequency: str = "weekly",
+        sentiment_weight: float = 0.3,
+        min_sentiment_quality: float = 0.7,
+        **kwargs,
     ):
         params = {
             "ml_model_type": ml_model_type,
@@ -769,17 +769,17 @@ class MonteCarloMLSentimentStrategy(BaseStrategy):
             col
             for col in all_features.columns
             if col
-               not in [
-                   "open",
-                   "high",
-                   "low",
-                   "close",
-                   "volume",
-                   "signal",
-                   "position_size",
-                   "expected_return",
-                   "confidence",
-               ]
+            not in [
+                "open",
+                "high",
+                "low",
+                "close",
+                "volume",
+                "signal",
+                "position_size",
+                "expected_return",
+                "confidence",
+            ]
         ]
 
         # Target: next-day return (for training)

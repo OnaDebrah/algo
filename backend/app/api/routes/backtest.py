@@ -41,7 +41,7 @@ router = APIRouter(prefix="/backtest", tags=["Backtest"])
 
 @router.post("/single")
 async def run_single_backtest(
-        request: BacktestRequest, current_user: User = Depends(check_permission(Permission.BASIC_BACKTEST)), db: AsyncSession = Depends(get_db)
+    request: BacktestRequest, current_user: User = Depends(check_permission(Permission.BASIC_BACKTEST)), db: AsyncSession = Depends(get_db)
 ):
     """Run single asset backtest (dispatched to background worker)"""
     # Track usage
@@ -76,9 +76,9 @@ async def run_single_backtest(
 
 @router.post("/multi")
 async def run_multi_asset_backtest(
-        request: MultiAssetBacktestRequest,
-        current_user: User = Depends(check_permission(Permission.MULTI_ASSET_BACKTEST)),
-        db: AsyncSession = Depends(get_db),
+    request: MultiAssetBacktestRequest,
+    current_user: User = Depends(check_permission(Permission.MULTI_ASSET_BACKTEST)),
+    db: AsyncSession = Depends(get_db),
 ):
     """Run multi-asset backtest (dispatched to background worker)"""
     # Track usage
@@ -113,7 +113,7 @@ async def run_multi_asset_backtest(
 
 @router.post("/options", response_model=OptionsBacktestResponse)
 async def run_options_backtest(
-        request: OptionsBacktestRequest, current_user: User = Depends(check_permission(Permission.ML_STRATEGIES)), db: AsyncSession = Depends(get_db)
+    request: OptionsBacktestRequest, current_user: User = Depends(check_permission(Permission.ML_STRATEGIES)), db: AsyncSession = Depends(get_db)
 ):
     """Run options backtest"""
     # Track usage
@@ -126,13 +126,13 @@ async def run_options_backtest(
 
 @router.get("/history", response_model=List[BacktestHistoryItem])
 async def get_backtest_history(
-        limit: int = Query(20, ge=1, le=100, description="Number of results to return"),
-        offset: int = Query(0, ge=0, description="Number of results to skip"),
-        backtest_type: Optional[str] = Query(None, description="Filter by type: single, multi, options"),
-        status: Optional[str] = Query(None, description="Filter by status: pending, running, completed, failed"),
-        symbol: Optional[str] = Query(None, description="Filter by symbol"),
-        current_user: User = Depends(get_current_active_user),
-        db: AsyncSession = Depends(get_db),
+    limit: int = Query(20, ge=1, le=100, description="Number of results to return"),
+    offset: int = Query(0, ge=0, description="Number of results to skip"),
+    backtest_type: Optional[str] = Query(None, description="Filter by type: single, multi, options"),
+    status: Optional[str] = Query(None, description="Filter by status: pending, running, completed, failed"),
+    symbol: Optional[str] = Query(None, description="Filter by symbol"),
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db),
 ):
     """
     Get user's backtest history with filtering and pagination
@@ -201,10 +201,10 @@ async def get_backtest_history(
 
 @router.get("/history/count")
 async def get_backtest_count(
-        backtest_type: Optional[str] = None,
-        status: Optional[str] = None,
-        current_user: User = Depends(get_current_active_user),
-        db: AsyncSession = Depends(get_db),
+    backtest_type: Optional[str] = None,
+    status: Optional[str] = None,
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db),
 ):
     """Get total count of backtests (useful for pagination)"""
     from sqlalchemy import func
@@ -266,10 +266,10 @@ async def get_backtest_details(backtest_id: int, current_user: User = Depends(ge
 
 @router.put("/history/{backtest_id}/name")
 async def update_backtest_name(
-        backtest_id: int,
-        name: str = Query(..., min_length=1, max_length=255),
-        current_user: User = Depends(get_current_active_user),
-        db: AsyncSession = Depends(get_db),
+    backtest_id: int,
+    name: str = Query(..., min_length=1, max_length=255),
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db),
 ):
     """Update backtest name"""
     result = await db.execute(select(BacktestRun).filter(BacktestRun.id == backtest_id, BacktestRun.user_id == current_user.id))

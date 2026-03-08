@@ -3,17 +3,10 @@ import logging
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
-<<<<<<< HEAD
 from ..alerts.alert_preferences import AlertPreferences
 from ..alerts.email_provider import EmailProvider
 from ..alerts.sms_provider import SMSProvider
 from ..schemas.alert import Alert, AlertCategory, AlertChannel, AlertLevel
-=======
-from backend.app.alerts.alert_preferences import AlertPreferences
-from backend.app.alerts.email_provider import EmailProvider
-from backend.app.alerts.sms_provider import SMSProvider
-from backend.app.schemas.alert import Alert, AlertChannel, AlertLevel
->>>>>>> 1d0cda0 (strategy deploy)
 
 logger = logging.getLogger(__name__)
 
@@ -101,18 +94,12 @@ class AlertManager:
         level: AlertLevel,
         title: str,
         message: str,
-<<<<<<< HEAD
         category: Optional[AlertCategory],
         strategy_id: Optional[int] = None,
         metadata: Optional[Dict[str, Any]] = None,
         channels: Optional[List[AlertChannel]] = None,
         action_required: Optional[bool] = False,
         action_url: Optional[str] = None,
-=======
-        strategy_id: Optional[int] = None,
-        metadata: Optional[Dict[str, Any]] = None,
-        channels: Optional[List[AlertChannel]] = None,
->>>>>>> 1d0cda0 (strategy deploy)
     ) -> bool:
         """
         Queue an alert for sending
@@ -124,14 +111,10 @@ class AlertManager:
             message: Alert message
             strategy_id: Optional strategy ID
             metadata: Optional metadata
-<<<<<<< HEAD
             category: Optional alert catefory
             channels: Channels to use (default: user preferences)
             action_required: Required action,
             action_url: Action url
-=======
-            channels: Channels to use (default: user preferences)
->>>>>>> 1d0cda0 (strategy deploy)
 
         Returns:
             bool: Whether alert was queued
@@ -140,22 +123,14 @@ class AlertManager:
             logger.warning(f"Alert rate limited for user {user_id}, level {level}")
             return False
 
-<<<<<<< HEAD
         alert = Alert(level, title, message, strategy_id, metadata, category, action_required, action_url)
-=======
-        alert = Alert(level, title, message, strategy_id, metadata)
->>>>>>> 1d0cda0 (strategy deploy)
 
         prefs = self.user_preferences.get(user_id)
         if not prefs:
             prefs = AlertPreferences.default()
 
         if not channels:
-<<<<<<< HEAD
             channels = prefs.get_channels_for_alert(level)
-=======
-            channels = prefs.get_channels_for_level(level)
->>>>>>> 1d0cda0 (strategy deploy)
 
         await self.alert_queue.put((user_id, alert, channels, prefs))
 

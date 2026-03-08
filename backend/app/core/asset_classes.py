@@ -424,11 +424,11 @@ class AssetClassManager:
         return info.get(asset_class, {})
 
     async def fetch_data(
-            self,
-            symbol: str,
-            period: str,
-            interval: str,
-            asset_class: Optional[AssetClass] = None,
+        self,
+        symbol: str,
+        period: str,
+        interval: str,
+        asset_class: Optional[AssetClass] = None,
     ) -> pd.DataFrame:
         """
         Fetch data for any asset class

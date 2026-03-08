@@ -2,15 +2,9 @@ import logging
 from datetime import datetime
 from typing import Any, Dict
 
-<<<<<<< HEAD
-from services.alerts.crash_alert_service import CrashAlertService
-
 from ..alerts.alert_manager import AlertManager
 from ..schemas.alert import AlertChannel, AlertLevel
-=======
-from backend.app.alerts.alert_manager import AlertManager
-from backend.app.schemas.alert import AlertChannel, AlertLevel
->>>>>>> 1d0cda0 (strategy deploy)
+from ..services.alerts.crash_alert_service import CrashAlertService
 
 logger = logging.getLogger(__name__)
 

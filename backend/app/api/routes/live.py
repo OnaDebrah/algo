@@ -1,29 +1,7 @@
-<<<<<<< HEAD
-from typing import List
-from fastapi import APIRouter, HTTPException, Body
-from backend.app.schemas.live import LiveStatus, ExecutionOrder, ConnectRequest, EngineStatus, BrokerType, OrderSide, OrderType, OrderStatus
-
-router = APIRouter(prefix="/live", tags=["Live Execution"])
-
-# Mock state (in a real app, this would be in a service/database)
-state = {
-    "is_connected": False,
-    "engine_status": EngineStatus.IDLE,
-    "active_broker": BrokerType.PAPER,
-    "orders": [
-         { "id": "ORD-9921", "symbol": "AAPL", "side": OrderSide.BUY, "qty": 50, "type": OrderType.LIMIT, "status": OrderStatus.FILLED, "price": 182.45, "time": "14:02:11" },
-         { "id": "ORD-9925", "symbol": "TSLA", "side": OrderSide.SELL, "qty": 10, "type": OrderType.MARKET, "status": OrderStatus.PENDING, "price": 234.10, "time": "14:05:45" },
-    ]
-}
-=======
-"""
-Updated Live Trading Routes
-Properly integrates strategies with order execution
-"""
-
 from datetime import datetime, timezone
 from typing import List, Optional
 
+from api.routes.live.live_trading_state import LiveTradingState
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -39,7 +17,6 @@ from backend.app.models.live import (
     StrategyStatus,
 )
 from backend.app.schemas.live import (
-    BrokerType,
     ConnectRequest,
     ControlRequest,
     EngineStatus,
@@ -52,60 +29,11 @@ from backend.app.schemas.strategy import DeployStrategyRequest, StrategyDetailsR
 
 router = APIRouter(prefix="/live", tags=["Live Execution"])
 
-
-# ============================================================================
-# GLOBAL STATE MANAGEMENT (In production, use Redis or database)
-# ============================================================================
-class LiveTradingState:
-    """Centralized state management for live trading"""
-
-    def __init__(self):
-        self.is_connected: bool = False
-        self.engine_status: EngineStatus = EngineStatus.IDLE
-        self.active_broker: BrokerType = BrokerType.PAPER
-        self.connected_at: Optional[datetime] = None
-        self.running_strategy_ids: List[int] = []
-
-    def connect(self, broker: BrokerType):
-        self.is_connected = True
-        self.active_broker = broker
-        self.connected_at = datetime.now(timezone.utc)
-
-    def disconnect(self):
-        self.is_connected = False
-        self.engine_status = EngineStatus.IDLE
-        self.running_strategy_ids = []
-
-    def start_engine(self, strategy_ids: List[int] = None):
-        if not self.is_connected:
-            raise ValueError("Broker not connected")
-        self.engine_status = EngineStatus.RUNNING
-        if strategy_ids:
-            self.running_strategy_ids = strategy_ids
-
-    def stop_engine(self):
-        self.engine_status = EngineStatus.IDLE
-        self.running_strategy_ids = []
-
-
-# Global state instance
 trading_state = LiveTradingState()
 
 
-# ============================================================================
-# STATUS & CONNECTION ENDPOINTS
-# ============================================================================
->>>>>>> 1d0cda0 (strategy deploy)
-
 @router.get("/status", response_model=LiveStatus)
 async def get_status():
-<<<<<<< HEAD
-    return {
-        "is_connected": state["is_connected"],
-        "engine_status": state["engine_status"],
-        "active_broker": state["active_broker"]
-    }
-=======
     """Get current broker connection and engine status"""
     return {
         "is_connected": trading_state.is_connected,
@@ -113,7 +41,6 @@ async def get_status():
         "active_broker": trading_state.active_broker,
     }
 
->>>>>>> 1d0cda0 (strategy deploy)
 
 @router.post("/connect")
 async def connect_broker(request: ConnectRequest):
@@ -126,6 +53,7 @@ async def connect_broker(request: ConnectRequest):
         "broker": request.broker,
         "connected_at": trading_state.connected_at.isoformat() if trading_state.connected_at else None,
     }
+
 
 @router.post("/disconnect")
 async def disconnect_broker(db: AsyncSession = Depends(get_db), current_user=Depends(get_current_user)):
@@ -145,6 +73,7 @@ async def disconnect_broker(db: AsyncSession = Depends(get_db), current_user=Dep
     trading_state.disconnect()
 
     return {"status": "disconnected"}
+
 
 @router.post("/engine/start")
 async def start_engine(strategy_ids: Optional[List[int]] = None, db: AsyncSession = Depends(get_db), current_user=Depends(get_current_user)):
@@ -190,6 +119,7 @@ async def start_engine(strategy_ids: Optional[List[int]] = None, db: AsyncSessio
 
     return {"status": "started", "running_strategies": len(trading_state.running_strategy_ids), "strategy_ids": trading_state.running_strategy_ids}
 
+
 @router.post("/engine/stop")
 async def stop_engine(db: AsyncSession = Depends(get_db), current_user=Depends(get_current_user)):
     """Stop execution engine"""
@@ -209,11 +139,6 @@ async def stop_engine(db: AsyncSession = Depends(get_db), current_user=Depends(g
 
     return {"status": "stopped"}
 
-<<<<<<< HEAD
-@router.get("/orders", response_model=List[ExecutionOrder])
-async def get_orders():
-    return state["orders"]
-=======
 
 # ============================================================================
 # ORDER MANAGEMENT
@@ -558,4 +483,3 @@ async def delete_strategy(strategy_id: int, db: AsyncSession = Depends(get_db), 
     await db.commit()
 
     return {"strategy_id": strategy_id, "message": "Strategy deleted successfully"}
->>>>>>> 1d0cda0 (strategy deploy)

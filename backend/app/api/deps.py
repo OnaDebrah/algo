@@ -58,9 +58,9 @@ async def login_rate_limit(request: Request):
 
 
 async def get_current_user(
-        request: Request,
-        auth: HTTPAuthorizationCredentials = Depends(security),
-        db: AsyncSession = Depends(get_db),
+    request: Request,
+    auth: HTTPAuthorizationCredentials = Depends(security),
+    db: AsyncSession = Depends(get_db),
 ) -> User:
     """Get current authenticated user.
 

@@ -23,10 +23,10 @@ class DonchianChannelStrategy(BaseStrategy):
     """
 
     def __init__(
-            self,
-            entry_period: int = 20,
-            exit_period: int = 10,
-            use_both_sides: bool = True,
+        self,
+        entry_period: int = 20,
+        exit_period: int = 10,
+        use_both_sides: bool = True,
     ):
         """
         Initialize Donchian Channel strategy
@@ -219,12 +219,12 @@ class DonchianATRStrategy(BaseStrategy):
     """
 
     def __init__(
-            self,
-            entry_period: int = 20,
-            exit_period: int = 10,
-            atr_period: int = 14,
-            atr_multiplier: float = 2.0,
-            use_both_sides: bool = True,
+        self,
+        entry_period: int = 20,
+        exit_period: int = 10,
+        atr_period: int = 14,
+        atr_multiplier: float = 2.0,
+        use_both_sides: bool = True,
     ):
         """
         Initialize Donchian ATR strategy
@@ -407,10 +407,10 @@ class FilteredDonchianStrategy(BaseStrategy):
     """
 
     def __init__(
-            self,
-            entry_period: int = 20,
-            exit_period: int = 10,
-            trend_period: int = 50,
+        self,
+        entry_period: int = 20,
+        exit_period: int = 10,
+        trend_period: int = 50,
     ):
         """
         Initialize Filtered Donchian strategy

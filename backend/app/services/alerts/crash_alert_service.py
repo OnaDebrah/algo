@@ -6,9 +6,8 @@ import logging
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
-from app.alerts.alert_manager import AlertManager
-from app.core.data.providers.providers import ProviderFactory
-
+from ...alerts.alert_manager import AlertManager
+from ...core.data.providers.providers import ProviderFactory
 from ...schemas.alert import AlertCategory, AlertLevel
 
 logger = logging.getLogger(__name__)

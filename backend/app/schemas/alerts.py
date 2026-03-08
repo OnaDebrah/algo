@@ -3,11 +3,7 @@ from typing import List, Optional
 
 from pydantic import BaseModel, EmailStr
 
-<<<<<<< HEAD
 from ..schemas.alert import AlertChannel, AlertLevel
-=======
-from backend.app.schemas.alert import AlertChannel, AlertLevel
->>>>>>> 1d0cda0 (strategy deploy)
 
 
 class EmailAlertRequest(BaseModel):

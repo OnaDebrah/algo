@@ -27,10 +27,10 @@ class OptionsBacktestEngine:
     """
 
     def __init__(
-            self,
-            initial_capital: float = settings.DEFAULT_INITIAL_CAPITAL,
-            risk_free_rate: float = settings.DEFAULT_RISK_FREE_RATE,
-            commission_per_contract: float = settings.DEFAULT_COMMISSION_RATE,
+        self,
+        initial_capital: float = settings.DEFAULT_INITIAL_CAPITAL,
+        risk_free_rate: float = settings.DEFAULT_RISK_FREE_RATE,
+        commission_per_contract: float = settings.DEFAULT_COMMISSION_RATE,
     ):
         self.initial_capital = initial_capital
         self.capital = initial_capital
@@ -43,13 +43,13 @@ class OptionsBacktestEngine:
         self.trades = []
 
     def run_strategy_backtest(
-            self,
-            symbol: str,
-            data: pd.DataFrame,
-            strategy_type: OptionsStrategy,
-            entry_rules: Dict,
-            exit_rules: Dict,
-            volatility: float = 0.3,
+        self,
+        symbol: str,
+        data: pd.DataFrame,
+        strategy_type: OptionsStrategy,
+        entry_rules: Dict,
+        exit_rules: Dict,
+        volatility: float = 0.3,
     ) -> Dict:
         """
         Run backtest for a specific options strategy
@@ -175,13 +175,13 @@ class OptionsBacktestEngine:
         return False
 
     def _enter_position(
-            self,
-            symbol: str,
-            date: datetime,
-            price: float,
-            strategy_type: OptionsStrategy,
-            entry_rules: Dict,
-            volatility: float,
+        self,
+        symbol: str,
+        date: datetime,
+        price: float,
+        strategy_type: OptionsStrategy,
+        entry_rules: Dict,
+        volatility: float,
     ):
         """Enter a new options position"""
 
@@ -285,11 +285,11 @@ class OptionsBacktestEngine:
         return kwargs
 
     def _update_positions(
-            self,
-            current_date: datetime,
-            current_price: float,
-            volatility: float,
-            exit_rules: Dict,
+        self,
+        current_date: datetime,
+        current_price: float,
+        volatility: float,
+        exit_rules: Dict,
     ):
         """Update existing positions and check exit conditions"""
 
@@ -337,11 +337,11 @@ class OptionsBacktestEngine:
             self._close_position(i, current_date, current_price, volatility)
 
     def _close_position(
-            self,
-            position_index: int,
-            exit_date: datetime,
-            exit_price: float,
-            volatility: float,
+        self,
+        position_index: int,
+        exit_date: datetime,
+        exit_price: float,
+        volatility: float,
     ):
         """Close a position"""
 

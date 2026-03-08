@@ -1,11 +1,13 @@
 import logging
 from typing import Any, Optional
+
 import pandas as pd
-import requests
-from backend.app.core.data.base_provider import DataProvider
+
 from backend.app.config import settings
+from backend.app.core.data.base_provider import DataProvider
 
 logger = logging.getLogger(__name__)
+
 
 class YahooProvider(DataProvider):
     """
@@ -15,14 +17,7 @@ class YahooProvider(DataProvider):
     def __init__(self):
         self.user_agent = getattr(settings, "USER_AGENT", "Mozilla/5.0")
 
-    def fetch_data(
-        self, 
-        symbol: str, 
-        period: str, 
-        interval: str, 
-        start: Optional[Any] = None, 
-        end: Optional[Any] = None
-    ) -> pd.DataFrame:
+    def fetch_data(self, symbol: str, period: str, interval: str, start: Optional[Any] = None, end: Optional[Any] = None) -> pd.DataFrame:
         try:
             import yfinance as yf
 
@@ -36,18 +31,11 @@ class YahooProvider(DataProvider):
 
             if data.empty:
                 logger.warning(f"YahooProvider: Ticker method failed for {symbol}, trying download method")
-                data = yf.download(
-                    symbol,
-                    start=start,
-                    end=end,
-                    period=period,
-                    interval=interval,
-                    progress=False
-                )
+                data = yf.download(symbol, start=start, end=end, period=period, interval=interval, progress=False)
 
             if not data.empty:
                 logger.info(f"YahooProvider: Fetched {len(data)} bars for {symbol}")
-            
+
             return data
 
         except Exception as e:

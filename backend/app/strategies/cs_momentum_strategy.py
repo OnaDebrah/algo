@@ -33,19 +33,19 @@ class CrossSectionalMomentumStrategy(BaseStrategy):
     """
 
     def __init__(
-            self,
-            universe: List[str],
-            formation_period: int = 252,  # 12-month formation
-            skip_period: int = 21,  # Skip last month (avoid reversal)
-            holding_period: int = 21,  # Monthly rebalancing
-            top_quantile: float = 0.3,  # Long top 30%
-            bottom_quantile: float = 0.3,  # Short bottom 30%
-            sector_mapping: Optional[Dict] = None,
-            volatility_adjustment: bool = True,
-            momentum_crash_protection: bool = True,
-            max_position_size: float = 0.05,  # 5% max per position
-            transaction_cost_bps: float = 5.0,  # 5 bps per trade
-            **kwargs,
+        self,
+        universe: List[str],
+        formation_period: int = 252,  # 12-month formation
+        skip_period: int = 21,  # Skip last month (avoid reversal)
+        holding_period: int = 21,  # Monthly rebalancing
+        top_quantile: float = 0.3,  # Long top 30%
+        bottom_quantile: float = 0.3,  # Short bottom 30%
+        sector_mapping: Optional[Dict] = None,
+        volatility_adjustment: bool = True,
+        momentum_crash_protection: bool = True,
+        max_position_size: float = 0.05,  # 5% max per position
+        transaction_cost_bps: float = 5.0,  # 5 bps per trade
+        **kwargs,
     ):
         """
         Initialize Cross-Sectional Momentum
@@ -304,10 +304,10 @@ class CrossSectionalMomentumStrategy(BaseStrategy):
         return scaled_positions
 
     def apply_momentum_crash_protection(
-            self,
-            positions: Dict[str, float],
-            market_data: pd.DataFrame,
-            crash_threshold: float = -0.05,
+        self,
+        positions: Dict[str, float],
+        market_data: pd.DataFrame,
+        crash_threshold: float = -0.05,
     ) -> Dict[str, float]:
         """
         Implement momentum crash protection (Daniel & Moskowitz, 2016)
@@ -333,8 +333,8 @@ class CrossSectionalMomentumStrategy(BaseStrategy):
         # 3. Momentum had been strong
 
         crash_conditions = (
-                market_returns.iloc[0] < crash_threshold  # Market down >5%
-                and market_vol.iloc[0] > 0.20  # High volatility (>20%)
+            market_returns.iloc[0] < crash_threshold  # Market down >5%
+            and market_vol.iloc[0] > 0.20  # High volatility (>20%)
         )
 
         if crash_conditions:
@@ -350,11 +350,11 @@ class CrossSectionalMomentumStrategy(BaseStrategy):
         return positions
 
     def generate_signal(
-            self,
-            price_data: pd.DataFrame,
-            market_index: Optional[pd.Series] = None,
-            current_positions: Optional[Dict] = None,
-            rebalance: bool = True,
+        self,
+        price_data: pd.DataFrame,
+        market_index: Optional[pd.Series] = None,
+        current_positions: Optional[Dict] = None,
+        rebalance: bool = True,
     ) -> Dict:
         """
         Generate enhanced cross-sectional momentum signals
@@ -530,10 +530,10 @@ class CrossSectionalMomentumStrategy(BaseStrategy):
         return days_since_rebalance >= self.holding_period
 
     def backtest(
-            self,
-            price_data: pd.DataFrame,
-            market_index: Optional[pd.Series] = None,
-            initial_capital: float = 1000000,
+        self,
+        price_data: pd.DataFrame,
+        market_index: Optional[pd.Series] = None,
+        initial_capital: float = 1000000,
     ) -> pd.DataFrame:
         """
         Run backtest on historical data

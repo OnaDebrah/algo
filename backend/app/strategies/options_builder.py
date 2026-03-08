@@ -30,13 +30,13 @@ class OptionsStrategyBuilder:
         self.current_price: Optional[float] = None  # Must be set before use
 
     def add_leg(
-            self,
-            option_type: OptionType,
-            strike: float,
-            expiry: datetime,
-            quantity: int,
-            premium: Optional[float] = None,
-            volatility: Optional[float] = None,
+        self,
+        option_type: OptionType,
+        strike: float,
+        expiry: datetime,
+        quantity: int,
+        premium: Optional[float] = None,
+        volatility: Optional[float] = None,
     ):
         """Add an option leg to the strategy"""
         if self.current_price is None:
@@ -227,9 +227,9 @@ class OptionsStrategyBuilder:
         return float(max_loss), condition
 
     def calculate_probability_of_profit(
-            self,
-            volatility: Optional[float] = None,
-            days_to_expiration: Optional[int] = None,
+        self,
+        volatility: Optional[float] = None,
+        days_to_expiration: Optional[int] = None,
     ) -> float:
         """
         Calculate probability of profit at expiration
@@ -273,13 +273,13 @@ class OptionsStrategyBuilder:
 
 
 def create_preset_strategy(
-        strategy_type: OptionsStrategy,
-        symbol: str,
-        current_price: float,
-        expiration: datetime,
-        volatility: float = 0.3,
-        risk_free_rate: float = 0.05,
-        **kwargs,
+    strategy_type: OptionsStrategy,
+    symbol: str,
+    current_price: float,
+    expiration: datetime,
+    volatility: float = 0.3,
+    risk_free_rate: float = 0.05,
+    **kwargs,
 ) -> OptionsStrategyBuilder:
     """
     Create a preset options strategy matching the frontend templates.
