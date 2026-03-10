@@ -435,7 +435,11 @@ class MLPredictor:
         if not self.is_trained:
             raise ValueError("Model must be trained before prediction")
 
-        X = features[self.feature_names].dropna()
+        X = features[self.feature_names]
+        nan_count = X.isna().sum().sum()
+        if nan_count > 0:
+            logger.debug(f"Imputing {nan_count} NaN values in prediction features")
+            X = X.fillna(0)
         X_scaled = self.scaler.transform(X)
 
         predictions = self.model.predict(X_scaled)
@@ -746,8 +750,8 @@ class MonteCarloMLSentimentStrategy(BaseStrategy):
         df["expected_return"] = 0.0
         df["confidence"] = 0.0
 
-        # Need sufficient data for lookback + some forward bars
-        min_required = self.lookback_period + 50
+        # Need sufficient data for rolling-window warmup (~65 bars) + training (100 valid samples)
+        min_required = max(200, self.lookback_period)
         if len(df) < min_required:
             logger.warning(f"Insufficient data: {len(df)} bars, need {min_required}. Returning zeros.")
             return df
@@ -805,8 +809,10 @@ class MonteCarloMLSentimentStrategy(BaseStrategy):
                     self.ml_predictor.train(train_features, train_targets)
                     self.last_training_date = current_date
                 except Exception as e:
-                    logger.debug(f"Training skipped at bar {i}: {e}")
-                    continue
+                    logger.warning(f"Training failed at bar {i}: {e}")
+                    if not self.ml_predictor.is_trained:
+                        continue  # No model exists yet, can't predict
+                    # else: fall through to prediction with existing model
 
             # Predict return + uncertainty for current bar
             current_features = all_features[feature_cols].iloc[i : i + 1]
@@ -814,7 +820,8 @@ class MonteCarloMLSentimentStrategy(BaseStrategy):
                 predictions, uncertainty = self.ml_predictor.predict(current_features)
                 predicted_return = predictions[0]
                 predicted_volatility = uncertainty[0]
-            except Exception:
+            except Exception as e:
+                logger.warning(f"Prediction failed at bar {i}: {e}")
                 continue
 
             # Run Monte Carlo simulation
@@ -841,6 +848,15 @@ class MonteCarloMLSentimentStrategy(BaseStrategy):
         # Restore original MC simulation count (for live use)
         self.mc_engine.num_simulations = original_sims
         self.simulation_results = last_stats
+
+        # Diagnostic summary
+        buy_count = int((df["signal"] == 1).sum())
+        sell_count = int((df["signal"] == -1).sum())
+        total_bars = len(df) - start_idx
+        logger.info(
+            f"MC ML Sentiment signals: {buy_count} buy, {sell_count} sell, "
+            f"{total_bars - buy_count - sell_count} neutral out of {total_bars} bars"
+        )
 
         return df
 
