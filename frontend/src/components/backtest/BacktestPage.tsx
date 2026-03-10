@@ -17,7 +17,8 @@ const BacktestPage = () => {
         singleConfig, setSingleConfig,
         multiConfig, setMultiConfig,
         singleResults, multiResults,
-        results, isRunning, runBacktest
+        results, isRunning, runBacktest,
+        backtestError
     } = useBacktestStore();
 
     const [strategiesList, setStrategiesList] = useState<Strategy[]>(strategies);
@@ -187,6 +188,7 @@ const BacktestPage = () => {
                     runBacktest={runBacktest}
                     isRunning={isRunning}
                     results={singleResults}
+                    backtestError={backtestError}
                 />
             ) : backtestMode === 'multi' ? (
                 <MultiAssetBacktest

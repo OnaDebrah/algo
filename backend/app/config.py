@@ -99,7 +99,7 @@ class Settings(BaseSettings):
     DEFAULT_MACD_SLOW: int = 26
     DEFAULT_MACD_SIGNAL: int = 9
     DEFAULT_ML_TEST_SIZE: float = 0.2
-    DEFAULT_ML_THRESHOLD: float = 0.5
+    DEFAULT_ML_THRESHOLD: float = 0.002
     ML_MODELS_DIR: str = os.getenv("ML_MODELS_DIR", "ml_models")
 
     # Rate Limiting

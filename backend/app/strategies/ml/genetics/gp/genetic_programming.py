@@ -13,525 +13,15 @@ Key features:
 """
 
 import random
-from dataclasses import dataclass, field
-from enum import Enum
-from typing import Callable, Dict, List, Optional, Tuple, Union
+from typing import Dict, List, Optional, Tuple
 
 import numpy as np
 import pandas as pd
 
-from ....strategies.base_strategy import BaseStrategy, normalize_signal
-
-
-class NodeType(Enum):
-    """Node types for strongly-typed genetic programming [citation:3][citation:10]"""
-
-    BOOLEAN = "boolean"
-    NUMERIC = "numeric"
-    FUNCTION = "function"
-    TERMINAL = "terminal"
-
-
-@dataclass
-class Node:
-    """Genetic programming tree node with strong typing"""
-
-    type: NodeType
-    value: Union[str, Callable, float]
-    children: List["Node"] = field(default_factory=list)
-    arity: int = 0
-
-    def __repr__(self) -> str:
-        if self.type == NodeType.TERMINAL:
-            return str(self.value)
-        elif self.type == NodeType.FUNCTION:
-            if self.value.__name__ == "<lambda>":
-                func_name = self.value.__name__
-            else:
-                func_name = self.value.__name__
-            args = ", ".join(repr(child) for child in self.children)
-            return f"{func_name}({args})"
-        return f"Node({self.type}, {self.value})"
-
-
-class TechnicalIndicators:
-    """
-    Technical indicators for feature engineering.
-    Serves as the terminal set for genetic programming [citation:2][citation:8].
-    """
-
-    @staticmethod
-    def SMA(data: pd.Series, window: int) -> pd.Series:
-        """Simple Moving Average"""
-        return data.rolling(window=window).mean()
-
-    @staticmethod
-    def EMA(data: pd.Series, window: int) -> pd.Series:
-        """Exponential Moving Average"""
-        return data.ewm(span=window, adjust=False).mean()
-
-    @staticmethod
-    def RSI(data: pd.Series, window: int = 14) -> pd.Series:
-        """Relative Strength Index"""
-        delta = data.diff()
-        gain = (delta.where(delta > 0, 0)).rolling(window=window).mean()
-        loss = (-delta.where(delta < 0, 0)).rolling(window=window).mean()
-        rs = gain / loss
-        return 100 - (100 / (1 + rs))
-
-    @staticmethod
-    def MACD(data: pd.Series, fast: int = 12, slow: int = 26, signal: int = 9) -> pd.Series:
-        """MACD line"""
-        ema_fast = data.ewm(span=fast, adjust=False).mean()
-        ema_slow = data.ewm(span=slow, adjust=False).mean()
-        return ema_fast - ema_slow
-
-    @staticmethod
-    def BB_position(data: pd.Series, window: int = 20, num_std: float = 2.0) -> pd.Series:
-        """Position within Bollinger Bands (0 to 1)"""
-        sma = data.rolling(window=window).mean()
-        std = data.rolling(window=window).std()
-        upper = sma + num_std * std
-        lower = sma - num_std * std
-        return (data - lower) / (upper - lower)
-
-    @staticmethod
-    def ATR(high: pd.Series, low: pd.Series, close: pd.Series, window: int = 14) -> pd.Series:
-        """Average True Range"""
-        high_low = high - low
-        high_close = (high - close.shift()).abs()
-        low_close = (low - close.shift()).abs()
-        tr = pd.concat([high_low, high_close, low_close], axis=1).max(axis=1)
-        return tr.rolling(window=window).mean()
-
-    @staticmethod
-    def volume_ratio(volume: pd.Series, window: int = 20) -> pd.Series:
-        """Volume relative to its average"""
-        return volume / volume.rolling(window=window).mean()
-
-    @staticmethod
-    def price_position(data: pd.Series, window: int = 20) -> pd.Series:
-        """Position within price range (0 to 1)"""
-        rolling_min = data.rolling(window=window).min()
-        rolling_max = data.rolling(window=window).max()
-        return (data - rolling_min) / (rolling_max - rolling_min)
-
-    @staticmethod
-    def volatility(data: pd.Series, window: int = 20) -> pd.Series:
-        """Rolling volatility"""
-        return data.pct_change().rolling(window=window).std()
-
-    @staticmethod
-    def directional_change(data: pd.Series, threshold: float = 0.01) -> pd.Series:
-        """
-        Directional Change indicator [citation:1]
-        Returns 1 for uptrend, -1 for downtrend, 0 for no change
-        """
-        # Simplified implementation - full DC framework is more complex
-        # This identifies significant turning points
-        rolling_high = data.expanding().max()
-        rolling_low = data.expanding().min()
-
-        # Check if we've moved up enough from a low
-        up_signal = (data / rolling_low - 1) > threshold
-
-        # Check if we've moved down enough from a high
-        down_signal = (1 - data / rolling_high) > threshold
-
-        result = pd.Series(0, index=data.index)
-        result[up_signal] = 1
-        result[down_signal] = -1
-
-        return result
-
-
-class FunctionSet:
-    """
-    Function set for genetic programming.
-    Defines available operations with strong typing [citation:3][citation:10].
-    """
-
-    @staticmethod
-    def add(a: Union[float, pd.Series], b: Union[float, pd.Series]) -> Union[float, pd.Series]:
-        return a + b
-
-    @staticmethod
-    def sub(a: Union[float, pd.Series], b: Union[float, pd.Series]) -> Union[float, pd.Series]:
-        return a - b
-
-    @staticmethod
-    def mul(a: Union[float, pd.Series], b: Union[float, pd.Series]) -> Union[float, pd.Series]:
-        return a * b
-
-    @staticmethod
-    def div(a: Union[float, pd.Series], b: Union[float, pd.Series]) -> Union[float, pd.Series]:
-        """Protected division to avoid division by zero"""
-        if isinstance(b, pd.Series):
-            b = b.replace(0, np.nan)
-            result = a / b
-            return result.fillna(1.0)
-        else:
-            return a / b if b != 0 else 1.0
-
-    @staticmethod
-    def gt(a: Union[float, pd.Series], b: Union[float, pd.Series]) -> Union[bool, pd.Series]:
-        """Greater than - returns boolean"""
-        return a > b
-
-    @staticmethod
-    def lt(a: Union[float, pd.Series], b: Union[float, pd.Series]) -> Union[bool, pd.Series]:
-        """Less than - returns boolean"""
-        return a < b
-
-    @staticmethod
-    def gte(a: Union[float, pd.Series], b: Union[float, pd.Series]) -> Union[bool, pd.Series]:
-        """Greater than or equal"""
-        return a >= b
-
-    @staticmethod
-    def lte(a: Union[float, pd.Series], b: Union[float, pd.Series]) -> Union[bool, pd.Series]:
-        """Less than or equal"""
-        return a <= b
-
-    @staticmethod
-    def eq(a: Union[float, pd.Series], b: Union[float, pd.Series], eps: float = 1e-6) -> Union[bool, pd.Series]:
-        """Approximate equality"""
-        if isinstance(a, pd.Series) or isinstance(b, pd.Series):
-            return (a - b).abs() < eps
-        return abs(a - b) < eps
-
-    @staticmethod
-    def And(a: Union[bool, pd.Series], b: Union[bool, pd.Series]) -> Union[bool, pd.Series]:
-        """Logical AND - requires boolean inputs"""
-        return a & b if isinstance(a, pd.Series) or isinstance(b, pd.Series) else a and b
-
-    @staticmethod
-    def Or(a: Union[bool, pd.Series], b: Union[bool, pd.Series]) -> Union[bool, pd.Series]:
-        """Logical OR - requires boolean inputs"""
-        return a | b if isinstance(a, pd.Series) or isinstance(b, pd.Series) else a or b
-
-    @staticmethod
-    def Not(a: Union[bool, pd.Series]) -> Union[bool, pd.Series]:
-        """Logical NOT - requires boolean input"""
-        return ~a if isinstance(a, pd.Series) else not a
-
-    @staticmethod
-    def IfThenElse(cond: Union[bool, pd.Series], true_val: Union[float, pd.Series], false_val: Union[float, pd.Series]) -> Union[float, pd.Series]:
-        """If-then-else conditional"""
-        if isinstance(cond, pd.Series):
-            return np.where(cond, true_val, false_val)
-        return true_val if cond else false_val
-
-    @staticmethod
-    def max(a: Union[float, pd.Series], b: Union[float, pd.Series]) -> Union[float, pd.Series]:
-        return np.maximum(a, b)
-
-    @staticmethod
-    def min(a: Union[float, pd.Series], b: Union[float, pd.Series]) -> Union[float, pd.Series]:
-        return np.minimum(a, b)
-
-    @staticmethod
-    def abs(a: Union[float, pd.Series]) -> Union[float, pd.Series]:
-        return np.abs(a)
-
-    @staticmethod
-    def sqrt(a: Union[float, pd.Series]) -> Union[float, pd.Series]:
-        """Protected square root"""
-        if isinstance(a, pd.Series):
-            a = a.clip(lower=0)
-            return np.sqrt(a)
-        return np.sqrt(max(0, a))
-
-    @staticmethod
-    def log(a: Union[float, pd.Series]) -> Union[float, pd.Series]:
-        """Protected log"""
-        if isinstance(a, pd.Series):
-            a = a.clip(lower=1e-10)
-            return np.log(a)
-        return np.log(max(1e-10, a))
-
-    @staticmethod
-    def lag(data: pd.Series, periods: int = 1) -> pd.Series:
-        """Lag operator [citation:8]"""
-        return data.shift(periods)
-
-    @staticmethod
-    def diff(data: pd.Series, periods: int = 1) -> pd.Series:
-        """Difference operator"""
-        return data.diff(periods)
-
-
-class GPTree:
-    """
-    Genetic Programming Tree representing a trading rule.
-    Implements strongly-typed GP to ensure type safety [citation:3][citation:10].
-    """
-
-    def __init__(self, max_depth: int = 5, method: str = "grow"):
-        """
-        Initialize GP tree.
-
-        Args:
-            max_depth: Maximum tree depth
-            method: 'grow', 'full', or 'ramped_half'
-        """
-        self.max_depth = max_depth
-        self.root = None
-        self.fitness = -np.inf
-        self.metadata = {}
-
-        # Initialize function and terminal sets
-        self._init_function_set()
-        self._init_terminal_set()
-
-        if method != "ramped_half":
-            self.root = self._generate_tree(method, depth=0)
-
-    def _init_function_set(self):
-        """Initialize function set with strong typing"""
-        self.functions = {
-            # Arithmetic functions (numeric -> numeric)
-            "add": (FunctionSet.add, 2, NodeType.NUMERIC, [NodeType.NUMERIC, NodeType.NUMERIC]),
-            "sub": (FunctionSet.sub, 2, NodeType.NUMERIC, [NodeType.NUMERIC, NodeType.NUMERIC]),
-            "mul": (FunctionSet.mul, 2, NodeType.NUMERIC, [NodeType.NUMERIC, NodeType.NUMERIC]),
-            "div": (FunctionSet.div, 2, NodeType.NUMERIC, [NodeType.NUMERIC, NodeType.NUMERIC]),
-            "max": (FunctionSet.max, 2, NodeType.NUMERIC, [NodeType.NUMERIC, NodeType.NUMERIC]),
-            "min": (FunctionSet.min, 2, NodeType.NUMERIC, [NodeType.NUMERIC, NodeType.NUMERIC]),
-            "abs": (FunctionSet.abs, 1, NodeType.NUMERIC, [NodeType.NUMERIC]),
-            "sqrt": (FunctionSet.sqrt, 1, NodeType.NUMERIC, [NodeType.NUMERIC]),
-            "log": (FunctionSet.log, 1, NodeType.NUMERIC, [NodeType.NUMERIC]),
-            # Relational functions (numeric,numeric -> boolean)
-            "gt": (FunctionSet.gt, 2, NodeType.BOOLEAN, [NodeType.NUMERIC, NodeType.NUMERIC]),
-            "lt": (FunctionSet.lt, 2, NodeType.BOOLEAN, [NodeType.NUMERIC, NodeType.NUMERIC]),
-            "gte": (FunctionSet.gte, 2, NodeType.BOOLEAN, [NodeType.NUMERIC, NodeType.NUMERIC]),
-            "lte": (FunctionSet.lte, 2, NodeType.BOOLEAN, [NodeType.NUMERIC, NodeType.NUMERIC]),
-            "eq": (FunctionSet.eq, 2, NodeType.BOOLEAN, [NodeType.NUMERIC, NodeType.NUMERIC]),
-            # Boolean functions (boolean,boolean -> boolean)
-            "And": (FunctionSet.And, 2, NodeType.BOOLEAN, [NodeType.BOOLEAN, NodeType.BOOLEAN]),
-            "Or": (FunctionSet.Or, 2, NodeType.BOOLEAN, [NodeType.BOOLEAN, NodeType.BOOLEAN]),
-            "Not": (FunctionSet.Not, 1, NodeType.BOOLEAN, [NodeType.BOOLEAN]),
-            # Conditional (boolean,any,any -> any) - type determined by true_val/false_val
-            "IfThenElse": (FunctionSet.IfThenElse, 3, NodeType.NUMERIC, [NodeType.BOOLEAN, NodeType.NUMERIC, NodeType.NUMERIC]),
-            # Lag/difference operators
-            "lag": (FunctionSet.lag, 1, NodeType.NUMERIC, [NodeType.NUMERIC]),
-            "diff": (FunctionSet.diff, 1, NodeType.NUMERIC, [NodeType.NUMERIC]),
-        }
-
-    def _init_terminal_set(self):
-        """Initialize terminal set (features and constants)"""
-        self.terminals = {
-            # Technical indicators (will be computed from data)
-            "SMA_10": (lambda data: TechnicalIndicators.SMA(data["Close"], 10), NodeType.NUMERIC),
-            "SMA_20": (lambda data: TechnicalIndicators.SMA(data["Close"], 20), NodeType.NUMERIC),
-            "SMA_50": (lambda data: TechnicalIndicators.SMA(data["Close"], 50), NodeType.NUMERIC),
-            "EMA_10": (lambda data: TechnicalIndicators.EMA(data["Close"], 10), NodeType.NUMERIC),
-            "EMA_20": (lambda data: TechnicalIndicators.EMA(data["Close"], 20), NodeType.NUMERIC),
-            "EMA_50": (lambda data: TechnicalIndicators.EMA(data["Close"], 50), NodeType.NUMERIC),
-            "RSI_14": (lambda data: TechnicalIndicators.RSI(data["Close"], 14), NodeType.NUMERIC),
-            "RSI_7": (lambda data: TechnicalIndicators.RSI(data["Close"], 7), NodeType.NUMERIC),
-            "MACD_12_26": (lambda data: TechnicalIndicators.MACD(data["Close"], 12, 26), NodeType.NUMERIC),
-            "BB_position": (lambda data: TechnicalIndicators.BB_position(data["Close"], 20), NodeType.NUMERIC),
-            "ATR_14": (lambda data: TechnicalIndicators.ATR(data["High"], data["Low"], data["Close"], 14), NodeType.NUMERIC),
-            "volume_ratio": (lambda data: TechnicalIndicators.volume_ratio(data["Volume"], 20), NodeType.NUMERIC),
-            "price_position": (lambda data: TechnicalIndicators.price_position(data["Close"], 20), NodeType.NUMERIC),
-            "volatility_20": (lambda data: TechnicalIndicators.volatility(data["Close"], 20), NodeType.NUMERIC),
-            "volatility_50": (lambda data: TechnicalIndicators.volatility(data["Close"], 50), NodeType.NUMERIC),
-            "DC_001": (lambda data: TechnicalIndicators.directional_change(data["Close"], 0.01), NodeType.NUMERIC),
-            "DC_002": (lambda data: TechnicalIndicators.directional_change(data["Close"], 0.02), NodeType.NUMERIC),
-            "DC_005": (lambda data: TechnicalIndicators.directional_change(data["Close"], 0.05), NodeType.NUMERIC),
-            # Basic price features
-            "Close": (lambda data: data["Close"] / data["Close"].iloc[0], NodeType.NUMERIC),  # Normalized
-            "Open": (lambda data: data["Open"] / data["Close"].iloc[0], NodeType.NUMERIC),
-            "High": (lambda data: data["High"] / data["Close"].iloc[0], NodeType.NUMERIC),
-            "Low": (lambda data: data["Low"] / data["Close"].iloc[0], NodeType.NUMERIC),
-            "Volume": (lambda data: data["Volume"] / data["Volume"].mean(), NodeType.NUMERIC),
-            "returns": (lambda data: data["Close"].pct_change(), NodeType.NUMERIC),
-            # Constants
-            "0": (0.0, NodeType.NUMERIC),
-            "0.5": (0.5, NodeType.NUMERIC),
-            "1": (1.0, NodeType.NUMERIC),
-            "2": (2.0, NodeType.NUMERIC),
-            "5": (5.0, NodeType.NUMERIC),
-            "10": (10.0, NodeType.NUMERIC),
-            "100": (100.0, NodeType.NUMERIC),
-            "True": (True, NodeType.BOOLEAN),
-            "False": (False, NodeType.BOOLEAN),
-        }
-
-    def _generate_tree(self, method: str, depth: int, expected_type: NodeType = NodeType.BOOLEAN) -> Node:
-        """
-        Generate tree using specified method.
-
-        Args:
-            method: 'grow', 'full', or 'ramped_half'
-            depth: Current depth
-            expected_type: Expected return type of this subtree
-
-        Returns:
-            Root node of generated subtree
-        """
-        if depth >= self.max_depth - 1:
-            # Terminal node
-            return self._generate_terminal(expected_type)
-
-        if method == "grow":
-            # Mix of functions and terminals
-            if random.random() < 0.3:  # 30% chance of terminal
-                return self._generate_terminal(expected_type)
-            else:
-                return self._generate_function(depth, method, expected_type)
-        elif method == "full":
-            # Full tree - all nodes are functions until max depth
-            return self._generate_function(depth, method, expected_type)
-        else:
-            # Ramped half - will be handled by caller
-            return self._generate_function(depth, method, expected_type)
-
-    def _generate_terminal(self, expected_type: NodeType) -> Node:
-        """Generate terminal node of specified type"""
-        # Filter terminals by type
-        candidates = [(name, func_type) for name, (_, func_type) in self.terminals.items() if func_type == expected_type]
-
-        if not candidates:
-            # If no matching type, try to find numeric terminal and convert if needed
-            if expected_type == NodeType.BOOLEAN:
-                # Use comparison with constant
-                name, (func, _) = random.choice([(n, f) for n, (f, t) in self.terminals.items() if t == NodeType.NUMERIC])
-                # Create comparison node
-                left = Node(NodeType.TERMINAL, func, arity=0)
-                right = self._generate_terminal(NodeType.NUMERIC)
-                return Node(NodeType.FUNCTION, FunctionSet.gt, children=[left, right], arity=2)
-            else:
-                # Default to numeric terminal
-                candidates = [(name, NodeType.NUMERIC) for name, (_, func_type) in self.terminals.items() if func_type == NodeType.NUMERIC]
-
-        name, _ = random.choice(candidates)
-        func, _ = self.terminals[name]
-
-        # Handle constant values differently
-        if name.replace(".", "").replace("-", "").isdigit() or name in ["True", "False"]:
-            value = func if not callable(func) else func
-            return Node(NodeType.TERMINAL, value, arity=0)
-        else:
-            return Node(NodeType.TERMINAL, func, arity=0)
-
-    def _generate_function(self, depth: int, method: str, expected_type: NodeType) -> Node:
-        """Generate function node"""
-        # Filter functions by return type
-        candidates = [
-            (name, func, arity, arg_types) for name, (func, arity, ret_type, arg_types) in self.functions.items() if ret_type == expected_type
-        ]
-
-        if not candidates:
-            # If no matching function, generate terminal
-            return self._generate_terminal(expected_type)
-
-        name, func, arity, arg_types = random.choice(candidates)
-        children = []
-        for i in range(arity):
-            child = self._generate_tree(method, depth + 1, arg_types[i])
-            children.append(child)
-
-        return Node(NodeType.FUNCTION, func, children=children, arity=arity)
-
-    def evaluate(self, data: pd.DataFrame) -> pd.Series:
-        """
-        Evaluate the GP tree on data.
-
-        Returns:
-            Series of trading signals: 1 (buy), -1 (sell), 0 (hold)
-        """
-        if self.root is None:
-            return pd.Series(0, index=data.index)
-
-        # Evaluate tree
-        result = self._evaluate_node(self.root, data)
-
-        # Convert to trading signal
-        if isinstance(result, pd.Series):
-            # Boolean result: True = buy (1), False = sell (-1)
-            if result.dtype == bool:
-                return result.astype(int) * 2 - 1  # True->1, False->-1
-            # Numeric result: positive = buy, negative = sell, zero = hold
-            else:
-                signal = pd.Series(0, index=result.index)
-                signal[result > 0] = 1
-                signal[result < 0] = -1
-                return signal
-        else:
-            # Scalar result
-            if isinstance(result, bool):
-                return pd.Series(1 if result else -1, index=data.index)
-            else:
-                if result > 0:
-                    return pd.Series(1, index=data.index)
-                elif result < 0:
-                    return pd.Series(-1, index=data.index)
-                else:
-                    return pd.Series(0, index=data.index)
-
-    def _evaluate_node(self, node: Node, data: pd.DataFrame) -> Union[float, bool, pd.Series]:
-        """Recursively evaluate node"""
-        if node.type == NodeType.TERMINAL:
-            if callable(node.value):
-                return node.value(data)
-            else:
-                return node.value
-
-        elif node.type == NodeType.FUNCTION:
-            # Evaluate children
-            args = [self._evaluate_node(child, data) for child in node.children]
-            # Apply function
-            return node.value(*args)
-
-        else:
-            raise ValueError(f"Unknown node type: {node.type}")
-
-    def copy(self) -> "GPTree":
-        """Create deep copy of tree"""
-        new_tree = GPTree(max_depth=self.max_depth)
-        if self.root:
-            new_tree.root = self._copy_node(self.root)
-        new_tree.fitness = self.fitness
-        new_tree.metadata = self.metadata.copy()
-        return new_tree
-
-    def _copy_node(self, node: Node) -> Node:
-        """Recursively copy node"""
-        new_node = Node(node.type, node.value, arity=node.arity)
-        for child in node.children:
-            new_node.children.append(self._copy_node(child))
-        return new_node
-
-    def depth(self) -> int:
-        """Calculate tree depth"""
-        if self.root is None:
-            return 0
-        return self._node_depth(self.root)
-
-    def _node_depth(self, node: Node) -> int:
-        """Recursive depth calculation"""
-        if not node.children:
-            return 1
-        return 1 + max(self._node_depth(child) for child in node.children)
-
-    def size(self) -> int:
-        """Calculate tree size (number of nodes)"""
-        if self.root is None:
-            return 0
-        return self._node_size(self.root)
-
-    def _node_size(self, node: Node) -> int:
-        """Recursive size calculation"""
-        count = 1
-        for child in node.children:
-            count += self._node_size(child)
-        return count
-
-    def __repr__(self) -> str:
-        if self.root is None:
-            return "Empty Tree"
-        return repr(self.root)
+from ....base_strategy import BaseStrategy, normalize_signal
+from .gp_tree import GPTree
+from .indicators import TechnicalIndicators
+from .node_type import Node, NodeType
 
 
 class GeneticProgrammingStrategy(BaseStrategy):
@@ -550,48 +40,68 @@ class GeneticProgrammingStrategy(BaseStrategy):
     - Automatically manages internal state between signals
     """
 
-    def __init__(self, name: str = "GeneticProgramming", params: Dict = None):
+    def __init__(
+        self,
+        name: str = "GeneticProgramming",
+        params: Dict = None,
+        population_size: int = 100,
+        generations: int = 50,
+        tournament_size: int = 5,
+        elitism_count: int = 2,
+        crossover_rate: float = 0.7,
+        mutation_rate: float = 0.1,
+        max_depth: int = 5,
+        init_method: str = "ramped_half",
+        fitness_metric: str = "sharpe",
+        retrain_frequency: int = 90,
+        validation_split: float = 0.3,
+        use_dc_framework: bool = False,
+        dc_threshold: float = 0.01,
+        random_seed: int = 42,
+        **kwargs,
+    ):
         """
         Initialize Genetic Programming Strategy.
 
         Args:
             name: Strategy name
-            params: Dictionary with parameters:
-                - population_size: Number of GP trees (default: 100)
-                - generations: Number of evolution generations (default: 50)
-                - tournament_size: Tournament selection size (default: 5)
-                - elitism_count: Number of elites to preserve (default: 2)
-                - crossover_rate: Crossover probability (default: 0.7)
-                - mutation_rate: Mutation probability (default: 0.1)
-                - max_depth: Maximum tree depth (default: 5)
-                - init_method: Initialization method: 'grow', 'full', 'ramped_half' (default: 'ramped_half')
-                - fitness_metric: 'sharpe', 'total_return', 'calmar', 'sortino' (default: 'sharpe')
-                - retrain_frequency: How often to retrain (in days, default: 90)
-                - validation_split: Fraction of data for validation (default: 0.3)
-                - use_dc_framework: Whether to use Directional Change framework [citation:1] (default: False)
-                - dc_threshold: Directional Change threshold if using DC (default: 0.01)
+            params: Optional parameters dict (for backward compatibility)
+            population_size: Number of GP trees (default: 100)
+            generations: Number of evolution generations (default: 50)
+            tournament_size: Tournament selection size (default: 5)
+            elitism_count: Number of elites to preserve (default: 2)
+            crossover_rate: Crossover probability (default: 0.7)
+            mutation_rate: Mutation probability (default: 0.1)
+            max_depth: Maximum tree depth (default: 5)
+            init_method: Initialization method: 'grow', 'full', 'ramped_half' (default: 'ramped_half')
+            fitness_metric: 'sharpe', 'total_return', 'calmar', 'sortino' (default: 'sharpe')
+            retrain_frequency: How often to retrain in days (default: 90)
+            validation_split: Fraction of data for validation (default: 0.3)
+            use_dc_framework: Whether to use Directional Change framework (default: False)
+            dc_threshold: Directional Change threshold if using DC (default: 0.01)
+            random_seed: Random seed for reproducibility (default: 42)
         """
-        default_params = {
-            "population_size": 100,
-            "generations": 50,
-            "tournament_size": 5,
-            "elitism_count": 2,
-            "crossover_rate": 0.7,
-            "mutation_rate": 0.1,
-            "max_depth": 5,
-            "init_method": "ramped_half",
-            "fitness_metric": "sharpe",
-            "retrain_frequency": 90,  # days
-            "validation_split": 0.3,
-            "use_dc_framework": False,
-            "dc_threshold": 0.01,
-            "random_seed": 42,
+        strategy_params = {
+            "population_size": population_size,
+            "generations": generations,
+            "tournament_size": tournament_size,
+            "elitism_count": elitism_count,
+            "crossover_rate": crossover_rate,
+            "mutation_rate": mutation_rate,
+            "max_depth": max_depth,
+            "init_method": init_method,
+            "fitness_metric": fitness_metric,
+            "retrain_frequency": retrain_frequency,
+            "validation_split": validation_split,
+            "use_dc_framework": use_dc_framework,
+            "dc_threshold": dc_threshold,
+            "random_seed": random_seed,
         }
 
         if params:
-            default_params.update(params)
+            strategy_params.update(params)
 
-        super().__init__(name, default_params)
+        super().__init__(name, strategy_params)
 
         # Set random seed for reproducibility
         if "random_seed" in self.params:

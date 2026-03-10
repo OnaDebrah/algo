@@ -317,6 +317,19 @@ export const strategies: Strategy[] = [
         backtest_mode: 'single',
     },
 
+    // MACHINE LEARNING - GENETIC PROGRAMMING
+    {
+        id: 'genetic_programming',
+        name: 'Genetic Programming',
+        category: 'Machine Learning',
+        description: 'Evolves trading rules using strongly-typed genetic programming. Discovers optimal combinations of technical indicators through evolutionary optimization.',
+        complexity: 'Expert',
+        time_horizon: 'Medium to Long-term',
+        best_for: ["Automated rule discovery", "Complex pattern recognition", "Strategy evolution"],
+        parameters: { population_size: 100, generations: 50, tournament_size: 5, crossover_rate: 0.7, mutation_rate: 0.1, max_depth: 5, fitness_metric: 'sharpe' },
+        backtest_mode: 'single',
+    },
+
     // KALMAN FILTER HFT (conditional on numba backend)
     {
         id: 'kalman_filter_hft',

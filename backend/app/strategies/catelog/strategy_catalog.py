@@ -14,6 +14,7 @@ from ...strategies import (
 from ...strategies.catelog.adaptive import Adaptive
 from ...strategies.catelog.category import StrategyCategory
 from ...strategies.catelog.deep_learning import DeepLearning
+from ...strategies.catelog.genetic import Genetic
 from ...strategies.catelog.mean_reversion import MeanReversion
 from ...strategies.catelog.ml import ML
 from ...strategies.catelog.momentum import Momentum
@@ -43,6 +44,7 @@ class StrategyCatalog:
             "adaptive": Adaptive(),
             "machine_learning": ML(),
             "deep_learning": DeepLearning(),
+            "genetic": Genetic(),
         }
 
         self.strategies = self._build_catalog()

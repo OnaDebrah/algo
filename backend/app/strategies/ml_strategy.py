@@ -29,6 +29,7 @@ class MLStrategy(BaseStrategy):
         max_depth: int = 10,
         test_size: float = DEFAULT_ML_TEST_SIZE,
         learning_rate: float = 0.1,
+        threshold: float = DEFAULT_ML_THRESHOLD,
     ):
         """
         Initialize ML strategy
@@ -40,6 +41,7 @@ class MLStrategy(BaseStrategy):
             max_depth: Maximum tree depth
             test_size: Fraction of data for testing
             learning_rate: Learning rate (for gradient boosting)
+            threshold: Return threshold for buy/sell labels (fraction, e.g. 0.002 = 0.2%)
         """
         self.name = name
         self.strategy_type = strategy_type
@@ -47,6 +49,7 @@ class MLStrategy(BaseStrategy):
         self.max_depth = max_depth
         self.test_size = test_size
         self.learning_rate = learning_rate
+        self.threshold = threshold
         self.model = None
         self.scaler = StandardScaler()
         self.is_trained = False
@@ -59,6 +62,7 @@ class MLStrategy(BaseStrategy):
             "max_depth": max_depth,
             "test_size": test_size,
             "learning_rate": learning_rate,
+            "threshold": threshold,
         }
         super().__init__(strategy_type, params)
 
@@ -129,7 +133,7 @@ class MLStrategy(BaseStrategy):
             Tuple of (train_score, test_score)
         """
         df = self.prepare_features(data)
-        labels = self.create_labels(df)
+        labels = self.create_labels(df, threshold=self.threshold)
 
         if test_size is None:
             test_size = self.test_size

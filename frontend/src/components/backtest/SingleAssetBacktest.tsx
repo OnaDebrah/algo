@@ -54,6 +54,7 @@ interface SingleAssetBacktestProps {
     runBacktest: () => Promise<void>;
     isRunning: boolean;
     results: BacktestResult | null;
+    backtestError?: string | null;
 }
 
 const SingleAssetBacktest: React.FC<SingleAssetBacktestProps> = ({
@@ -62,7 +63,8 @@ const SingleAssetBacktest: React.FC<SingleAssetBacktestProps> = ({
     strategies,
     runBacktest,
     isRunning,
-    results
+    results,
+    backtestError
 }: SingleAssetBacktestProps) => {
     const [selectedCategory, setSelectedCategory] = useState('All');
     const [showAdvanced, setShowAdvanced] = useState(false);
@@ -717,6 +719,17 @@ const SingleAssetBacktest: React.FC<SingleAssetBacktestProps> = ({
             {results && (
                 <div className="animate-in fade-in slide-in-from-bottom-3 duration-500">
                     <SingleBacktestResults results={results} />
+                </div>
+            )}
+
+            {/* Error state when backtest fails */}
+            {backtestError && !isRunning && (
+                <div className="flex items-start gap-3 p-4 bg-red-500/10 border border-red-500/30 rounded-xl mb-4">
+                    <AlertCircle size={20} className="text-red-400 flex-shrink-0 mt-0.5" />
+                    <div>
+                        <p className="text-sm font-bold text-red-300">Backtest Failed</p>
+                        <p className="text-xs text-red-400/80 mt-1">{backtestError}</p>
+                    </div>
                 </div>
             )}
 

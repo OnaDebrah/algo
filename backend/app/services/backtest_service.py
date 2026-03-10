@@ -61,7 +61,7 @@ def _sanitize_value(value):
 ML_STRATEGY_KEYS = {"ml_random_forest", "ml_gradient_boosting", "ml_svm", "ml_logistic", "ml_lstm"}
 
 # ML strategies that self-train during signal generation (no explicit train() needed for backtest)
-ML_SELF_TRAINING_KEYS = {"mc_ml_sentiment"}
+ML_SELF_TRAINING_KEYS = {"mc_ml_sentiment", "genetic_programming"}
 
 
 class BacktestService:

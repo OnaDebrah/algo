@@ -29,6 +29,7 @@ interface BacktestState {
 
     // Execution — separate results per mode
     isRunning: boolean;
+    backtestError: string | null;
     singleResults: BacktestResult | null;
     multiResults: BacktestResult | null;
     results: BacktestResult | null;
@@ -99,15 +100,16 @@ export const useBacktestStore = create<BacktestState>((set, get) => ({
     })),
 
     isRunning: false,
+    backtestError: null,
     singleResults: null,
     multiResults: null,
     results: null,
-    resetResults: () => set({ results: null, singleResults: null, multiResults: null }),
+    resetResults: () => set({ results: null, singleResults: null, multiResults: null, backtestError: null }),
 
     runBacktest: async () => {
         const { backtestMode, singleConfig, multiConfig } = get();
 
-        set({ isRunning: true, results: null,
+        set({ isRunning: true, results: null, backtestError: null,
             ...(backtestMode === 'single' ? { singleResults: null } : { multiResults: null })
         });
 
@@ -294,8 +296,9 @@ export const useBacktestStore = create<BacktestState>((set, get) => ({
                     set({ results: multiResult, multiResults: multiResult });
                 }
             }
-        } catch (error) {
+        } catch (error: any) {
             console.error("Backtest failed", error);
+            set({ backtestError: error?.message || "Backtest failed. Check server logs for details." });
         } finally {
             set({ isRunning: false });
         }

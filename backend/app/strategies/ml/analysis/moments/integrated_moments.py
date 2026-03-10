@@ -6,7 +6,6 @@ Based on 2025 research showing >200% improved returns
 
 import logging
 import warnings
-from dataclasses import dataclass
 from datetime import datetime
 from typing import Dict, Optional, Tuple, Union
 
@@ -19,137 +18,13 @@ from scipy import stats
 from sklearn.preprocessing import RobustScaler, StandardScaler
 from torch.utils.data import DataLoader, TensorDataset
 
-from ....strategies.base_strategy import BaseStrategy
+from ....base_strategy import BaseStrategy
+from ....ml.analysis.moments.model import IntegratedMomentsModel
+from ....ml.analysis.moments.prediction import IntegratedPrediction
 
 warnings.filterwarnings("ignore")
 
 logger = logging.getLogger(__name__)
-
-
-@dataclass
-class IntegratedPrediction:
-    """Container for integrated predictions"""
-
-    expected_return: float
-    expected_volatility: float
-    risk_adjusted_return: float
-    conviction_score: float
-    position_size: float
-    signal: int  # -1, 0, 1
-    metadata: Dict
-
-
-class DualStreamEncoder(nn.Module):
-    """
-    Encoder that processes two streams: mean and volatility
-    """
-
-    def __init__(self, input_dim: int, hidden_dim: int = 128):
-        super().__init__()
-
-        # Shared feature extractor
-        self.shared = nn.Sequential(nn.Linear(input_dim, hidden_dim), nn.LayerNorm(hidden_dim), nn.ReLU(), nn.Dropout(0.1))
-
-        # Mean-specific stream
-        self.mean_stream = nn.Sequential(
-            nn.Linear(hidden_dim, hidden_dim // 2), nn.ReLU(), nn.Dropout(0.1), nn.Linear(hidden_dim // 2, hidden_dim // 4)
-        )
-
-        # Volatility-specific stream
-        self.vol_stream = nn.Sequential(
-            nn.Linear(hidden_dim, hidden_dim // 2), nn.ReLU(), nn.Dropout(0.1), nn.Linear(hidden_dim // 2, hidden_dim // 4)
-        )
-
-        # Interaction layer (captures mean-vol correlation)
-        self.interaction = nn.Sequential(nn.Linear(hidden_dim // 2, hidden_dim // 2), nn.ReLU(), nn.Linear(hidden_dim // 2, hidden_dim // 4))
-
-    def forward(self, x: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
-        # Shared features
-        shared = self.shared(x)
-
-        # Separate streams
-        mean_features = self.mean_stream(shared)
-        vol_features = self.vol_stream(shared)
-
-        # Interaction features (concatenate and process)
-        combined = torch.cat([mean_features, vol_features], dim=-1)
-        interaction = self.interaction(combined)
-
-        return mean_features, vol_features, interaction
-
-
-class IntegratedMomentsModel(nn.Module):
-    """
-    Neural network that jointly predicts returns and volatility
-    """
-
-    def __init__(self, input_dim: int, hidden_dim: int = 128, lstm_layers: int = 2, dropout: float = 0.2):
-        super().__init__()
-
-        # LSTM for temporal dynamics
-        self.lstm = nn.LSTM(
-            input_size=input_dim, hidden_size=hidden_dim, num_layers=lstm_layers, batch_first=True, dropout=dropout, bidirectional=True
-        )
-
-        # Dual-stream encoder
-        self.encoder = DualStreamEncoder(hidden_dim * 2, hidden_dim)
-
-        # Mean prediction head
-        self.mean_head = nn.Sequential(
-            nn.Linear(hidden_dim // 4 * 3, hidden_dim // 2),  # 3 streams combined
-            nn.ReLU(),
-            nn.Dropout(dropout),
-            nn.Linear(hidden_dim // 2, 1),
-        )
-
-        # Volatility prediction head (positive output via softplus)
-        self.vol_head = nn.Sequential(
-            nn.Linear(hidden_dim // 4 * 3, hidden_dim // 2),
-            nn.ReLU(),
-            nn.Dropout(dropout),
-            nn.Linear(hidden_dim // 2, 1),
-            nn.Softplus(),  # Ensures positive volatility
-        )
-
-        # Uncertainty estimation (Bayesian dropout approximation)
-        self.dropout = nn.Dropout(dropout)
-
-    def forward(self, x: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
-        """
-        Returns:
-            mean_pred: Predicted returns
-            vol_pred: Predicted volatility
-            uncertainty: Prediction uncertainty
-        """
-        # LSTM encoding
-        lstm_out, _ = self.lstm(x)
-        last_hidden = lstm_out[:, -1, :]  # Take last timestep
-
-        # Dual-stream encoding
-        mean_feat, vol_feat, interaction = self.encoder(last_hidden)
-
-        # Combine all features
-        combined = torch.cat([mean_feat, vol_feat, interaction], dim=-1)
-
-        # Predictions
-        mean_pred = self.mean_head(combined)
-        vol_pred = self.vol_head(combined)
-
-        # Uncertainty via Monte Carlo dropout
-        self.train()  # Enable dropout
-        mc_predictions = []
-        for _ in range(50):
-            # Apply dropout manually
-            dropped = self.dropout(combined)
-            mc_mean = self.mean_head(dropped)
-            mc_predictions.append(mc_mean.detach())
-
-        mc_stack = torch.stack(mc_predictions)
-        uncertainty = mc_stack.std(dim=0)
-
-        self.eval()  # Back to eval mode
-
-        return mean_pred, vol_pred, uncertainty
 
 
 class IntegratedMomentsStrategy(BaseStrategy):
@@ -170,7 +45,7 @@ class IntegratedMomentsStrategy(BaseStrategy):
         forecast_horizon: int = 5,
         min_risk_adjusted: float = 0.5,  # Minimum Sharpe for position
         max_position: float = 1.0,
-        confidence_threshold: float = 0.6,
+        confidence_threshold: float = 0.3,
         use_adaptive_sizing: bool = True,
         retrain_frequency: int = 30,  # Retrain every 30 days
     ):
@@ -189,7 +64,6 @@ class IntegratedMomentsStrategy(BaseStrategy):
             retrain_frequency: How often to retrain the model (days)
         """
         # Build params dict for BaseStrategy
-        self.name = None
         strategy_params = {
             "sequence_length": sequence_length,
             "forecast_horizon": forecast_horizon,
@@ -294,7 +168,7 @@ class IntegratedMomentsStrategy(BaseStrategy):
         # Moving averages
         features["ma_20"] = close.rolling(20).mean() / close - 1
         features["ma_50"] = close.rolling(50).mean() / close - 1
-        features["ma_200"] = close.rolling(200).mean() / close - 1
+        features["ma_200"] = close.rolling(200, min_periods=50).mean() / close - 1
 
         # Skewness and kurtosis (tail risk)
         features["skew_20d"] = returns_1d.rolling(20).skew()
@@ -306,7 +180,7 @@ class IntegratedMomentsStrategy(BaseStrategy):
 
         # Drop NaN values
         features = features.replace([np.inf, -np.inf], np.nan)
-        features = features.fillna(method="bfill").fillna(method="ffill").fillna(0)
+        features = features.bfill().ffill().fillna(0)
 
         self.feature_names = features.columns.tolist()
 
@@ -561,7 +435,6 @@ class IntegratedMomentsStrategy(BaseStrategy):
         # Get last sequence_length rows
         last_features = features.iloc[-self.sequence_length :].values
 
-        # Scale
         X_scaled = self.scaler_X.transform(last_features)
         X_tensor = torch.FloatTensor(X_scaled).unsqueeze(0)  # Add batch dimension
 
@@ -575,9 +448,12 @@ class IntegratedMomentsStrategy(BaseStrategy):
             expected_vol = float(self.scaler_y_vol.inverse_transform(vol_pred.numpy())[0, 0])
             uncertainty_val = float(uncertainty.numpy()[0, 0])
 
-        # Calculate risk-adjusted return (Sharpe-like)
+        # Annualize expected return to match annualized volatility
+        annualized_return = expected_return * (252 / self.forecast_horizon)
+
+        # Calculate risk-adjusted return (annualized Sharpe-like)
         if expected_vol > 0:
-            risk_adjusted = expected_return / expected_vol
+            risk_adjusted = annualized_return / expected_vol
         else:
             risk_adjusted = 0
 
@@ -653,20 +529,55 @@ class IntegratedMomentsStrategy(BaseStrategy):
         train_size = int(len(data) * 0.7)
         train_data = data.iloc[:train_size]
         try:
-            self.fit(train_data, epochs=50, verbose=False)
+            result = self.fit(train_data, epochs=50, verbose=False)
+            if not result or not self.is_trained:
+                logger.warning("Training did not produce a valid model — insufficient data or sequences")
+                return signals
         except Exception as e:
             logger.error(f"Training failed in vectorized generation: {e}")
             return signals
 
-        # Generate signals for remaining data
-        for i in range(train_size, len(data)):
-            window_data = data.iloc[: i + 1]
-            signal_dict = self.generate_signal(window_data)
+        # Compute features ONCE on full dataset (instead of per-bar)
+        features = self.prepare_features(data)
+        X_scaled = self.scaler_X.transform(features.values)
 
-            if isinstance(signal_dict, dict):
-                signals.iloc[i] = signal_dict.get("signal", 0)
-            else:
-                signals.iloc[i] = signal_dict
+        # Build all sequences for the test period in one operation
+        start_idx = max(train_size, self.sequence_length)
+        if start_idx >= len(data):
+            return signals
+
+        sequences = np.array([X_scaled[i - self.sequence_length : i] for i in range(start_idx, len(data))])
+        X_batch = torch.FloatTensor(sequences)
+
+        # Single batched inference (1 LSTM pass + 50 MC passes on full batch)
+        self.model.eval()
+        with torch.no_grad():
+            mean_preds, vol_preds, uncertainties = self.model(X_batch)
+
+            # Inverse transform batch results
+            expected_returns = self.scaler_y_mean.inverse_transform(mean_preds.numpy()).flatten()
+            expected_vols = self.scaler_y_vol.inverse_transform(vol_preds.numpy()).flatten()
+            uncertainty_vals = uncertainties.numpy().flatten()
+
+        # Vectorized signal logic
+        annualized_returns = expected_returns * (252 / self.forecast_horizon)
+        risk_adjusted = np.where(expected_vols > 0, annualized_returns / expected_vols, 0.0)
+        conviction = np.where(
+            uncertainty_vals > 0,
+            np.clip(np.abs(risk_adjusted) / (1 + uncertainty_vals), 0.0, 1.0),
+            np.clip(np.abs(risk_adjusted), 0.0, 1.0),
+        )
+
+        # Apply signal conditions
+        long_mask = (risk_adjusted > self.min_risk_adjusted) & (conviction > self.confidence_threshold)
+        short_mask = (risk_adjusted < -self.min_risk_adjusted) & (conviction > self.confidence_threshold)
+
+        batch_signals = np.zeros(len(sequences))
+        batch_signals[long_mask] = 1
+        batch_signals[short_mask] = -1
+
+        # Map back to the signals Series
+        signals.iloc[start_idx : len(data)] = batch_signals
 
         return signals
 
