@@ -1,24 +1,58 @@
 'use client'
-import React, { useState, useEffect, useMemo } from 'react';
+import React, {useEffect, useMemo, useState} from 'react';
 import {
-    Target, Wand2, Code2, FlaskConical, BookOpen,
-    Play, Save, Download, ChevronRight, Sparkles,
-    Trash2, Copy, History, Terminal, LineChart,
-    Settings2, Info, AlertCircle, TrendingUp, CheckCircle2,
-    Brain, Cpu, Zap, FileCode, GitBranch, Cog,
-    Database, Shield, Timer, DollarSign, BarChart3,
-    Maximize2, Minimize2, Eye, EyeOff, Layers,
-    Puzzle, Rocket, RefreshCw, Upload, Share2,
-    Variable, Filter, GitMerge, GitPullRequest,
-    MousePointerClick, MousePointer
+    AlertCircle,
+    BarChart3,
+    BookOpen,
+    Brain,
+    CheckCircle2,
+    Code2,
+    Cog,
+    Copy,
+    Cpu,
+    DollarSign,
+    Download,
+    Eye,
+    FileCode,
+    Filter,
+    FlaskConical,
+    GitBranch,
+    GitMerge,
+    History,
+    Info,
+    LineChart,
+    Maximize2,
+    Minimize2,
+    MousePointerClick,
+    Play,
+    Puzzle,
+    RefreshCw,
+    Save,
+    Settings2,
+    Share2,
+    Shield,
+    Sparkles,
+    Target,
+    Timer,
+    Trash2,
+    TrendingUp,
+    Variable,
+    Zap
 } from "lucide-react";
 import {
-    ResponsiveContainer, AreaChart, Area, XAxis, YAxis,
-    CartesianGrid, Tooltip, Legend, Line,
-    BarChart, Bar, ScatterChart, Scatter, ZAxis
+    Area,
+    AreaChart,
+    CartesianGrid,
+    ResponsiveContainer,
+    Scatter,
+    ScatterChart,
+    Tooltip,
+    XAxis,
+    YAxis,
+    ZAxis
 } from 'recharts';
-import { strategy as strategyApi } from '@/utils/api';
-import type { CustomStrategy as CustomStrategyType, StrategyGenerateResponse } from '@/utils/api';
+import type {CustomStrategy as CustomStrategyType, StrategyGenerateResponse} from '@/utils/api';
+import {strategy as strategyApi} from '@/utils/api';
 import TickerSearch from "@/components/common/TickerSearch";
 
 const STRATEGY_TEMPLATES = [

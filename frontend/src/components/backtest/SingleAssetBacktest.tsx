@@ -1,33 +1,23 @@
 'use client'
-import React, { useEffect, useMemo, useState } from 'react';
+import React, {useEffect, useMemo, useState} from 'react';
 import {
-    Activity,
     AlertCircle,
     BarChart3,
     Brain,
-    Calendar,
     Check,
     ChevronDown,
-    ChevronRight,
     ChevronUp,
     Clock,
-    Copy,
-    DollarSign,
     Download,
     Eye,
     EyeOff,
-    Filter,
     FolderOpen,
-    Grid,
-    Info,
-    List,
     Play,
     RefreshCw,
     Save,
     Search,
     Settings,
     Sparkles,
-    Star,
     Target,
     TrendingUp,
     X,
@@ -39,12 +29,12 @@ import StrategyParameterForm from "@/components/backtest/StrategyParameterForm";
 import RiskAnalysisModal from "@/components/backtest/RiskAnalysisModal";
 import LoadConfigModal from "@/components/backtest/LoadConfigModal";
 import BayesianOptimizerModal from "@/components/backtest/BayesianOptimizerModal";
-import { BacktestResult, SingleAssetConfig, Strategy, PortfolioCreate, DeployedMLModel } from "@/types/all_types";
-import { formatCSVCell, formatCurrency } from "@/utils/formatters";
-import { portfolio, mlstudio } from "@/utils/api";
-import { assetSuggestions, quickSuggestions } from "@/utils/suggestions";
-import { useBacktestStore } from "@/store/useBacktestStore";
-import { useNavigationStore } from "@/store/useNavigationStore";
+import {BacktestResult, DeployedMLModel, PortfolioCreate, SingleAssetConfig, Strategy} from "@/types/all_types";
+import {formatCSVCell, formatCurrency} from "@/utils/formatters";
+import {mlstudio, portfolio} from "@/utils/api";
+import {assetSuggestions, quickSuggestions} from "@/utils/suggestions";
+import {useBacktestStore} from "@/store/useBacktestStore";
+import {useNavigationStore} from "@/store/useNavigationStore";
 import StrategyInfoPopover from "@/components/backtest/StrategyInfoPopover";
 
 interface SingleAssetBacktestProps {

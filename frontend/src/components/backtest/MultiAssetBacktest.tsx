@@ -28,13 +28,7 @@ import StrategyParameterForm from "@/components/backtest/StrategyParameterForm";
 import MultiBacktestResults from "@/components/backtest/MultiBacktestResults";
 import RiskAnalysisModal from "@/components/backtest/RiskAnalysisModal";
 import LoadConfigModal from "@/components/backtest/LoadConfigModal";
-import {
-    BacktestResult,
-    MultiAssetBacktestResponse,
-    MultiAssetConfig,
-    PortfolioCreate,
-    Strategy
-} from "@/types/all_types";
+import {BacktestResult, MultiAssetConfig, PortfolioCreate, Strategy} from "@/types/all_types";
 import {portfolio} from "@/utils/api";
 import BayesianOptimizerModal from "@/components/backtest/BayesianOptimizerModal";
 import {assetSuggestions} from "@/utils/suggestions";

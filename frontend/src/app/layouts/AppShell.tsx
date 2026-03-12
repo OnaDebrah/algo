@@ -1,16 +1,16 @@
 'use client'
 
-import React, { lazy, Suspense, useState, useEffect, useCallback } from 'react';
+import React, {lazy, Suspense, useCallback, useEffect, useState} from 'react';
 import LoginPage from "@/components/auth/LoginPage";
 import LandingPage from "@/components/landing/LandingPage";
-import { TickerTape } from "@/components/widgets/TickerTape";
-import { CommandPalette } from "@/components/common/CommandPalette";
+import {TickerTape} from "@/components/widgets/TickerTape";
+import {CommandPalette} from "@/components/common/CommandPalette";
 import ErrorBoundary from "@/components/common/ErrorBoundary";
 import Sidebar from "@/app/layouts/Sidebar";
 import Header from "@/app/layouts/Header";
-import { User } from "@/types/all_types";
-import { api } from '@/utils/api';
-import { useNavigationStore } from '@/store/useNavigationStore';
+import {User} from "@/types/all_types";
+import {api} from '@/utils/api';
+import {useNavigationStore} from '@/store/useNavigationStore';
 
 // ── Lazy-loaded page components (each gets its own chunk) ─────────
 const Dashboard = lazy(() => import("@/components/dashboard/Dashboard"));

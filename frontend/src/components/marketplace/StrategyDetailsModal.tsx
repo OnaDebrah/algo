@@ -1,14 +1,26 @@
 'use client'
 
-import React, { useEffect, useState } from 'react';
+import React, {useEffect, useState} from 'react';
 import {
-    Activity, ArrowUpRight, CheckCircle2, Clock, Download,
-    Rocket, Shield, Star, Target, X, Zap, Loader2,
-    TrendingUp, AlertTriangle, Send, MessageSquare
+    Activity,
+    AlertTriangle,
+    ArrowUpRight,
+    CheckCircle2,
+    Clock,
+    Download,
+    Loader2,
+    MessageSquare,
+    Rocket,
+    Send,
+    Shield,
+    Star,
+    Target,
+    X,
+    Zap
 } from 'lucide-react';
-import { live, marketplace } from '@/utils/api';
+import {live, marketplace} from '@/utils/api';
 
-import { DeploymentConfig } from '@/types/all_types';
+import {DeploymentConfig} from '@/types/all_types';
 import DeploymentModal from "@/components/strategies/DeploymentModel";
 
 interface StrategyDetailsModalProps {

@@ -1,13 +1,10 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { Command } from 'cmdk';
-import { useNavigationStore } from '@/store/useNavigationStore';
-import {
-    Search, Activity, Zap, TrendingUp, Shield, BarChart3,
-    DollarSign, Cpu, Package, Settings, Target
-} from 'lucide-react';
-import { toast } from 'sonner';
+import {useEffect, useState} from 'react';
+import {Command} from 'cmdk';
+import {useNavigationStore} from '@/store/useNavigationStore';
+import {Activity, BarChart3, Cpu, DollarSign, Search, Settings, Shield, Target, TrendingUp, Zap} from 'lucide-react';
+import {toast} from 'sonner';
 
 export const CommandPalette = () => {
     const [open, setOpen] = useState(false);

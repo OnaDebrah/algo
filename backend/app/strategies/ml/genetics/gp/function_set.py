@@ -78,7 +78,8 @@ class FunctionSet:
     def IfThenElse(cond: Union[bool, pd.Series], true_val: Union[float, pd.Series], false_val: Union[float, pd.Series]) -> Union[float, pd.Series]:
         """If-then-else conditional"""
         if isinstance(cond, pd.Series):
-            return np.where(cond, true_val, false_val)
+            result = np.where(cond, true_val, false_val)
+            return pd.Series(result, index=cond.index)
         return true_val if cond else false_val
 
     @staticmethod
@@ -97,17 +98,16 @@ class FunctionSet:
     def sqrt(a: Union[float, pd.Series]) -> Union[float, pd.Series]:
         """Protected square root"""
         if isinstance(a, pd.Series):
-            a = a.clip(lower=0)
-            return np.sqrt(a)
-        return np.sqrt(max(0, a))
+            return a.clip(lower=0).pow(0.5)
+        return float(np.sqrt(max(0, int(a))))
 
     @staticmethod
     def log(a: Union[float, pd.Series]) -> Union[float, pd.Series]:
         """Protected log"""
         if isinstance(a, pd.Series):
-            a = a.clip(lower=1e-10)
-            return np.log(a)
-        return np.log(max(1e-10, a))
+            clipped = a.clip(lower=1e-10)
+            return pd.Series(np.log(clipped), index=a.index)
+        return float(np.log(max(1e-10, a)))
 
     @staticmethod
     def lag(data: pd.Series, periods: int = 1) -> pd.Series:
@@ -115,6 +115,8 @@ class FunctionSet:
         return data.shift(periods)
 
     @staticmethod
-    def diff(data: pd.Series, periods: int = 1) -> pd.Series:
-        """Difference operator"""
-        return data.diff(periods)
+    def diff(data: Union[float, pd.Series], periods: int = 1) -> Union[float, pd.Series]:
+        """Calculate the difference between values"""
+        if isinstance(data, pd.Series):
+            return data.diff(periods).fillna(0)
+        return 0.0

@@ -1,5 +1,3 @@
-import { StrategyInfo } from '@/types/all_types';
-
 export const mapFrontendStrategyToBackend = (frontendStrategies: any[]): {
     key: string;
     name: string;

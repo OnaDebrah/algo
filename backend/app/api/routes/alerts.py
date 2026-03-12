@@ -45,7 +45,7 @@ async def init_alert_manager() -> AlertManager:
                 username=settings.FROM_EMAIL,
                 password=settings.SMTP_PASSWORD,
                 from_email=settings.FROM_EMAIL,
-                from_name=settings.EMAIL_FROM_NAME or "Trading Platform",
+                from_name=settings.EMAIL_FROM_NAME or "ORACULUM",
             )
 
         sms_provider = None

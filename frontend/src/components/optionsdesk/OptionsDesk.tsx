@@ -1,11 +1,10 @@
 'use client'
-import React, { useEffect, useState } from 'react';
-import { Loader2 } from "lucide-react";
+import React, {useEffect, useState} from 'react';
+import {Loader2} from "lucide-react";
 import {
     BacktestConfig,
     ChainRequest,
     ChainResponse,
-    EquityCurvePoint,
     GreeksChartData,
     GreeksRequest,
     GreeksResponse,
@@ -27,8 +26,7 @@ import {
     StrategyComparisonResponse,
     StrategyTemplate,
     StrikeOptimizerRequest,
-    StrikeOptimizerResponse,
-    Trade
+    StrikeOptimizerResponse
 } from '@/types/all_types';
 import Header from './Header';
 import MLForecastPanel from './MLForecastPanel';
@@ -40,8 +38,8 @@ import VolatilityTab from './tabs/VolatilityTab';
 import RiskTab from './tabs/RiskTab';
 import ForecastTab from './tabs/ForecastTab';
 import Tabs from "@/components/optionsdesk/tabs/Tabs";
-import { market, options, regime } from "@/utils/api";
-import { toPrecision } from "@/utils/formatters";
+import {market, options, regime} from "@/utils/api";
+import {toPrecision} from "@/utils/formatters";
 
 const OptionsDesk = () => {
     const [selectedSymbol, setSelectedSymbol] = useState('SPY');

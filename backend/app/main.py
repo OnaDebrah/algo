@@ -81,7 +81,7 @@ async def lifespan(app: FastAPI):
         raise
     yield
 
-    logger.info("SHUTTING DOWN TRADING PLATFORM")
+    logger.info("SHUTTING DOWN ORACULUM")
     try:
         if settings.ENVIRONMENT != "test":
             await stop_execution_manager()
@@ -93,7 +93,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title=settings.APP_NAME,
     version=settings.VERSION,
-    description="Oraculum Backtesting Platform API",
+    description="ORACULUM Backtesting Platform API",
     docs_url="/docs",
     redoc_url="/redoc",
     lifespan=lifespan,

@@ -16,7 +16,7 @@ _DEV_SECRET = secrets.token_hex(32)
 
 class Settings(BaseSettings):
     # App
-    APP_NAME: str = "Trading Platform API"
+    APP_NAME: str = "ORACULUM API"
     VERSION: str = "1.0.0"
     ENVIRONMENT: str = os.getenv("ENVIRONMENT", "development")
 

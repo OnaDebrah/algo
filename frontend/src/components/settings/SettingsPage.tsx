@@ -1,13 +1,16 @@
 'use client'
 
-import React, { useEffect, useState } from "react";
+import React, {useEffect, useState} from "react";
 import {
+    AlertCircle,
+    Bell,
     Check,
-    Copy,
+    CheckCircle,
     CreditCard,
     Database,
+    Eye,
+    EyeOff,
     Globe,
-    Info,
     Key,
     Landmark,
     Link,
@@ -16,16 +19,12 @@ import {
     RefreshCw,
     Save,
     ShieldCheck,
-    TrendingDown,
-    Zap,
-    AlertCircle,
-    Eye,
-    EyeOff,
     TestTube,
-    Bell, CheckCircle
+    TrendingDown,
+    Zap
 } from "lucide-react";
-import { settings } from "@/utils/api";
-import { UserSettings } from "@/types/all_types";
+import {settings} from "@/utils/api";
+import {UserSettings} from "@/types/all_types";
 import AlertManagement from "@/components/settings/AlertManagement";
 
 const SettingsPage = () => {

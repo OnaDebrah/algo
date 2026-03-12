@@ -13,7 +13,7 @@ Key features:
 """
 
 import random
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple, cast
 
 import numpy as np
 import pandas as pd
@@ -155,6 +155,9 @@ class GeneticProgrammingStrategy(BaseStrategy):
         Returns:
             Fitness value (higher is better)
         """
+        if data is None or data.empty:
+            return 0.0
+
         # Generate signals
         signals = tree.evaluate(data)
 
@@ -197,7 +200,7 @@ class GeneticProgrammingStrategy(BaseStrategy):
                 total_ret = (1 + net_returns).prod() - 1
                 fitness = total_ret / max_drawdown
             else:
-                fitness = total_ret * 10  # No drawdown is great
+                fitness = float(total_ret) * 10
 
         else:
             raise ValueError(f"Unknown fitness metric: {self.params['fitness_metric']}")
@@ -305,8 +308,8 @@ class GeneticProgrammingStrategy(BaseStrategy):
         """
         # Split into training and validation
         split_idx = int(len(training_data) * (1 - self.params["validation_split"]))
-        train_data = training_data.iloc[:split_idx]
-        val_data = training_data.iloc[split_idx:]
+        train_data: pd.DataFrame = cast(pd.DataFrame, cast(object, training_data.iloc[:split_idx]))
+        val_data: pd.DataFrame = cast(pd.DataFrame, cast(object, training_data.iloc[split_idx:]))
 
         # Initialize population
         if self.params["init_method"] == "ramped_half":
@@ -358,7 +361,7 @@ class GeneticProgrammingStrategy(BaseStrategy):
             self.population = new_population
 
         # Validate best on validation data
-        if self.best_tree:
+        if self.best_tree and not val_data.empty:
             val_fitness = self._calculate_fitness(self.best_tree, val_data)
             self.best_tree.metadata["validation_fitness"] = val_fitness
             self.best_tree.metadata["generations"] = self.params["generations"]
@@ -425,10 +428,11 @@ class GeneticProgrammingStrategy(BaseStrategy):
             or self.params.get("retrain_frequency", 0) > 0
             and self.last_training_date is not None
             and (current_date - self.last_training_date).days >= self.params["retrain_frequency"]
+            and len(data) > 100
         ):
             # Retrain on recent data
             lookback = min(252 * 2, len(data))  # Up to 2 years
-            training_data = data.iloc[-lookback:]
+            training_data = cast(pd.DataFrame, cast(object, data.iloc[-lookback:]))
             self.train(training_data)
 
         # If no trained tree, return neutral signal

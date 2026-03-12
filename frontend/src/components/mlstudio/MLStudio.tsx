@@ -2,7 +2,8 @@
 import React, {useEffect, useMemo, useState} from 'react';
 import {
     BarChart3,
-    BrainCircuit, CheckCircle,
+    BrainCircuit,
+    CheckCircle,
     CheckCircle2,
     Clock,
     Cloud,
@@ -40,7 +41,7 @@ import {
     YAxis
 } from 'recharts';
 import {mlstudio} from '@/utils/api';
-import {MLModel, TrainingConfig, TrainingEpoch, VisualBlock} from '@/types/all_types';
+import {MLModel, TrainingConfig, TrainingEpoch} from '@/types/all_types';
 import {useBacktestStore} from '@/store/useBacktestStore';
 import {useNavigationStore} from '@/store/useNavigationStore';
 import ModelRegistry from "@/components/mlstudio/ModelRegistry";

@@ -1,7 +1,7 @@
-import { useState, KeyboardEvent, ChangeEvent } from "react";
-import { AlertCircle, ArrowRight, RefreshCw, ShieldCheck, Zap } from "lucide-react";
-import { User } from "@/types/all_types";
-import { api } from "@/utils/api";
+import {useState, KeyboardEvent, ChangeEvent} from "react";
+import {AlertCircle, ArrowRight, RefreshCw, ShieldCheck, Zap} from "lucide-react";
+import {User} from "@/types/all_types";
+import {api} from "@/utils/api";
 
 type InvestorType = 'Retail' | 'Professional' | 'Institutional' | 'Academic';
 type RiskProfile = 'Conservative' | 'Moderate' | 'Aggressive';
@@ -56,9 +56,9 @@ const INITIAL_FORM: LoginFormData = {
     riskProfile: 'Moderate',
 };
 
-const LoginPage = ({ onLogin, setCurrentPage, onBackToLanding }: LoginPageProps) => {
+const LoginPage = ({onLogin, setCurrentPage, onBackToLanding}: LoginPageProps) => {
     const [isLogin, setIsLogin] = useState(true);
-    const [formData, setFormData] = useState<LoginFormData>({ ...INITIAL_FORM });
+    const [formData, setFormData] = useState<LoginFormData>({...INITIAL_FORM});
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
 
@@ -107,11 +107,15 @@ const LoginPage = ({ onLogin, setCurrentPage, onBackToLanding }: LoginPageProps)
 
                 setError('✓ Registration successful! Please sign in to continue.');
                 setIsLogin(true);
-                setFormData({ ...INITIAL_FORM });
+                setFormData({...INITIAL_FORM});
             }
         } catch (err: unknown) {
             if (typeof err === 'object' && err !== null && 'status' in err) {
-                const apiError = err as { status: number; data?: { detail?: string | { msg: string }[] }; message?: string };
+                const apiError = err as {
+                    status: number;
+                    data?: { detail?: string | { msg: string }[] };
+                    message?: string
+                };
                 if (apiError.status === 401) {
                     setError("Invalid credentials. Please check your email and password.");
                 } else if (apiError.status === 422) {
@@ -177,14 +181,14 @@ const LoginPage = ({ onLogin, setCurrentPage, onBackToLanding }: LoginPageProps)
     };
 
     const handleInputChange = (e: ChangeEvent<HTMLInputElement | HTMLSelectElement>): void => {
-        const { name, value } = e.target;
-        setFormData(prev => ({ ...prev, [name]: value }));
+        const {name, value} = e.target;
+        setFormData(prev => ({...prev, [name]: value}));
     };
 
     const toggleMode = (): void => {
         setIsLogin(!isLogin);
         setError('');
-        setFormData({ ...INITIAL_FORM });
+        setFormData({...INITIAL_FORM});
     };
 
     const inputClass = "w-full bg-slate-800/50 border border-slate-700/50 rounded-lg px-4 py-3 text-slate-200 placeholder:text-slate-600 focus:border-violet-500 focus:ring-1 focus:ring-violet-500 outline-none transition-all";
@@ -194,9 +198,10 @@ const LoginPage = ({ onLogin, setCurrentPage, onBackToLanding }: LoginPageProps)
     return (
         <div className="min-h-screen w-full flex items-center justify-center bg-slate-950 relative overflow-hidden">
             {/* Background decorations */}
-            <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-violet-600/10 rounded-full blur-[150px]" />
-            <div className="absolute bottom-0 left-0 w-[500px] h-[500px] bg-fuchsia-600/10 rounded-full blur-[120px]" />
-            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-indigo-600/5 rounded-full blur-[200px]" />
+            <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-violet-600/10 rounded-full blur-[150px]"/>
+            <div className="absolute bottom-0 left-0 w-[500px] h-[500px] bg-fuchsia-600/10 rounded-full blur-[120px]"/>
+            <div
+                className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-indigo-600/5 rounded-full blur-[200px]"/>
 
             {/* Centered card */}
             <div className="relative z-10 w-full max-w-xl mx-4">
@@ -207,7 +212,8 @@ const LoginPage = ({ onLogin, setCurrentPage, onBackToLanding }: LoginPageProps)
                             onClick={onBackToLanding}
                             className="flex items-center gap-2 text-sm text-slate-400 hover:text-slate-200 transition-colors mb-6 group"
                         >
-                            <ArrowRight size={16} className="rotate-180 group-hover:-translate-x-1 transition-transform" />
+                            <ArrowRight size={16}
+                                        className="rotate-180 group-hover:-translate-x-1 transition-transform"/>
                             Back to Home
                         </button>
                     )}
@@ -215,12 +221,20 @@ const LoginPage = ({ onLogin, setCurrentPage, onBackToLanding }: LoginPageProps)
                     {/* Branding */}
                     <div className="mb-8">
                         <div className="flex items-center space-x-3 mb-6">
-                            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-violet-500 to-fuchsia-500 flex items-center justify-center shadow-xl shadow-violet-500/30">
-                                <Zap size={24} className="text-white" strokeWidth={2.5} />
+                            <div
+                                className="w-12 h-12 rounded-xl bg-gradient-to-br from-violet-500 to-fuchsia-500 flex items-center justify-center shadow-xl shadow-violet-500/30">
+                                <Zap size={24} className="text-white" strokeWidth={2.5}/>
                             </div>
                             <div>
-                                <h1 className="text-2xl font-bold text-slate-100 tracking-tight">ORACULUM</h1>
-                                <div className="h-0.5 w-12 bg-gradient-to-r from-violet-500 to-fuchsia-500 mt-1 rounded-full" />
+                            <span className="text-2xl font-bold tracking-tight flex items-center gap-2">
+                              <span className="text-slate-100">ORACULUM</span>
+                              <span
+                                  className="text-xs font-semibold bg-gradient-to-r from-indigo-400 to-cyan-400 bg-clip-text text-transparent">
+                                AI
+                              </span>
+                            </span>
+                                <div
+                                    className="h-0.5 w-12 bg-gradient-to-r from-violet-500 to-fuchsia-500 mt-1 rounded-full"/>
                             </div>
                         </div>
                         <h2 className="text-3xl font-bold text-slate-100">
@@ -239,10 +253,11 @@ const LoginPage = ({ onLogin, setCurrentPage, onBackToLanding }: LoginPageProps)
                         {!isLogin && (
                             <div className="space-y-4 p-4 rounded-xl bg-violet-500/5 border border-violet-500/20">
                                 <div className="flex items-start space-x-3">
-                                    <AlertCircle size={20} className="text-violet-400 shrink-0 mt-0.5" />
+                                    <AlertCircle size={20} className="text-violet-400 shrink-0 mt-0.5"/>
                                     <div>
                                         <p className="text-sm font-semibold text-slate-200">Profile & Preferences</p>
-                                        <p className="text-xs text-slate-400 mt-1">Used for personalized strategy alerts and stock recommendations.</p>
+                                        <p className="text-xs text-slate-400 mt-1">Used for personalized strategy alerts
+                                            and stock recommendations.</p>
                                     </div>
                                 </div>
                                 <div className="grid grid-cols-3 gap-3">
@@ -357,7 +372,7 @@ const LoginPage = ({ onLogin, setCurrentPage, onBackToLanding }: LoginPageProps)
                         >
                             {loading ? (
                                 <>
-                                    <RefreshCw size={20} className="animate-spin" />
+                                    <RefreshCw size={20} className="animate-spin"/>
                                     <span>Processing...</span>
                                 </>
                             ) : (
@@ -377,7 +392,7 @@ const LoginPage = ({ onLogin, setCurrentPage, onBackToLanding }: LoginPageProps)
                     {/* Footer */}
                     <div className="mt-8 pt-6 border-t border-slate-800/80 flex items-center justify-between">
                         <div className="flex items-center space-x-2 text-xs text-slate-600 font-medium">
-                            <ShieldCheck size={14} />
+                            <ShieldCheck size={14}/>
                             <span>AES-256 Encrypted</span>
                         </div>
                         <div className="text-xs text-slate-600 font-medium">v2.0.1</div>

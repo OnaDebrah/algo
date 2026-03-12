@@ -23,9 +23,14 @@ import {
     AllocationResponse,
     CurrentRegimeResponse,
     FeatureImportance,
-    FeaturesResponse, RegimeBatchResponse, RegimeData, RegimeHistoryResponse, RegimeReportResponse,
-    RegimeStrengthResponse, RegimeTrainResponse, RegimeWarning, RegimeWarningResponse,
-    StrategyAllocation,
+    FeaturesResponse,
+    RegimeBatchResponse,
+    RegimeHistoryResponse,
+    RegimeReportResponse,
+    RegimeStrengthResponse,
+    RegimeTrainResponse,
+    RegimeWarning,
+    RegimeWarningResponse,
     TransitionProbability,
     TransitionResponse
 } from '@/types/all_types';

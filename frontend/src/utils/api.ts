@@ -1,130 +1,118 @@
 import axios from 'axios';
 import {
-    // Auth
+    Alert,
+    AlertPreferences,
+    AlertTestResponse,
+    AllocationResponse,
+    AnalystReport,
+    BacktestHistoryItem,
+    BrokerConnectionResponse,
+    ChainRequest,
+    ChainResponse,
+    CrashAlertConfig,
+    CrashDashboardData,
+    CrashPredictionHistoryItem,
+    CrashPredictionResult,
+    CurrentRegimeResponse,
+    DeployedMLModel,
+    DeploymentConfig,
+    EmailAlertRequest,
+    ExecutionOrder,
+    FeaturesResponse,
+    GreeksRequest,
+    GreeksResponse,
+    GuideRequest,
+    GuideResponse,
+    HedgeRecommendation,
+    HistoricalAccuracyData,
+    HistoricalDataPoint,
+    HTTPValidationError,
+    LiveOrderPlacement,
+    LiveOrderUpdate,
+    LiveStatus,
     LoginResponse,
-    User,
-    UserCreate,
-    UserLogin,
-
-    // Backtest
-    SingleBacktestRequest,
-    SingleBacktestResponse,
+    MarketplaceFilterParams,
+    MarketStressResult,
+    MLModel,
+    MLModelStatusRequest,
+    ModelPrediction,
+    MonteCarloRequest,
+    MonteCarloResponse,
     MultiAssetBacktestRequest,
     MultiAssetBacktestResponse,
     OptionsBacktestRequest,
     OptionsBacktestResponse,
-    BacktestHistoryItem,
-
-    // Portfolio
+    OptionsChain,
+    PairsValidationRequest,
+    PairsValidationResponse,
     Portfolio,
     PortfolioCreate,
-    PortfolioUpdate,
     PortfolioMetrics,
-    Position,
+    PortfolioStatsRequest,
+    PortfolioStatsResponse,
     PortfolioTrade,
-
-    // Market Data
+    PortfolioUpdate,
+    Position,
+    ProbabilityRequest,
+    ProbabilityResponse,
     QuoteData,
-    HistoricalDataPoint,
-    OptionsChain,
+    RegimeHistoryResponse,
+    RegimeStrengthResponse,
+    RiskMetricsRequest,
+    RiskMetricsResponse,
     SearchResult,
-
-    // Strategy
-    StrategyInfo,
-    StrategyConfig,
-
-    // Analyst & Advisor
-    AnalystReport,
-    GuideRequest,
-    GuideResponse,
-
-    // Alerts
-    EmailAlertRequest,
+    SectorScanResult,
+    SectorSummary,
+    SettingsUpdate,
+    SingleBacktestRequest,
+    SingleBacktestResponse,
     SMSAlertRequest,
-    AlertTestResponse,
-
-    // Live Trading
-    LiveStatus,
-    ExecutionOrder,
-
-    // Marketplace
-    StrategyListing,
-    StrategyListingDetailed,
-    StrategyPublishRequest,
-    StrategyReviewSchema,
-
-    // ML Studio
-    MLModel,
-    TrainingConfig,
-    DeployedMLModel,
-
-    // Options
-    ChainRequest,
-    ChainResponse,
-    GreeksRequest,
-    GreeksResponse,
+    StockRanking,
     StrategyAnalysisRequest,
     StrategyAnalysisResponse,
     StrategyComparisonRequest,
     StrategyComparisonResponse,
-    ProbabilityRequest,
-    ProbabilityResponse,
+    StrategyInfo,
+    StrategyListing,
+    StrategyListingDetailed,
+    StrategyPublishRequest,
+    StrategyRecommendation,
+    StrategyReviewSchema,
     StrikeOptimizerRequest,
     StrikeOptimizerResponse,
-    PortfolioStatsRequest,
-    PortfolioStatsResponse,
-    RiskMetricsRequest,
-    RiskMetricsResponse,
-    MonteCarloRequest,
-    MonteCarloResponse,
-
-    // Market Regime
-    CurrentRegimeResponse,
-    AllocationResponse,
-    RegimeStrengthResponse,
+    TrainingConfig,
     TransitionResponse,
-    FeaturesResponse,
-
-    // Settings
+    User,
+    UserCreate,
+    UserLogin,
     UserSettings,
-    SettingsUpdate,
-
-    // Sector Scanner
-    SectorSummary,
-    SectorScanResult,
-    StockRanking,
-    StrategyRecommendation,
-
-    // Crash Prediction
-    CrashDashboardData,
-    CrashPredictionResult,
-    CrashPredictionHistoryItem,
-    MarketStressResult,
-    HedgeRecommendation,
-    CrashAlertConfig,
-    HistoricalAccuracyData,
-
-    // HTTP Error
-    HTTPValidationError, RegimeData, RegimeHistoryResponse, PairsValidationRequest, PairsValidationResponse,
-    LiveOrderPlacement, LiveOrderUpdate, MarketplaceFilterParams, AlertPreferences, Alert, DeploymentConfig,
-    BrokerConnectionResponse, MLModelStatusRequest, ModelPrediction, BrokerSettings, WFARequest, WFAResponse
+    WFARequest,
+    WFAResponse
 } from '@/types/all_types';
 import {
-    BaseOptimizationRequest, BlackLittermanRequest, BlackLittermanResponse,
-    CompareStrategiesResponse, EfficientFrontierRequest, EfficientFrontierResponse,
-    OptimiseBacktestResponse, OptimizationResponse,
-    PortfolioBacktestRequest, SharpeOptimizationRequest, TargetReturnRequest
+    BaseOptimizationRequest,
+    BlackLittermanRequest,
+    BlackLittermanResponse,
+    CompareStrategiesResponse,
+    EfficientFrontierRequest,
+    EfficientFrontierResponse,
+    OptimiseBacktestResponse,
+    OptimizationResponse,
+    PortfolioBacktestRequest,
+    SharpeOptimizationRequest,
+    TargetReturnRequest
 } from "@/types/optimise";
 import {
     AccountResponse,
     ConnectRequest,
-    ControlResponse, LiveStrategy,
+    ControlResponse,
+    LiveStrategy,
     StrategyDetailsResponse,
     StrategyUpdateRequest,
     UpdateResponse
 } from "@/types/live";
-import { ActivityResponse } from "@/types/social";
-import { AnalystReportParams } from "@/types/analyst";
+import {ActivityResponse} from "@/types/social";
+import {AnalystReportParams} from "@/types/analyst";
 
 // Use environment variable or default to localhost
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';

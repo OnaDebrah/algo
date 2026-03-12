@@ -1,3 +1,5 @@
+from typing import cast
+
 import pandas as pd
 
 
@@ -48,7 +50,8 @@ class TechnicalIndicators:
         high_low = high - low
         high_close = (high - close.shift()).abs()
         low_close = (low - close.shift()).abs()
-        tr = pd.concat([high_low, high_close, low_close], axis=1).max(axis=1)
+        combined = pd.concat([high_low, high_close, low_close], axis=1)
+        tr = cast(pd.Series, cast(object, pd.DataFrame(combined).max(axis=1)))
         return tr.rolling(window=window).mean()
 
     @staticmethod

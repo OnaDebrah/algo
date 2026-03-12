@@ -1,9 +1,9 @@
 'use client'
 
-import React, { useEffect, useState } from 'react';
-import { Share2, TrendingUp, Trophy, Zap, MessageSquare, Clock, ArrowUpRight, Rocket, Award, ShieldCheck } from 'lucide-react';
-import {api, social} from '@/utils/api';
-import { ActivityResponse } from '@/types/social';
+import React, {useEffect, useState} from 'react';
+import {ArrowUpRight, Clock, MessageSquare, Rocket, Share2, ShieldCheck, TrendingUp, Trophy, Zap} from 'lucide-react';
+import {social} from '@/utils/api';
+import {ActivityResponse} from '@/types/social';
 
 const SocialFeed = () => {
     const [activities, setActivities] = useState<ActivityResponse[]>([]);

@@ -2,6 +2,7 @@ from typing import Dict, List, Union
 
 import numpy as np
 import pandas as pd
+from numpy.lib.stride_tricks import sliding_window_view
 
 from ...strategies.volatility.base_volatility import BaseVolatilityStrategy
 
@@ -85,7 +86,14 @@ class VarianceRiskPremiumStrategy(BaseVolatilityStrategy):
         # Implied vol proxy: use Parkinson if OHLC available, else scaled short-term vol
         if "High" in data.columns and "Low" in data.columns:
             hl_ratio = np.log(data["High"] / data["Low"])
-            implied_vol = np.sqrt((1 / (4 * np.log(2))) * hl_ratio.rolling(self.lookback_vrp).apply(lambda x: (x**2).mean(), raw=True)) * np.sqrt(252)
+            windows = sliding_window_view(hl_ratio, window_shape=self.lookback_vrp)
+
+            ms_rolling = (windows**2).mean(axis=-1)
+
+            padding = np.full(self.lookback_vrp - 1, np.nan)
+            ms_padded = np.concatenate([padding, ms_rolling])
+
+            implied_vol = np.sqrt((1 / (4 * np.log(2))) * ms_padded) * np.sqrt(252)
         else:
             short_vol = returns.rolling(5).std() * np.sqrt(252)
             implied_vol = short_vol * 1.15
@@ -130,10 +138,8 @@ class VarianceRiskPremiumStrategy(BaseVolatilityStrategy):
         Returns:
             Trading signal dictionary
         """
-        # Calculate current VRP
         current_vrp = self.calculate_vrp(implied_vol, realized_vol)
 
-        # Update history
         self.vrp_history.append(current_vrp)
         self.implied_vol_history.append(implied_vol)
         self.realized_vol_history.append(realized_vol)
@@ -148,11 +154,10 @@ class VarianceRiskPremiumStrategy(BaseVolatilityStrategy):
             vrp_std = np.std(vrp_history[-self.lookback_vrp :])
 
             if vrp_std > 0:
-                vrp_zscore = (current_vrp - vrp_mean) / vrp_std
+                vrp_zscore = (current_vrp - float(vrp_mean)) / float(vrp_std)
 
         # Trading logic
         if not self.in_vrp_trade:
-            # Entry conditions
             if current_vrp > self.entry_threshold:
                 # VRP positive and significant - sell volatility
                 signal = -1  # Negative = sell vol
@@ -171,8 +176,7 @@ class VarianceRiskPremiumStrategy(BaseVolatilityStrategy):
                 signal = -1
                 position_size = 1.0
 
-        # Calculate position details based on method
-        position_details = self._calculate_vrp_position(signal, position_size, implied_vol, realized_vol)
+        position_details = self._calculate_vrp_position(signal, position_size, implied_vol)
 
         return {
             "signal": signal,
@@ -189,7 +193,12 @@ class VarianceRiskPremiumStrategy(BaseVolatilityStrategy):
             },
         }
 
-    def _calculate_vrp_position(self, signal: int, position_size: float, implied_vol: float, realized_vol: float) -> Dict:
+    def _calculate_vrp_position(
+        self,
+        signal: int,
+        position_size: float,
+        implied_vol: float,
+    ) -> Dict:
         """
         Calculate detailed VRP position based on selected method
         """

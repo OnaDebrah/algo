@@ -1,22 +1,44 @@
 'use client';
-import React, { useEffect, useState, useCallback } from 'react';
+import React, {useCallback, useEffect, useState} from 'react';
 import {
-    Shield, AlertTriangle, TrendingDown, Activity,
-    Loader2, RefreshCw, Search, Bell, Settings2,
-    ArrowUp, ArrowDown, Minus, ShieldAlert, Zap,
-    Target, BarChart3, Clock, CheckCircle2, XCircle
+    Activity,
+    AlertTriangle,
+    ArrowDown,
+    ArrowUp,
+    BarChart3,
+    Bell,
+    CheckCircle2,
+    Clock,
+    Loader2,
+    Minus,
+    RefreshCw,
+    Search,
+    Settings2,
+    Shield,
+    ShieldAlert,
+    Target,
+    TrendingDown,
+    XCircle,
+    Zap
 } from 'lucide-react';
 import AccuracyTab from './AccuracyTab';
-import { api } from '@/utils/api';
+import {api} from '@/utils/api';
+import {CrashAlertConfig, CrashDashboardData,} from '@/types/all_types';
 import {
-    CrashDashboardData,
-    CrashPredictionHistoryItem,
-    CrashAlertConfig,
-} from '@/types/all_types';
-import {
-    AreaChart, Area, XAxis, YAxis, CartesianGrid,
-    Tooltip, ResponsiveContainer, ReferenceLine,
-    RadialBarChart, RadialBar, BarChart, Bar, Cell, Legend,
+    Area,
+    AreaChart,
+    Bar,
+    BarChart,
+    CartesianGrid,
+    Cell,
+    Legend,
+    RadialBar,
+    RadialBarChart,
+    ReferenceLine,
+    ResponsiveContainer,
+    Tooltip,
+    XAxis,
+    YAxis,
 } from 'recharts';
 
 // ==================== HELPERS ====================

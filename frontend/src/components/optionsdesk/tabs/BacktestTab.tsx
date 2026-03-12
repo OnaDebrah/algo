@@ -1,4 +1,4 @@
-import {Calendar, ChevronDown, ChevronUp, DollarSign, LineChart as LineChartIcon, Loader2, Play, Settings, Sliders} from "lucide-react";
+import {Calendar, ChevronDown, ChevronUp, DollarSign, Loader2, Play, Settings, Sliders} from "lucide-react";
 import {Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis} from "recharts";
 import React, {useEffect, useMemo, useState} from "react";
 import {STRATEGY_TEMPLATES} from "@/components/optionsdesk/contants/strategyTemplates";

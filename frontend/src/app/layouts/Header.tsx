@@ -1,11 +1,11 @@
 'use client'
 
-import React, { useEffect, useState } from "react";
-import { ChevronRight, Clock, Globe, Shield, TrendingUp } from "lucide-react";
-import {formatCurrency, toPrecision} from "@/utils/formatters";
-import { api, live } from "@/utils/api";
-import { QuoteData, User } from "@/types/all_types";
-import { useNavigationStore } from "@/store/useNavigationStore";
+import React, {useEffect, useState} from "react";
+import {ChevronRight, Clock, Globe, Shield, TrendingUp} from "lucide-react";
+import {formatCurrency} from "@/utils/formatters";
+import {api, live} from "@/utils/api";
+import {QuoteData, User} from "@/types/all_types";
+import {useNavigationStore} from "@/store/useNavigationStore";
 
 interface HeaderProps {
     user: User;
