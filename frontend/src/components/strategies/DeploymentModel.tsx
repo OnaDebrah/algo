@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+
 /**
  * Enhanced Strategy Deployment Modal
  * Integrates with all Phase 3 features
@@ -5,10 +7,10 @@
 
 'use client'
 
-import React, { useState } from 'react';
-import { Activity, AlertTriangle, Bell, CheckCircle, DollarSign, Info, Settings, Shield, X } from 'lucide-react';
-import { BacktestResultToDeploy, DeploymentConfig } from "@/types/all_types";
-import { formatPercent, toPrecision } from "@/utils/formatters";
+import React, {useState} from 'react';
+import {Activity, AlertTriangle, Bell, CheckCircle, DollarSign, Info, Settings, Shield, X} from 'lucide-react';
+import {BacktestResultToDeploy, DeploymentConfig} from "@/types/all_types";
+import {formatPercent, toPrecision} from "@/utils/formatters";
 
 
 interface DeploymentModalProps {

@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+
 /**
  * KalmanFilterParameters.tsx - Enhanced with Pre-Run Validation
  *

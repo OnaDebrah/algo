@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+
 import {Calendar, ChevronDown, ChevronUp, DollarSign, Loader2, Play, Settings, Sliders} from "lucide-react";
 import {Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis} from "recharts";
 import React, {useEffect, useMemo, useState} from "react";

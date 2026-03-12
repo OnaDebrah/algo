@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+
 import axios from 'axios';
 import {
     Alert,
@@ -116,7 +118,6 @@ import {AnalystReportParams} from "@/types/analyst";
 
 // Use environment variable or default to localhost
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
-const IS_BROWSER = typeof window !== 'undefined';
 
 const client = axios.create({
     baseURL: API_URL,

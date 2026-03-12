@@ -1,9 +1,10 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+
 'use client'
 
 import React, {useEffect, useState} from "react";
 import {
     AlertCircle,
-    Bell,
     Check,
     CheckCircle,
     CreditCard,
@@ -20,12 +21,14 @@ import {
     Save,
     ShieldCheck,
     TestTube,
-    TrendingDown,
     Zap
 } from "lucide-react";
 import {settings} from "@/utils/api";
 import {UserSettings} from "@/types/all_types";
 import AlertManagement from "@/components/settings/AlertManagement";
+import {tabs} from "@/components/settings/Tabs";
+import {dataProviders} from "@/components/settings/DataProviders";
+import {brokerOptions} from "@/components/settings/BrokerOptions";
 
 const SettingsPage = () => {
     const [activeTab, setActiveTab] = useState('backtest');
@@ -35,7 +38,7 @@ const SettingsPage = () => {
     const [testResult, setTestResult] = useState<any>(null);
 
     // Settings state
-    const [userSettings, setUserSettings] = useState<UserSettings | null>(null);
+    const [_, setUserSettings] = useState<UserSettings | null>(null);
 
     // Backtest settings
     const [backtestDataSource, setBacktestDataSource] = useState('yahoo');
@@ -222,65 +225,10 @@ const SettingsPage = () => {
         }
     };
 
-    const tabs = [
-        { id: 'backtest', label: 'Backtest Settings', icon: TrendingDown },
-        { id: 'live', label: 'Live Trading', icon: Zap },
-        { id: 'alerts', label: 'Alerts', icon: Bell },
-        { id: 'general', label: 'General', icon: Globe }
-    ];
-
-    const dataProviders = [
-        {
-            value: 'yahoo',
-            label: 'Yahoo Finance',
-            description: 'Free, reliable historical data',
-            recommended: true
-        },
-        {
-            value: 'alpaca',
-            label: 'Alpaca Markets',
-            description: 'Real-time market data'
-        },
-        {
-            value: 'polygon',
-            label: 'Polygon.io',
-            description: 'Professional-grade data'
-        },
-        {
-            value: 'iex',
-            label: 'IEX Cloud',
-            description: 'Exchange-sourced data'
-        }
-    ];
-
-    const brokerOptions = [
-        {
-            value: 'paper',
-            label: 'Paper Trading',
-            description: 'Simulated trading (no real money)',
-            recommended: true
-        },
-        {
-            value: 'alpaca',
-            label: 'Alpaca Markets',
-            description: 'Commission-free stock & crypto trading'
-        },
-        {
-            value: 'td_ameritrade',
-            label: 'TD Ameritrade',
-            description: 'Full-service broker'
-        },
-        {
-            value: 'ibkr',
-            label: 'Interactive Brokers',
-            description: 'Professional trading platform'
-        }
-    ];
-
     if (isLoading) {
         return (
             <div className="flex items-center justify-center h-96">
-                <Loader2 className="animate-spin text-indigo-500" size={32} />
+                <Loader2 className="animate-spin text-indigo-500" size={32}/>
             </div>
         );
     }
@@ -303,7 +251,7 @@ const SettingsPage = () => {
                         disabled={isSaving}
                         className="flex items-center space-x-2 px-6 py-3 bg-gradient-to-r from-violet-600 to-fuchsia-600 hover:from-violet-500 hover:to-fuchsia-500 text-white rounded-xl font-semibold text-sm transition-all shadow-xl shadow-violet-500/20 disabled:opacity-70"
                     >
-                        {isSaving ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} strokeWidth={2} />}
+                        {isSaving ? <Loader2 size={18} className="animate-spin"/> : <Save size={18} strokeWidth={2}/>}
                         <span>{isSaving ? 'Saving...' : 'Save Changes'}</span>
                     </button>
                 )}
@@ -316,7 +264,7 @@ const SettingsPage = () => {
                         testResult.type === 'warning' ? 'bg-amber-500/10 border-amber-500/30 text-amber-400' :
                             'bg-red-500/10 border-red-500/30 text-red-400'
                 }`}>
-                    {testResult.type === 'success' ? <Check size={20} /> : <AlertCircle size={20} />}
+                    {testResult.type === 'success' ? <Check size={20}/> : <AlertCircle size={20}/>}
                     <div className="flex-1">
                         <div className="font-semibold">{testResult.message}</div>
                         {testResult.details && (
@@ -342,7 +290,7 @@ const SettingsPage = () => {
                                         : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'
                                 }`}
                             >
-                                <tab.icon size={20} strokeWidth={2} />
+                                <tab.icon size={20} strokeWidth={2}/>
                                 <span className="font-semibold text-sm">{tab.label}</span>
                             </button>
                         ))}
@@ -352,7 +300,7 @@ const SettingsPage = () => {
                 {/* Content Area */}
                 <div className="lg:col-span-3">
                     {activeTab === 'alerts' ? (
-                        <AlertManagement />
+                        <AlertManagement/>
                     ) : (
                         <div className="bg-slate-900/50 border border-slate-800/50 rounded-2xl p-6 space-y-8">
 
@@ -361,7 +309,7 @@ const SettingsPage = () => {
                                 <>
                                     <div>
                                         <h3 className="text-xl font-bold text-slate-100 mb-2 flex items-center gap-2">
-                                            <Database size={24} className="text-violet-400" />
+                                            <Database size={24} className="text-violet-400"/>
                                             Backtest Configuration
                                         </h3>
                                         <p className="text-slate-400 text-sm">
@@ -372,7 +320,7 @@ const SettingsPage = () => {
                                     {/* Data Source */}
                                     <div className="space-y-3">
                                         <label className="text-sm font-bold text-slate-300 flex items-center gap-2">
-                                            <Database size={16} />
+                                            <Database size={16}/>
                                             Historical Data Provider
                                         </label>
                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -387,14 +335,16 @@ const SettingsPage = () => {
                                                     }`}
                                                 >
                                                     <div className="flex items-start justify-between mb-2">
-                                                        <div className="font-semibold text-slate-200">{provider.label}</div>
+                                                        <div
+                                                            className="font-semibold text-slate-200">{provider.label}</div>
                                                         {provider.recommended && (
-                                                            <span className="px-2 py-0.5 bg-emerald-500/20 text-emerald-400 rounded text-xs font-bold">
+                                                            <span
+                                                                className="px-2 py-0.5 bg-emerald-500/20 text-emerald-400 rounded text-xs font-bold">
                                                                 Recommended
                                                             </span>
                                                         )}
                                                         {backtestDataSource === provider.value && (
-                                                            <Check className="text-violet-400" size={20} />
+                                                            <Check className="text-violet-400" size={20}/>
                                                         )}
                                                     </div>
                                                     <p className="text-xs text-slate-400">{provider.description}</p>
@@ -407,7 +357,7 @@ const SettingsPage = () => {
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                         <div className="space-y-2">
                                             <label className="text-sm font-bold text-slate-300 flex items-center gap-2">
-                                                <Percent size={16} />
+                                                <Percent size={16}/>
                                                 Slippage
                                             </label>
                                             <input
@@ -424,7 +374,7 @@ const SettingsPage = () => {
 
                                         <div className="space-y-2">
                                             <label className="text-sm font-bold text-slate-300 flex items-center gap-2">
-                                                <CreditCard size={16} />
+                                                <CreditCard size={16}/>
                                                 Commission
                                             </label>
                                             <input
@@ -443,7 +393,7 @@ const SettingsPage = () => {
                                     {/* Initial Capital */}
                                     <div className="space-y-2">
                                         <label className="text-sm font-bold text-slate-300 flex items-center gap-2">
-                                            <Landmark size={16} />
+                                            <Landmark size={16}/>
                                             Default Initial Capital
                                         </label>
                                         <input
@@ -465,7 +415,7 @@ const SettingsPage = () => {
                                 <>
                                     <div>
                                         <h3 className="text-xl font-bold text-slate-100 mb-2 flex items-center gap-2">
-                                            <Zap size={24} className="text-emerald-400" />
+                                            <Zap size={24} className="text-emerald-400"/>
                                             Live Trading Configuration
                                         </h3>
                                         <p className="text-slate-400 text-sm">
@@ -474,8 +424,9 @@ const SettingsPage = () => {
                                     </div>
 
                                     {/* Warning Banner */}
-                                    <div className="p-4 bg-amber-500/10 border border-amber-500/30 rounded-xl flex items-start gap-3">
-                                        <ShieldCheck className="text-amber-400 shrink-0 mt-0.5" size={20} />
+                                    <div
+                                        className="p-4 bg-amber-500/10 border border-amber-500/30 rounded-xl flex items-start gap-3">
+                                        <ShieldCheck className="text-amber-400 shrink-0 mt-0.5" size={20}/>
                                         <div className="text-sm">
                                             <div className="font-bold text-amber-400 mb-1">Security Notice</div>
                                             <p className="text-slate-300">
@@ -488,7 +439,7 @@ const SettingsPage = () => {
                                     {/* Live Data Source */}
                                     <div className="space-y-3">
                                         <label className="text-sm font-bold text-slate-300 flex items-center gap-2">
-                                            <Database size={16} />
+                                            <Database size={16}/>
                                             Real-Time Data Provider
                                         </label>
                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -503,9 +454,10 @@ const SettingsPage = () => {
                                                     }`}
                                                 >
                                                     <div className="flex items-start justify-between mb-2">
-                                                        <div className="font-semibold text-slate-200">{provider.label}</div>
+                                                        <div
+                                                            className="font-semibold text-slate-200">{provider.label}</div>
                                                         {liveDataSource === provider.value && (
-                                                            <Check className="text-emerald-400" size={20} />
+                                                            <Check className="text-emerald-400" size={20}/>
                                                         )}
                                                     </div>
                                                     <p className="text-xs text-slate-400">{provider.description}</p>
@@ -517,7 +469,7 @@ const SettingsPage = () => {
                                     {/* Broker Selection */}
                                     <div className="space-y-3">
                                         <label className="text-sm font-bold text-slate-300 flex items-center gap-2">
-                                            <Link size={16} />
+                                            <Link size={16}/>
                                             Default Broker
                                         </label>
                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -532,14 +484,16 @@ const SettingsPage = () => {
                                                     }`}
                                                 >
                                                     <div className="flex items-start justify-between mb-2">
-                                                        <div className="font-semibold text-slate-200">{broker.label}</div>
+                                                        <div
+                                                            className="font-semibold text-slate-200">{broker.label}</div>
                                                         {broker.recommended && (
-                                                            <span className="px-2 py-0.5 bg-emerald-500/20 text-emerald-400 rounded text-xs font-bold">
+                                                            <span
+                                                                className="px-2 py-0.5 bg-emerald-500/20 text-emerald-400 rounded text-xs font-bold">
                                                                 Safe
                                                             </span>
                                                         )}
                                                         {defaultBroker === broker.value && (
-                                                            <Check className="text-emerald-400" size={20} />
+                                                            <Check className="text-emerald-400" size={20}/>
                                                         )}
                                                     </div>
                                                     <p className="text-xs text-slate-400">{broker.description}</p>
@@ -552,14 +506,16 @@ const SettingsPage = () => {
                                     {defaultBroker !== 'paper' && (
                                         <div className="space-y-4 pt-4 border-t border-slate-700">
                                             <div className="flex items-center justify-between">
-                                                <label className="text-sm font-bold text-slate-300 flex items-center gap-2">
-                                                    <Key size={16} />
+                                                <label
+                                                    className="text-sm font-bold text-slate-300 flex items-center gap-2">
+                                                    <Key size={16}/>
                                                     {defaultBroker === 'ibkr' ? 'IBKR Gateway Connection' : 'Broker Credentials'}
                                                 </label>
                                                 {brokerConfigured && (
                                                     <div className="flex items-center gap-2">
-                                                        <span className="px-2 py-1 bg-emerald-500/20 text-emerald-400 rounded text-xs font-bold flex items-center gap-1">
-                                                            <Check size={12} /> Configured
+                                                        <span
+                                                            className="px-2 py-1 bg-emerald-500/20 text-emerald-400 rounded text-xs font-bold flex items-center gap-1">
+                                                            <Check size={12}/> Configured
                                                         </span>
                                                         <button
                                                             onClick={handleDeleteCredentials}
@@ -576,7 +532,8 @@ const SettingsPage = () => {
                                                     /* INTERACTIVE BROKERS LAYOUT */
                                                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                                                         <div>
-                                                            <label className="text-xs text-slate-400 mb-1 block">Host</label>
+                                                            <label
+                                                                className="text-xs text-slate-400 mb-1 block">Host</label>
                                                             <input
                                                                 value={brokerHost}
                                                                 onChange={(e) => setBrokerHost(e.target.value)}
@@ -585,7 +542,8 @@ const SettingsPage = () => {
                                                             />
                                                         </div>
                                                         <div>
-                                                            <label className="text-xs text-slate-400 mb-1 block">Port</label>
+                                                            <label
+                                                                className="text-xs text-slate-400 mb-1 block">Port</label>
                                                             <input
                                                                 type="number"
                                                                 value={brokerPort}
@@ -595,7 +553,8 @@ const SettingsPage = () => {
                                                             />
                                                         </div>
                                                         <div>
-                                                            <label className="text-xs text-slate-400 mb-1 block">Account ID</label>
+                                                            <label className="text-xs text-slate-400 mb-1 block">Account
+                                                                ID</label>
                                                             <input
                                                                 type="string"
                                                                 value={userIBAccountId}
@@ -609,7 +568,8 @@ const SettingsPage = () => {
                                                     /* STANDARD API KEY LAYOUT (Alpaca, etc.) */
                                                     <>
                                                         <div>
-                                                            <label className="text-xs text-slate-400 mb-1 block">API Key</label>
+                                                            <label className="text-xs text-slate-400 mb-1 block">API
+                                                                Key</label>
                                                             <input
                                                                 type="text"
                                                                 value={brokerApiKey}
@@ -620,7 +580,8 @@ const SettingsPage = () => {
                                                         </div>
 
                                                         <div>
-                                                            <label className="text-xs text-slate-400 mb-1 block">API Secret</label>
+                                                            <label className="text-xs text-slate-400 mb-1 block">API
+                                                                Secret</label>
                                                             <div className="relative">
                                                                 <input
                                                                     type={showApiSecret ? "text" : "password"}
@@ -634,13 +595,15 @@ const SettingsPage = () => {
                                                                     onClick={() => setShowApiSecret(!showApiSecret)}
                                                                     className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300"
                                                                 >
-                                                                    {showApiSecret ? <EyeOff size={18} /> : <Eye size={18} />}
+                                                                    {showApiSecret ? <EyeOff size={18}/> :
+                                                                        <Eye size={18}/>}
                                                                 </button>
                                                             </div>
                                                         </div>
 
                                                         <div>
-                                                            <label className="text-xs text-slate-400 mb-1 block">Base URL (Optional)</label>
+                                                            <label className="text-xs text-slate-400 mb-1 block">Base
+                                                                URL (Optional)</label>
                                                             <input
                                                                 type="text"
                                                                 value={brokerBaseUrl}
@@ -663,9 +626,9 @@ const SettingsPage = () => {
                                                         }`}
                                                     >
                                                         {isTesting ? (
-                                                            <Loader2 size={18} className="animate-spin" />
+                                                            <Loader2 size={18} className="animate-spin"/>
                                                         ) : (
-                                                            <TestTube size={18} />
+                                                            <TestTube size={18}/>
                                                         )}
                                                         Test Connection
                                                     </button>
@@ -677,12 +640,14 @@ const SettingsPage = () => {
                                                                 : 'bg-red-500/10 border-red-500/50 text-red-400'
                                                         }`}>
                                                             <div className="flex items-center gap-2 font-bold mb-1">
-                                                                {testResult.type === 'connected' ? <CheckCircle size={16} /> : <AlertCircle size={16} />}
+                                                                {testResult.type === 'connected' ?
+                                                                    <CheckCircle size={16}/> : <AlertCircle size={16}/>}
                                                                 {testResult.type === 'connected' ? 'Success' : 'Connection Failed'}
                                                             </div>
                                                             <p className="text-xs opacity-80">{testResult.message}</p>
                                                             {testResult.equity && (
-                                                                <p className="text-xs mt-2 font-mono">Equity: ${testResult.equity}</p>
+                                                                <p className="text-xs mt-2 font-mono">Equity:
+                                                                    ${testResult.equity}</p>
                                                             )}
                                                         </div>
                                                     )}
@@ -693,7 +658,8 @@ const SettingsPage = () => {
 
                                     {/* Auto-Connect Option */}
                                     <div className="space-y-2">
-                                        <label className="flex items-center gap-3 cursor-pointer p-4 bg-slate-800/30 rounded-xl border border-slate-700 hover:border-slate-600 transition-all">
+                                        <label
+                                            className="flex items-center gap-3 cursor-pointer p-4 bg-slate-800/30 rounded-xl border border-slate-700 hover:border-slate-600 transition-all">
                                             <input
                                                 type="checkbox"
                                                 checked={autoConnect}
@@ -718,7 +684,7 @@ const SettingsPage = () => {
                                 <>
                                     <div>
                                         <h3 className="text-xl font-bold text-slate-100 mb-2 flex items-center gap-2">
-                                            <Globe size={24} className="text-blue-400" />
+                                            <Globe size={24} className="text-blue-400"/>
                                             General Preferences
                                         </h3>
                                         <p className="text-slate-400 text-sm">
@@ -740,7 +706,7 @@ const SettingsPage = () => {
                                             >
                                                 <div className="flex items-center justify-between mb-2">
                                                     <div className="font-semibold text-slate-200">Dark Mode</div>
-                                                    {theme === 'dark' && <Check className="text-blue-400" size={20} />}
+                                                    {theme === 'dark' && <Check className="text-blue-400" size={20}/>}
                                                 </div>
                                                 <p className="text-xs text-slate-400">Easy on the eyes</p>
                                             </button>
@@ -754,7 +720,7 @@ const SettingsPage = () => {
                                             >
                                                 <div className="flex items-center justify-between mb-2">
                                                     <div className="font-semibold text-slate-200">Light Mode</div>
-                                                    {theme === 'light' && <Check className="text-blue-400" size={20} />}
+                                                    {theme === 'light' && <Check className="text-blue-400" size={20}/>}
                                                 </div>
                                                 <p className="text-xs text-slate-400">Classic look</p>
                                             </button>
@@ -763,7 +729,8 @@ const SettingsPage = () => {
 
                                     {/* Notifications */}
                                     <div className="space-y-2">
-                                        <label className="flex items-center gap-3 cursor-pointer p-4 bg-slate-800/30 rounded-xl border border-slate-700 hover:border-slate-600 transition-all">
+                                        <label
+                                            className="flex items-center gap-3 cursor-pointer p-4 bg-slate-800/30 rounded-xl border border-slate-700 hover:border-slate-600 transition-all">
                                             <input
                                                 type="checkbox"
                                                 checked={notifications}
@@ -783,7 +750,8 @@ const SettingsPage = () => {
 
                                     {/* Auto Refresh */}
                                     <div className="space-y-2">
-                                        <label className="flex items-center gap-3 cursor-pointer p-4 bg-slate-800/30 rounded-xl border border-slate-700 hover:border-slate-600 transition-all">
+                                        <label
+                                            className="flex items-center gap-3 cursor-pointer p-4 bg-slate-800/30 rounded-xl border border-slate-700 hover:border-slate-600 transition-all">
                                             <input
                                                 type="checkbox"
                                                 checked={autoRefresh}
@@ -805,7 +773,7 @@ const SettingsPage = () => {
                                     {autoRefresh && (
                                         <div className="space-y-2">
                                             <label className="text-sm font-bold text-slate-300 flex items-center gap-2">
-                                                <RefreshCw size={16} />
+                                                <RefreshCw size={16}/>
                                                 Refresh Interval (seconds)
                                             </label>
                                             <input

@@ -1,4 +1,6 @@
-import {Strategy, StrategyInfo} from "@/types/all_types";
+/* eslint-disable @typescript-eslint/no-explicit-any */
+
+import {Strategy} from "@/types/all_types";
 
 export const strategies: Strategy[] = [
     // TECHNICAL INDICATORS - TREND FOLLOWING

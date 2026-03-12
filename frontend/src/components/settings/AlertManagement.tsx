@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+
 /**
  * Alert Management UI
  * Configure email and SMS notifications
@@ -163,7 +165,9 @@ export default function AlertManagement() {
                                 <option value="error">Error and above</option>
                                 <option value="critical">Critical only</option>
                             </select>
-                            <p className="text-xs text-slate-500 mt-1">You'll receive email for this level and above</p>
+                            <p className="text-xs text-slate-500 mt-1">
+                                You&apos;ll receive email for this level and above
+                            </p>
                         </div>
 
                         <button

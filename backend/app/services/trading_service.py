@@ -15,25 +15,22 @@ class TradingService:
         """Save trade to database using AsyncSession"""
         trade_data = trade_data.copy()
 
-        # Calculate total value if missing
         if "total_value" not in trade_data:
             trade_data["total_value"] = trade_data["quantity"] * trade_data["price"]
 
-        # Ensure portfolio_id is set
         trade_data["portfolio_id"] = trade_data.get("portfolio_id") or portfolio_id
 
-        # Mapping legacy keys if necessary
         if "timestamp" in trade_data and "executed_at" not in trade_data:
             trade_data["executed_at"] = trade_data["timestamp"]
 
         new_trade = Trade(**trade_data)
         db.add(new_trade)
-        await db.flush()  # flush to get the ID before commit
+        await db.flush()
         return new_trade.id
 
     @staticmethod
     async def save_trades_bulk(db: AsyncSession, trades: List[Dict], portfolio_id: int):
-        """Save multiple trades using the bulk_create helper from database.py"""
+        """Save multiple trades using the bulk_create helper"""
         for t in trades:
             t["portfolio_id"] = portfolio_id
         await bulk_create(db, Trade, trades)
@@ -84,7 +81,7 @@ class TradingService:
         user_id: int = 1,
     ) -> int:
         """Create new portfolio with error handling for existing names"""
-        # Try to find existing
+
         stmt = select(Portfolio).where(Portfolio.name == name)
         result = await db.execute(stmt)
         existing = result.scalar_one_or_none()

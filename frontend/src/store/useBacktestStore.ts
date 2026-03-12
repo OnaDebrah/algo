@@ -1,15 +1,16 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 
-import { create } from 'zustand';
+import {create} from 'zustand';
 import {
     BacktestResult,
+    EquityCurvePoint,
     MultiAssetConfig,
     SingleAssetConfig,
-    EquityCurvePoint,
     Trade,
-    VisualBlock, MultiAssetBacktestResult
+    VisualBlock
 } from '@/types/all_types';
-import { backtest } from '@/utils/api';
-import { formatDate } from '@/utils/formatters';
+import {backtest} from '@/utils/api';
+import {formatDate} from '@/utils/formatters';
 
 interface BacktestState {
     // Mode

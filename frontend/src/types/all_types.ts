@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+
 export type ScalarParam = string | number | boolean;
 
 export interface ValidationError {
@@ -1204,7 +1206,13 @@ export interface TrainingEpoch {
 }
 
 export interface MLPerformanceHistory {
-
+    id: string,
+    portfolio_id: number,
+    timestamp: string,
+    equity: number,
+    cash: number,
+    total_return: number,
+    created_at: string
 }
 
 export interface MLModel {

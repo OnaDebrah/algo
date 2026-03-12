@@ -344,7 +344,7 @@ const LoginPage = ({onLogin, setCurrentPage, onBackToLanding}: LoginPageProps) =
                                     placeholder="••••••••••"
                                     value={formData.password}
                                     onChange={handleInputChange}
-                                    onKeyPress={handleKeyPress}
+                                    onKeyDown={handleKeyPress}
                                     className={inputClass}
                                 />
                                 {!isLogin && (

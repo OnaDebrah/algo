@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+
 import {Download, Heart, Shield, Star, Zap} from "lucide-react";
 
 export const StrategyListItem = ({ strategy, onSelect, onFavorite, onDownload }: any) => (

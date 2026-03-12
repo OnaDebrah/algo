@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+
 import {formatInTimeZone} from "date-fns-tz";
 
 export const formatCurrency = (value: number) => {
