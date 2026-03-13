@@ -9,11 +9,13 @@ from ..schemas.alert import AlertChannel, AlertLevel
 class EmailAlertRequest(BaseModel):
     subject: str
     message: str
+    level: AlertLevel
     to_email: Optional[EmailStr] = None
 
 
 class SMSAlertRequest(BaseModel):
     message: str
+    level: AlertLevel
     to_number: Optional[str] = None
 
 

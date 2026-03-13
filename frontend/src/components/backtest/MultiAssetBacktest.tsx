@@ -34,7 +34,7 @@ import {BacktestResult, MultiAssetConfig, PortfolioCreate, Strategy} from "@/typ
 import {portfolio} from "@/utils/api";
 import BayesianOptimizerModal from "@/components/backtest/BayesianOptimizerModal";
 import {assetSuggestions} from "@/utils/suggestions";
-import KalmanFilterParameters from "@/components/backtest/KalmanFilterParameters";
+import KalmanFilterParameters from "@/components/backtest/kalman/KalmanFilterParameters";
 import StrategyInfoPopover from "@/components/backtest/StrategyInfoPopover";
 import TickerSearch from "@/components/common/TickerSearch";
 

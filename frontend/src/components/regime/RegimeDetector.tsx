@@ -58,6 +58,22 @@ const RegimeDetector = () => {
     const [error, setError] = useState<string | null>(null);
     const [period, setPeriod] = useState('2y');
 
+    const REGIME_LABELS: Record<string, string> = {
+        'bull_quiet': 'Bullish (Low Vol)',
+        'bull_volatile': 'Bullish (High Vol)',
+        'bear_quiet': 'Bearish (Low Vol)',
+        'bear_volatile': 'Bearish (High Vol)',
+        'trending_bull': 'Trending Bull',
+        'trending_bear': 'Trending Bear',
+        'mean_reverting': 'Mean Reverting',
+        'transition': 'Transition',
+        'neutral': 'Neutral',
+        'crisis': 'Crisis',
+        'recovery': 'Recovery',
+        "low_volatility": 'Low Volatility',
+        'high_volatility': 'High Volatility',
+    };
+
     // Initial load
     useEffect(() => {
         fetchAllData();
@@ -374,7 +390,7 @@ const RegimeDetector = () => {
                                             )}
                                         </div>
                                         <h2 className={`text-5xl font-black ${getRegimeColor(regimeData.current_regime.name)} mb-4 tracking-tight`}>
-                                            {regimeData.current_regime.name}
+                                            {REGIME_LABELS[regimeData.current_regime.name]}
                                         </h2>
                                         <p className="text-slate-300 text-lg max-w-xl leading-relaxed">
                                             {regimeData.current_regime.description}

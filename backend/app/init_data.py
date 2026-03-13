@@ -16,7 +16,6 @@ async def init_default_data():
     """Create default admin user"""
     async with DatabaseSession() as db:
         try:
-            # Check if admin exists
             result = await db.execute(select(User).filter(User.email == "admin@example.com"))
             user = result.scalar_one_or_none()
 
@@ -29,11 +28,11 @@ async def init_default_data():
                     is_superuser=True,
                     tier="ENTERPRISE",
                 )
+
                 db.add(user)
                 await db.commit()
                 await db.refresh(user)
 
-                # Create default UserSettings for admin
                 user_settings = UserSettings(user_id=user.id)
                 db.add(user_settings)
                 await db.commit()

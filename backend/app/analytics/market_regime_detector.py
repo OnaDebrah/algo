@@ -849,13 +849,11 @@ class MarketRegimeDetector:
 
         current_regime = self.regime_history[-1]["regime"]
 
-        # Get historical durations
         durations = self._get_historical_durations(current_regime)
 
         if not durations or len(durations) < 3:
             return self._predict_regime_duration()
 
-        # Calculate statistics
         mean_duration = np.mean(durations)
         median_duration = np.median(durations)
         std_duration = np.std(durations)
@@ -1172,8 +1170,9 @@ class MarketRegimeDetector:
         if labels is None:
             labels = self._generate_labels(features)
 
-        X = features.dropna()
-        y = labels.loc[X.index]
+        common_index = features.dropna().index.intersection(labels.dropna().index)
+        X = cast(pd.DataFrame, cast(object, features.loc[common_index]))
+        y = cast(pd.Series, labels.loc[common_index])
 
         if len(X) < 100 or len(np.unique(y)) < 3:
             logger.info("Insufficient data for ML training")
@@ -1181,7 +1180,9 @@ class MarketRegimeDetector:
 
         self.feature_columns = X.columns.tolist()
 
-        X_scaled = self.scaler.fit_transform(X)
+        X_numeric = X.select_dtypes(include=[np.number])
+
+        X_scaled = self.scaler.fit_transform(X_numeric)
 
         y_encoded = self.label_encoder.fit_transform(y)
 

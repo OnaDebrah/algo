@@ -1,5 +1,5 @@
 """
-Market regime routes - FIXED VERSION
+Market regime routes
 """
 
 from typing import List
@@ -30,7 +30,6 @@ from ...utils.errors import safe_detail
 
 router = APIRouter(prefix="/regime", tags=["Market Regime"])
 
-# Initialize detector (consider making this a singleton or dependency)
 _detector_cache = {}
 
 
@@ -49,34 +48,27 @@ async def detect_market_regime(
     await AuthService.track_usage(db, current_user.id, "detect_market_regime", {"symbol": symbol})
 
     try:
-        # Fetch data
         data = await fetch_stock_data(symbol, period=period, interval="1d")
 
         if data.empty:
             raise HTTPException(status_code=404, detail="No data available")
 
-        # Get detector instance
         detector = get_detector(symbol)
 
-        # Detect regime - returns a comprehensive dict
         volume_data = data.get("Volume") if "Volume" in data.columns else None
 
         regime_info = detector.detect_current_regime(price_data=data, volume_data=volume_data, update_history=True)
 
-        # Compute real metrics from features (cached, no extra cost)
         features = detector.calculate_features(price_data=data, volume_data=volume_data)
         latest = features.iloc[-1] if len(features) > 0 else pd.Series()
 
-        # NaN-safe accessor
         def _safe(key, default=0.0):
             val = latest.get(key, default)
             return float(val) if pd.notna(val) else float(default)
 
-        # Liquidity: normalise volume_ma_ratio (1.0 = average volume)
         raw_vol_ratio = _safe("volume_ma_ratio", 1.0)
         liquidity_score = round(min(max(raw_vol_ratio / 2.0, 0.0), 1.0), 3)
 
-        # Correlation: use avg_correlation if multi-asset, else proxy from vol + trend
         raw_corr = latest.get("avg_correlation", None)
         if raw_corr is not None and pd.notna(raw_corr):
             correlation_index = round(float(min(max(raw_corr, 0.0), 1.0)), 3)
@@ -121,19 +113,15 @@ async def get_regime_history_data(
     await AuthService.track_usage(db, current_user.id, "get_regime_history_data", {"symbol": symbol})
 
     try:
-        # Fetch data
         data = await fetch_stock_data(symbol, period=period, interval="1d")
 
         if data.empty:
             raise HTTPException(status_code=404, detail="No data available")
 
-        # Get detector instance
         detector = get_detector(symbol)
 
-        # Process historical data to build regime history
         detector.detect_current_regime(price_data=data, volume_data=data.get("Volume") if "Volume" in data.columns else None, update_history=True)
 
-        # Format history for API response
         history = [
             {
                 "timestamp": entry["timestamp"].isoformat() if hasattr(entry["timestamp"], "isoformat") else str(entry["timestamp"]),
@@ -159,19 +147,15 @@ async def get_regime_report(
     await AuthService.track_usage(db, current_user.id, "get_regime_report", {"symbol": symbol})
 
     try:
-        # Fetch data
         data = await fetch_stock_data(symbol, period=period, interval="1d")
 
         if data.empty:
             raise HTTPException(status_code=404, detail="No data available")
 
-        # Get detector instance
         detector = get_detector(symbol)
 
-        # Ensure regime history is populated
         detector.detect_current_regime(price_data=data, volume_data=data.get("Volume") if "Volume" in data.columns else None, update_history=True)
 
-        # Generate comprehensive report
         report = detector.generate_regime_report()
 
         return {"symbol": symbol, "report": report, "timestamp": data.index[-1].isoformat()}
@@ -229,16 +213,13 @@ async def train_ml_model(symbol: str, period: str = "5y", current_user: User = D
     await AuthService.track_usage(db, current_user.id, "train_ml_model", {"symbol": symbol})
 
     try:
-        # Fetch extended historical data for training
         data = await fetch_stock_data(symbol, period=period, interval="1d")
 
         if data.empty or len(data) < 500:
             raise HTTPException(status_code=400, detail="Insufficient data for training (need at least 500 days)")
 
-        # Get detector instance
         detector = get_detector(symbol)
 
-        # Train the model
         detector.train_ml_model(historical_data=data, volume_data=data.get("Volume") if "Volume" in data.columns else None)
 
         return {
@@ -261,24 +242,19 @@ async def get_regime_change_warning(
     await AuthService.track_usage(db, current_user.id, "get_regime_change_warning", {"symbol": symbol})
 
     try:
-        # Fetch data
         data = await fetch_stock_data(symbol, period=period, interval="1d")
 
         if data.empty:
             raise HTTPException(status_code=404, detail="No data available")
 
-        # Get detector instance
         detector = get_detector(symbol)
 
-        # Calculate features
         features = detector.calculate_features(price_data=data, volume_data=data.get("Volume") if "Volume" in data.columns else None)
 
-        # Get current regime
         current_regime = detector.detect_current_regime(
             price_data=data, volume_data=data.get("Volume") if "Volume" in data.columns else None, update_history=True
         )
 
-        # Get warning signals
         warning = detector.detect_regime_change_warning(features)
 
         return {"symbol": symbol, "current_regime": current_regime["regime"], "warning": warning, "timestamp": data.index[-1].isoformat()}
@@ -308,9 +284,6 @@ async def clear_all_cache(current_user: User = Depends(get_current_active_user),
     return {"status": "cleared", "count": count}
 
 
-# ============================================================
-# ENHANCED ENDPOINTS
-# ============================================================
 @router.get("/allocation/{symbol}", response_model=AllocationResponse)
 async def get_strategy_allocation(
     symbol: str, period: str = "2y", current_user: User = Depends(get_current_active_user), db: AsyncSession = Depends(get_db)
@@ -321,21 +294,17 @@ async def get_strategy_allocation(
     await AuthService.track_usage(db, current_user.id, "get_strategy_allocation", {"symbol": symbol})
 
     try:
-        # Fetch data
         data = await fetch_stock_data(symbol, period=period, interval="1d")
 
         if data.empty:
             raise HTTPException(status_code=404, detail="No data available")
 
-        # Get detector instance
         detector = get_detector(symbol)
 
-        # Detect current regime
         regime_info = detector.detect_current_regime(
             price_data=data, volume_data=data.get("Volume") if "Volume" in data.columns else None, update_history=True
         )
 
-        # Get recommended allocation
         allocation = detector.get_strategy_allocation(regime_info["regime"], regime_info["confidence"])
 
         return AllocationResponse(
@@ -360,33 +329,26 @@ async def get_regime_strength(
     await AuthService.track_usage(db, current_user.id, "get_regime_strength", {"symbol": symbol})
 
     try:
-        # Fetch data
         data = await fetch_stock_data(symbol, period=period, interval="1d")
 
         if data.empty:
             raise HTTPException(status_code=404, detail="No data available")
 
-        # Get detector instance
         detector = get_detector(symbol)
 
-        # Calculate features
         features = detector.calculate_features(price_data=data, volume_data=data.get("Volume") if "Volume" in data.columns else None)
 
-        # Get current regime
         regime_info = detector.detect_current_regime(
             price_data=data, volume_data=data.get("Volume") if "Volume" in data.columns else None, update_history=True
         )
 
-        # Calculate regime strength
         strength = detector.calculate_regime_strength(features)
 
-        # Count confirming signals
         scores = regime_info.get("scores", {})
         current_regime = regime_info["regime"]
-        confirming = sum(1 for r, score in scores.items() if r == current_regime and score > 0.1)
+        confirming = sum(1 for r, score in scores.items() if score > 0.1)
         total = len(scores)
 
-        # Description based on strength
         if strength > 0.8:
             description = "Very strong regime - high conviction positioning recommended"
         elif strength > 0.6:
@@ -425,15 +387,12 @@ async def get_transition_probabilities(symbol: str, period: str = "2y", current_
 
         detector = get_detector(symbol)
 
-        # Ensure history is populated
         detector.detect_current_regime(price_data=data, volume_data=data.get("Volume") if "Volume" in data.columns else None, update_history=True)
 
         transition_matrix = detector.get_transition_probabilities()
 
-        # Get expected duration
         duration_info = detector.predict_regime_duration()
 
-        # Extract likely transitions for current regime
         likely_transitions = []
         if transition_matrix and len(detector.regime_history) > 0:
             current_regime = detector.regime_history[-1]["regime"]
@@ -466,7 +425,6 @@ async def get_feature_analysis(symbol: str, period: str = "2y", current_user: Us
     await AuthService.track_usage(db, current_user.id, "get_feature_analysis", {"symbol": symbol})
 
     try:
-        # Fetch data
         data = await fetch_stock_data(symbol, period=period, interval="1d")
 
         if data.empty:

@@ -15,6 +15,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from ....api.deps import get_current_user
 from ....api.routes.live.live_trading_state import LiveTradingState
 from ....api.routes.settings import get_or_create_settings
+from ....config import DEFAULT_INITIAL_CAPITAL
 from ....database import AsyncSessionLocal, get_db
 from ....models.backtest import BacktestRun
 from ....models.live import (
@@ -69,7 +70,7 @@ async def get_user_broker_settings(db: AsyncSession, user_id: int) -> Optional[D
         "base_url": settings.broker_base_url,
         "auto_connect": settings.auto_connect_broker or False,
         "data_source": settings.live_data_source or "alpaca",
-        "initial_capital": settings.initial_capital or 100000.0,
+        "initial_capital": settings.initial_capital or DEFAULT_INITIAL_CAPITAL,
     }
 
 
@@ -77,11 +78,9 @@ async def get_user_broker_settings(db: AsyncSession, user_id: int) -> Optional[D
 async def get_status(db: AsyncSession = Depends(get_db), current_user=Depends(get_current_user)):
     """Get current broker connection and engine status"""
 
-    # Get user's data source preference
     user_broker = await get_user_broker_settings(db, current_user.id)
     data_source = user_broker["data_source"] if user_broker else "alpaca"
 
-    # Check market status if connected
     market_open = False
     if trading_state.is_connected and trading_state.broker_client:
         try:
@@ -154,7 +153,6 @@ async def connect_broker(
 async def disconnect_broker(db: AsyncSession = Depends(get_db), current_user=Depends(get_current_user)):
     """Disconnect from broker and stop all running strategies"""
 
-    # Stop all running strategies for this user
     if trading_state.running_strategy_ids:
         stmt = select(LiveStrategy).where(LiveStrategy.id.in_(trading_state.running_strategy_ids), LiveStrategy.user_id == current_user.id)
         result = await db.execute(stmt)
@@ -182,7 +180,6 @@ async def auto_connect_broker(db: AsyncSession = Depends(get_db), current_user=D
     if not user_broker["auto_connect"]:
         return {"status": "skipped", "message": "Auto-connect disabled in settings"}
 
-    # Try to connect
     try:
         return await connect_broker(request=None, use_settings=True, db=db, current_user=current_user)
     except Exception as e:
@@ -196,9 +193,7 @@ async def start_engine(strategy_ids: Optional[List[int]] = None, db: AsyncSessio
     if not trading_state.is_connected:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Broker not connected. Please connect to a broker first.")
 
-    # Determine which strategies to run
     if strategy_ids:
-        # Validate strategies belong to user
         stmt = select(LiveStrategy).where(LiveStrategy.id.in_(strategy_ids), LiveStrategy.user_id == current_user.id)
         result = await db.execute(stmt)
         strategies = result.scalars().all()
@@ -255,11 +250,6 @@ async def stop_engine(db: AsyncSession = Depends(get_db), current_user=Depends(g
     return {"status": "stopped"}
 
 
-# ============================================================================
-# ORDER MANAGEMENT
-# ============================================================================
-
-
 @router.get("/orders", response_model=List[ExecutionOrder])
 async def get_orders(strategy_id: Optional[int] = None, db: AsyncSession = Depends(get_db), current_user=Depends(get_current_user)):
     """Get active orders from broker"""
@@ -267,7 +257,6 @@ async def get_orders(strategy_id: Optional[int] = None, db: AsyncSession = Depen
     if not trading_state.is_connected or not trading_state.broker_client:
         return []
 
-    # Determine which strategies to query
     if strategy_id:
         strategy_ids = [strategy_id]
     else:

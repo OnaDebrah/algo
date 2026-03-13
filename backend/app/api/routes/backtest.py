@@ -4,10 +4,12 @@ Backtest routes
 
 import asyncio
 import logging
-from typing import List, Optional
+from typing import List, Optional, cast
 
+import pandas as pd
 from celery.result import AsyncResult
 from fastapi import APIRouter, Depends, HTTPException, Query
+from pandas import DataFrame
 from sqlalchemy import desc, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from statsmodels.tsa.stattools import coint
@@ -47,7 +49,6 @@ async def run_single_backtest(
     # Track usage
     await AuthService.track_usage(db, current_user.id, "run_backtest_single", {"symbol": request.symbol})
 
-    # Create the backtest run record
     service = BacktestService(db)
     backtest_run = await service.create_backtest_run(
         user_id=current_user.id,
@@ -81,7 +82,7 @@ async def run_multi_asset_backtest(
     db: AsyncSession = Depends(get_db),
 ):
     """Run multi-asset backtest (dispatched to background worker)"""
-    # Track usage
+
     await AuthService.track_usage(db, current_user.id, "run_backtest_multi", {"symbols": request.symbols})
 
     # Create the backtest run record
@@ -116,7 +117,6 @@ async def run_options_backtest(
     request: OptionsBacktestRequest, current_user: User = Depends(check_permission(Permission.ML_STRATEGIES)), db: AsyncSession = Depends(get_db)
 ):
     """Run options backtest"""
-    # Track usage
     await AuthService.track_usage(db, current_user.id, "run_backtest_options", {"symbol": request.symbol})
 
     service = BacktestService(db)
@@ -143,10 +143,8 @@ async def get_backtest_history(
     - **status**: Filter by status (pending, running, completed, failed)
     - **symbol**: Filter backtests containing this symbol
     """
-    # Build query
     query = select(BacktestRun).filter(BacktestRun.user_id == current_user.id)
 
-    # Apply filters
     if backtest_type:
         query = query.filter(BacktestRun.backtest_type == backtest_type)
 
@@ -154,20 +152,15 @@ async def get_backtest_history(
         query = query.filter(BacktestRun.status == status)
 
     if symbol:
-        # Filter by symbol in JSON array
         query = query.filter(BacktestRun.symbols.contains([symbol]))
 
-    # Order by creation date (newest first)
     query = query.order_by(desc(BacktestRun.created_at))
 
-    # Apply pagination
     query = query.offset(offset).limit(limit)
 
-    # Execute query
     result = await db.execute(query)
     backtest_runs = result.scalars().all()
 
-    # Convert to response schema
     history = [
         BacktestHistoryItem(
             id=run.id,
@@ -304,7 +297,6 @@ async def get_backtest_stats(current_user: User = Depends(get_current_active_use
     """Get summary statistics of all user backtests"""
     from sqlalchemy import func
 
-    # Total count by status
     status_query = (
         select(BacktestRun.status, func.count(BacktestRun.id).label("count"))
         .filter(BacktestRun.user_id == current_user.id)
@@ -324,7 +316,6 @@ async def get_backtest_stats(current_user: User = Depends(get_current_active_use
     type_result = await db.execute(type_query)
     type_counts = {row[0]: row[1] for row in type_result}
 
-    # Average metrics for completed backtests
     metrics_query = select(
         func.avg(BacktestRun.total_return_pct).label("avg_return"),
         func.avg(BacktestRun.sharpe_ratio).label("avg_sharpe"),
@@ -361,9 +352,8 @@ async def validate_pairs(request: PairsValidationRequest):
     3. Cointegration (Engle-Granger test)
     """
     try:
-        # Fetch historical data
-        asset1 = await asyncio.to_thread(fetch_stock_data, request.asset_1, period=request.period, interval=request.interval)
-        asset2 = await asyncio.to_thread(fetch_stock_data, request.asset_2, period=request.period, interval=request.interval)
+        asset1: DataFrame = await fetch_stock_data(request.asset_1, period=request.period, interval=request.interval)
+        asset2: DataFrame = await fetch_stock_data(request.asset_2, period=request.period, interval=request.interval)
 
         if asset1.empty or asset2.empty:
             raise HTTPException(status_code=400, detail="Could not fetch data for one or both symbols")
@@ -372,35 +362,29 @@ async def validate_pairs(request: PairsValidationRequest):
         if len(common_dates) < 30:
             raise HTTPException(status_code=400, detail="Insufficient common data points")
 
-        prices_1 = asset1.loc[common_dates, "Close"]
-        prices_2 = asset2.loc[common_dates, "Close"]
+        prices_1 = cast(pd.Series, cast(object, asset1.loc[common_dates, "Close"]))
+        prices_2 = cast(pd.Series, cast(object, asset2.loc[common_dates, "Close"]))
 
-        # Get sectors
         service = get_market_service()
         sector_1 = await service.get_sector(request.asset_1)
         sector_2 = await service.get_sector(request.asset_2)
 
-        # Calculate correlation
         correlation: float = prices_1.corr(prices_2)
 
         # Cointegration test (Engle-Granger)
         coint_stat, coint_pvalue, _ = await asyncio.to_thread(coint, prices_1, prices_2)
 
-        # Validation logic
         warnings = []
         errors = []
 
-        # Check sector
         if sector_1 != sector_2:
             warnings.append(f"Different sectors: {sector_1} vs {sector_2}")
 
-        # Check correlation
         if correlation < 0.5:
             errors.append(f"Very low correlation: {correlation:.3f} (< 0.5)")
         elif correlation < 0.7:
             warnings.append(f"Moderate correlation: {correlation:.3f} (recommended > 0.7)")
 
-        # Check cointegration
         if coint_pvalue > 0.1:
             errors.append(f"Not cointegrated: p-value {coint_pvalue:.4f} (> 0.1)")
         elif coint_pvalue > 0.05:

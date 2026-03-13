@@ -171,9 +171,8 @@ async def generate_guide(request: GuideRequest, current_user: User = Depends(get
     """
     Generate personalized strategy recommendations using AI advisor
     """
-    # Track usage
     await AuthService.track_usage(db, current_user.id, "ai_advisor_guide", {"goal": request.goal, "risk": request.risk})
-    # Build user profile from request
+
     user_profile = {
         "goals": request.goal,
         "risk_tolerance": request.risk.lower(),

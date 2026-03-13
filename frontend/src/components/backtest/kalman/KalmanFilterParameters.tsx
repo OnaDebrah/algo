@@ -9,33 +9,26 @@
  * - Cointegration test
  */
 
-import React, { useState, useEffect } from 'react';
+import React, {useEffect, useState} from 'react';
 import {
     AlertCircle,
-    TrendingUp,
-    TrendingDown,
-    CheckCircle,
-    XCircle,
     AlertTriangle,
+    CheckCircle,
+    Loader2,
     Shield,
-    X,
-    Loader2, RefreshCw
+    TrendingDown,
+    TrendingUp,
+    XCircle
 } from 'lucide-react';
-import { MultiAssetConfig } from '@/types/all_types';
+import {MultiAssetConfig} from '@/types/all_types';
 import {backtest} from "@/utils/api";
+import {ValidationResult} from "@/types/kalman";
+import ValidationModal from "@/components/backtest/kalman/ValidationModal";
+import {suggestedPairs} from "@/components/backtest/kalman/SuggestedPairs";
 
 interface KalmanFilterParametersProps {
     config: MultiAssetConfig;
     setConfig: (config: MultiAssetConfig) => void;
-}
-
-interface ValidationResult {
-    sectorMatch: boolean | null;
-    correlation: number | null;
-    cointegration: number | null;
-    isValid: boolean;
-    warnings: string[];
-    errors: string[];
 }
 
 const KalmanFilterParameters: React.FC<KalmanFilterParametersProps> = ({ config, setConfig }) => {
@@ -49,58 +42,6 @@ const KalmanFilterParameters: React.FC<KalmanFilterParametersProps> = ({ config,
         errors: []
     });
     const [isValidating, setIsValidating] = useState(false);
-
-    // Suggested pairs with metadata
-    const suggestedPairs = [
-        {
-            asset_1: 'AAPL',
-            asset_2: 'MSFT',
-            category: 'Tech Giants',
-            sector: 'Technology',
-            correlation: 0.85,
-            preValidated: true
-        },
-        {
-            asset_1: 'GOOGL',
-            asset_2: 'META',
-            category: 'Ad-Driven',
-            sector: 'Technology',
-            correlation: 0.78,
-            preValidated: true
-        },
-        {
-            asset_1: 'JPM',
-            asset_2: 'BAC',
-            category: 'Banks',
-            sector: 'Financials',
-            correlation: 0.91,
-            preValidated: true
-        },
-        {
-            asset_1: 'KO',
-            asset_2: 'PEP',
-            category: 'Beverages',
-            sector: 'Consumer Staples',
-            correlation: 0.82,
-            preValidated: true
-        },
-        {
-            asset_1: 'XOM',
-            asset_2: 'CVX',
-            category: 'Energy',
-            sector: 'Energy',
-            correlation: 0.89,
-            preValidated: true
-        },
-        {
-            asset_1: 'NVDA',
-            asset_2: 'AMD',
-            category: 'Semiconductors',
-            sector: 'Technology',
-            correlation: 0.76,
-            preValidated: true
-        },
-    ];
 
     const handlePairSelect = (asset1: string, asset2: string) => {
         setConfig({
@@ -146,49 +87,46 @@ const KalmanFilterParameters: React.FC<KalmanFilterParametersProps> = ({ config,
         setShowValidationModal(true);
 
         try {
-            // Call backend validation endpoint
-            const response = await backtest.runValidateKalman({
-                    asset_1: asset1,
-                    asset_2: asset2,
-                    period: config.period || '1y',
-                    interval: config.interval || '1d'
-                })
-            ;
 
-            const data = await response;
+            const response =  await backtest.runValidateKalman({
+                asset_1: asset1,
+                asset_2: asset2,
+                period: config.period || '1y',
+                interval: config.interval || '1d'
+            });
 
             const warnings: string[] = [];
             const errors: string[] = [];
 
             // Check sector match
-            if (data.sector_1 !== data.sector_2) {
-                warnings.push(`Different sectors: ${data.sector_1} vs ${data.sector_2}`);
+            if (response.sector_1 !== response.sector_2) {
+                warnings.push(`Different sectors: ${response.sector_1} vs ${response.sector_2}`);
             }
 
             // Check correlation
-            if (data.correlation < 0.7) {
-                if (data.correlation < 0.5) {
-                    errors.push(`Low correlation: ${data.correlation.toFixed(2)} (< 0.5)`);
+            if (response.correlation < 0.7) {
+                if (response.correlation < 0.5) {
+                    errors.push(`Low correlation: ${response.correlation.toFixed(2)} (< 0.5)`);
                 } else {
-                    warnings.push(`Moderate correlation: ${data.correlation.toFixed(2)} (< 0.7)`);
+                    warnings.push(`Moderate correlation: ${response.correlation.toFixed(2)} (< 0.7)`);
                 }
             }
 
             // Check cointegration
-            if (data.cointegration_pvalue > 0.05) {
-                if (data.cointegration_pvalue > 0.1) {
-                    errors.push(`Not cointegrated: p-value ${data.cointegration_pvalue.toFixed(3)} (> 0.1)`);
+            if (response.cointegration_pvalue > 0.05) {
+                if (response.cointegration_pvalue > 0.1) {
+                    errors.push(`Not cointegrated: p-value ${response.cointegration_pvalue.toFixed(3)} (> 0.1)`);
                 } else {
-                    warnings.push(`Weak cointegration: p-value ${data.cointegration_pvalue.toFixed(3)} (> 0.05)`);
+                    warnings.push(`Weak cointegration: p-value ${response.cointegration_pvalue.toFixed(3)} (> 0.05)`);
                 }
             }
 
             const isValid = errors.length === 0;
 
             setValidationResult({
-                sectorMatch: data.sector_1 === data.sector_2,
-                correlation: data.correlation,
-                cointegration: data.cointegration_pvalue,
+                sectorMatch: response.sector_1 === response.sector_2,
+                correlation: response.correlation,
+                cointegration: response.cointegration_pvalue,
                 isValid,
                 warnings,
                 errors
@@ -579,268 +517,6 @@ const KalmanFilterParameters: React.FC<KalmanFilterParametersProps> = ({ config,
                     onRunValidation={runValidation}
                 />
             )}
-        </div>
-    );
-};
-
-// Validation Modal Component
-interface ValidationModalProps {
-    asset1: string;
-    asset2: string;
-    validation: ValidationResult;
-    isValidating: boolean;
-    onClose: () => void;
-    onRunValidation: () => void;
-}
-
-const ValidationModal: React.FC<ValidationModalProps> = ({
-                                                             asset1,
-                                                             asset2,
-                                                             validation,
-                                                             isValidating,
-                                                             onClose,
-                                                             onRunValidation
-                                                         }) => {
-    return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-            <div className="bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
-                {/* Header */}
-                <div className="flex items-center justify-between p-6 border-b border-slate-700">
-                    <div className="flex items-center gap-3">
-                        <div className="p-2 bg-violet-500/20 rounded-lg">
-                            <Shield className="text-violet-400" size={24} />
-                        </div>
-                        <div>
-                            <h3 className="text-lg font-bold text-slate-100">
-                                Pairs Trading Validation
-                            </h3>
-                            <p className="text-sm text-slate-400">
-                                {asset1} / {asset2}
-                            </p>
-                        </div>
-                    </div>
-                    <button
-                        onClick={onClose}
-                        className="p-2 hover:bg-slate-800 rounded-lg transition-colors"
-                    >
-                        <X className="text-slate-400" size={20} />
-                    </button>
-                </div>
-
-                {/* Content */}
-                <div className="p-6 space-y-6">
-                    {/* Overall Status */}
-                    {validation.correlation !== null && (
-                        <div className={`p-4 rounded-xl border-2 ${
-                            validation.isValid
-                                ? 'bg-emerald-500/10 border-emerald-500/50'
-                                : validation.warnings.length > 0 && validation.errors.length === 0
-                                    ? 'bg-amber-500/10 border-amber-500/50'
-                                    : 'bg-red-500/10 border-red-500/50'
-                        }`}>
-                            <div className="flex items-center gap-3">
-                                {validation.isValid ? (
-                                    <>
-                                        <CheckCircle className="text-emerald-400" size={32} />
-                                        <div>
-                                            <h4 className="text-lg font-bold text-emerald-400">
-                                                Pair Validated ✓
-                                            </h4>
-                                            <p className="text-sm text-slate-300">
-                                                This pair meets all requirements for pairs trading
-                                            </p>
-                                        </div>
-                                    </>
-                                ) : validation.errors.length > 0 ? (
-                                    <>
-                                        <XCircle className="text-red-400" size={32} />
-                                        <div>
-                                            <h4 className="text-lg font-bold text-red-400">
-                                                Validation Failed
-                                            </h4>
-                                            <p className="text-sm text-slate-300">
-                                                This pair has critical issues
-                                            </p>
-                                        </div>
-                                    </>
-                                ) : (
-                                    <>
-                                        <AlertTriangle className="text-amber-400" size={32} />
-                                        <div>
-                                            <h4 className="text-lg font-bold text-amber-400">
-                                                Warnings Detected
-                                            </h4>
-                                            <p className="text-sm text-slate-300">
-                                                Pair can be traded but with caution
-                                            </p>
-                                        </div>
-                                    </>
-                                )}
-                            </div>
-                        </div>
-                    )}
-
-                    {/* Validation Checks */}
-                    <div className="space-y-4">
-                        <h4 className="text-sm font-bold text-slate-200">Validation Checklist</h4>
-
-                        {/* Sector Match */}
-                        <ValidationCheck
-                            title="Sector Matching"
-                            description="Assets should be in the same sector for better cointegration"
-                            status={validation.sectorMatch === true ? 'pass' : validation.sectorMatch === false ? 'warn' : 'pending'}
-                            value={validation.sectorMatch ? "Same sector ✓" : "Different sectors"}
-                        />
-
-                        {/* Correlation */}
-                        <ValidationCheck
-                            title="Historical Correlation"
-                            description="Correlation should be > 0.7 for reliable pairs trading"
-                            status={
-                                validation.correlation === null ? 'pending' :
-                                    validation.correlation >= 0.7 ? 'pass' :
-                                        validation.correlation >= 0.5 ? 'warn' : 'fail'
-                            }
-                            value={validation.correlation !== null ? `ρ = ${validation.correlation.toFixed(3)}` : 'Not tested'}
-                            threshold="Target: > 0.70"
-                        />
-
-                        {/* Cointegration */}
-                        <ValidationCheck
-                            title="Cointegration Test"
-                            description="Engle-Granger test p-value should be < 0.05"
-                            status={
-                                validation.cointegration === null ? 'pending' :
-                                    validation.cointegration <= 0.05 ? 'pass' :
-                                        validation.cointegration <= 0.1 ? 'warn' : 'fail'
-                            }
-                            value={validation.cointegration !== null ? `p = ${validation.cointegration.toFixed(4)}` : 'Not tested'}
-                            threshold="Target: < 0.05"
-                        />
-                    </div>
-
-                    {/* Errors */}
-                    {validation.errors.length > 0 && (
-                        <div className="p-4 bg-red-500/10 border border-red-500/30 rounded-lg">
-                            <h5 className="text-sm font-bold text-red-400 mb-2 flex items-center gap-2">
-                                <XCircle size={16} />
-                                Critical Issues
-                            </h5>
-                            <ul className="space-y-1 text-sm text-slate-300">
-                                {validation.errors.map((error, idx) => (
-                                    <li key={idx} className="flex items-start gap-2">
-                                        <span className="text-red-400 mt-0.5">•</span>
-                                        <span>{error}</span>
-                                    </li>
-                                ))}
-                            </ul>
-                        </div>
-                    )}
-
-                    {/* Warnings */}
-                    {validation.warnings.length > 0 && (
-                        <div className="p-4 bg-amber-500/10 border border-amber-500/30 rounded-lg">
-                            <h5 className="text-sm font-bold text-amber-400 mb-2 flex items-center gap-2">
-                                <AlertTriangle size={16} />
-                                Warnings
-                            </h5>
-                            <ul className="space-y-1 text-sm text-slate-300">
-                                {validation.warnings.map((warning, idx) => (
-                                    <li key={idx} className="flex items-start gap-2">
-                                        <span className="text-amber-400 mt-0.5">•</span>
-                                        <span>{warning}</span>
-                                    </li>
-                                ))}
-                            </ul>
-                        </div>
-                    )}
-
-                    {/* Recommendations */}
-                    {!validation.isValid && validation.correlation !== null && (
-                        <div className="p-4 bg-blue-500/10 border border-blue-500/30 rounded-lg">
-                            <h5 className="text-sm font-bold text-blue-400 mb-2">
-                                💡 Recommendations
-                            </h5>
-                            <ul className="space-y-1 text-sm text-slate-300">
-                                {validation.correlation && validation.correlation < 0.7 && (
-                                    <li>• Try pairs within the same industry subsector</li>
-                                )}
-                                {validation.cointegration && validation.cointegration > 0.05 && (
-                                    <li>• Consider using a longer lookback period</li>
-                                )}
-                                {!validation.sectorMatch && (
-                                    <li>• Select assets from the same sector for better results</li>
-                                )}
-                                <li>• Review the suggested pairs list for pre-validated options</li>
-                            </ul>
-                        </div>
-                    )}
-                </div>
-
-                {/* Footer */}
-                <div className="flex items-center justify-between p-6 border-t border-slate-700">
-                    <button
-                        onClick={onRunValidation}
-                        disabled={isValidating}
-                        className="px-4 py-2 bg-violet-500/20 hover:bg-violet-500/30 text-violet-400 rounded-lg font-medium transition-colors disabled:opacity-50 flex items-center gap-2"
-                    >
-                        {isValidating ? (
-                            <>
-                                <Loader2 size={16} className="animate-spin" />
-                                Re-validating...
-                            </>
-                        ) : (
-                            <>
-                                <RefreshCw size={16} />
-                                Re-validate
-                            </>
-                        )}
-                    </button>
-                    <button
-                        onClick={onClose}
-                        className="px-6 py-2 bg-slate-700 hover:bg-slate-600 text-slate-200 rounded-lg font-medium transition-colors"
-                    >
-                        Close
-                    </button>
-                </div>
-            </div>
-        </div>
-    );
-};
-
-// Validation Check Component
-interface ValidationCheckProps {
-    title: string;
-    description: string;
-    status: 'pass' | 'warn' | 'fail' | 'pending';
-    value: string;
-    threshold?: string;
-}
-
-const ValidationCheck: React.FC<ValidationCheckProps> = ({ title, description, status, value, threshold }) => {
-    const statusConfig = {
-        pass: { icon: CheckCircle, color: 'text-emerald-400', bg: 'bg-emerald-500/10', border: 'border-emerald-500/30' },
-        warn: { icon: AlertTriangle, color: 'text-amber-400', bg: 'bg-amber-500/10', border: 'border-amber-500/30' },
-        fail: { icon: XCircle, color: 'text-red-400', bg: 'bg-red-500/10', border: 'border-red-500/30' },
-        pending: { icon: AlertCircle, color: 'text-slate-400', bg: 'bg-slate-800/50', border: 'border-slate-700' }
-    };
-
-    const config = statusConfig[status];
-    const Icon = config.icon;
-
-    return (
-        <div className={`p-4 rounded-lg border ${config.bg} ${config.border}`}>
-            <div className="flex items-start gap-3">
-                <Icon className={config.color} size={20} />
-                <div className="flex-1">
-                    <h5 className="text-sm font-bold text-slate-200 mb-1">{title}</h5>
-                    <p className="text-xs text-slate-400 mb-2">{description}</p>
-                    <div className="flex items-center justify-between">
-                        <span className={`text-sm font-mono ${config.color}`}>{value}</span>
-                        {threshold && <span className="text-xs text-slate-500">{threshold}</span>}
-                    </div>
-                </div>
-            </div>
         </div>
     );
 };
