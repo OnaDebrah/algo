@@ -22,9 +22,9 @@ const ValidationModal: React.FC<ValidationModalProps> = ({
                                                          }) => {
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-            <div className="bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+            <div className="bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl max-w-2xl w-full mx-4 max-h-[90vh] flex flex-col">
                 {/* Header */}
-                <div className="flex items-center justify-between p-6 border-b border-slate-700">
+                <div className="flex items-center justify-between p-6 border-b border-slate-700 shrink-0">
                     <div className="flex items-center gap-3">
                         <div className="p-2 bg-violet-500/20 rounded-lg">
                             <Shield className="text-violet-400" size={24} />
@@ -47,7 +47,7 @@ const ValidationModal: React.FC<ValidationModalProps> = ({
                 </div>
 
                 {/* Content */}
-                <div className="p-6 space-y-6">
+                <div className="p-6 space-y-6 overflow-y-auto custom-scrollbar">
                     {/* Overall Status */}
                     {validation.correlation !== null && (
                         <div className={`p-4 rounded-xl border-2 ${
@@ -197,7 +197,7 @@ const ValidationModal: React.FC<ValidationModalProps> = ({
                 </div>
 
                 {/* Footer */}
-                <div className="flex items-center justify-between p-6 border-t border-slate-700">
+                <div className="flex items-center justify-between p-6 border-t border-slate-700 shrink-0">
                     <button
                         onClick={onRunValidation}
                         disabled={isValidating}

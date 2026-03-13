@@ -5,6 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from ...config import settings
 from ...core.analyst_agent import FinancialAnalystAgent
+from ...core.data.providers.providers import ProviderFactory
 from ...core.permissions import Permission
 from ...models import User
 from ...schemas.analyst import AnalystReport, FundamentalData, MACDData, RisksData, SentimentData, TechnicalData, ValuationMetric
@@ -152,8 +153,6 @@ async def get_analyst_report(
 
     try:
         core_report = await analyst_agent.generate_investment_thesis(ticker, depth=depth)
-
-        from ...core.data.providers.providers import ProviderFactory
 
         ticker_info = await ProviderFactory().get_ticker_info(ticker)
 

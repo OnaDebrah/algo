@@ -6,6 +6,7 @@ import {
     BarChart3,
     Clock,
     Info,
+    Maximize2,
     Shield,
     Star,
     Target,
@@ -15,6 +16,9 @@ import {
     Zap
 } from 'lucide-react';
 import { Strategy } from '@/types/all_types';
+import {
+    Dialog, DialogContent, DialogHeader, DialogTitle,
+} from '@/components/ui/dialog';
 
 interface StrategyInfoPopoverProps {
     strategy: Strategy;
@@ -24,6 +28,7 @@ const POPOVER_WIDTH = 340;
 
 const StrategyInfoPopover: React.FC<StrategyInfoPopoverProps> = ({ strategy }) => {
     const [isOpen, setIsOpen] = useState(false);
+    const [isExpanded, setIsExpanded] = useState(false);
     const [position, setPosition] = useState<{ top: number; left: number } | null>(null);
     const popoverRef = useRef<HTMLDivElement>(null);
     const triggerRef = useRef<HTMLButtonElement>(null);
@@ -290,10 +295,21 @@ const StrategyInfoPopover: React.FC<StrategyInfoPopoverProps> = ({ strategy }) =
                 {/* Parameters preview */}
                 {strategy.parameterMetadata && strategy.parameterMetadata.length > 0 && (
                     <div>
-                        <h4 className="text-[9px] font-bold text-slate-500 uppercase tracking-wider mb-2 flex items-center gap-1.5">
-                            <Activity size={10} className="text-slate-600" />
-                            Parameters ({strategy.parameterMetadata.length})
-                        </h4>
+                        <div className="flex items-center justify-between mb-2">
+                            <h4 className="text-[9px] font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
+                                <Activity size={10} className="text-slate-600" />
+                                Parameters ({strategy.parameterMetadata.length})
+                            </h4>
+                            {strategy.parameterMetadata.length > 4 && (
+                                <button
+                                    onClick={(e) => { e.stopPropagation(); setIsExpanded(true); }}
+                                    className="p-1 rounded-md text-slate-600 hover:text-violet-400 hover:bg-violet-500/10 transition-all"
+                                    title="Expand parameters"
+                                >
+                                    <Maximize2 size={10} />
+                                </button>
+                            )}
+                        </div>
                         <div className="space-y-1 max-h-[100px] overflow-y-auto custom-scrollbar">
                             {strategy.parameterMetadata.map((param) => (
                                 <div
@@ -328,6 +344,40 @@ const StrategyInfoPopover: React.FC<StrategyInfoPopoverProps> = ({ strategy }) =
             </span>
 
             {isOpen && popoverContent && createPortal(popoverContent, document.body)}
+
+            {/* Expanded parameter dialog */}
+            <Dialog open={isExpanded} onOpenChange={setIsExpanded}>
+                <DialogContent
+                    className="bg-slate-900 border-slate-700/60 text-slate-100 sm:max-w-md"
+                    showCloseButton={true}
+                >
+                    <DialogHeader>
+                        <DialogTitle className="text-sm font-bold text-slate-100 flex items-center gap-2">
+                            {strategy.name}
+                            <span className={`text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md ${comp.bg} ${comp.color} ${comp.border} border`}>
+                                {strategy.complexity}
+                            </span>
+                        </DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-1">
+                        {strategy.parameterMetadata?.map((param) => (
+                            <div
+                                key={param.name}
+                                className="flex items-center justify-between py-1.5 px-3 bg-slate-800/30 rounded-md"
+                            >
+                                <span className="text-xs font-mono font-bold text-slate-400">{param.name}</span>
+                                <div className="flex items-center gap-3">
+                                    <span className="text-[10px] text-slate-600">{param.type}</span>
+                                    <span className="text-xs font-mono font-bold text-violet-400">
+                                        {param.default !== null && param.default !== undefined
+                                            ? String(param.default) : '—'}
+                                    </span>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </DialogContent>
+            </Dialog>
         </>
     );
 };

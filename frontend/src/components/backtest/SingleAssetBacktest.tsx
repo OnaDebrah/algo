@@ -19,12 +19,14 @@ import {
     Save,
     Search,
     Settings,
+    Maximize2,
     Sparkles,
     Target,
     TrendingUp,
     X,
     Zap
 } from 'lucide-react';
+import {Dialog, DialogContent, DialogHeader, DialogTitle} from "@/components/ui/dialog";
 import TickerSearch from "@/components/common/TickerSearch";
 import SingleBacktestResults from "@/components/backtest/SingleBacktestResults";
 import StrategyParameterForm from "@/components/backtest/StrategyParameterForm";
@@ -70,6 +72,7 @@ const SingleAssetBacktest: React.FC<SingleAssetBacktestProps> = ({
     const [deployedModels, setDeployedModels] = useState<DeployedMLModel[]>([]);
     const [loadingModels, setLoadingModels] = useState(false);
     const [expandedConfig, setExpandedConfig] = useState(!results);
+    const [isParamsExpanded, setIsParamsExpanded] = useState(false);
 
     const clearVisualStrategy = useBacktestStore(state => state.clearVisualStrategy);
     const navigateTo = useNavigationStore(state => state.navigateTo);
@@ -608,6 +611,13 @@ const SingleAssetBacktest: React.FC<SingleAssetBacktestProps> = ({
                                                 </h4>
                                                 <div className="flex gap-1.5">
                                                     <button
+                                                        onClick={() => setIsParamsExpanded(true)}
+                                                        className="p-1.5 hover:bg-slate-700/50 rounded-lg text-slate-500 hover:text-violet-400 transition-all"
+                                                        title="Expand parameters"
+                                                    >
+                                                        <Maximize2 size={12} />
+                                                    </button>
+                                                    <button
                                                         onClick={() => setShowParameters(!showParameters)}
                                                         className="p-1.5 hover:bg-slate-700/50 rounded-lg text-slate-500 hover:text-violet-400 transition-all"
                                                     >
@@ -631,6 +641,25 @@ const SingleAssetBacktest: React.FC<SingleAssetBacktestProps> = ({
                                                 </div>
                                             )}
                                         </div>
+                                    )}
+
+                                    {/* Expanded parameters dialog */}
+                                    {selectedStrategy && selectedStrategy.parameters && Object.keys(selectedStrategy.parameters).length > 0 && (
+                                        <Dialog open={isParamsExpanded} onOpenChange={setIsParamsExpanded}>
+                                            <DialogContent className="bg-slate-900 border-slate-700/60 text-slate-100 sm:max-w-2xl max-h-[85vh] overflow-y-auto">
+                                                <DialogHeader>
+                                                    <DialogTitle className="text-sm font-bold text-slate-100 flex items-center gap-2">
+                                                        <Settings size={14} className="text-purple-400" />
+                                                        {selectedStrategy.name} — Parameters
+                                                    </DialogTitle>
+                                                </DialogHeader>
+                                                <StrategyParameterForm
+                                                    params={selectedStrategy.parameters}
+                                                    values={config.params || {}}
+                                                    onChange={handleParamChange}
+                                                />
+                                            </DialogContent>
+                                        </Dialog>
                                     )}
 
                                     {/* ML Model Selector */}

@@ -21,11 +21,13 @@ import {
     Save,
     Search,
     Settings,
+    Maximize2,
     Sparkles,
     X,
     Zap
 } from "lucide-react";
 import React, {useMemo, useState} from "react";
+import {Dialog, DialogContent, DialogHeader, DialogTitle} from "@/components/ui/dialog";
 import StrategyParameterForm from "@/components/backtest/StrategyParameterForm";
 import MultiBacktestResults from "@/components/backtest/MultiBacktestResults";
 import RiskAnalysisModal from "@/components/backtest/RiskAnalysisModal";
@@ -69,6 +71,7 @@ const MultiAssetBacktest: React.FC<MultiAssetBacktestProps> = ({
     const [showLoadModal, setShowLoadModal] = useState(false);
     const [showOptimizer, setShowOptimizer] = useState(false);
     const [expandedConfig, setExpandedConfig] = useState(!results);
+    const [isParamsExpanded, setIsParamsExpanded] = useState(false);
 
     const selectedStrategy = useMemo(() =>
         strategies.find((s) => s.id === config.strategy),
@@ -689,6 +692,11 @@ const MultiAssetBacktest: React.FC<MultiAssetBacktestProps> = ({
                                                     Parameters
                                                 </h4>
                                                 <div className="flex gap-1.5">
+                                                    <button onClick={() => setIsParamsExpanded(true)}
+                                                        className="p-1.5 hover:bg-slate-700/50 rounded-lg text-slate-500 hover:text-violet-400 transition-all"
+                                                        title="Expand parameters">
+                                                        <Maximize2 size={12} />
+                                                    </button>
                                                     <button onClick={() => setShowParameters(!showParameters)}
                                                         className="p-1.5 hover:bg-slate-700/50 rounded-lg text-slate-500 hover:text-violet-400 transition-all">
                                                         {showParameters ? <EyeOff size={12} /> : <Eye size={12} />}
@@ -713,6 +721,29 @@ const MultiAssetBacktest: React.FC<MultiAssetBacktestProps> = ({
                                                 </div>
                                             )}
                                         </div>
+                                    )}
+
+                                    {/* Expanded parameters dialog */}
+                                    {selectedStrategy && (
+                                        <Dialog open={isParamsExpanded} onOpenChange={setIsParamsExpanded}>
+                                            <DialogContent className="bg-slate-900 border-slate-700/60 text-slate-100 sm:max-w-2xl max-h-[85vh] overflow-y-auto">
+                                                <DialogHeader>
+                                                    <DialogTitle className="text-sm font-bold text-slate-100 flex items-center gap-2">
+                                                        <Settings size={14} className="text-purple-400" />
+                                                        {selectedStrategy.name} — Parameters
+                                                    </DialogTitle>
+                                                </DialogHeader>
+                                                {isPairsStrategy ? (
+                                                    <KalmanFilterParameters config={config} setConfig={setConfig} />
+                                                ) : (
+                                                    <StrategyParameterForm
+                                                        params={selectedStrategy.parameters}
+                                                        values={config.params || {}}
+                                                        onChange={handleParamChange}
+                                                    />
+                                                )}
+                                            </DialogContent>
+                                        </Dialog>
                                     )}
 
                                     {selectedStrategy && (

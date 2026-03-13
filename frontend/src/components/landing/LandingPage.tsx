@@ -1,122 +1,17 @@
 'use client'
 
 import React, {useEffect, useRef, useState} from 'react';
-import {
-    Activity,
-    ArrowRight,
-    BarChart3,
-    Brain,
-    ChevronRight,
-    Code2,
-    Cpu,
-    DollarSign,
-    GitBranch,
-    Globe,
-    Layers,
-    Lock,
-    Play,
-    Rocket,
-    Shield,
-    Sparkles,
-    Target,
-    Zap
-} from 'lucide-react';
+import {Activity, ArrowRight, ChevronRight, Lock, Play, Rocket, Shield, Sparkles} from 'lucide-react';
 import {Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis} from 'recharts';
+import {equityData} from "./MockedEquityData";
+import {FEATURES} from "@/components/landing/Features";
+import {STEPS} from "@/components/landing/Steps";
+import {METRICS} from "@/components/landing/Metrics";
 
 interface LandingPageProps {
     onGetStarted: () => void;
     onSignIn: () => void;
 }
-
-// ─── Mock equity curve data ─────────────────────────────────
-const equityData = Array.from({length: 60}, (_, i) => {
-    const base = 10000;
-    const stratGrowth = base + (i * 220) + Math.sin(i * 0.3) * 600 + Math.random() * 300;
-    const benchGrowth = base + (i * 90) + Math.sin(i * 0.5) * 200 + Math.random() * 100;
-    return {
-        day: `Day ${i + 1}`,
-        strategy: Math.round(stratGrowth),
-        benchmark: Math.round(benchGrowth),
-    };
-});
-
-// ─── Data ────────────────────────────────────────────────────
-const METRICS = [
-    {label: '20+', sub: 'Built-in Strategies', icon: Layers},
-    {label: '6', sub: 'Asset Classes', icon: Globe},
-    {label: 'Real-Time', sub: 'Live Execution', icon: Zap},
-    {label: 'AI-Powered', sub: 'ML Studio', icon: Brain},
-];
-
-const FEATURES = [
-    {
-        title: 'Backtesting Lab',
-        desc: 'Single & multi-asset backtesting with walk-forward analysis, Monte Carlo simulation, and Bayesian optimization.',
-        icon: BarChart3,
-        gradient: 'from-blue-500 to-cyan-500',
-    },
-    {
-        title: 'AI Strategy Builder',
-        desc: 'Describe your strategy in plain English and let AI generate production-ready backtesting Python code.',
-        icon: Sparkles,
-        gradient: 'from-violet-500 to-purple-500',
-    },
-    {
-        title: 'ML Strategy Studio',
-        desc: 'Build and train ML models — Random Forest, Gradient Boosting, LSTM, and ensemble methods — with integrated feature engineering.',
-        icon: Cpu,
-        gradient: 'from-fuchsia-500 to-pink-500',
-    },
-    {
-        title: 'Live Execution',
-        desc: 'Deploy strategies to Alpaca and Interactive Brokers with real-time position tracking and automated risk controls.',
-        icon: Zap,
-        gradient: 'from-emerald-500 to-teal-500',
-    },
-    {
-        title: 'Options Desk',
-        desc: 'Options strategy builder with Greeks analytics, probability calculators, and volatility surface visualization.',
-        icon: DollarSign,
-        gradient: 'from-amber-500 to-orange-500',
-    },
-    {
-        title: 'Portfolio Optimization',
-        desc: 'Mean-variance, Black-Litterman, and risk parity optimization with efficient frontier visualization.',
-        icon: Target,
-        gradient: 'from-rose-500 to-red-500',
-    },
-];
-
-const STEPS = [
-    {
-        step: '01',
-        title: 'Build',
-        desc: 'Design strategies visually, with AI, or in the code editor.',
-        icon: Code2,
-        gradient: 'from-violet-600 to-indigo-600',
-    },
-    {
-        step: '02',
-        title: 'Backtest',
-        desc: 'Simulate on historical data with institutional-grade analytics.',
-        icon: BarChart3,
-        gradient: 'from-blue-600 to-cyan-600',
-    },
-    {
-        step: '03',
-        title: 'Optimize',
-        desc: 'Walk-forward analysis and Bayesian parameter optimization.',
-        icon: GitBranch,
-        gradient: 'from-emerald-600 to-teal-600',
-    },
-    {
-        step: '04',
-        title: 'Deploy',
-        desc: 'Go live with automated execution and real-time monitoring.',
-        icon: Rocket,
-        gradient: 'from-fuchsia-600 to-pink-600',
-    },
-];
 
 // ─── Scroll-reveal hook ──────────────────────────────────────
 function useReveal() {

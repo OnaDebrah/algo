@@ -2,6 +2,7 @@ import {useState, KeyboardEvent, ChangeEvent} from "react";
 import {AlertCircle, ArrowRight, RefreshCw, ShieldCheck, Zap} from "lucide-react";
 import {User} from "@/types/all_types";
 import {api} from "@/utils/api";
+import CountrySelect from "@/components/auth/CountrySelect";
 
 type InvestorType = 'Retail' | 'Professional' | 'Institutional' | 'Academic';
 type RiskProfile = 'Conservative' | 'Moderate' | 'Aggressive';
@@ -27,25 +28,6 @@ interface LoginResponse {
     refresh_token: string;
     token_type?: string;
 }
-
-const COUNTRIES = [
-    // North America
-    "United States", "Canada", "Mexico",
-    // Europe
-    "United Kingdom", "Germany", "France", "Switzerland", "Netherlands",
-    "Sweden", "Norway", "Denmark", "Ireland", "Spain", "Italy",
-    "Belgium", "Austria", "Finland", "Portugal", "Luxembourg", "Poland",
-    "Czech Republic", "Romania", "Greece", "Hungary",
-    // Asia-Pacific
-    "Japan", "China", "Hong Kong", "Singapore", "South Korea",
-    "Australia", "New Zealand", "India", "Taiwan", "Thailand",
-    "Malaysia", "Indonesia", "Philippines", "Vietnam",
-    // Middle East & Africa
-    "United Arab Emirates", "Saudi Arabia", "Israel", "Qatar",
-    "South Africa", "Nigeria", "Kenya", "Egypt",
-    // South America
-    "Brazil", "Argentina", "Chile", "Colombia", "Peru",
-];
 
 const INITIAL_FORM: LoginFormData = {
     username: '',
@@ -263,17 +245,10 @@ const LoginPage = ({onLogin, setCurrentPage, onBackToLanding}: LoginPageProps) =
                                 <div className="grid grid-cols-3 gap-3">
                                     <div className="space-y-1.5">
                                         <label className={labelClass}>Country</label>
-                                        <select
-                                            name="country"
+                                        <CountrySelect
                                             value={formData.country}
-                                            onChange={handleInputChange}
-                                            className={selectClass}
-                                        >
-                                            <option value="">Select...</option>
-                                            {COUNTRIES.map(c => (
-                                                <option key={c} value={c}>{c}</option>
-                                            ))}
-                                        </select>
+                                            onChange={(value) => setFormData(prev => ({...prev, country: value}))}
+                                        />
                                     </div>
                                     <div className="space-y-1.5">
                                         <label className={labelClass}>Investor Type</label>
