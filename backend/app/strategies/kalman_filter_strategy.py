@@ -90,10 +90,12 @@ class KalmanFilterStrategy(BaseStrategy):
         self.H_buffer = None  # Reusable measurement matrix
         self.z_buffer = None  # Reusable measurement vector
 
-        # For batch processing
-        self.last_prices_hash = None
-        self.cached_spread = None
-        self.cached_hedge_ratios = None
+        # Incremental KF tracking — only process new bars
+        self._kf_processed_count = 0
+        self._hedge_ratios_history = np.array([])
+        self._intercepts_history = np.array([])
+        self._ols_hedge_ratio_initial = None
+        self._ols_intercept_initial = None
 
         # Incremental statistics
         self.exp_stats = ExponentialStats(min_obs * 2)
@@ -181,65 +183,50 @@ class KalmanFilterStrategy(BaseStrategy):
 
     def _calculate_spread_history_fast(self, prices_1: pd.Series, prices_2: pd.Series) -> Tuple[pd.Series, pd.Series]:
         """
-        Optimized spread calculation with vectorized operations and caching
+        Incremental spread calculation — only processes new bars through the Kalman filter.
+        Fixes the previous bug where ALL bars from min_obs onward were re-processed on
+        every call, corrupting the KF state.
         """
         n = len(prices_1)
-
-        # Check cache first
-        current_hash = hash((tuple(prices_1.values[-100:]), tuple(prices_2.values[-100:])))
-        if self.last_prices_hash == current_hash and self.cached_spread is not None and len(self.cached_spread) == n:
-            return self.cached_spread, self.cached_hedge_ratios
-
-        # Convert to log space once
         log_p1 = np.log(prices_1.values)
         log_p2 = np.log(prices_2.values)
-
         min_obs = self.params["min_obs"]
 
-        if n <= min_obs or self.kf is None:
-            # Use OLS for early data or when not enough data
+        # --- Phase 1: Not enough data for Kalman — use OLS ---
+        if n < min_obs:
             X = np.vstack([log_p2, np.ones_like(log_p2)]).T
             beta = np.linalg.lstsq(X, log_p1, rcond=None)[0]
-            hedge_ratio = beta[0]
+            hedge_ratios = np.full(n, beta[0])
+            intercepts = np.full(n, beta[1])
+            spreads = log_p1 - hedge_ratios * log_p2 - intercepts
+            return pd.Series(spreads, index=prices_1.index), pd.Series(hedge_ratios, index=prices_1.index)
 
-            hedge_ratios = np.full(n, hedge_ratio)
-            spreads = log_p1 - hedge_ratio * log_p2
+        # --- Phase 2: Initialize Kalman once when we first hit min_obs ---
+        if self.kf is None:
+            self._initialize_kalman(pd.DataFrame({self.params["asset_1"]: prices_1.iloc[:min_obs], self.params["asset_2"]: prices_2.iloc[:min_obs]}))
+            # OLS for the initial segment
+            X_init = np.vstack([log_p2[:min_obs], np.ones(min_obs)]).T
+            beta_init = np.linalg.lstsq(X_init, log_p1[:min_obs], rcond=None)[0]
+            self._ols_hedge_ratio_initial = beta_init[0]
+            self._ols_intercept_initial = beta_init[1]
+            self._hedge_ratios_history = np.full(min_obs, beta_init[0])
+            self._intercepts_history = np.full(min_obs, beta_init[1])
+            self._kf_processed_count = min_obs
 
-            # Initialize Kalman if we have enough data
-            if n >= min_obs and self.kf is None:
-                self._initialize_kalman(
-                    pd.DataFrame({self.params["asset_1"]: prices_1.iloc[:min_obs], self.params["asset_2"]: prices_2.iloc[:min_obs]})
-                )
-        else:
-            # Use Kalman filter with batch updates
-            # Process initial min_obs points with OLS
-            X_initial = np.vstack([log_p2[:min_obs], np.ones(min_obs)]).T
-            beta_initial = np.linalg.lstsq(X_initial, log_p1[:min_obs], rcond=None)[0]
+        # --- Phase 3: Process only NEW bars through Kalman ---
+        if n > self._kf_processed_count:
+            start = self._kf_processed_count
+            new_hr, new_intercepts = self._update_kalman_batch(log_p1[start:n], log_p2[start:n])
+            self._hedge_ratios_history = np.concatenate([self._hedge_ratios_history, new_hr])
+            self._intercepts_history = np.concatenate([self._intercepts_history, new_intercepts])
+            self._kf_processed_count = n
 
-            # Process remaining points with Kalman
-            if n > min_obs:
-                hedge_ratios_kalman, _ = self._update_kalman_batch(log_p1[min_obs:], log_p2[min_obs:])
+        # --- Phase 4: Compute spread using full history ---
+        hedge_ratios = self._hedge_ratios_history[:n]
+        intercepts = self._intercepts_history[:n]
+        spreads = log_p1 - hedge_ratios * log_p2 - intercepts
 
-                # Combine results
-                hedge_ratios = np.zeros(n)
-                hedge_ratios[:min_obs] = beta_initial[0]
-                hedge_ratios[min_obs:] = hedge_ratios_kalman
-            else:
-                hedge_ratios = np.full(n, beta_initial[0])
-
-            # Calculate spreads
-            spreads = log_p1 - hedge_ratios * log_p2
-
-        # Create pandas series
-        spread_series = pd.Series(spreads, index=prices_1.index)
-        hedge_ratio_series = pd.Series(hedge_ratios, index=prices_1.index)
-
-        # Update cache
-        self.cached_spread = spread_series
-        self.cached_hedge_ratios = hedge_ratio_series
-        self.last_prices_hash = current_hash
-
-        return spread_series, hedge_ratio_series
+        return pd.Series(spreads, index=prices_1.index), pd.Series(hedge_ratios, index=prices_1.index)
 
     def _calculate_zscore_fast(self, spread: float) -> float:
         """
@@ -393,9 +380,6 @@ class KalmanFilterStrategy(BaseStrategy):
                 self.in_position = False
                 self.position_direction = 0
 
-                # Reset statistics on exit for fresh start
-                self.exp_stats.reset()
-
         return {
             "signal": signal,
             "position_size": position_size,
@@ -411,9 +395,11 @@ class KalmanFilterStrategy(BaseStrategy):
         self.kf = None
         self.H_buffer = None
         self.z_buffer = None
-        self.last_prices_hash = None
-        self.cached_spread = None
-        self.cached_hedge_ratios = None
+        self._kf_processed_count = 0
+        self._hedge_ratios_history = np.array([])
+        self._intercepts_history = np.array([])
+        self._ols_hedge_ratio_initial = None
+        self._ols_intercept_initial = None
         self.exp_stats.reset()
         self.in_position = False
         self.position_direction = 0
