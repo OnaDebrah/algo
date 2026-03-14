@@ -211,15 +211,15 @@ const SingleAssetBacktest: React.FC<SingleAssetBacktestProps> = ({
         <div className="space-y-4">
             {/* Visual Strategy Builder info card */}
             {isVisualBuilder && (
-                <div className="bg-gradient-to-r from-fuchsia-900/30 via-violet-900/30 to-slate-900/30 border border-fuchsia-500/30 rounded-2xl p-4 flex items-center justify-between animate-in fade-in">
+                <div className="bg-gradient-to-r from-violet-900/30 via-violet-900/30 to-slate-900/30 border border-violet-500/30 rounded-2xl p-4 flex items-center justify-between animate-in fade-in">
                     <div className="flex items-center gap-4">
-                        <div className="p-2.5 bg-fuchsia-500/20 rounded-xl border border-fuchsia-500/30">
-                            <Brain size={20} className="text-fuchsia-400" />
+                        <div className="p-2.5 bg-violet-500/20 rounded-xl border border-violet-500/30">
+                            <Brain size={20} className="text-violet-400" />
                         </div>
                         <div>
-                            <h3 className="text-sm font-bold text-fuchsia-300 flex items-center gap-2">
+                            <h3 className="text-sm font-bold text-violet-300 flex items-center gap-2">
                                 Visual Strategy Builder
-                                <span className="text-[10px] bg-fuchsia-500/20 text-fuchsia-400 px-2 py-0.5 rounded-full uppercase font-black">Active</span>
+                                <span className="text-[10px] bg-violet-500/20 text-violet-400 px-2 py-0.5 rounded-full uppercase font-black">Active</span>
                             </h3>
                             <p className="text-xs text-slate-400 mt-0.5">
                                 {visualBlockCount > 0 ? `${visualBlockCount} blocks configured` : 'No blocks configured'}
@@ -338,7 +338,7 @@ const SingleAssetBacktest: React.FC<SingleAssetBacktestProps> = ({
                         <button
                             onClick={runBacktest}
                             disabled={isRunning || !config.symbol}
-                            className="group relative overflow-hidden flex items-center gap-2.5 px-7 py-2.5 bg-gradient-to-r from-violet-600 via-purple-600 to-fuchsia-600 hover:from-violet-500 hover:via-purple-500 hover:to-fuchsia-500 disabled:from-slate-700 disabled:via-slate-700 disabled:to-slate-700 disabled:cursor-not-allowed rounded-xl font-bold transition-all shadow-xl shadow-violet-500/30 disabled:shadow-none text-white whitespace-nowrap"
+                            className="group relative overflow-hidden flex items-center gap-2.5 px-7 py-2.5 bg-gradient-to-r from-violet-600 via-purple-600 to-indigo-600 hover:from-violet-500 hover:via-purple-500 hover:to-indigo-500 disabled:from-slate-700 disabled:via-slate-700 disabled:to-slate-700 disabled:cursor-not-allowed rounded-xl font-bold transition-all shadow-xl shadow-violet-500/30 disabled:shadow-none text-white whitespace-nowrap"
                         >
                             <div className="absolute inset-0 bg-gradient-to-r from-white/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
                             {isRunning ? (
@@ -601,8 +601,8 @@ const SingleAssetBacktest: React.FC<SingleAssetBacktestProps> = ({
 
                                 {/* Strategy Parameters + Optimizer in one row */}
                                 <div className="flex gap-4">
-                                    {/* Parameters */}
-                                    {selectedStrategy && selectedStrategy.parameters && Object.keys(selectedStrategy.parameters).length > 0 && (
+                                    {/* Parameters (hidden for visual_builder — configured via ML Studio) */}
+                                    {selectedStrategy && !isVisualBuilder && selectedStrategy.parameters && Object.keys(selectedStrategy.parameters).length > 0 && (
                                         <div className="flex-1 bg-slate-800/30 border border-slate-700/30 rounded-xl p-4">
                                             <div className="flex items-center justify-between mb-3">
                                                 <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-2">

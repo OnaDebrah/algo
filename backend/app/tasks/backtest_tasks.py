@@ -197,10 +197,10 @@ async def _run_wfa(backtest_id: int, request_data: dict, user_id: int):
 async def _run_custom_backtest(backtest_id: int, request_data: dict, user_id: int):
     """Async implementation of custom strategy backtest task."""
     from sqlalchemy import select
+    from strategies.custom.custom_strategy_engine import CustomStrategyAdapter
 
     from ..analytics.performance import calculate_performance_metrics
     from ..core.benchmark_calculator import BenchmarkCalculator
-    from ..core.custom_strategy_engine import CustomStrategyAdapter
     from ..core.data_fetcher import fetch_stock_data
     from ..core.risk_manager import RiskManager
     from ..core.trading_engine import TradingEngine

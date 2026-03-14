@@ -8,9 +8,7 @@ from typing import Dict, List, Optional
 
 import pandas as pd
 
-from ...strategies import (
-    BaseStrategy,
-)
+from ...strategies import BaseStrategy
 from ...strategies.catelog.adaptive import Adaptive
 from ...strategies.catelog.category import StrategyCategory
 from ...strategies.catelog.deep_learning import DeepLearning
@@ -23,6 +21,7 @@ from ...strategies.catelog.statistical_arbitrage import StatisticalArbitrage
 from ...strategies.catelog.strategy_info import StrategyInfo
 from ...strategies.catelog.trend_following import TrendFollowing
 from ...strategies.catelog.volatility import Volatility
+from .visual_builder import VisualBuilder
 
 logger = logging.getLogger(__name__)
 
@@ -45,6 +44,7 @@ class StrategyCatalog:
             "machine_learning": ML(),
             "deep_learning": DeepLearning(),
             "genetic": Genetic(),
+            "visual_builder": VisualBuilder(),
         }
 
         self.strategies = self._build_catalog()

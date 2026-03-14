@@ -56,7 +56,7 @@ function getInputPortPos(block: VisualBlock): { x: number; y: number } {
 const StrategyBuilder: React.FC<StrategyBuilderProps> = ({ models, isLoading = false, onSave }) => {
     /* State */
     const [blocks, setBlocks] = useState<VisualBlock[]>([
-        { id: 'root', type: 'output', label: 'Final Signal', params: { label: 'Final Signal' }, position: { x: 700, y: 220 } }
+        { id: 'root', type: 'output', label: 'Final Signal', params: { label: 'Final Signal' }, position: { x: 500, y: 220 } }
     ]);
     const [connections, setConnections] = useState<Connection[]>([]);
     const [selectedBlockId, setSelectedBlockId] = useState<string | null>(null);
@@ -191,10 +191,10 @@ const StrategyBuilder: React.FC<StrategyBuilderProps> = ({ models, isLoading = f
         }
     }, [connectingFrom]);
 
-    const handleCanvasMouseUp = useCallback(() => {
+    const handleCanvasMouseUp = useCallback((e: React.MouseEvent) => {
         dragRef.current = null;
-        if (connectingFrom) {
-            // Dropped in empty space — cancel connection
+        // Only cancel connection if released on empty canvas, NOT on a port
+        if (connectingFrom && !(e.target as HTMLElement).closest('[data-port]')) {
             setConnectingFrom(null);
         }
     }, [connectingFrom]);
@@ -362,7 +362,7 @@ const StrategyBuilder: React.FC<StrategyBuilderProps> = ({ models, isLoading = f
 
     const getBlockColor = (type: BlockType) => {
         switch (type) {
-            case 'ml_model': return { bg: 'bg-fuchsia-500/20', text: 'text-fuchsia-400', border: 'border-fuchsia-500' };
+            case 'ml_model': return { bg: 'bg-violet-500/20', text: 'text-violet-400', border: 'border-violet-500' };
             case 'indicator': return { bg: 'bg-indigo-500/20', text: 'text-indigo-400', border: 'border-indigo-500' };
             case 'logic': return { bg: 'bg-amber-500/20', text: 'text-amber-400', border: 'border-amber-500' };
             case 'risk': return { bg: 'bg-red-500/20', text: 'text-red-400', border: 'border-red-500' };
@@ -413,7 +413,7 @@ const StrategyBuilder: React.FC<StrategyBuilderProps> = ({ models, isLoading = f
                 <path
                     key={`conn-${idx}`}
                     d={`M ${start.x} ${start.y} C ${start.x + dx} ${start.y}, ${end.x - dx} ${end.y}, ${end.x} ${end.y}`}
-                    stroke="rgba(217, 70, 239, 0.5)"
+                    stroke="rgba(139, 92, 246, 0.5)"
                     strokeWidth={2}
                     fill="none"
                     className="transition-all"
@@ -431,7 +431,7 @@ const StrategyBuilder: React.FC<StrategyBuilderProps> = ({ models, isLoading = f
                     <path
                         key="connecting"
                         d={`M ${start.x} ${start.y} C ${start.x + dx} ${start.y}, ${mousePos.x - dx} ${mousePos.y}, ${mousePos.x} ${mousePos.y}`}
-                        stroke="rgba(217, 70, 239, 0.3)"
+                        stroke="rgba(139, 92, 246, 0.3)"
                         strokeWidth={2}
                         strokeDasharray="6 4"
                         fill="none"
@@ -457,7 +457,7 @@ const StrategyBuilder: React.FC<StrategyBuilderProps> = ({ models, isLoading = f
             <div className="w-72 border-r border-slate-800 p-5 bg-slate-900/40 flex flex-col">
                 <div className="mb-5">
                     <h3 className="text-sm font-bold text-white mb-3 flex items-center gap-2">
-                        <Plus className="text-fuchsia-400" size={18} />
+                        <Plus className="text-violet-400" size={18} />
                         Components
                     </h3>
                     <div className="relative">
@@ -467,7 +467,7 @@ const StrategyBuilder: React.FC<StrategyBuilderProps> = ({ models, isLoading = f
                             placeholder="Search blocks..."
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
-                            className="w-full bg-slate-950/50 border border-slate-700/50 rounded-xl py-2 pl-9 pr-4 text-xs text-slate-300 focus:border-fuchsia-500 outline-none transition-all"
+                            className="w-full bg-slate-950/50 border border-slate-700/50 rounded-xl py-2 pl-9 pr-4 text-xs text-slate-300 focus:border-violet-500 outline-none transition-all"
                         />
                     </div>
                 </div>
@@ -486,7 +486,7 @@ const StrategyBuilder: React.FC<StrategyBuilderProps> = ({ models, isLoading = f
                                             onClick={() => addBlock(item)}
                                             className="w-full p-2.5 bg-slate-950/30 border border-slate-800 hover:border-slate-600 rounded-xl flex items-center gap-3 group transition-all"
                                         >
-                                            <div className="p-1.5 bg-slate-900 rounded-lg group-hover:bg-slate-800 text-slate-400 group-hover:text-fuchsia-400 transition-all">
+                                            <div className="p-1.5 bg-slate-900 rounded-lg group-hover:bg-slate-800 text-slate-400 group-hover:text-violet-400 transition-all">
                                                 {item.icon}
                                             </div>
                                             <div className="text-left">
@@ -503,8 +503,8 @@ const StrategyBuilder: React.FC<StrategyBuilderProps> = ({ models, isLoading = f
 
                 {/* Connection mode hint */}
                 {connectingFrom && (
-                    <div className="mt-3 p-3 bg-fuchsia-500/10 border border-fuchsia-500/30 rounded-xl animate-in fade-in">
-                        <div className="flex items-center gap-2 text-xs text-fuchsia-400 font-medium">
+                    <div className="mt-3 p-3 bg-violet-500/10 border border-violet-500/30 rounded-xl animate-in fade-in">
+                        <div className="flex items-center gap-2 text-xs text-violet-400 font-medium">
                             <Link2 size={14} className="animate-pulse" />
                             Click an input port to connect
                         </div>
@@ -521,7 +521,7 @@ const StrategyBuilder: React.FC<StrategyBuilderProps> = ({ models, isLoading = f
             {/* ── Canvas Workspace ─────────────────────────────────── */}
             <div
                 ref={canvasRef}
-                className={`flex-1 relative bg-slate-950/50 overflow-hidden ${connectingFrom ? 'cursor-crosshair' : 'cursor-default'}`}
+                className={`flex-1 relative bg-slate-950/50 overflow-auto ${connectingFrom ? 'cursor-crosshair' : 'cursor-default'}`}
                 onMouseMove={handleCanvasMouseMove}
                 onMouseUp={handleCanvasMouseUp}
                 onClick={() => { setSelectedBlockId(null); if (connectingFrom) setConnectingFrom(null); }}
@@ -547,7 +547,7 @@ const StrategyBuilder: React.FC<StrategyBuilderProps> = ({ models, isLoading = f
                                 error
                                     ? 'bg-red-950/60 border-red-500 ring-2 ring-red-500/20'
                                     : isSelected
-                                        ? `bg-slate-900 ${colors.border} ring-4 ring-fuchsia-500/10`
+                                        ? `bg-slate-900 ${colors.border} ring-4 ring-violet-500/10`
                                         : 'bg-slate-900/90 border-slate-800 hover:border-slate-700'
                             }`}
                             style={{ left: block.position?.x, top: block.position?.y, zIndex: isSelected ? 20 : 10, cursor: dragRef.current?.blockId === block.id ? 'grabbing' : 'grab' }}
@@ -579,28 +579,32 @@ const StrategyBuilder: React.FC<StrategyBuilderProps> = ({ models, isLoading = f
                             {block.type !== 'output' && (
                                 <div
                                     data-port="output"
+                                    title="Output — click to start connection"
                                     onClick={(e) => handleOutputPortClick(e, block.id)}
                                     className={`absolute top-1/2 -right-2 h-4 w-4 rounded-full border-2 border-slate-950 cursor-pointer transition-all hover:scale-125 ${
-                                        connectingFrom === block.id ? 'bg-fuchsia-400 ring-2 ring-fuchsia-400/40' : 'bg-fuchsia-500'
+                                        connectingFrom === block.id ? 'bg-violet-400 ring-2 ring-violet-400/40' : 'bg-violet-500'
                                     }`}
                                     style={{ transform: 'translateY(-50%)' }}
                                 />
                             )}
 
-                            {/* Input port (left) — click to complete connection */}
-                            {block.type !== 'output' ? (
+                            {/* Input port (left) — only on blocks that accept inputs (logic, risk, output) */}
+                            {(block.type === 'logic' || block.type === 'risk') && (
                                 <div
                                     data-port="input"
+                                    title="Input — click to complete connection"
                                     onClick={(e) => handleInputPortClick(e, block.id)}
                                     className={`absolute top-1/2 -left-2 h-4 w-4 rounded-full border-2 border-slate-950 cursor-pointer transition-all hover:scale-125 ${
-                                        connectingFrom ? 'bg-fuchsia-400 ring-2 ring-fuchsia-400/40 animate-pulse' : 'bg-fuchsia-500/40'
+                                        connectingFrom ? 'bg-violet-400 ring-2 ring-violet-400/40 animate-pulse' : 'bg-violet-500/40'
                                     }`}
                                     style={{ transform: 'translateY(-50%)' }}
                                 />
-                            ) : (
-                                /* Output block only has an input port */
+                            )}
+                            {block.type === 'output' && (
+                                /* Output block — the final signal target */
                                 <div
                                     data-port="input"
+                                    title="Input — click to connect to Final Signal"
                                     onClick={(e) => handleInputPortClick(e, block.id)}
                                     className={`absolute top-1/2 -left-2 h-4 w-4 rounded-full border-2 border-slate-950 cursor-pointer transition-all hover:scale-125 ${
                                         connectingFrom ? 'bg-emerald-400 ring-2 ring-emerald-400/40 animate-pulse' : 'bg-emerald-500'
@@ -623,7 +627,7 @@ const StrategyBuilder: React.FC<StrategyBuilderProps> = ({ models, isLoading = f
                     </button>
                     <button
                         onClick={(e) => { e.stopPropagation(); handleSave(); }}
-                        className="px-4 py-2 bg-fuchsia-600 hover:bg-fuchsia-500 rounded-xl text-white text-sm font-bold flex items-center gap-2 transition-all shadow-lg shadow-fuchsia-600/20"
+                        className="px-4 py-2 bg-violet-600 hover:bg-violet-500 rounded-xl text-white text-sm font-bold flex items-center gap-2 transition-all shadow-lg shadow-violet-600/20"
                     >
                         <Save size={16} />
                         Connect Engine
@@ -635,14 +639,14 @@ const StrategyBuilder: React.FC<StrategyBuilderProps> = ({ models, isLoading = f
                     <div className="absolute bottom-5 left-5 right-5 bg-slate-900/95 backdrop-blur border border-slate-700 rounded-2xl p-4 shadow-2xl animate-in slide-in-from-bottom-4" style={{ zIndex: 30 }}>
                         <div className="flex items-center justify-between mb-2">
                             <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-2">
-                                <Eye size={14} className="text-fuchsia-400" />
+                                <Eye size={14} className="text-violet-400" />
                                 Strategy Preview
                             </h4>
                             <button onClick={() => setShowPreview(false)} className="text-slate-500 hover:text-slate-300">
                                 <X size={14} />
                             </button>
                         </div>
-                        <p className="text-sm text-fuchsia-300 font-mono">{buildPreviewText()}</p>
+                        <p className="text-sm text-violet-300 font-mono">{buildPreviewText()}</p>
                         <p className="text-[10px] text-slate-500 mt-2">{blocks.length - 1} blocks · {connections.length} connections</p>
                     </div>
                 )}
@@ -677,7 +681,7 @@ const StrategyBuilder: React.FC<StrategyBuilderProps> = ({ models, isLoading = f
                                 type="text"
                                 value={selectedBlock.label || ''}
                                 onChange={(e) => setBlocks(prev => prev.map(b => b.id === selectedBlock.id ? { ...b, label: e.target.value } : b))}
-                                className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-sm text-white outline-none focus:border-fuchsia-500 transition-all"
+                                className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-sm text-white outline-none focus:border-violet-500 transition-all"
                             />
                         </div>
 
@@ -691,7 +695,7 @@ const StrategyBuilder: React.FC<StrategyBuilderProps> = ({ models, isLoading = f
                                         const model = models.find(m => m.id === e.target.value);
                                         setBlocks(prev => prev.map(b => b.id === selectedBlock.id ? { ...b, params: { ...b.params, model_id: e.target.value, label: model?.symbol } } : b));
                                     }}
-                                    className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-sm text-slate-200 outline-none focus:border-fuchsia-500 transition-all font-mono"
+                                    className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-sm text-slate-200 outline-none focus:border-violet-500 transition-all font-mono"
                                 >
                                     {isLoading ? (
                                         <option>Loading models...</option>
@@ -720,7 +724,7 @@ const StrategyBuilder: React.FC<StrategyBuilderProps> = ({ models, isLoading = f
                                         type="number"
                                         value={selectedBlock.params.period || 14}
                                         onChange={(e) => setBlocks(prev => prev.map(b => b.id === selectedBlock.id ? { ...b, params: { ...b.params, period: parseInt(e.target.value) || 14 } } : b))}
-                                        className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-sm text-white outline-none focus:border-fuchsia-500"
+                                        className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-sm text-white outline-none focus:border-violet-500"
                                     />
                                 </div>
                                 <div className="space-y-1.5">
@@ -730,7 +734,7 @@ const StrategyBuilder: React.FC<StrategyBuilderProps> = ({ models, isLoading = f
                                             <button
                                                 key={op}
                                                 onClick={() => setBlocks(prev => prev.map(b => b.id === selectedBlock.id ? { ...b, params: { ...b.params, op } } : b))}
-                                                className={`p-2 text-[10px] font-bold rounded-lg border transition-all ${selectedBlock.params.op === op ? 'bg-fuchsia-500/20 border-fuchsia-500 text-fuchsia-400' : 'bg-slate-950 border-slate-800 text-slate-500 hover:bg-slate-900'}`}
+                                                className={`p-2 text-[10px] font-bold rounded-lg border transition-all ${selectedBlock.params.op === op ? 'bg-violet-500/20 border-violet-500 text-violet-400' : 'bg-slate-950 border-slate-800 text-slate-500 hover:bg-slate-900'}`}
                                             >
                                                 {op.replace('_', ' ').toUpperCase()}
                                             </button>
@@ -745,7 +749,7 @@ const StrategyBuilder: React.FC<StrategyBuilderProps> = ({ models, isLoading = f
                                             type="number"
                                             value={selectedBlock.params.val || 50}
                                             onChange={(e) => setBlocks(prev => prev.map(b => b.id === selectedBlock.id ? { ...b, params: { ...b.params, val: parseFloat(e.target.value) || 50 } } : b))}
-                                            className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-sm text-white outline-none focus:border-fuchsia-500"
+                                            className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-sm text-white outline-none focus:border-violet-500"
                                             min={0}
                                             max={100}
                                         />
@@ -764,7 +768,7 @@ const StrategyBuilder: React.FC<StrategyBuilderProps> = ({ models, isLoading = f
                                             <button
                                                 key={op}
                                                 onClick={() => setBlocks(prev => prev.map(b => b.id === selectedBlock.id ? { ...b, params: { ...b.params, op }, label: `${op} Gate` } : b))}
-                                                className={`p-2 text-[10px] font-bold rounded-lg border transition-all ${selectedBlock.params.op === op ? 'bg-fuchsia-500/20 border-fuchsia-500 text-fuchsia-400' : 'bg-slate-950 border-slate-800 text-slate-500 hover:bg-slate-900'}`}
+                                                className={`p-2 text-[10px] font-bold rounded-lg border transition-all ${selectedBlock.params.op === op ? 'bg-violet-500/20 border-violet-500 text-violet-400' : 'bg-slate-950 border-slate-800 text-slate-500 hover:bg-slate-900'}`}
                                             >
                                                 {op}
                                             </button>
@@ -809,7 +813,7 @@ const StrategyBuilder: React.FC<StrategyBuilderProps> = ({ models, isLoading = f
                                             <button
                                                 key={rt.key}
                                                 onClick={() => setBlocks(prev => prev.map(b => b.id === selectedBlock.id ? { ...b, params: { ...b.params, risk_type: rt.key }, label: rt.label } : b))}
-                                                className={`p-2 text-[10px] font-bold rounded-lg border transition-all ${selectedBlock.params.risk_type === rt.key ? 'bg-fuchsia-500/20 border-fuchsia-500 text-fuchsia-400' : 'bg-slate-950 border-slate-800 text-slate-500 hover:bg-slate-900'}`}
+                                                className={`p-2 text-[10px] font-bold rounded-lg border transition-all ${selectedBlock.params.risk_type === rt.key ? 'bg-violet-500/20 border-violet-500 text-violet-400' : 'bg-slate-950 border-slate-800 text-slate-500 hover:bg-slate-900'}`}
                                             >
                                                 {rt.label}
                                             </button>
@@ -822,7 +826,7 @@ const StrategyBuilder: React.FC<StrategyBuilderProps> = ({ models, isLoading = f
                                         type="number"
                                         value={selectedBlock.params.threshold || 5}
                                         onChange={(e) => setBlocks(prev => prev.map(b => b.id === selectedBlock.id ? { ...b, params: { ...b.params, threshold: parseFloat(e.target.value) || 5 } } : b))}
-                                        className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-sm text-white outline-none focus:border-fuchsia-500"
+                                        className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-sm text-white outline-none focus:border-violet-500"
                                         min={0.1}
                                         step={0.5}
                                     />

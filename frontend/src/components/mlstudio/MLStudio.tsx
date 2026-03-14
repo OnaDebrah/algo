@@ -396,8 +396,8 @@ const MLStudio = () => {
                 <div className="flex items-center justify-between mb-6">
                     <div>
                         <h1 className="text-2xl font-bold text-slate-100 flex items-center gap-3">
-                            <div className="p-2 bg-gradient-to-br from-fuchsia-500/20 to-violet-500/20 rounded-xl">
-                                <Cpu className="text-fuchsia-400" size={24}/>
+                            <div className="p-2 bg-gradient-to-br from-violet-500/20 to-violet-500/20 rounded-xl">
+                                <Cpu className="text-violet-400" size={24}/>
                             </div>
                             ML Strategy Studio
                         </h1>
@@ -411,7 +411,7 @@ const MLStudio = () => {
                             Import Dataset
                         </button>
                         <button
-                            className="px-4 py-2 bg-gradient-to-r from-fuchsia-600 to-violet-600 hover:from-fuchsia-500 hover:to-violet-500 rounded-lg text-white text-sm font-medium flex items-center gap-2 transition-all shadow-lg shadow-fuchsia-600/20">
+                            className="px-4 py-2 bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-violet-500 rounded-lg text-white text-sm font-medium flex items-center gap-2 transition-all shadow-lg shadow-violet-600/20">
                             <Cloud size={16}/>
                             Cloud Training
                         </button>
@@ -422,7 +422,7 @@ const MLStudio = () => {
                 <div className="flex border-b border-slate-800">
                     <button
                         onClick={() => setActiveTab('train')}
-                        className={`px-6 py-3 text-sm font-medium border-b-2 transition-all ${activeTab === 'train' ? 'border-fuchsia-500 text-fuchsia-400' : 'border-transparent text-slate-500 hover:text-slate-300'}`}
+                        className={`px-6 py-3 text-sm font-medium border-b-2 transition-all ${activeTab === 'train' ? 'border-violet-500 text-violet-400' : 'border-transparent text-slate-500 hover:text-slate-300'}`}
                     >
                         <div className="flex items-center gap-2">
                             <Play size={16}/>
@@ -431,18 +431,18 @@ const MLStudio = () => {
                     </button>
                     <button
                         onClick={() => setActiveTab('builder')}
-                        className={`px-6 py-3 text-sm font-medium border-b-2 transition-all ${activeTab === 'builder' ? 'border-fuchsia-500 text-fuchsia-400' : 'border-transparent text-slate-500 hover:text-slate-300'}`}
+                        className={`px-6 py-3 text-sm font-medium border-b-2 transition-all ${activeTab === 'builder' ? 'border-violet-500 text-violet-400' : 'border-transparent text-slate-500 hover:text-slate-300'}`}
                     >
                         <div className="flex items-center gap-2">
                             <Plus size={16}/>
                             Strategy Builder
                             <span
-                                className="bg-fuchsia-500/20 text-fuchsia-400 text-[10px] px-1.5 py-0.5 rounded uppercase font-black ml-1">New</span>
+                                className="bg-violet-500/20 text-violet-400 text-[10px] px-1.5 py-0.5 rounded uppercase font-black ml-1">New</span>
                         </div>
                     </button>
                     <button
                         onClick={() => setActiveTab('registry')}
-                        className={`px-6 py-3 text-sm font-medium border-b-2 transition-all ${activeTab === 'registry' ? 'border-fuchsia-500 text-fuchsia-400' : 'border-transparent text-slate-500 hover:text-slate-300'}`}
+                        className={`px-6 py-3 text-sm font-medium border-b-2 transition-all ${activeTab === 'registry' ? 'border-violet-500 text-violet-400' : 'border-transparent text-slate-500 hover:text-slate-300'}`}
                     >
                         <div className="flex items-center gap-2">
                             <BarChart3 size={16}/>
@@ -454,7 +454,7 @@ const MLStudio = () => {
                     </button>
                     <button
                         onClick={() => setActiveTab('deployed')}
-                        className={`px-6 py-3 text-sm font-medium border-b-2 transition-all ${activeTab === 'deployed' ? 'border-fuchsia-500 text-fuchsia-400' : 'border-transparent text-slate-500 hover:text-slate-300'}`}
+                        className={`px-6 py-3 text-sm font-medium border-b-2 transition-all ${activeTab === 'deployed' ? 'border-violet-500 text-violet-400' : 'border-transparent text-slate-500 hover:text-slate-300'}`}
                     >
                         <div className="flex items-center gap-2">
                             <CheckCircle size={16}/>
@@ -478,7 +478,7 @@ const MLStudio = () => {
                             className="bg-gradient-to-br from-slate-900/50 to-slate-950/50 border border-slate-800/50 rounded-2xl p-6">
                             <div className="flex items-center justify-between mb-6">
                                 <h3 className="text-lg font-bold text-slate-100 flex items-center gap-2">
-                                    <Settings2 className="text-fuchsia-400" size={20}/>
+                                    <Settings2 className="text-violet-400" size={20}/>
                                     Training Configuration
                                 </h3>
                                 <button
@@ -506,7 +506,7 @@ const MLStudio = () => {
                                                     ...config,
                                                     symbol: e.target.value.toUpperCase()
                                                 })}
-                                                className="w-full bg-slate-950/70 border border-slate-800 rounded-xl py-3 px-4 text-sm text-slate-100 focus:border-fuchsia-500 focus:ring-2 focus:ring-fuchsia-500/30 outline-none transition-all"
+                                                className="w-full bg-slate-950/70 border border-slate-800 rounded-xl py-3 px-4 text-sm text-slate-100 focus:border-violet-500 focus:ring-2 focus:ring-violet-500/30 outline-none transition-all"
                                             />
                                             <div className="absolute right-3 top-1/2 -translate-y-1/2 flex gap-1">
                                                 {['AAPL', 'TSLA', 'MSFT', 'NVDA'].map((sym) => (
@@ -533,7 +533,7 @@ const MLStudio = () => {
                                                     key={type}
                                                     onClick={() => setConfig({...config, model_type: type})}
                                                     className={`p-3 rounded-xl border transition-all ${config.model_type === type
-                                                        ? 'bg-fuchsia-500/10 border-fuchsia-500/50 text-fuchsia-400'
+                                                        ? 'bg-violet-500/10 border-violet-500/50 text-violet-400'
                                                         : 'bg-slate-900/50 border-slate-800 text-slate-400 hover:border-slate-700'
                                                     }`}
                                                 >
@@ -557,7 +557,7 @@ const MLStudio = () => {
                                                     key={period}
                                                     onClick={() => setConfig({...config, training_period: period})}
                                                     className={`px-3 py-2 rounded-lg text-xs transition-all ${config.training_period === period
-                                                        ? 'bg-fuchsia-500 text-white'
+                                                        ? 'bg-violet-500 text-white'
                                                         : 'bg-slate-800 text-slate-400 hover:bg-slate-700'
                                                     }`}
                                                 >
@@ -585,7 +585,7 @@ const MLStudio = () => {
                                                 ...config,
                                                 test_size: parseInt(e.target.value)
                                             })}
-                                            className="w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-fuchsia-500"
+                                            className="w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-violet-500"
                                         />
                                         <div className="flex justify-between text-[10px] text-slate-500">
                                             <span>10%</span>
@@ -607,7 +607,7 @@ const MLStudio = () => {
                                                         ...config,
                                                         epochs: parseInt(e.target.value)
                                                     })}
-                                                    className="w-full bg-slate-950/70 border border-slate-800 rounded-xl py-2 px-3 text-sm text-slate-100 focus:border-fuchsia-500 outline-none"
+                                                    className="w-full bg-slate-950/70 border border-slate-800 rounded-xl py-2 px-3 text-sm text-slate-100 focus:border-violet-500 outline-none"
                                                 />
                                             </div>
                                             <div className="space-y-2">
@@ -618,7 +618,7 @@ const MLStudio = () => {
                                                         ...config,
                                                         batch_size: parseInt(e.target.value)
                                                     })}
-                                                    className="w-full bg-slate-950/70 border border-slate-800 rounded-xl py-2 px-3 text-sm text-slate-300 focus:border-fuchsia-500 outline-none"
+                                                    className="w-full bg-slate-950/70 border border-slate-800 rounded-xl py-2 px-3 text-sm text-slate-300 focus:border-violet-500 outline-none"
                                                 >
                                                     <option value="16">16</option>
                                                     <option value="32">32</option>
@@ -644,7 +644,7 @@ const MLStudio = () => {
                                                         ...config,
                                                         learning_rate: parseFloat(e.target.value)
                                                     })}
-                                                    className="w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-fuchsia-500"
+                                                    className="w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-violet-500"
                                                 />
                                                 <div
                                                     className="text-xs text-slate-500 text-center">{config.learning_rate.toFixed(4)}</div>
@@ -659,7 +659,7 @@ const MLStudio = () => {
                                                             ...config,
                                                             use_feature_engineering: e.target.checked
                                                         })}
-                                                        className="rounded accent-fuchsia-500"
+                                                        className="rounded accent-violet-500"
                                                     />
                                                     Feature Engineering
                                                 </label>
@@ -671,7 +671,7 @@ const MLStudio = () => {
                                                             ...config,
                                                             use_cross_validation: e.target.checked
                                                         })}
-                                                        className="rounded accent-fuchsia-500"
+                                                        className="rounded accent-violet-500"
                                                     />
                                                     5-Fold CV
                                                 </label>
@@ -693,7 +693,7 @@ const MLStudio = () => {
                                             <div key={feat.id}
                                                  className="p-2 bg-slate-900/50 rounded-lg border border-slate-800">
                                                 <div
-                                                    className="text-[10px] font-medium text-fuchsia-400">{feat.label}</div>
+                                                    className="text-[10px] font-medium text-violet-400">{feat.label}</div>
                                                 <div className="text-[9px] text-slate-500 mt-1">{feat.description}</div>
                                             </div>
                                         ))}
@@ -707,7 +707,7 @@ const MLStudio = () => {
                                 disabled={isTraining || !config.symbol}
                                 className={`w-full mt-6 py-4 rounded-xl font-bold transition-all flex items-center justify-center gap-3 ${isTraining
                                     ? 'bg-slate-800 text-slate-400'
-                                    : 'bg-gradient-to-r from-violet-600 to-violet-600 hover:from-violet-500 hover:to-violet-500 text-white shadow-xl shadow-fuchsia-600/20'
+                                    : 'bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-violet-500 text-white shadow-xl shadow-violet-600/20'
                                 }`}
                             >
                                 {isTraining ? (
@@ -729,7 +729,7 @@ const MLStudio = () => {
                                 <div className="mt-4">
                                     <div className="h-2 bg-slate-800 rounded-full overflow-hidden">
                                         <div
-                                            className="h-full bg-gradient-to-r from-fuchsia-500 to-violet-500 transition-all duration-300"
+                                            className="h-full bg-gradient-to-r from-violet-500 to-indigo-500 transition-all duration-300"
                                             style={{width: `${trainingProgress}%`}}
                                         />
                                     </div>
@@ -750,12 +750,12 @@ const MLStudio = () => {
                         <div
                             className="bg-gradient-to-br from-slate-900/50 to-slate-950/50 border border-slate-800/50 rounded-2xl p-6">
                             <h4 className="text-sm font-bold text-slate-300 mb-4 flex items-center gap-2">
-                                <Info className="text-fuchsia-400" size={16}/>
+                                <Info className="text-violet-400" size={16}/>
                                 Model Information
                             </h4>
                             <div className="space-y-4">
                                 <div className="p-3 bg-slate-900/30 rounded-lg">
-                                    <p className="text-[10px] font-medium text-fuchsia-400 uppercase mb-1">Prediction
+                                    <p className="text-[10px] font-medium text-violet-400 uppercase mb-1">Prediction
                                         Target</p>
                                     <p className="text-xs text-slate-300">Price movement
                                         probability {config.threshold * 100}% over next 5 intervals</p>
@@ -834,8 +834,8 @@ const MLStudio = () => {
                     <div
                         className="bg-slate-900/30 border border-slate-800 p-6 rounded-2xl flex items-center justify-between">
                         <div className="flex items-center gap-4">
-                            <div className="w-12 h-12 bg-fuchsia-500/10 rounded-xl flex items-center justify-center">
-                                <Target className="text-fuchsia-400" size={24}/>
+                            <div className="w-12 h-12 bg-violet-500/10 rounded-xl flex items-center justify-center">
+                                <Target className="text-violet-400" size={24}/>
                             </div>
                             <div>
                                 <h4 className="text-sm font-bold text-white uppercase tracking-wider">Strategy Ready for
@@ -966,7 +966,7 @@ const MLStudio = () => {
                                 </button>
                             )}
                             <button
-                                className="px-4 py-2 bg-gradient-to-r from-fuchsia-600 to-violet-600 hover:from-fuchsia-500 hover:to-violet-500 rounded-lg text-white text-sm font-medium flex items-center gap-2 transition-all shadow-lg shadow-fuchsia-600/20">
+                                className="px-4 py-2 bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-violet-500 rounded-lg text-white text-sm font-medium flex items-center gap-2 transition-all shadow-lg shadow-violet-600/20">
                                 <Maximize2 size={16}/>
                                 Compare Models
                             </button>
@@ -980,7 +980,7 @@ const MLStudio = () => {
                             <p className="text-xs font-medium text-slate-500 mb-2">Training Accuracy</p>
                             <div className="flex items-end gap-2">
                                 <span
-                                    className="text-2xl font-bold text-fuchsia-400">{(selectedModel.accuracy * 100).toFixed(1)}%</span>
+                                    className="text-2xl font-bold text-violet-400">{(selectedModel.accuracy * 100).toFixed(1)}%</span>
                                 <span className="text-xs text-slate-500 mb-1">±2.3%</span>
                             </div>
                         </div>
@@ -1019,7 +1019,7 @@ const MLStudio = () => {
                             className="bg-gradient-to-br from-slate-900/50 to-slate-950/50 border border-slate-800/50 rounded-2xl p-6">
                             <div className="flex items-center justify-between mb-6">
                                 <h4 className="text-sm font-bold text-slate-300 flex items-center gap-2">
-                                    <BarChart3 className="text-fuchsia-500" size={18}/>
+                                    <BarChart3 className="text-violet-500" size={18}/>
                                     Feature Importance
                                 </h4>
                                 <span

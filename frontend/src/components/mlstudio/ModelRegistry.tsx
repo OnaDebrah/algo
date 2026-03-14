@@ -124,7 +124,7 @@ const ModelRegistry: React.FC<ModelRegistryProps> = ({
                             type="checkbox"
                             checked={showInactive}
                             onChange={(e) => setShowInactive(e.target.checked)}
-                            className="rounded accent-fuchsia-500"
+                            className="rounded accent-violet-500"
                         />
                         Show Inactive
                     </label>
@@ -136,7 +136,7 @@ const ModelRegistry: React.FC<ModelRegistryProps> = ({
                         <select
                             value={sortBy}
                             onChange={(e) => setSortBy(e.target.value as any)}
-                            className="bg-slate-900 border border-slate-800 rounded-lg px-3 py-1 text-sm text-slate-300 focus:border-fuchsia-500 outline-none"
+                            className="bg-slate-900 border border-slate-800 rounded-lg px-3 py-1 text-sm text-slate-300 focus:border-violet-500 outline-none"
                         >
                             <option value="date">Date Created</option>
                             <option value="accuracy">Accuracy</option>
@@ -177,7 +177,7 @@ const ModelRegistry: React.FC<ModelRegistryProps> = ({
                     <div className="text-slate-500 mb-3">No models found</div>
                     <button
                         onClick={() => setActiveTab('train')}
-                        className="px-4 py-2 bg-gradient-to-r from-fuchsia-600 to-violet-600 rounded-lg text-white text-sm font-medium hover:from-fuchsia-500 hover:to-violet-500 transition-all"
+                        className="px-4 py-2 bg-gradient-to-r from-violet-600 to-indigo-600 rounded-lg text-white text-sm font-medium hover:from-violet-500 hover:to-violet-500 transition-all"
                     >
                         Train Your First Model
                     </button>
@@ -188,7 +188,7 @@ const ModelRegistry: React.FC<ModelRegistryProps> = ({
                     {filteredAndSortedModels.map((model) => (
                         <div
                             key={model.id}
-                            className={`bg-gradient-to-br from-slate-900/50 to-slate-950/50 border ${selectedModel?.id === model.id ? 'border-fuchsia-500/50' : 'border-slate-800/50'} rounded-2xl p-5 hover:border-slate-700/50 transition-all cursor-pointer ${!model.is_active ? 'opacity-60' : ''}`}
+                            className={`bg-gradient-to-br from-slate-900/50 to-slate-950/50 border ${selectedModel?.id === model.id ? 'border-violet-500/50' : 'border-slate-800/50'} rounded-2xl p-5 hover:border-slate-700/50 transition-all cursor-pointer ${!model.is_active ? 'opacity-60' : ''}`}
                             onClick={() => {
                                 setSelectedModel(model);
                                 setActiveModelId(model.id);
@@ -218,7 +218,7 @@ const ModelRegistry: React.FC<ModelRegistryProps> = ({
                             <div className="grid grid-cols-3 gap-3 mb-4">
                                 <div className="text-center">
                                     <div
-                                        className="text-lg font-bold text-fuchsia-400">{(model.accuracy * 100).toFixed(1)}%
+                                        className="text-lg font-bold text-violet-400">{(model.accuracy * 100).toFixed(1)}%
                                     </div>
                                     <div className="text-xs text-slate-500">Accuracy</div>
                                 </div>

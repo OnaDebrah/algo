@@ -77,7 +77,13 @@ class Settings(BaseSettings):
     DEEPSEEK_API_KEY: str = os.getenv("DEEPSEEK_API_KEY", "")
     DEEPSEEK_MODEL: str = os.getenv("DEEPSEEK_MODEL", "deepseek-coder")
 
+    # Google Gemini (fallback for AI code generation)
+    GEMINI_API_KEY: str = os.getenv("GEMINI_API_KEY", "")
+    GEMINI_MODEL: str = os.getenv("GEMINI_MODEL", "gemini-2.0-flash")
+
+    # OpenAI / ChatGPT (fallback for AI code generation)
     OPENAI_API_KEY: str = os.getenv("OPENAI_API_KEY", "")
+    OPENAI_MODEL: str = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
 
     # Trading Defaults
     DEFAULT_INITIAL_CAPITAL: float = float(os.getenv("DEFAULT_INITIAL_CAPITAL", "100000"))
@@ -207,6 +213,8 @@ ML_MODELS_DIR = settings.ML_MODELS_DIR
 BLS_BASE_URL = settings.BLS_BASE_URL
 ANTHROPIC_MODEL_HAIKU_3 = settings.ANTHROPIC_MODEL_HAIKU_3
 ANTHROPIC_MODEL_SONNET_4 = settings.ANTHROPIC_MODEL_SONNET_4
+GEMINI_MODEL = settings.GEMINI_MODEL
+OPENAI_MODEL = settings.OPENAI_MODEL
 
 NEWSAPI_KEY = settings.NEWSAPI_KEY
 TWITTER_BEARER_TOKEN = settings.TWITTER_BEARER_TOKEN
@@ -249,6 +257,8 @@ def validate_settings():
         "BLS_API_KEY": "BLS economic data",
         "ALPACA_API_KEY": "Alpaca broker",
         "DEEPSEEK_API_KEY": "DeepSeek code generation (Strategy Builder fallback)",
+        "GEMINI_API_KEY": "Gemini code generation (Strategy Builder fallback)",
+        "OPENAI_API_KEY": "OpenAI/ChatGPT code generation (Strategy Builder fallback)",
     }
     for _key, _feature in _optional_keys.items():
         if not getattr(settings, _key, ""):
