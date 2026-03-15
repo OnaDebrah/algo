@@ -26,6 +26,8 @@ const PortfolioOptimization = lazy(() => import("@/components/portfolio/Portfoli
 const SectorScanner = lazy(() => import("@/components/sector/SectorScanner"));
 const StrategyBuilder = lazy(() => import("@/components/strategies/StrategyBuilder"));
 const Marketplace = lazy(() => import("@/components/marketplace/Marketplace"));
+const AdminDashboard = lazy(() => import("@/components/admin/AdminDashboard"));
+const PricingPage = lazy(() => import("@/components/pricing/PricingPage"));
 const SettingsPage = lazy(() => import("@/components/settings/SettingsPage"));
 
 export type PageKey =
@@ -42,6 +44,8 @@ export type PageKey =
   | 'sector-scanner'
   | 'strategy-builder'
   | 'marketplace'
+  | 'admin'
+  | 'pricing'
   | 'settings';
 
 const PAGE_COMPONENTS: Record<PageKey, React.ReactNode> = {
@@ -58,6 +62,8 @@ const PAGE_COMPONENTS: Record<PageKey, React.ReactNode> = {
   'sector-scanner': <SectorScanner />,
   'strategy-builder': <StrategyBuilder />,
   marketplace: <Marketplace />,
+  admin: <AdminDashboard />,
+  pricing: <PricingPage />,
   settings: <SettingsPage />,
 };
 
@@ -83,6 +89,7 @@ const AppShell: React.FC<AppShellProps> = () => {
         email: userData.email,
         tier: userData.tier,
         is_active: userData.is_active,
+        is_superuser: userData.is_superuser ?? false,
         created_at: userData.created_at,
         last_login: userData.last_login,
         country: userData.country ?? null,

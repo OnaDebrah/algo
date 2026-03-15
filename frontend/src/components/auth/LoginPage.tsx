@@ -66,6 +66,7 @@ const LoginPage = ({onLogin, setCurrentPage, onBackToLanding}: LoginPageProps) =
                     email: userData.email,
                     tier: userData.tier || 'FREE',
                     is_active: userData.is_active,
+                    is_superuser: userData.is_superuser ?? false,
                     created_at: userData.created_at,
                     last_login: userData.last_login,
                     country: userData.country,

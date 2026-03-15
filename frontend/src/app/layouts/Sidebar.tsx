@@ -12,6 +12,7 @@ import {
     Package,
     Settings,
     Shield,
+    ShieldCheck,
     Target,
     TrendingUp,
     Zap
@@ -62,7 +63,7 @@ const Sidebar = ({currentPage, setCurrentPage, user, onLogout}: any) => {
 
     const bottomItems = [
         {id: 'marketplace', icon: Package, label: 'Marketplace'},
-        {id: 'settings', icon: Settings, label: 'Settings'}
+        ...(user?.is_superuser ? [{id: 'admin', icon: ShieldCheck, label: 'Admin'}] : []),
     ];
 
     const toggleSection = (sectionTitle: string) => {
@@ -173,16 +174,13 @@ const Sidebar = ({currentPage, setCurrentPage, user, onLogout}: any) => {
                         className="absolute bottom-full left-3 right-3 mb-2 glass-panel rounded-xl overflow-hidden animate-in slide-in-from-bottom-2 fade-in duration-200">
                         <div className="p-3 space-y-1">
                             <button
+                                onClick={() => { setCurrentPage('settings'); setShowUserMenu(false); }}
                                 className="w-full flex items-center space-x-3 px-3 py-2 text-sm text-slate-300 hover:bg-slate-700/50 rounded-lg transition-colors">
                                 <Settings size={16} className="text-violet-400"/>
                                 <span>Account Settings</span>
                             </button>
                             <button
-                                className="w-full flex items-center space-x-3 px-3 py-2 text-sm text-slate-300 hover:bg-slate-700/50 rounded-lg transition-colors">
-                                <Shield size={16} className="text-blue-400"/>
-                                <span>Security</span>
-                            </button>
-                            <button
+                                onClick={() => { setCurrentPage('pricing'); setShowUserMenu(false); }}
                                 className="w-full flex items-center space-x-3 px-3 py-2 text-sm text-slate-300 hover:bg-slate-700/50 rounded-lg transition-colors">
                                 <CreditCard size={16} className="text-emerald-400"/>
                                 <span>Billing</span>

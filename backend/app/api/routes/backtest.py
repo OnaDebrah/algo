@@ -14,7 +14,7 @@ from sqlalchemy import desc, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from statsmodels.tsa.stattools import coint
 
-from ...api.deps import check_permission, get_current_active_user, get_current_user, get_db
+from ...api.deps import check_permission, enforce_backtest_quota, get_current_active_user, get_current_user, get_db
 from ...celery_app import celery_app
 from ...core import fetch_stock_data
 from ...core.permissions import Permission
@@ -43,7 +43,10 @@ router = APIRouter(prefix="/backtest", tags=["Backtest"])
 
 @router.post("/single")
 async def run_single_backtest(
-    request: BacktestRequest, current_user: User = Depends(check_permission(Permission.BASIC_BACKTEST)), db: AsyncSession = Depends(get_db)
+    request: BacktestRequest,
+    _quota_user: User = Depends(enforce_backtest_quota()),
+    current_user: User = Depends(check_permission(Permission.BASIC_BACKTEST)),
+    db: AsyncSession = Depends(get_db),
 ):
     """Run single asset backtest (dispatched to background worker)"""
     # Track usage
@@ -78,6 +81,7 @@ async def run_single_backtest(
 @router.post("/multi")
 async def run_multi_asset_backtest(
     request: MultiAssetBacktestRequest,
+    _quota_user: User = Depends(enforce_backtest_quota()),
     current_user: User = Depends(check_permission(Permission.MULTI_ASSET_BACKTEST)),
     db: AsyncSession = Depends(get_db),
 ):
@@ -114,7 +118,10 @@ async def run_multi_asset_backtest(
 
 @router.post("/options", response_model=OptionsBacktestResponse)
 async def run_options_backtest(
-    request: OptionsBacktestRequest, current_user: User = Depends(check_permission(Permission.ML_STRATEGIES)), db: AsyncSession = Depends(get_db)
+    request: OptionsBacktestRequest,
+    _quota_user: User = Depends(enforce_backtest_quota()),
+    current_user: User = Depends(check_permission(Permission.ML_STRATEGIES)),
+    db: AsyncSession = Depends(get_db),
 ):
     """Run options backtest"""
     await AuthService.track_usage(db, current_user.id, "run_backtest_options", {"symbol": request.symbol})

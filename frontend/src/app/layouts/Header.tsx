@@ -35,6 +35,8 @@ type PageKey =
   | 'sector-scanner'
   | 'strategy-builder'
   | 'marketplace'
+  | 'admin'
+  | 'pricing'
   | 'settings';
 
 const Header = ({ user, currentPage, serverStatus = false, onLogout }: HeaderProps) => {

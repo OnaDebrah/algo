@@ -299,7 +299,14 @@ export const useBacktestStore = create<BacktestState>((set, get) => ({
             }
         } catch (error: any) {
             console.error("Backtest failed", error);
-            set({ backtestError: error?.message || "Backtest failed. Check server logs for details." });
+            // Preserve 429 quota detail for the UI to detect
+            const status = error?.response?.status;
+            const detail = error?.response?.data?.detail;
+            if (status === 429 && detail && typeof detail === 'object') {
+                set({ backtestError: JSON.stringify({ quota_exceeded: true, ...detail }) });
+            } else {
+                set({ backtestError: error?.message || "Backtest failed. Check server logs for details." });
+            }
         } finally {
             set({ isRunning: false });
         }

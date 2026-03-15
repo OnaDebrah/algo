@@ -75,7 +75,7 @@ class Settings(BaseSettings):
 
     # DeepSeek (fallback for AI code generation)
     DEEPSEEK_API_KEY: str = os.getenv("DEEPSEEK_API_KEY", "")
-    DEEPSEEK_MODEL: str = os.getenv("DEEPSEEK_MODEL", "deepseek-coder")
+    DEEPSEEK_MODEL: str = os.getenv("DEEPSEEK_MODEL", "deepseek-reasoner")
 
     # Google Gemini (fallback for AI code generation)
     GEMINI_API_KEY: str = os.getenv("GEMINI_API_KEY", "")
@@ -107,6 +107,13 @@ class Settings(BaseSettings):
     DEFAULT_ML_TEST_SIZE: float = 0.2
     DEFAULT_ML_THRESHOLD: float = 0.002
     ML_MODELS_DIR: str = os.getenv("ML_MODELS_DIR", "ml_models")
+
+    # Launch Promo & Backtest Quotas
+    LAUNCH_PROMO_START: str = os.getenv("LAUNCH_PROMO_START", "2026-04-01")
+    LAUNCH_PROMO_MONTHS: int = int(os.getenv("LAUNCH_PROMO_MONTHS", "6"))
+    BACKTEST_LIMIT_FREE: int = int(os.getenv("BACKTEST_LIMIT_FREE", "20"))
+    BACKTEST_LIMIT_BASIC: int = int(os.getenv("BACKTEST_LIMIT_BASIC", "100"))
+    BACKTEST_LIMIT_PRO: int = int(os.getenv("BACKTEST_LIMIT_PRO", "500"))
 
     # Rate Limiting
     RATE_LIMIT_PER_MINUTE: int = int(os.getenv("RATE_LIMIT_PER_MINUTE", "60"))

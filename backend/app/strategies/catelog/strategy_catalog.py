@@ -21,6 +21,7 @@ from ...strategies.catelog.statistical_arbitrage import StatisticalArbitrage
 from ...strategies.catelog.strategy_info import StrategyInfo
 from ...strategies.catelog.trend_following import TrendFollowing
 from ...strategies.catelog.volatility import Volatility
+from .reinforcement_learning import ReinforcementLearning
 from .visual_builder import VisualBuilder
 
 logger = logging.getLogger(__name__)
@@ -44,6 +45,7 @@ class StrategyCatalog:
             "machine_learning": ML(),
             "deep_learning": DeepLearning(),
             "genetic": Genetic(),
+            "reinforcement_learning": ReinforcementLearning(),
             "visual_builder": VisualBuilder(),
         }
 

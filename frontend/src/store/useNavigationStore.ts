@@ -14,6 +14,8 @@ type PageKey =
     | 'sector-scanner'
     | 'strategy-builder'
     | 'marketplace'
+    | 'admin'
+    | 'pricing'
     | 'settings';
 
 interface NavigationState {

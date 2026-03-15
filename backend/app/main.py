@@ -16,6 +16,7 @@ from sqlalchemy.exc import SQLAlchemyError
 
 from .api.middleware.rate_limit import RateLimitMiddleware
 from .api.routes import (
+    admin,
     advisor,
     alerts,
     analyst,
@@ -23,6 +24,7 @@ from .api.routes import (
     auth,
     backtest,
     crash_prediction,
+    deploy_optimize,
     health,
     market,
     marketplace,
@@ -30,6 +32,7 @@ from .api.routes import (
     optimise,
     options,
     portfolio,
+    pricing,
     regime,
     root,
     sector,
@@ -119,6 +122,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+app.include_router(admin.router)
 app.include_router(auth.router)
 app.include_router(backtest.router)
 app.include_router(portfolio.router)
@@ -140,6 +144,8 @@ app.include_router(settings_router.router)
 app.include_router(health.router)
 app.include_router(sector.router)
 app.include_router(crash_prediction.router)
+app.include_router(deploy_optimize.router)
+app.include_router(pricing.router)
 app.include_router(root.router)
 
 

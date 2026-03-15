@@ -89,7 +89,13 @@ import {
     UserLogin,
     UserSettings,
     WFARequest,
-    WFAResponse
+    WFAResponse,
+    AdminUserListItem,
+    AdminUserDetail,
+    AdminStats,
+    PricingData,
+    QuotaStatus,
+    OptimizePreviewResponse
 } from '@/types/all_types';
 import {
     BaseOptimizationRequest,
@@ -988,6 +994,53 @@ export const portfolioHelpers = {
     },
 };
 
+// ==================== ADMIN ====================
+export const admin = {
+    getUsers: (params?: { search?: string; tier?: string; is_active?: boolean; limit?: number; offset?: number }) =>
+        client.get<AdminUserListItem[]>('/admin/users', { params }) as Promise<AdminUserListItem[]>,
+
+    getUser: (userId: number) =>
+        client.get<AdminUserDetail>(`/admin/users/${userId}`) as Promise<AdminUserDetail>,
+
+    updateTier: (userId: number, tier: string) =>
+        client.put(`/admin/users/${userId}/tier`, { tier }),
+
+    updateStatus: (userId: number, is_active: boolean) =>
+        client.put(`/admin/users/${userId}/status`, { is_active }),
+
+    getStats: () =>
+        client.get<AdminStats>('/admin/stats') as Promise<AdminStats>,
+
+    getUsage: (params?: { action?: string; days?: number; limit?: number; offset?: number }) =>
+        client.get('/admin/usage', { params }),
+};
+
+// ==================== PRICING & QUOTA ====================
+export const pricing = {
+    getTiers: () =>
+        client.get<PricingData>('/pricing/tiers') as Promise<PricingData>,
+
+    getQuota: () =>
+        client.get<QuotaStatus>('/pricing/quota') as Promise<QuotaStatus>,
+};
+
+// ==================== DEPLOY OPTIMIZATION ====================
+export const deployOptimize = {
+    preview: (symbols: string[], lookbackDays: number = 252, initialCapital: number = 100000) =>
+        client.post<OptimizePreviewResponse>('/deploy/optimize-preview', {
+            symbols,
+            lookback_days: lookbackDays,
+            initial_capital: initialCapital,
+        }) as Promise<OptimizePreviewResponse>,
+
+    apply: (symbols: string[], method: string, lookbackDays: number = 252) =>
+        client.post('/deploy/optimize-apply', {
+            symbols,
+            method,
+            lookback_days: lookbackDays,
+        }),
+};
+
 // ==================== SETTINGS ====================
 export const settings = {
     get: () =>
@@ -1101,6 +1154,9 @@ export const api = {
     marketplace,
     mlstudio,
     options,
+    admin,
+    pricing,
+    deployOptimize,
     settings,
     health,
 

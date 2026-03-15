@@ -56,9 +56,19 @@ def _sanitize_value(value):
     return value
 
 
-# ML strategy keys that require training before backtesting.
+# ML / RL strategy keys that require training before backtesting.
 # These strategies have is_trained flags and return zeros if not trained.
-ML_STRATEGY_KEYS = {"ml_random_forest", "ml_gradient_boosting", "ml_svm", "ml_logistic", "ml_lstm"}
+ML_STRATEGY_KEYS = {
+    "ml_random_forest",
+    "ml_gradient_boosting",
+    "ml_svm",
+    "ml_logistic",
+    "ml_lstm",
+    "rl_portfolio_allocator",
+    "rl_regime_allocator",
+    "rl_risk_sensitive",
+    "rl_sentiment_trader",
+}
 
 # ML strategies that self-train during signal generation (no explicit train() needed for backtest)
 ML_SELF_TRAINING_KEYS = {"mc_ml_sentiment", "genetic_programming"}

@@ -12,6 +12,9 @@ import {BacktestResultToDeploy, DeploymentConfig, MultiAssetConfig, Strategy, St
 import {live, strategy as strategyApi} from "@/utils/api";
 import DeploymentModal from "@/components/strategies/DeploymentModel";
 import {useBacktestStore} from "@/store/useBacktestStore";
+import QuotaIndicator from "@/components/common/QuotaIndicator";
+import UpgradePrompt from "@/components/common/UpgradePrompt";
+import PortfolioOptimizeStep from "@/components/strategies/PortfolioOptimizeStep";
 
 const BacktestPage = () => {
     const {
@@ -28,6 +31,8 @@ const BacktestPage = () => {
     const [showDeploymentModal, setShowDeploymentModal] = useState(false);
     const [deploymentBacktest, setDeploymentBacktest] = useState<BacktestResultToDeploy | null>(null);
     const [deploymentStatus, setDeploymentStatus] = useState<'idle' | 'deploying' | 'success' | 'error'>('idle');
+    const [showUpgradePrompt, setShowUpgradePrompt] = useState<{used: number; limit: number; tier: string} | null>(null);
+    const [showOptimizeStep, setShowOptimizeStep] = useState(false);
 
     useEffect(() => {
         const fetchStrategies: () => Promise<void> = async () => {
@@ -90,9 +95,33 @@ const BacktestPage = () => {
         });
     };
 
+    // Detect 429 quota errors and show UpgradePrompt
+    useEffect(() => {
+        if (backtestError) {
+            try {
+                const parsed = JSON.parse(backtestError);
+                if (parsed.quota_exceeded) {
+                    setShowUpgradePrompt({ used: parsed.used, limit: parsed.limit, tier: parsed.tier });
+                }
+            } catch { /* not a JSON quota error — ignore */ }
+        }
+    }, [backtestError]);
+
     const activeResults = backtestMode === 'single' ? singleResults : multiResults;
 
     const handleGoLive = () => {
+        if (!activeResults) return;
+
+        // For multi-asset backtests, show optimization step first
+        if (backtestMode === 'multi' && multiConfig.symbols.length >= 2) {
+            setShowOptimizeStep(true);
+            return;
+        }
+
+        openDeploymentModal();
+    };
+
+    const openDeploymentModal = (optimizedWeights?: Record<string, number>) => {
         if (!activeResults) return;
 
         const config = backtestMode === 'single' ? singleConfig : multiConfig;
@@ -100,7 +129,10 @@ const BacktestPage = () => {
             id: `bt_${Date.now()}`,
             strategy: backtestMode === 'single' ? config.strategy : multiConfig.strategy,
             symbols: backtestMode === 'single' ? [singleConfig.symbol] : multiConfig.symbols,
-            parameters: backtestMode === 'single' ? singleConfig.params : multiConfig.params,
+            parameters: {
+                ...(backtestMode === 'single' ? singleConfig.params : multiConfig.params),
+                ...(optimizedWeights ? { optimized_weights: optimizedWeights } : {}),
+            },
             total_return_pct: activeResults.total_return_pct,
             sharpe_ratio: activeResults.sharpe_ratio,
             max_drawdown: activeResults.max_drawdown,
@@ -146,6 +178,7 @@ const BacktestPage = () => {
                 </div>
 
                 <div className="flex items-center space-x-4">
+                    <QuotaIndicator className="mr-2" />
                     <div
                         className="flex items-center space-x-1 bg-slate-800/60 border border-slate-700/50 rounded-xl p-1">
                         <button
@@ -258,6 +291,32 @@ const BacktestPage = () => {
                         setDeploymentStatus('idle');
                     }}
                     onDeploy={handleDeploy}
+                />
+            )}
+
+            {/* Portfolio Optimization Step (multi-asset only) */}
+            {showOptimizeStep && (
+                <PortfolioOptimizeStep
+                    symbols={multiConfig.symbols}
+                    onSelect={(weights, _method) => {
+                        setShowOptimizeStep(false);
+                        openDeploymentModal(weights);
+                    }}
+                    onSkip={() => {
+                        setShowOptimizeStep(false);
+                        openDeploymentModal();
+                    }}
+                    onClose={() => setShowOptimizeStep(false)}
+                />
+            )}
+
+            {/* Upgrade Prompt (on 429 quota exceeded) */}
+            {showUpgradePrompt && (
+                <UpgradePrompt
+                    used={showUpgradePrompt.used}
+                    limit={showUpgradePrompt.limit}
+                    tier={showUpgradePrompt.tier}
+                    onClose={() => setShowUpgradePrompt(null)}
                 />
             )}
         </div>
