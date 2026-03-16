@@ -198,6 +198,9 @@ class MarketplaceService:
             # Marketplace fields from listing (NOT backtest_results)
             price=listing.price,
             is_public=listing.is_public,
+            is_proprietary=getattr(listing, "is_proprietary", False),
+            status=getattr(listing, "status", "approved"),
+            custom_strategy_id=getattr(listing, "custom_strategy_id", None),
             is_verified=listing.is_verified,
             verification_badge=listing.verification_badge,
             version=listing.version,
@@ -253,7 +256,10 @@ class MarketplaceService:
         offset: int = 0,
     ) -> List[MarketplaceStrategy]:
         """Browse strategies with performance-based filters."""
-        stmt = select(MarketplaceStrategy).where(MarketplaceStrategy.is_public == True)  # noqa: E712
+        stmt = select(MarketplaceStrategy).where(
+            MarketplaceStrategy.is_public == True,  # noqa: E712
+            MarketplaceStrategy.status == "approved",
+        )
 
         if category:
             stmt = stmt.where(MarketplaceStrategy.category == category)

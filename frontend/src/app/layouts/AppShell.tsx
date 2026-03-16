@@ -1,16 +1,17 @@
 'use client'
 
-import React, { lazy, Suspense, useState, useEffect, useCallback } from 'react';
+import React, {lazy, Suspense, useCallback, useEffect, useState} from 'react';
 import LoginPage from "@/components/auth/LoginPage";
 import LandingPage from "@/components/landing/LandingPage";
-import { TickerTape } from "@/components/widgets/TickerTape";
-import { CommandPalette } from "@/components/common/CommandPalette";
+import {TickerTape} from "@/components/widgets/TickerTape";
+import {CommandPalette} from "@/components/common/CommandPalette";
 import ErrorBoundary from "@/components/common/ErrorBoundary";
 import Sidebar from "@/app/layouts/Sidebar";
 import Header from "@/app/layouts/Header";
-import { User } from "@/types/all_types";
-import { api } from '@/utils/api';
-import { useNavigationStore } from '@/store/useNavigationStore';
+import {User} from "@/types/all_types";
+import {api} from '@/utils/api';
+import {useNavigationStore} from '@/store/useNavigationStore';
+import {UserProvider} from '@/contexts/UserContext';
 
 // ── Lazy-loaded page components (each gets its own chunk) ─────────
 const Dashboard = lazy(() => import("@/components/dashboard/Dashboard"));
@@ -26,6 +27,8 @@ const PortfolioOptimization = lazy(() => import("@/components/portfolio/Portfoli
 const SectorScanner = lazy(() => import("@/components/sector/SectorScanner"));
 const StrategyBuilder = lazy(() => import("@/components/strategies/StrategyBuilder"));
 const Marketplace = lazy(() => import("@/components/marketplace/Marketplace"));
+const AdminDashboard = lazy(() => import("@/components/admin/AdminDashboard"));
+const PricingPage = lazy(() => import("@/components/pricing/PricingPage"));
 const SettingsPage = lazy(() => import("@/components/settings/SettingsPage"));
 
 export type PageKey =
@@ -42,6 +45,8 @@ export type PageKey =
   | 'sector-scanner'
   | 'strategy-builder'
   | 'marketplace'
+  | 'admin'
+  | 'pricing'
   | 'settings';
 
 const PAGE_COMPONENTS: Record<PageKey, React.ReactNode> = {
@@ -58,6 +63,8 @@ const PAGE_COMPONENTS: Record<PageKey, React.ReactNode> = {
   'sector-scanner': <SectorScanner />,
   'strategy-builder': <StrategyBuilder />,
   marketplace: <Marketplace />,
+  admin: <AdminDashboard />,
+  pricing: <PricingPage />,
   settings: <SettingsPage />,
 };
 
@@ -83,6 +90,7 @@ const AppShell: React.FC<AppShellProps> = () => {
         email: userData.email,
         tier: userData.tier,
         is_active: userData.is_active,
+        is_superuser: userData.is_superuser ?? false,
         created_at: userData.created_at,
         last_login: userData.last_login,
         country: userData.country ?? null,
@@ -220,20 +228,22 @@ const AppShell: React.FC<AppShellProps> = () => {
           />
 
           <main className="mt-6 animate-fade-in">
-            <Suspense
-              fallback={
-                <div className="flex items-center justify-center min-h-[60vh]">
-                  <div className="text-center">
-                    <div className="w-10 h-10 border-3 border-violet-500 border-t-transparent rounded-full animate-spin mx-auto" />
-                    <p className="mt-3 text-sm text-slate-400">Loading…</p>
+            <UserProvider user={user}>
+              <Suspense
+                fallback={
+                  <div className="flex items-center justify-center min-h-[60vh]">
+                    <div className="text-center">
+                      <div className="w-10 h-10 border-3 border-violet-500 border-t-transparent rounded-full animate-spin mx-auto" />
+                      <p className="mt-3 text-sm text-slate-400">Loading…</p>
+                    </div>
                   </div>
-                </div>
-              }
-            >
-              <ErrorBoundary key={currentPage} onReset={() => setCurrentPage('dashboard')}>
-                {PAGE_COMPONENTS[currentPage]}
-              </ErrorBoundary>
-            </Suspense>
+                }
+              >
+                <ErrorBoundary key={currentPage} onReset={() => setCurrentPage('dashboard')}>
+                  {PAGE_COMPONENTS[currentPage]}
+                </ErrorBoundary>
+              </Suspense>
+            </UserProvider>
           </main>
 
           {/* Status indicator */}

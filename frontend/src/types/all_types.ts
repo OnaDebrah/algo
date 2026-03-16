@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+
 export type ScalarParam = string | number | boolean;
 
 export interface ValidationError {
@@ -18,6 +20,7 @@ export interface User {
     id: number;
     tier: string;
     is_active: boolean;
+    is_superuser: boolean;
     created_at: string;
     last_login: string | null;
     country: string | null;
@@ -1164,6 +1167,7 @@ export interface StrategyPublishRequest {
     recommended_capital?: number;
     backtest_id?: number | null;
     strategy_key?: string | null;
+    custom_strategy_id?: number;
 }
 
 export interface MarketplaceFilterParams {
@@ -1204,7 +1208,13 @@ export interface TrainingEpoch {
 }
 
 export interface MLPerformanceHistory {
-
+    id: string,
+    portfolio_id: number,
+    timestamp: string,
+    equity: number,
+    cash: number,
+    total_return: number,
+    created_at: string
 }
 
 export interface MLModel {
@@ -1241,6 +1251,9 @@ export interface TrainingConfig {
     threshold: number;
     use_feature_engineering: boolean;
     use_cross_validation: boolean;
+    // RL-specific fields (optional — only used when model_type is an RL strategy)
+    episodes?: number;
+    gamma?: number;
 }
 
 // ==================== OPTIONS ANALYTICS ====================
@@ -1769,6 +1782,92 @@ export interface AlertEvent {
     title: string;
     message: string;
     timestamp: string;
+}
+
+// ==================== ADMIN DASHBOARD ====================
+
+export interface AdminUserListItem {
+    id: number;
+    username: string;
+    email: string;
+    tier: string;
+    is_active: boolean;
+    is_superuser: boolean;
+    created_at: string | null;
+    last_login: string | null;
+    backtest_count: number;
+}
+
+export interface AdminUsageLogItem {
+    id: number;
+    action: string;
+    timestamp: string | null;
+    metadata: string | null;
+}
+
+export interface AdminUserDetail extends AdminUserListItem {
+    country: string | null;
+    investor_type: string | null;
+    risk_profile: string | null;
+    usage_logs: AdminUsageLogItem[];
+}
+
+export interface AdminStats {
+    total_users: number;
+    users_by_tier: Record<string, number>;
+    active_today: number;
+    total_backtests: number;
+    backtests_by_type: Record<string, number>;
+    backtests_today: number;
+    backtests_this_week: number;
+    backtests_this_month: number;
+    active_live_strategies: number;
+    models_trained: number;
+}
+
+// ==================== PRICING & QUOTA ====================
+
+export interface TierDefinition {
+    tier: string;
+    price: number;
+    label: string;
+    backtest_limit: number | null;
+    features: string[];
+}
+
+export interface PromoInfo {
+    active: boolean;
+    message: string | null;
+    ends_at: string | null;
+}
+
+export interface PricingData {
+    tiers: TierDefinition[];
+    promo: PromoInfo;
+}
+
+export interface QuotaStatus {
+    tier: string;
+    allowed: boolean;
+    used: number;
+    limit: number | null;
+    remaining: number | null;
+}
+
+// ==================== DEPLOY OPTIMIZATION ====================
+
+export interface OptimizationResult {
+    weights: Record<string, number>;
+    expected_return: number;
+    volatility: number;
+    sharpe: number;
+    method: string;
+}
+
+export interface OptimizePreviewResponse {
+    methods: Record<string, OptimizationResult>;
+    symbols: string[];
+    equal_weight_baseline: OptimizationResult;
 }
 
 // ==================== UTILITY TYPES ====================

@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+
 import React, { useMemo, useState } from 'react';
 import {
     Activity,
@@ -116,7 +118,7 @@ const WalkForwardAnalysis: React.FC<WalkForwardAnalysisProps> = ({ strategies }:
                         <div className="space-y-2">
                             <label className="text-slate-400 text-sm font-bold flex items-center space-x-2 px-1">
                                 <Activity size={14} />
-                                <span>Ticker Symbol</span>
+                                <span>Ticker</span>
                             </label>
                             <input
                                 type="text"

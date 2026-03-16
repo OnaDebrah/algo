@@ -1,25 +1,64 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+
 'use client'
-import React, { useState, useEffect, useMemo } from 'react';
+import React, {useEffect, useMemo, useState} from 'react';
 import {
-    Target, Wand2, Code2, FlaskConical, BookOpen,
-    Play, Save, Download, ChevronRight, Sparkles,
-    Trash2, Copy, History, Terminal, LineChart,
-    Settings2, Info, AlertCircle, TrendingUp, CheckCircle2,
-    Brain, Cpu, Zap, FileCode, GitBranch, Cog,
-    Database, Shield, Timer, DollarSign, BarChart3,
-    Maximize2, Minimize2, Eye, EyeOff, Layers,
-    Puzzle, Rocket, RefreshCw, Upload, Share2,
-    Variable, Filter, GitMerge, GitPullRequest,
-    MousePointerClick, MousePointer
+    AlertCircle,
+    BarChart3,
+    BookOpen,
+    Brain,
+    CheckCircle2,
+    Code2,
+    Cog,
+    Copy,
+    Cpu,
+    DollarSign,
+    Download,
+    Eye,
+    FileCode,
+    Filter,
+    FlaskConical,
+    GitBranch,
+    GitMerge,
+    History,
+    Info,
+    LineChart,
+    Maximize2,
+    Minimize2,
+    MousePointerClick,
+    Play,
+    Puzzle,
+    RefreshCw,
+    Save,
+    Settings2,
+    Share2,
+    Shield,
+    Sparkles,
+    Target,
+    Timer,
+    Trash2,
+    TrendingUp,
+    Variable,
+    Zap
 } from "lucide-react";
 import {
-    ResponsiveContainer, AreaChart, Area, XAxis, YAxis,
-    CartesianGrid, Tooltip, Legend, Line,
-    BarChart, Bar, ScatterChart, Scatter, ZAxis
+    Area,
+    AreaChart,
+    CartesianGrid,
+    ResponsiveContainer,
+    Scatter,
+    ScatterChart,
+    Tooltip,
+    XAxis,
+    YAxis,
+    ZAxis
 } from 'recharts';
-import { strategy as strategyApi } from '@/utils/api';
-import type { CustomStrategy as CustomStrategyType, StrategyGenerateResponse } from '@/utils/api';
+import type {CustomStrategy as CustomStrategyType, StrategyGenerateResponse} from '@/utils/api';
+import {marketplace, strategy as strategyApi} from '@/utils/api';
 import TickerSearch from "@/components/common/TickerSearch";
+import PublishModal from "@/components/strategies/PublishModel";
+import {PublishData} from "@/types/publish";
+import {Upload} from "lucide-react";
 
 const STRATEGY_TEMPLATES = [
     {
@@ -65,87 +104,128 @@ const STRATEGY_COMPONENTS = [
     { name: "Trend Filter", type: "Filter", color: "bg-indigo-500", icon: TrendingUp },
 ];
 
+// ── Python syntax highlighter (zero-dependency, regex-based) ──────────────
+
+const PY_KEYWORDS = new Set([
+    'False', 'None', 'True', 'and', 'as', 'assert', 'async', 'await',
+    'break', 'class', 'continue', 'def', 'del', 'elif', 'else', 'except',
+    'finally', 'for', 'from', 'global', 'if', 'import', 'in', 'is',
+    'lambda', 'nonlocal', 'not', 'or', 'pass', 'raise', 'return', 'try',
+    'while', 'with', 'yield',
+]);
+
+const PY_BUILTINS = new Set([
+    'abs', 'all', 'any', 'bin', 'bool', 'bytes', 'callable', 'chr',
+    'dict', 'dir', 'divmod', 'enumerate', 'eval', 'filter', 'float',
+    'format', 'frozenset', 'getattr', 'globals', 'hasattr', 'hash',
+    'hex', 'id', 'input', 'int', 'isinstance', 'issubclass', 'iter',
+    'len', 'list', 'locals', 'map', 'max', 'min', 'next', 'object',
+    'oct', 'open', 'ord', 'pow', 'print', 'property', 'range',
+    'repr', 'reversed', 'round', 'set', 'setattr', 'slice', 'sorted',
+    'staticmethod', 'str', 'sum', 'super', 'tuple', 'type', 'vars', 'zip',
+]);
+
+function escapeHtml(s: string): string {
+    return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+function highlightPython(code: string): string {
+    // Tokenize via a single regex with numbered capture groups (order matters)
+    // Groups: 1=tripleStr, 2=comment, 3=string, 4=decorator, 5=number, 6=word, 7=op, 8=space
+    const tokenRe =
+        /("""[\s\S]*?"""|'''[\s\S]*?''')|(#[^\n]*)|("(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*')|(@\w+(?:\.\w+)*)|(\b\d+(?:\.\d+)?(?:[eE][+-]?\d+)?\b)|(\b[A-Za-z_]\w*\b)|([+\-*/%=<>!&|^~:;,.\[\](){}])|(\s+)/g;
+
+    let result = '';
+    let lastIndex = 0;
+    let m: RegExpExecArray | null;
+
+    while ((m = tokenRe.exec(code)) !== null) {
+        // Include any gap characters as plain text
+        if (m.index > lastIndex) {
+            result += escapeHtml(code.slice(lastIndex, m.index));
+        }
+        lastIndex = m.index + m[0].length;
+        const text = m[0];
+
+        if (m[1]) {
+            // Triple-quoted string
+            result += `<span class="text-emerald-400">${escapeHtml(text)}</span>`;
+        } else if (m[2]) {
+            // Comment
+            result += `<span class="text-slate-500 italic">${escapeHtml(text)}</span>`;
+        } else if (m[3]) {
+            // String
+            result += `<span class="text-emerald-400">${escapeHtml(text)}</span>`;
+        } else if (m[4]) {
+            // Decorator
+            result += `<span class="text-yellow-400">${escapeHtml(text)}</span>`;
+        } else if (m[5]) {
+            // Number
+            result += `<span class="text-amber-400">${escapeHtml(text)}</span>`;
+        } else if (m[6]) {
+            // Word — check if keyword or builtin
+            if (PY_KEYWORDS.has(text)) {
+                result += `<span class="text-violet-400 font-semibold">${escapeHtml(text)}</span>`;
+            } else if (PY_BUILTINS.has(text)) {
+                result += `<span class="text-blue-400">${escapeHtml(text)}</span>`;
+            } else {
+                result += `<span class="text-slate-300">${escapeHtml(text)}</span>`;
+            }
+        } else if (m[7]) {
+            // Operator/punctuation
+            result += `<span class="text-slate-400">${escapeHtml(text)}</span>`;
+        } else {
+            // Whitespace — preserve as-is
+            result += text;
+        }
+    }
+    // Trailing characters
+    if (lastIndex < code.length) {
+        result += escapeHtml(code.slice(lastIndex));
+    }
+    return result;
+}
+
 const StrategyBuilder = () => {
     const [activeTab, setActiveTab] = useState('ai');
     const [prompt, setPrompt] = useState("");
     const [code, setCode] = useState(`import pandas as pd
 import numpy as np
-from typing import Dict, List
 
-class QuantumMomentumStrategy:
+def generate_signals(data: pd.DataFrame) -> pd.Series:
     """
-    Advanced neural momentum strategy with dynamic risk management
+    Momentum strategy with RSI confirmation.
+
+    Buy when price crosses above 20-day SMA and RSI < 70.
+    Sell when price crosses below 20-day SMA and RSI > 30.
+
+    Args:
+        data: DataFrame with columns: Open, High, Low, Close, Volume
+    Returns:
+        Series of signals: 1 (buy), -1 (sell), 0 (hold)
     """
+    signals = pd.Series(0, index=data.index)
+    close = data["Close"]
 
-    def __init__(self, params: Dict):
-        self.lookback_period = params.get('lookback', 20)
-        self.volatility_threshold = params.get('volatility_thresh', 0.02)
-        self.risk_per_trade = params.get('risk_per_trade', 0.02)
+    # --- Moving Average ---
+    sma_20 = close.rolling(window=20).mean()
 
-    def calculate_features(self, data: pd.DataFrame) -> pd.DataFrame:
-        """
-        Calculate technical features for ML model
-        """
-        # Price momentum features
-        data['returns'] = data['close'].pct_change()
-        data['log_returns'] = np.log(data['close'] / data['close'].shift(1))
+    # --- RSI (14-period) ---
+    delta = close.diff()
+    gain = delta.where(delta > 0, 0).rolling(14).mean()
+    loss = (-delta.where(delta < 0, 0)).rolling(14).mean()
+    rs = gain / loss
+    rsi = 100 - (100 / (1 + rs))
 
-        # Volatility features
-        data['volatility'] = data['returns'].rolling(self.lookback_period).std()
-        data['atr'] = self.calculate_atr(data)
+    # --- Buy signal: price crosses above SMA + RSI not overbought ---
+    buy = (close > sma_20) & (close.shift(1) <= sma_20.shift(1)) & (rsi < 70)
+    signals[buy] = 1
 
-        # Volume features
-        data['volume_sma'] = data['volume'].rolling(20).mean()
-        data['volume_ratio'] = data['volume'] / data['volume_sma']
+    # --- Sell signal: price crosses below SMA + RSI not oversold ---
+    sell = (close < sma_20) & (close.shift(1) >= sma_20.shift(1)) & (rsi > 30)
+    signals[sell] = -1
 
-        return data.dropna()
-
-    def generate_signals(self, data: pd.DataFrame) -> pd.Series:
-        """
-        Generate trading signals using multi-factor analysis
-        """
-        signals = pd.Series(0, index=data.index)
-
-        # Momentum condition
-        momentum_up = data['close'] > data['close'].rolling(20).mean()
-
-        # Volume confirmation
-        volume_confirmed = data['volume_ratio'] > 1.2
-
-        # Low volatility environment
-        low_vol = data['volatility'] < self.volatility_threshold
-
-        # Generate buy signals
-        buy_signals = momentum_up & volume_confirmed & low_vol
-        signals[buy_signals] = 1
-
-        # Generate sell signals
-        momentum_down = data['close'] < data['close'].rolling(20).mean()
-        signals[momentum_down] = -1
-
-        return signals
-
-    def calculate_atr(self, data: pd.DataFrame) -> pd.Series:
-        """
-        Calculate Average True Range for volatility
-        """
-        high_low = data['high'] - data['low']
-        high_close = np.abs(data['high'] - data['close'].shift())
-        low_close = np.abs(data['low'] - data['close'].shift())
-
-        true_range = pd.concat([high_low, high_close, low_close], axis=1).max(axis=1)
-        atr = true_range.rolling(14).mean()
-
-        return atr
-
-    def calculate_position_size(self, capital: float, stop_loss: float) -> float:
-        """
-        Calculate position size based on risk management
-        """
-        risk_amount = capital * self.risk_per_trade
-        position_size = risk_amount / stop_loss
-
-        return position_size`);
+    return signals`);
 
     const [isGenerating, setIsGenerating] = useState(false);
     const [isBacktesting, setIsBacktesting] = useState(false);
@@ -170,6 +250,7 @@ class QuantumMomentumStrategy:
     const [backtestCapital, setBacktestCapital] = useState(10000);
     const [isSaving, setIsSaving] = useState(false);
     const [isValidating, setIsValidating] = useState(false);
+    const [showPublishModal, setShowPublishModal] = useState(false);
 
     // Derived chart data from backtest results
     const equityChartData = useMemo(() => {
@@ -329,6 +410,27 @@ class QuantumMomentumStrategy:
 
     const handleCopyCode = () => {
         navigator.clipboard.writeText(code);
+    };
+
+    const canPublish = backtestResult &&
+        currentStrategyId &&
+        (backtestResult.result.sharpe_ratio ?? 0) >= 1.0 &&
+        (backtestResult.result.total_return_pct ?? 0) >= 10;
+
+    const handlePublishConfirm = async (data: PublishData) => {
+        if (!currentStrategyId) return;
+        try {
+            const res = await marketplace.publish({
+                ...data,
+                custom_strategy_id: currentStrategyId,
+            }) as any;
+            alert(res.message || 'Strategy submitted for review!');
+            setShowPublishModal(false);
+        } catch (err: any) {
+            const detail = err?.response?.data?.detail || err?.message || 'Publish failed';
+            alert(detail);
+            throw err;
+        }
     };
 
     return (
@@ -614,7 +716,7 @@ class QuantumMomentumStrategy:
                                         </div>
                                         <div className="flex items-center gap-2">
                                             <span className="px-2 py-1 bg-emerald-500/10 text-emerald-400 text-xs rounded-lg">AI Generated</span>
-                                            <span className="px-2 py-1 bg-blue-500/10 text-blue-400 text-xs rounded-lg">Python 3.10</span>
+                                            <span className="px-2 py-1 bg-blue-500/10 text-blue-400 text-xs rounded-lg">Python 3.11</span>
                                         </div>
                                     </div>
                                     <div className="flex items-center gap-3">
@@ -630,16 +732,33 @@ class QuantumMomentumStrategy:
                                     </div>
                                 </div>
 
-                                <div className="flex">
-                                    <div className="w-12 bg-slate-900/30 border-r border-slate-800/50 py-4 flex flex-col items-center gap-1 font-mono text-xs text-slate-700 select-none">
-                                        {Array.from({length: 25}, (_, i) => <span key={i}>{i+1}</span>)}
+                                <div className="flex h-[500px]">
+                                    {/* Line numbers */}
+                                    <div
+                                        className="w-12 bg-slate-900/30 border-r border-slate-800/50 py-4 flex flex-col items-center font-mono text-xs text-slate-600 select-none overflow-hidden shrink-0"
+                                        style={{ lineHeight: '1.625' }}
+                                    >
+                                        {Array.from({length: code.split('\n').length}, (_, i) => (
+                                            <span key={i} className="leading-relaxed text-[13px]">{i + 1}</span>
+                                        ))}
                                     </div>
-                                    <textarea
-                                        value={code}
-                                        onChange={(e) => setCode(e.target.value)}
-                                        className="flex-1 bg-transparent p-6 font-mono text-sm text-slate-300 outline-none h-[500px] resize-none leading-relaxed scrollbar-thin"
-                                        spellCheck={false}
-                                    />
+
+                                    {/* Overlay code editor */}
+                                    <div className="relative flex-1 overflow-auto">
+                                        {/* Highlighted code layer (behind, read-only) */}
+                                        <pre
+                                            className="absolute inset-0 p-6 font-mono text-sm leading-relaxed pointer-events-none whitespace-pre-wrap break-words m-0"
+                                            aria-hidden="true"
+                                            dangerouslySetInnerHTML={{ __html: highlightPython(code) + '\n' }}
+                                        />
+                                        {/* Editable textarea layer (in front, transparent text) */}
+                                        <textarea
+                                            value={code}
+                                            onChange={(e) => setCode(e.target.value)}
+                                            className="absolute inset-0 w-full h-full p-6 font-mono text-sm leading-relaxed text-transparent caret-white bg-transparent outline-none resize-none whitespace-pre-wrap break-words"
+                                            spellCheck={false}
+                                        />
+                                    </div>
                                 </div>
 
                                 <div className="bg-slate-900/50 px-6 py-3 border-t border-slate-800 flex items-center justify-between">
@@ -869,6 +988,19 @@ class QuantumMomentumStrategy:
                                             })}
                                         </div>
 
+                                        {/* Publish to Marketplace */}
+                                        {canPublish && (
+                                            <div className="flex justify-end">
+                                                <button
+                                                    onClick={() => setShowPublishModal(true)}
+                                                    className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-purple-600 to-indigo-600 text-white text-sm font-semibold rounded-xl hover:from-purple-500 hover:to-indigo-500 transition-all shadow-lg shadow-purple-900/30"
+                                                >
+                                                    <Upload size={16} />
+                                                    Publish to Marketplace
+                                                </button>
+                                            </div>
+                                        )}
+
                                         {/* Equity Curve Chart */}
                                         <div className="bg-gradient-to-br from-slate-900/50 to-slate-800/30 border border-slate-800/50 rounded-2xl p-6">
                                             <div className="flex items-center justify-between mb-6">
@@ -1091,6 +1223,24 @@ class QuantumMomentumStrategy:
                     </div>
                 </div>
             </div>
+            {showPublishModal && backtestResult && (
+                <PublishModal
+                    onClose={() => setShowPublishModal(false)}
+                    onPublish={handlePublishConfirm}
+                    backtest={{
+                        id: currentStrategyId ?? 0,
+                        name: strategyName,
+                        strategy_key: strategyName,
+                        symbols: [backtestSymbol],
+                        total_return_pct: backtestResult.result.total_return_pct ?? 0,
+                        sharpe_ratio: backtestResult.result.sharpe_ratio ?? 0,
+                        max_drawdown: backtestResult.result.max_drawdown ?? 0,
+                        win_rate: backtestResult.result.win_rate ?? 0,
+                        total_trades: backtestResult.result.total_trades ?? 0,
+                        period: backtestPeriod,
+                    }}
+                />
+            )}
         </div>
     );
 };

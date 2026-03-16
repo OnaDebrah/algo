@@ -1,15 +1,36 @@
 'use client'
-import React, { useState, useMemo } from 'react';
-import { Area, AreaChart, CartesianGrid, ComposedChart, ResponsiveContainer, Tooltip, XAxis, YAxis, Line, BarChart, Bar, Cell } from 'recharts';
-import { Activity, Target, TrendingDown, TrendingUp, Calendar, AlertTriangle, Info, Shield, List, Download, Zap } from 'lucide-react';
+import React, {useMemo, useState} from 'react';
+import {
+    Area,
+    AreaChart,
+    CartesianGrid,
+    ComposedChart,
+    Line,
+    ResponsiveContainer,
+    Tooltip,
+    XAxis,
+    YAxis
+} from 'recharts';
+import {
+    Activity,
+    AlertTriangle,
+    Download,
+    Info,
+    List,
+    Shield,
+    Target,
+    TrendingDown,
+    TrendingUp,
+    Zap
+} from 'lucide-react';
 import MetricCard from "@/components/backtest/MetricCard";
 import BenchmarkComparison from "@/components/backtest/BenchmarkComparison";
 import RiskAnalysisModal from "@/components/backtest/RiskAnalysisModal";
 import PerformanceHeatmap from "@/components/backtest/PerformanceHeatmap";
 import FactorAttribution from "@/components/backtest/FactorAttribution";
 import TradeChart from "@/components/backtest/TradeChart";
-import { formatCurrency, formatPercent } from "@/utils/formatters";
-import {BacktestResult, EquityCurvePoint, MultiAssetBacktestResponse, SymbolStats, Trade} from "@/types/all_types";
+import {formatCurrency, formatPercent} from "@/utils/formatters";
+import {BacktestResult, SymbolStats} from "@/types/all_types";
 
 interface MultiBacktestResultsProps {
     results: BacktestResult;

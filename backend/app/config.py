@@ -16,7 +16,7 @@ _DEV_SECRET = secrets.token_hex(32)
 
 class Settings(BaseSettings):
     # App
-    APP_NAME: str = "Trading Platform API"
+    APP_NAME: str = "ORACULUM API"
     VERSION: str = "1.0.0"
     ENVIRONMENT: str = os.getenv("ENVIRONMENT", "development")
 
@@ -75,9 +75,15 @@ class Settings(BaseSettings):
 
     # DeepSeek (fallback for AI code generation)
     DEEPSEEK_API_KEY: str = os.getenv("DEEPSEEK_API_KEY", "")
-    DEEPSEEK_MODEL: str = os.getenv("DEEPSEEK_MODEL", "deepseek-coder")
+    DEEPSEEK_MODEL: str = os.getenv("DEEPSEEK_MODEL", "deepseek-reasoner")
 
+    # Google Gemini (fallback for AI code generation)
+    GEMINI_API_KEY: str = os.getenv("GEMINI_API_KEY", "")
+    GEMINI_MODEL: str = os.getenv("GEMINI_MODEL", "gemini-2.0-flash")
+
+    # OpenAI / ChatGPT (fallback for AI code generation)
     OPENAI_API_KEY: str = os.getenv("OPENAI_API_KEY", "")
+    OPENAI_MODEL: str = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
 
     # Trading Defaults
     DEFAULT_INITIAL_CAPITAL: float = float(os.getenv("DEFAULT_INITIAL_CAPITAL", "100000"))
@@ -99,8 +105,15 @@ class Settings(BaseSettings):
     DEFAULT_MACD_SLOW: int = 26
     DEFAULT_MACD_SIGNAL: int = 9
     DEFAULT_ML_TEST_SIZE: float = 0.2
-    DEFAULT_ML_THRESHOLD: float = 0.5
+    DEFAULT_ML_THRESHOLD: float = 0.002
     ML_MODELS_DIR: str = os.getenv("ML_MODELS_DIR", "ml_models")
+
+    # Launch Promo & Backtest Quotas
+    LAUNCH_PROMO_START: str = os.getenv("LAUNCH_PROMO_START", "2026-04-01")
+    LAUNCH_PROMO_MONTHS: int = int(os.getenv("LAUNCH_PROMO_MONTHS", "6"))
+    BACKTEST_LIMIT_FREE: int = int(os.getenv("BACKTEST_LIMIT_FREE", "20"))
+    BACKTEST_LIMIT_BASIC: int = int(os.getenv("BACKTEST_LIMIT_BASIC", "100"))
+    BACKTEST_LIMIT_PRO: int = int(os.getenv("BACKTEST_LIMIT_PRO", "500"))
 
     # Rate Limiting
     RATE_LIMIT_PER_MINUTE: int = int(os.getenv("RATE_LIMIT_PER_MINUTE", "60"))
@@ -173,6 +186,15 @@ class Settings(BaseSettings):
     IB_HOST: str = os.getenv("IB_HOST", "127.0.0.1")
     IB_CLIENT_ID: int = int(os.getenv("IB_CLIENT_ID", "1"))
 
+    # Stripe
+    STRIPE_SECRET_KEY: str = os.getenv("STRIPE_SECRET_KEY", "")
+    STRIPE_PUBLISHABLE_KEY: str = os.getenv("STRIPE_PUBLISHABLE_KEY", "")
+    STRIPE_WEBHOOK_SECRET: str = os.getenv("STRIPE_WEBHOOK_SECRET", "")
+
+    ADMIN_EMAIL: str = os.getenv("ADMIN_EMAIL", "")
+    ADMIN_PASSWORD: str = os.getenv("ADMIN_PASSWORD", "")
+    ADMIN_USERNAME: str = os.getenv("ADMIN_USERNAME", "")
+
     class Config:
         case_sensitive = True
         env_file = ".env"
@@ -207,6 +229,8 @@ ML_MODELS_DIR = settings.ML_MODELS_DIR
 BLS_BASE_URL = settings.BLS_BASE_URL
 ANTHROPIC_MODEL_HAIKU_3 = settings.ANTHROPIC_MODEL_HAIKU_3
 ANTHROPIC_MODEL_SONNET_4 = settings.ANTHROPIC_MODEL_SONNET_4
+GEMINI_MODEL = settings.GEMINI_MODEL
+OPENAI_MODEL = settings.OPENAI_MODEL
 
 NEWSAPI_KEY = settings.NEWSAPI_KEY
 TWITTER_BEARER_TOKEN = settings.TWITTER_BEARER_TOKEN
@@ -220,6 +244,10 @@ PREMIUM_TIER_CALLS_PER_MINUTE = settings.PREMIUM_TIER_CALLS_PER_MINUTE
 CALL_DELAY = settings.CALL_DELAY  # seconds between calls for free tier (60/5 = 12)
 
 YAHOO_SEARCH_URL = settings.YAHOO_SEARCH_URL
+
+ADMIN_EMAIL = settings.ADMIN_EMAIL
+ADMIN_PASSWORD = settings.ADMIN_PASSWORD
+ADMIN_USERNAME = settings.ADMIN_USERNAME
 
 
 def validate_settings():
@@ -249,6 +277,8 @@ def validate_settings():
         "BLS_API_KEY": "BLS economic data",
         "ALPACA_API_KEY": "Alpaca broker",
         "DEEPSEEK_API_KEY": "DeepSeek code generation (Strategy Builder fallback)",
+        "GEMINI_API_KEY": "Gemini code generation (Strategy Builder fallback)",
+        "OPENAI_API_KEY": "OpenAI/ChatGPT code generation (Strategy Builder fallback)",
     }
     for _key, _feature in _optional_keys.items():
         if not getattr(settings, _key, ""):

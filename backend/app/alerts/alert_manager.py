@@ -59,7 +59,7 @@ class AlertManager:
         user_id=1,
         level=AlertLevel.WARNING,
         title="Test Alert",
-        message="This is a test alert from the trading platform"
+        message="This is a test alert from the ORACULUM"
     ))
     """
 

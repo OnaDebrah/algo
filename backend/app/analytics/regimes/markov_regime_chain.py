@@ -16,7 +16,18 @@ class MarkovRegimeChain:
         Args:
             regimes: List of possible regime states
         """
-        self.regimes = regimes or ["bull", "neutral", "bear"]
+
+        self.regimes = regimes or [
+            "trending_bull",
+            "trending_bear",
+            "high_volatility",
+            "low_volatility",
+            "mean_reverting",
+            "crisis",
+            "recovery",
+            "transition",
+        ]
+
         self.n_states = len(self.regimes)
         self.regime_to_idx = {r: i for i, r in enumerate(self.regimes)}
         self.idx_to_regime = {i: r for i, r in enumerate(self.regimes)}

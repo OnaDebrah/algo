@@ -1,9 +1,10 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+
 'use client'
-import React, { useState, useMemo } from 'react';
-import { X, Play, RefreshCw, Check, Zap, Target, Activity, TrendingUp, AlertCircle, Sparkles } from 'lucide-react';
-import { Strategy, StrategyParameter } from "@/types/all_types";
-import { formatPercent } from "@/utils/formatters";
-import { backtest } from "@/utils/api";
+import React, {useMemo, useState} from 'react';
+import {Activity, AlertCircle, Check, Play, RefreshCw, Sparkles, Target, X, Zap} from 'lucide-react';
+import {Strategy} from "@/types/all_types";
+import {backtest} from "@/utils/api";
 
 interface BayesianOptimizerModalProps {
     symbols: string[];

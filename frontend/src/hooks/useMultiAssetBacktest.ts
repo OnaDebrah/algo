@@ -1,3 +1,6 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+
+'use client'
 import { useState, useCallback } from 'react';
 import { backtest } from '@/utils/api';
 import { MultiAssetBacktestRequest, MultiAssetBacktestResponse } from '@/types/all_types';

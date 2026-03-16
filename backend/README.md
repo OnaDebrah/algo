@@ -1,5 +1,5 @@
 """
-# Trading Platform Backend
+# Backtesting Platform Backend
 
 FastAPI-based backend for the advanced trading platform.
 

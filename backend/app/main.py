@@ -16,6 +16,7 @@ from sqlalchemy.exc import SQLAlchemyError
 
 from .api.middleware.rate_limit import RateLimitMiddleware
 from .api.routes import (
+    admin,
     advisor,
     alerts,
     analyst,
@@ -23,13 +24,16 @@ from .api.routes import (
     auth,
     backtest,
     crash_prediction,
+    deploy_optimize,
     health,
     market,
     marketplace,
     mlstudio,
     optimise,
     options,
+    payments,
     portfolio,
+    pricing,
     regime,
     root,
     sector,
@@ -81,7 +85,7 @@ async def lifespan(app: FastAPI):
         raise
     yield
 
-    logger.info("SHUTTING DOWN TRADING PLATFORM")
+    logger.info("SHUTTING DOWN ORACULUM")
     try:
         if settings.ENVIRONMENT != "test":
             await stop_execution_manager()
@@ -93,7 +97,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title=settings.APP_NAME,
     version=settings.VERSION,
-    description="Oraculum Backtesting Platform API",
+    description="ORACULUM Backtesting Platform API",
     docs_url="/docs",
     redoc_url="/redoc",
     lifespan=lifespan,
@@ -119,6 +123,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+app.include_router(admin.router)
 app.include_router(auth.router)
 app.include_router(backtest.router)
 app.include_router(portfolio.router)
@@ -132,6 +137,7 @@ app.include_router(advisor.router)
 app.include_router(alerts.router)
 app.include_router(live.router)
 app.include_router(marketplace.router)
+app.include_router(payments.router)
 app.include_router(mlstudio.router)
 app.include_router(options.router)
 app.include_router(optimise.router)
@@ -140,6 +146,8 @@ app.include_router(settings_router.router)
 app.include_router(health.router)
 app.include_router(sector.router)
 app.include_router(crash_prediction.router)
+app.include_router(deploy_optimize.router)
+app.include_router(pricing.router)
 app.include_router(root.router)
 
 

@@ -47,3 +47,6 @@ class TrainingConfig(BaseModel):
     threshold: float
     use_feature_engineering: bool
     use_cross_validation: bool
+    # RL-specific fields (optional — only used when model_type is an RL strategy)
+    episodes: Optional[int] = 200
+    gamma: Optional[float] = 0.99

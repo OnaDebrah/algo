@@ -11,7 +11,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from ...api.deps import check_permission, get_current_active_user, get_db
 from ...config import settings
-from ...core.custom_strategy_engine import SafeExecutionEnvironment, StrategyCodeGenerator
 from ...core.permissions import Permission
 from ...models.custom_strategy import CustomStrategy
 from ...models.user import User
@@ -28,6 +27,9 @@ from ...schemas.custom_strategy import (
 from ...schemas.strategy import StrategyInfo, StrategyParameter
 from ...services.auth_service import AuthService
 from ...strategies.catelog.strategy_catalog import get_catalog
+from ...strategies.custom.code_generator import StrategyCodeGenerator
+from ...strategies.custom.safe_exe_env import SafeExecutionEnvironment
+from ...tasks.backtest_tasks import run_custom_backtest_task
 from ...utils.errors import safe_detail
 
 router = APIRouter(prefix="/strategy", tags=["Strategy"])
@@ -42,12 +44,14 @@ async def generate_strategy(
     current_user: User = Depends(check_permission(Permission.CUSTOM_STRATEGIES)),
     db: AsyncSession = Depends(get_db),
 ):
-    """Generate strategy code from a natural language prompt using AI (Anthropic → DeepSeek → template)"""
+    """Generate strategy code from a natural language prompt using AI (Anthropic → Gemini → ChatGPT → DeepSeek → template)"""
     await AuthService.track_usage(db, current_user.id, "generate_strategy", {"prompt": request.prompt[:100]})
 
     generator = StrategyCodeGenerator(
         anthropic_api_key=settings.ANTHROPIC_API_KEY or None,
         deepseek_api_key=settings.DEEPSEEK_API_KEY or None,
+        gemini_api_key=settings.GEMINI_API_KEY or None,
+        openai_api_key=settings.OPENAI_API_KEY or None,
     )
 
     try:
@@ -126,9 +130,6 @@ async def backtest_custom_strategy(
         interval=request.interval,
         initial_capital=request.initial_capital,
     )
-
-    # Dispatch to Celery
-    from ...tasks.backtest_tasks import run_custom_backtest_task
 
     task = run_custom_backtest_task.delay(backtest_run.id, request.model_dump(mode="json"), current_user.id)
     backtest_run.celery_task_id = task.id

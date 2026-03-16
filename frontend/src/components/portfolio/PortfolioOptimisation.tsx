@@ -1,10 +1,14 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+
 'use client'
 import React, {useState} from 'react';
 import {
     AlertCircle,
     BarChart3,
     Calculator,
-    DollarSign, Download, FileText,
+    DollarSign,
+    Download,
+    FileText,
     Info,
     PieChart,
     Play,

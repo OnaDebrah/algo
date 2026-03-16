@@ -1,4 +1,8 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+
 import {formatInTimeZone} from "date-fns-tz";
+import {twMerge} from "tailwind-merge";
+import {ClassValue, clsx} from "clsx";
 
 export const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('en-US', {
@@ -76,3 +80,7 @@ export const calculateStrategyRating = (
     // Final clamp between 0 and 100
     return Math.round(Math.max(0, Math.min(100, rawScore)));
 };
+
+export function cn(...inputs: ClassValue[]) {
+    return twMerge(clsx(inputs));
+}

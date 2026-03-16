@@ -56,12 +56,22 @@ def _sanitize_value(value):
     return value
 
 
-# ML strategy keys that require training before backtesting.
+# ML / RL strategy keys that require training before backtesting.
 # These strategies have is_trained flags and return zeros if not trained.
-ML_STRATEGY_KEYS = {"ml_random_forest", "ml_gradient_boosting", "ml_svm", "ml_logistic", "ml_lstm"}
+ML_STRATEGY_KEYS = {
+    "ml_random_forest",
+    "ml_gradient_boosting",
+    "ml_svm",
+    "ml_logistic",
+    "ml_lstm",
+    "rl_portfolio_allocator",
+    "rl_regime_allocator",
+    "rl_risk_sensitive",
+    "rl_sentiment_trader",
+}
 
 # ML strategies that self-train during signal generation (no explicit train() needed for backtest)
-ML_SELF_TRAINING_KEYS = {"mc_ml_sentiment"}
+ML_SELF_TRAINING_KEYS = {"mc_ml_sentiment", "genetic_programming"}
 
 
 class BacktestService:
@@ -93,8 +103,16 @@ class BacktestService:
         if not self.db:
             raise ValueError("Database session not provided")
 
+        # Auto-generate a descriptive name from strategy key + symbols
+        strategy_key = strategy_config.get("strategy_key", "Custom")
+        # Prettify: "sma_crossover" → "SMA Crossover"
+        pretty_name = strategy_key.replace("_", " ").title()
+        symbol_str = ", ".join(symbols[:3]) + ("..." if len(symbols) > 3 else "")
+        auto_name = f"{pretty_name} — {symbol_str} ({period})"
+
         backtest_run = BacktestRun(
             user_id=user_id,
+            name=auto_name,
             backtest_type=backtest_type,
             symbols=symbols,
             strategy_config=strategy_config,

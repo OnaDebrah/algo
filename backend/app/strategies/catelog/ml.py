@@ -4,7 +4,7 @@ from ...strategies import MLStrategy
 from ...strategies.catelog.category import StrategyCategory
 from ...strategies.catelog.strategy_info import StrategyInfo
 from ...strategies.lstm_strategy import LSTMStrategy
-from ..ml.mc_ml_sentiment_strategy import MonteCarloMLSentimentStrategy
+from ...strategies.ml.mc_sentiment.mc_ml_sentiment_strategy import MonteCarloMLSentimentStrategy
 from ..ml.sector_prediction.sector_rotation_alt_strategy import SectorRotationAltStrategy
 from ..ml.sector_prediction.sector_rotation_strategy import SectorRotationStrategy
 
@@ -45,6 +45,11 @@ class ML:
                         "default": 0.2,
                         "range": (0.1, 0.4),
                         "description": "Test set size",
+                    },
+                    "threshold": {
+                        "default": 0.002,
+                        "range": (0.0005, 0.01),
+                        "description": "Return threshold for buy/sell labels",
                     },
                 },
                 pros=[
@@ -90,6 +95,11 @@ class ML:
                         "range": (3, 15),
                         "description": "Tree depth",
                     },
+                    "threshold": {
+                        "default": 0.002,
+                        "range": (0.0005, 0.01),
+                        "description": "Return threshold for buy/sell labels",
+                    },
                 },
                 pros=[
                     "Often more accurate than Random Forest",
@@ -124,6 +134,11 @@ class ML:
                         "range": (0.1, 0.4),
                         "description": "Test set size",
                     },
+                    "threshold": {
+                        "default": 0.002,
+                        "range": (0.0005, 0.01),
+                        "description": "Return threshold for buy/sell labels",
+                    },
                 },
                 pros=[
                     "Effective in high dimensions",
@@ -155,6 +170,11 @@ class ML:
                         "default": 0.2,
                         "range": (0.1, 0.4),
                         "description": "Test set size",
+                    },
+                    "threshold": {
+                        "default": 0.002,
+                        "range": (0.0005, 0.01),
+                        "description": "Return threshold for buy/sell labels",
                     },
                 },
                 pros=[

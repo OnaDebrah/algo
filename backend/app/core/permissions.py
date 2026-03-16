@@ -1,5 +1,18 @@
+from datetime import datetime, timedelta, timezone
 from enum import Enum
 from typing import Dict, List
+
+from ..config import settings
+
+
+def is_promo_active() -> bool:
+    """Return True if the launch promo window is currently active."""
+    try:
+        start = datetime.fromisoformat(settings.LAUNCH_PROMO_START).replace(tzinfo=timezone.utc)
+    except (ValueError, TypeError):
+        return False
+    end = start + timedelta(days=settings.LAUNCH_PROMO_MONTHS * 30)
+    return datetime.now(timezone.utc) < end
 
 
 class UserTier(str, Enum):

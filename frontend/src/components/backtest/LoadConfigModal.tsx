@@ -1,8 +1,8 @@
 'use client'
-import React, { useEffect, useState } from 'react';
-import { X, Search, FileText, Calendar, ChevronRight, Loader2, FolderOpen } from 'lucide-react';
-import { portfolio } from '@/utils/api';
-import { Portfolio } from '@/types/all_types';
+import React, {useEffect, useState} from 'react';
+import {Calendar, ChevronRight, FileText, FolderOpen, Loader2, Search, X} from 'lucide-react';
+import {portfolio} from '@/utils/api';
+import {Portfolio} from '@/types/all_types';
 
 interface LoadConfigModalProps {
     mode: 'single' | 'multi';

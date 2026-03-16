@@ -1,18 +1,22 @@
 'use client';
-import React, { useEffect, useState, useMemo } from 'react';
+import React, {useEffect, useMemo, useState} from 'react';
+import {AlertTriangle, BarChart3, CheckCircle2, Clock, Loader2, ShieldAlert, Target, XCircle,} from 'lucide-react';
+import {api} from '@/utils/api';
+import {CrashEventAccuracy, HistoricalAccuracyData,} from '@/types/all_types';
 import {
-    Loader2, CheckCircle2, XCircle, Target, Clock,
-    ShieldAlert, TrendingDown, BarChart3, AlertTriangle,
-} from 'lucide-react';
-import { api } from '@/utils/api';
-import {
-    HistoricalAccuracyData,
-    CrashEventAccuracy,
-} from '@/types/all_types';
-import {
-    ComposedChart, Area, Line, XAxis, YAxis, CartesianGrid,
-    Tooltip, ResponsiveContainer, ReferenceLine, ReferenceArea,
-    BarChart, Bar, Cell, Legend,
+    Area,
+    Bar,
+    BarChart,
+    CartesianGrid,
+    ComposedChart,
+    Legend,
+    Line,
+    ReferenceArea,
+    ReferenceLine,
+    ResponsiveContainer,
+    Tooltip,
+    XAxis,
+    YAxis,
 } from 'recharts';
 
 // ==================== HELPERS ====================

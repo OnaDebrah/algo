@@ -136,7 +136,7 @@ class LSTMStrategy(BaseStrategy):
         X, y = [], []
         for i in range(len(scaled_data) - self.lookback):
             X.append(scaled_data[i : i + self.lookback])
-            next_ret = scaled_data[i + self.lookback]
+            next_ret = dataset_values[i + self.lookback][0]  # Use RAW return, not scaled
             label = 1 if next_ret > 0 else 0
             y.append(label)
 

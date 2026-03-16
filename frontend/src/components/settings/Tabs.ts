@@ -1,9 +1,8 @@
-import {Bell, CreditCard, Database, Key, User} from "lucide-react";
+import {Bell, Globe, TrendingDown, Zap} from "lucide-react";
 
 export const tabs = [
-    { id: 'profile', label: 'Profile', icon: User },
-    { id: 'data', label: 'Data Connections', icon: Database },
-    { id: 'security', label: 'Security & API', icon: Key },
-    { id: 'notifications', label: 'Notifications', icon: Bell },
-    { id: 'billing', label: 'Billing', icon: CreditCard },
+    { id: 'backtest', label: 'Backtest Settings', icon: TrendingDown },
+    { id: 'live', label: 'Live Trading', icon: Zap },
+    { id: 'alerts', label: 'Alerts', icon: Bell },
+    { id: 'general', label: 'General', icon: Globe }
 ];

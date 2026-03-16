@@ -1,14 +1,8 @@
 'use client';
 
-import React, { ReactNode } from "react";
-import { motion } from "framer-motion";
-import { clsx, type ClassValue } from "clsx";
-import { twMerge } from "tailwind-merge";
-
-/** Utility for Tailwind class merging */
-export function cn(...inputs: ClassValue[]) {
-    return twMerge(clsx(inputs));
-}
+import React, {ReactNode} from "react";
+import {motion} from "framer-motion";
+import {cn} from "@/utils/formatters";
 
 export const BentoGrid = ({
     className,

@@ -1,50 +1,44 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+
 'use client'
-import React, { useEffect, useMemo, useState } from 'react';
+import React, {useEffect, useMemo, useState} from 'react';
 import {
-    Activity,
     AlertCircle,
     BarChart3,
     Brain,
-    Calendar,
     Check,
     ChevronDown,
-    ChevronRight,
     ChevronUp,
     Clock,
-    Copy,
-    DollarSign,
     Download,
     Eye,
     EyeOff,
-    Filter,
     FolderOpen,
-    Grid,
-    Info,
-    List,
     Play,
     RefreshCw,
     Save,
     Search,
     Settings,
+    Maximize2,
     Sparkles,
-    Star,
     Target,
     TrendingUp,
     X,
     Zap
 } from 'lucide-react';
+import {Dialog, DialogContent, DialogHeader, DialogTitle} from "@/components/ui/dialog";
 import TickerSearch from "@/components/common/TickerSearch";
 import SingleBacktestResults from "@/components/backtest/SingleBacktestResults";
 import StrategyParameterForm from "@/components/backtest/StrategyParameterForm";
 import RiskAnalysisModal from "@/components/backtest/RiskAnalysisModal";
 import LoadConfigModal from "@/components/backtest/LoadConfigModal";
 import BayesianOptimizerModal from "@/components/backtest/BayesianOptimizerModal";
-import { BacktestResult, SingleAssetConfig, Strategy, PortfolioCreate, DeployedMLModel } from "@/types/all_types";
-import { formatCSVCell, formatCurrency } from "@/utils/formatters";
-import { portfolio, mlstudio } from "@/utils/api";
-import { assetSuggestions, quickSuggestions } from "@/utils/suggestions";
-import { useBacktestStore } from "@/store/useBacktestStore";
-import { useNavigationStore } from "@/store/useNavigationStore";
+import {BacktestResult, DeployedMLModel, PortfolioCreate, SingleAssetConfig, Strategy} from "@/types/all_types";
+import {formatCSVCell, formatCurrency} from "@/utils/formatters";
+import {mlstudio, portfolio} from "@/utils/api";
+import {assetSuggestions, quickSuggestions} from "@/utils/suggestions";
+import {useBacktestStore} from "@/store/useBacktestStore";
+import {useNavigationStore} from "@/store/useNavigationStore";
 import StrategyInfoPopover from "@/components/backtest/StrategyInfoPopover";
 
 interface SingleAssetBacktestProps {
@@ -54,6 +48,7 @@ interface SingleAssetBacktestProps {
     runBacktest: () => Promise<void>;
     isRunning: boolean;
     results: BacktestResult | null;
+    backtestError?: string | null;
 }
 
 const SingleAssetBacktest: React.FC<SingleAssetBacktestProps> = ({
@@ -62,7 +57,8 @@ const SingleAssetBacktest: React.FC<SingleAssetBacktestProps> = ({
     strategies,
     runBacktest,
     isRunning,
-    results
+    results,
+    backtestError
 }: SingleAssetBacktestProps) => {
     const [selectedCategory, setSelectedCategory] = useState('All');
     const [showAdvanced, setShowAdvanced] = useState(false);
@@ -76,6 +72,7 @@ const SingleAssetBacktest: React.FC<SingleAssetBacktestProps> = ({
     const [deployedModels, setDeployedModels] = useState<DeployedMLModel[]>([]);
     const [loadingModels, setLoadingModels] = useState(false);
     const [expandedConfig, setExpandedConfig] = useState(!results);
+    const [isParamsExpanded, setIsParamsExpanded] = useState(false);
 
     const clearVisualStrategy = useBacktestStore(state => state.clearVisualStrategy);
     const navigateTo = useNavigationStore(state => state.navigateTo);
@@ -214,15 +211,15 @@ const SingleAssetBacktest: React.FC<SingleAssetBacktestProps> = ({
         <div className="space-y-4">
             {/* Visual Strategy Builder info card */}
             {isVisualBuilder && (
-                <div className="bg-gradient-to-r from-fuchsia-900/30 via-violet-900/30 to-slate-900/30 border border-fuchsia-500/30 rounded-2xl p-4 flex items-center justify-between animate-in fade-in">
+                <div className="bg-gradient-to-r from-violet-900/30 via-violet-900/30 to-slate-900/30 border border-violet-500/30 rounded-2xl p-4 flex items-center justify-between animate-in fade-in">
                     <div className="flex items-center gap-4">
-                        <div className="p-2.5 bg-fuchsia-500/20 rounded-xl border border-fuchsia-500/30">
-                            <Brain size={20} className="text-fuchsia-400" />
+                        <div className="p-2.5 bg-violet-500/20 rounded-xl border border-violet-500/30">
+                            <Brain size={20} className="text-violet-400" />
                         </div>
                         <div>
-                            <h3 className="text-sm font-bold text-fuchsia-300 flex items-center gap-2">
+                            <h3 className="text-sm font-bold text-violet-300 flex items-center gap-2">
                                 Visual Strategy Builder
-                                <span className="text-[10px] bg-fuchsia-500/20 text-fuchsia-400 px-2 py-0.5 rounded-full uppercase font-black">Active</span>
+                                <span className="text-[10px] bg-violet-500/20 text-violet-400 px-2 py-0.5 rounded-full uppercase font-black">Active</span>
                             </h3>
                             <p className="text-xs text-slate-400 mt-0.5">
                                 {visualBlockCount > 0 ? `${visualBlockCount} blocks configured` : 'No blocks configured'}
@@ -341,7 +338,7 @@ const SingleAssetBacktest: React.FC<SingleAssetBacktestProps> = ({
                         <button
                             onClick={runBacktest}
                             disabled={isRunning || !config.symbol}
-                            className="group relative overflow-hidden flex items-center gap-2.5 px-7 py-2.5 bg-gradient-to-r from-violet-600 via-purple-600 to-fuchsia-600 hover:from-violet-500 hover:via-purple-500 hover:to-fuchsia-500 disabled:from-slate-700 disabled:via-slate-700 disabled:to-slate-700 disabled:cursor-not-allowed rounded-xl font-bold transition-all shadow-xl shadow-violet-500/30 disabled:shadow-none text-white whitespace-nowrap"
+                            className="group relative overflow-hidden flex items-center gap-2.5 px-7 py-2.5 bg-gradient-to-r from-violet-600 via-purple-600 to-indigo-600 hover:from-violet-500 hover:via-purple-500 hover:to-indigo-500 disabled:from-slate-700 disabled:via-slate-700 disabled:to-slate-700 disabled:cursor-not-allowed rounded-xl font-bold transition-all shadow-xl shadow-violet-500/30 disabled:shadow-none text-white whitespace-nowrap"
                         >
                             <div className="absolute inset-0 bg-gradient-to-r from-white/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
                             {isRunning ? (
@@ -604,8 +601,8 @@ const SingleAssetBacktest: React.FC<SingleAssetBacktestProps> = ({
 
                                 {/* Strategy Parameters + Optimizer in one row */}
                                 <div className="flex gap-4">
-                                    {/* Parameters */}
-                                    {selectedStrategy && selectedStrategy.parameters && Object.keys(selectedStrategy.parameters).length > 0 && (
+                                    {/* Parameters (hidden for visual_builder — configured via ML Studio) */}
+                                    {selectedStrategy && !isVisualBuilder && selectedStrategy.parameters && Object.keys(selectedStrategy.parameters).length > 0 && (
                                         <div className="flex-1 bg-slate-800/30 border border-slate-700/30 rounded-xl p-4">
                                             <div className="flex items-center justify-between mb-3">
                                                 <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-2">
@@ -613,6 +610,13 @@ const SingleAssetBacktest: React.FC<SingleAssetBacktestProps> = ({
                                                     Parameters
                                                 </h4>
                                                 <div className="flex gap-1.5">
+                                                    <button
+                                                        onClick={() => setIsParamsExpanded(true)}
+                                                        className="p-1.5 hover:bg-slate-700/50 rounded-lg text-slate-500 hover:text-violet-400 transition-all"
+                                                        title="Expand parameters"
+                                                    >
+                                                        <Maximize2 size={12} />
+                                                    </button>
                                                     <button
                                                         onClick={() => setShowParameters(!showParameters)}
                                                         className="p-1.5 hover:bg-slate-700/50 rounded-lg text-slate-500 hover:text-violet-400 transition-all"
@@ -637,6 +641,25 @@ const SingleAssetBacktest: React.FC<SingleAssetBacktestProps> = ({
                                                 </div>
                                             )}
                                         </div>
+                                    )}
+
+                                    {/* Expanded parameters dialog */}
+                                    {selectedStrategy && selectedStrategy.parameters && Object.keys(selectedStrategy.parameters).length > 0 && (
+                                        <Dialog open={isParamsExpanded} onOpenChange={setIsParamsExpanded}>
+                                            <DialogContent className="bg-slate-900 border-slate-700/60 text-slate-100 sm:max-w-2xl max-h-[85vh] overflow-y-auto">
+                                                <DialogHeader>
+                                                    <DialogTitle className="text-sm font-bold text-slate-100 flex items-center gap-2">
+                                                        <Settings size={14} className="text-purple-400" />
+                                                        {selectedStrategy.name} — Parameters
+                                                    </DialogTitle>
+                                                </DialogHeader>
+                                                <StrategyParameterForm
+                                                    params={selectedStrategy.parameters}
+                                                    values={config.params || {}}
+                                                    onChange={handleParamChange}
+                                                />
+                                            </DialogContent>
+                                        </Dialog>
                                     )}
 
                                     {/* ML Model Selector */}
@@ -717,6 +740,17 @@ const SingleAssetBacktest: React.FC<SingleAssetBacktestProps> = ({
             {results && (
                 <div className="animate-in fade-in slide-in-from-bottom-3 duration-500">
                     <SingleBacktestResults results={results} />
+                </div>
+            )}
+
+            {/* Error state when backtest fails */}
+            {backtestError && !isRunning && (
+                <div className="flex items-start gap-3 p-4 bg-red-500/10 border border-red-500/30 rounded-xl mb-4">
+                    <AlertCircle size={20} className="text-red-400 flex-shrink-0 mt-0.5" />
+                    <div>
+                        <p className="text-sm font-bold text-red-300">Backtest Failed</p>
+                        <p className="text-xs text-red-400/80 mt-1">{backtestError}</p>
+                    </div>
                 </div>
             )}
 

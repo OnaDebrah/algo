@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+
 export enum BrokerType {
     PAPER = 'paper',
     ALPACA_PAPER = 'alpaca_paper',

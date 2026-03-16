@@ -1,134 +1,129 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+
 import axios from 'axios';
 import {
-    // Auth
+    Alert,
+    AlertPreferences,
+    AlertTestResponse,
+    AllocationResponse,
+    AnalystReport,
+    BacktestHistoryItem,
+    BrokerConnectionResponse,
+    ChainRequest,
+    ChainResponse,
+    CrashAlertConfig,
+    CrashDashboardData,
+    CrashPredictionHistoryItem,
+    CrashPredictionResult,
+    CurrentRegimeResponse,
+    DeployedMLModel,
+    DeploymentConfig,
+    EmailAlertRequest,
+    ExecutionOrder,
+    FeaturesResponse,
+    GreeksRequest,
+    GreeksResponse,
+    GuideRequest,
+    GuideResponse,
+    HedgeRecommendation,
+    HistoricalAccuracyData,
+    HistoricalDataPoint,
+    HTTPValidationError,
+    LiveOrderPlacement,
+    LiveOrderUpdate,
+    LiveStatus,
     LoginResponse,
-    User,
-    UserCreate,
-    UserLogin,
-
-    // Backtest
-    SingleBacktestRequest,
-    SingleBacktestResponse,
+    MarketplaceFilterParams,
+    MarketStressResult,
+    MLModel,
+    MLModelStatusRequest,
+    ModelPrediction,
+    MonteCarloRequest,
+    MonteCarloResponse,
     MultiAssetBacktestRequest,
     MultiAssetBacktestResponse,
     OptionsBacktestRequest,
     OptionsBacktestResponse,
-    BacktestHistoryItem,
-
-    // Portfolio
+    OptionsChain,
+    PairsValidationRequest,
+    PairsValidationResponse,
     Portfolio,
     PortfolioCreate,
-    PortfolioUpdate,
     PortfolioMetrics,
-    Position,
+    PortfolioStatsRequest,
+    PortfolioStatsResponse,
     PortfolioTrade,
-
-    // Market Data
+    PortfolioUpdate,
+    Position,
+    ProbabilityRequest,
+    ProbabilityResponse,
     QuoteData,
-    HistoricalDataPoint,
-    OptionsChain,
+    RegimeHistoryResponse,
+    RegimeStrengthResponse,
+    RiskMetricsRequest,
+    RiskMetricsResponse,
     SearchResult,
-
-    // Strategy
-    StrategyInfo,
-    StrategyConfig,
-
-    // Analyst & Advisor
-    AnalystReport,
-    GuideRequest,
-    GuideResponse,
-
-    // Alerts
-    EmailAlertRequest,
+    SectorScanResult,
+    SectorSummary,
+    SettingsUpdate,
+    SingleBacktestRequest,
+    SingleBacktestResponse,
     SMSAlertRequest,
-    AlertTestResponse,
-
-    // Live Trading
-    LiveStatus,
-    ExecutionOrder,
-
-    // Marketplace
-    StrategyListing,
-    StrategyListingDetailed,
-    StrategyPublishRequest,
-    StrategyReviewSchema,
-
-    // ML Studio
-    MLModel,
-    TrainingConfig,
-    DeployedMLModel,
-
-    // Options
-    ChainRequest,
-    ChainResponse,
-    GreeksRequest,
-    GreeksResponse,
+    StockRanking,
     StrategyAnalysisRequest,
     StrategyAnalysisResponse,
     StrategyComparisonRequest,
     StrategyComparisonResponse,
-    ProbabilityRequest,
-    ProbabilityResponse,
+    StrategyInfo,
+    StrategyListing,
+    StrategyListingDetailed,
+    StrategyPublishRequest,
+    StrategyRecommendation,
+    StrategyReviewSchema,
     StrikeOptimizerRequest,
     StrikeOptimizerResponse,
-    PortfolioStatsRequest,
-    PortfolioStatsResponse,
-    RiskMetricsRequest,
-    RiskMetricsResponse,
-    MonteCarloRequest,
-    MonteCarloResponse,
-
-    // Market Regime
-    CurrentRegimeResponse,
-    AllocationResponse,
-    RegimeStrengthResponse,
+    TrainingConfig,
     TransitionResponse,
-    FeaturesResponse,
-
-    // Settings
+    User,
+    UserCreate,
+    UserLogin,
     UserSettings,
-    SettingsUpdate,
-
-    // Sector Scanner
-    SectorSummary,
-    SectorScanResult,
-    StockRanking,
-    StrategyRecommendation,
-
-    // Crash Prediction
-    CrashDashboardData,
-    CrashPredictionResult,
-    CrashPredictionHistoryItem,
-    MarketStressResult,
-    HedgeRecommendation,
-    CrashAlertConfig,
-    HistoricalAccuracyData,
-
-    // HTTP Error
-    HTTPValidationError, RegimeData, RegimeHistoryResponse, PairsValidationRequest, PairsValidationResponse,
-    LiveOrderPlacement, LiveOrderUpdate, MarketplaceFilterParams, AlertPreferences, Alert, DeploymentConfig,
-    BrokerConnectionResponse, MLModelStatusRequest, ModelPrediction, BrokerSettings, WFARequest, WFAResponse
+    WFARequest,
+    WFAResponse,
+    AdminUserListItem,
+    AdminUserDetail,
+    AdminStats,
+    PricingData,
+    QuotaStatus,
+    OptimizePreviewResponse
 } from '@/types/all_types';
 import {
-    BaseOptimizationRequest, BlackLittermanRequest, BlackLittermanResponse,
-    CompareStrategiesResponse, EfficientFrontierRequest, EfficientFrontierResponse,
-    OptimiseBacktestResponse, OptimizationResponse,
-    PortfolioBacktestRequest, SharpeOptimizationRequest, TargetReturnRequest
+    BaseOptimizationRequest,
+    BlackLittermanRequest,
+    BlackLittermanResponse,
+    CompareStrategiesResponse,
+    EfficientFrontierRequest,
+    EfficientFrontierResponse,
+    OptimiseBacktestResponse,
+    OptimizationResponse,
+    PortfolioBacktestRequest,
+    SharpeOptimizationRequest,
+    TargetReturnRequest
 } from "@/types/optimise";
 import {
     AccountResponse,
     ConnectRequest,
-    ControlResponse, LiveStrategy,
+    ControlResponse,
+    LiveStrategy,
     StrategyDetailsResponse,
     StrategyUpdateRequest,
     UpdateResponse
 } from "@/types/live";
-import { ActivityResponse } from "@/types/social";
-import { AnalystReportParams } from "@/types/analyst";
+import {ActivityResponse} from "@/types/social";
+import {AnalystReportParams} from "@/types/analyst";
 
 // Use environment variable or default to localhost
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
-const IS_BROWSER = typeof window !== 'undefined';
 
 const client = axios.create({
     baseURL: API_URL,
@@ -999,6 +994,62 @@ export const portfolioHelpers = {
     },
 };
 
+// ==================== ADMIN ====================
+export const admin = {
+    getUsers: (params?: { search?: string; tier?: string; is_active?: boolean; limit?: number; offset?: number }) =>
+        client.get<AdminUserListItem[]>('/admin/users', { params }) as Promise<AdminUserListItem[]>,
+
+    getUser: (userId: number) =>
+        client.get<AdminUserDetail>(`/admin/users/${userId}`) as Promise<AdminUserDetail>,
+
+    updateTier: (userId: number, tier: string) =>
+        client.put(`/admin/users/${userId}/tier`, { tier }),
+
+    updateStatus: (userId: number, is_active: boolean) =>
+        client.put(`/admin/users/${userId}/status`, { is_active }),
+
+    getStats: () =>
+        client.get<AdminStats>('/admin/stats') as Promise<AdminStats>,
+
+    getUsage: (params?: { action?: string; days?: number; limit?: number; offset?: number }) =>
+        client.get('/admin/usage', { params }),
+
+    getSubmissions: (status?: string) =>
+        client.get('/admin/submissions', { params: { status: status || 'pending_review' } }),
+
+    approveSubmission: (strategyId: number) =>
+        client.put(`/admin/submissions/${strategyId}/approve`),
+
+    rejectSubmission: (strategyId: number, rejection_reason: string) =>
+        client.put(`/admin/submissions/${strategyId}/reject`, { rejection_reason }),
+};
+
+// ==================== PRICING & QUOTA ====================
+export const pricing = {
+    getTiers: () =>
+        client.get<PricingData>('/pricing/tiers') as Promise<PricingData>,
+
+    getQuota: () =>
+        client.get<QuotaStatus>('/pricing/quota') as Promise<QuotaStatus>,
+};
+
+// ==================== DEPLOY OPTIMIZATION ====================
+export const deployOptimize = {
+    preview: (symbols: string[], lookbackDays: number = 252, initialCapital: number = 100000) =>
+        client.post<OptimizePreviewResponse>('/deploy/optimize-preview', {
+            symbols,
+            lookback_days: lookbackDays,
+            initial_capital: initialCapital,
+        }) as Promise<OptimizePreviewResponse>,
+
+    apply: (symbols: string[], method: string, lookbackDays: number = 252) =>
+        client.post('/deploy/optimize-apply', {
+            symbols,
+            method,
+            lookback_days: lookbackDays,
+        }),
+};
+
 // ==================== SETTINGS ====================
 export const settings = {
     get: () =>
@@ -1112,6 +1163,9 @@ export const api = {
     marketplace,
     mlstudio,
     options,
+    admin,
+    pricing,
+    deployOptimize,
     settings,
     health,
 
@@ -1220,6 +1274,18 @@ export type ApiEndpoint =
     | 'settings/reset'
     | 'health'
     | '/';
+
+// ==================== PAYMENTS ====================
+export const payments = {
+    createCheckoutSession: (strategyId: number) =>
+        client.post<{ checkout_url: string }>('/payments/create-checkout-session', { strategy_id: strategyId }) as Promise<{ checkout_url: string }>,
+
+    getPurchases: () =>
+        client.get<number[]>('/payments/purchases') as Promise<number[]>,
+
+    checkPurchase: (strategyId: number) =>
+        client.get<{ purchased: boolean }>(`/payments/check/${strategyId}`) as Promise<{ purchased: boolean }>,
+};
 
 // ==================== ERROR TYPES ====================
 export interface ApiError {

@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+
 export interface PublishData {
     name: string;
     description: string;
@@ -9,6 +11,7 @@ export interface PublishData {
     cons: string[];
     risk_level: 'low' | 'medium' | 'high';
     recommended_capital: number;
+    custom_strategy_id?: number;
 }
 
 export interface BacktestDataToPublish {

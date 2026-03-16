@@ -1,18 +1,24 @@
-import { useState } from "react";
+/* eslint-disable @typescript-eslint/no-explicit-any */
+
+import React, {useState} from "react";
 import {
     Activity,
     BarChart3,
     ChevronDown,
-    Cpu, CreditCard,
-    DollarSign, LogOut,
+    Cpu,
+    CreditCard,
+    DollarSign,
+    LogOut,
     Package,
-    Settings, Shield,
+    Settings,
+    Shield,
+    ShieldCheck,
     Target,
     TrendingUp,
     Zap
 } from "lucide-react";
 
-const Sidebar = ({ currentPage, setCurrentPage, user, onLogout }: any) => {
+const Sidebar = ({currentPage, setCurrentPage, user, onLogout}: any) => {
     const [expandedSections, setExpandedSections] = useState(['MONITOR', 'ANALYZE', 'RESEARCH', 'BUILD']);
     const [showUserMenu, setShowUserMenu] = useState(false);
 
@@ -21,43 +27,43 @@ const Sidebar = ({ currentPage, setCurrentPage, user, onLogout }: any) => {
             id: 'monitor',
             title: 'MONITOR',
             items: [
-                { id: 'dashboard', icon: Activity, label: 'Performance Hub' },
-                { id: 'live', icon: Zap, label: 'Live Execution' }
+                {id: 'dashboard', icon: Activity, label: 'Performance Hub'},
+                {id: 'live', icon: Zap, label: 'Live Execution'}
             ]
         },
         {
             id: 'analyze',
             title: 'ANALYZE',
             items: [
-                { id: 'advisor', icon: Zap, label: 'AI Strategy Advisor' },
-                { id: 'regime', icon: TrendingUp, label: 'Market Regime' },
-                { id: 'crash-prediction', icon: Shield, label: 'Crash Prediction' },
-                { id: 'analyst', icon: Activity, label: 'Deep Analyst' },
-                { id: 'sector-scanner', icon: Target, label: 'Sector Scanner' }
+                {id: 'advisor', icon: Zap, label: 'AI Strategy Advisor'},
+                {id: 'regime', icon: TrendingUp, label: 'Market Regime'},
+                {id: 'crash-prediction', icon: Shield, label: 'Crash Prediction'},
+                {id: 'analyst', icon: Activity, label: 'Deep Analyst'},
+                {id: 'sector-scanner', icon: Target, label: 'Sector Scanner'}
             ]
         },
         {
             id: 'research',
             title: 'RESEARCH',
             items: [
-                { id: 'backtest', icon: BarChart3, label: 'Backtesting Lab' },
-                { id: 'options', icon: DollarSign, label: 'Options Desk' },
-                { id: 'portfolio', icon: TrendingUp, label: 'Portfolio Optimization' }
+                {id: 'backtest', icon: BarChart3, label: 'Backtesting Lab'},
+                {id: 'options', icon: DollarSign, label: 'Options Desk'},
+                {id: 'portfolio', icon: TrendingUp, label: 'Portfolio Optimization'}
             ]
         },
         {
             id: 'build',
             title: 'BUILD',
             items: [
-                { id: 'ml-studio', icon: Cpu, label: 'ML Strategy Studio' },
-                { id: 'strategy-builder', icon: Target, label: 'Strategy Builder' }
+                {id: 'ml-studio', icon: Cpu, label: 'ML Strategy Studio'},
+                {id: 'strategy-builder', icon: Target, label: 'Strategy Builder'}
             ]
         }
     ];
 
     const bottomItems = [
-        { id: 'marketplace', icon: Package, label: 'Marketplace' },
-        { id: 'settings', icon: Settings, label: 'Settings' }
+        {id: 'marketplace', icon: Package, label: 'Marketplace'},
+        ...(user?.is_superuser ? [{id: 'admin', icon: ShieldCheck, label: 'Admin'}] : []),
     ];
 
     const toggleSection = (sectionTitle: string) => {
@@ -67,18 +73,25 @@ const Sidebar = ({ currentPage, setCurrentPage, user, onLogout }: any) => {
     };
 
     return (
-        <aside className="fixed left-0 top-0 h-full w-64 bg-slate-900/95 backdrop-blur-xl border-r border-slate-800/80 flex flex-col z-50">
+        <aside
+            className="fixed left-0 top-0 h-full w-64 bg-slate-900/95 backdrop-blur-xl border-r border-slate-800/80 flex flex-col z-50">
             {/* Brand Section */}
             <div className="p-6 border-b border-slate-800/80">
                 <div className="flex items-center space-x-3">
-                    <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-violet-500 to-fuchsia-500 flex items-center justify-center shadow-lg shadow-violet-500/30">
-                        <Activity size={20} className="text-white" strokeWidth={2.5} />
+                    <div
+                        className="w-9 h-9 rounded-xl bg-gradient-to-br from-violet-500 to-fuchsia-500 flex items-center justify-center shadow-lg shadow-violet-500/30">
+                        <Activity size={20} className="text-white" strokeWidth={2.5}/>
                     </div>
                     <div>
-                        <h1 className="text-lg font-bold text-slate-100 tracking-tight">
-                            ORACULUM
-                        </h1>
-                        <p className="text-[10px] text-slate-500 font-medium tracking-wider">INSTITUTIONAL</p>
+                        <span className="text-lg font-bold tracking-tight flex items-center gap-2">
+                        <span className="text-slate-100">ORACULUM</span>
+                        <span
+                            className="text-xs font-semibold bg-gradient-to-r from-indigo-400 to-cyan-400 bg-clip-text text-transparent">
+                        AI
+                        </span>
+                        </span>
+                        <div
+                            className="h-0.5 w-10 bg-gradient-to-r from-violet-500 to-fuchsia-500 rounded-full"/>
                     </div>
                 </div>
             </div>
@@ -112,15 +125,16 @@ const Sidebar = ({ currentPage, setCurrentPage, user, onLogout }: any) => {
                                                     className={`w-full group flex items-center px-3 py-2.5 rounded-lg text-sm transition-all relative ${isActive
                                                         ? 'text-slate-100 bg-slate-800/70'
                                                         : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/40'
-                                                        }`}
+                                                    }`}
                                                 >
                                                     {isActive && (
-                                                        <div className="absolute left-0 w-1 h-5 bg-violet-500 rounded-r-full" />
+                                                        <div
+                                                            className="absolute left-0 w-1 h-5 bg-violet-500 rounded-r-full"/>
                                                     )}
                                                     <item.icon
                                                         size={18}
                                                         className={`mr-3 transition-colors ${isActive ? 'text-violet-400' : 'text-slate-500 group-hover:text-slate-400'
-                                                            }`}
+                                                        }`}
                                                         strokeWidth={2}
                                                     />
                                                     <span className="font-medium">{item.label}</span>
@@ -144,9 +158,9 @@ const Sidebar = ({ currentPage, setCurrentPage, user, onLogout }: any) => {
                             className={`w-full flex items-center px-3 py-2.5 rounded-lg text-sm transition-all ${currentPage === item.id
                                 ? 'text-slate-100 bg-slate-800/70'
                                 : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/40'
-                                }`}
+                            }`}
                         >
-                            <item.icon size={18} className="mr-3 text-slate-500" strokeWidth={2} />
+                            <item.icon size={18} className="mr-3 text-slate-500" strokeWidth={2}/>
                             <span className="font-medium">{item.label}</span>
                         </button>
                     ))}
@@ -156,18 +170,19 @@ const Sidebar = ({ currentPage, setCurrentPage, user, onLogout }: any) => {
             {/* User Profile Footer */}
             <div className="p-3 border-t border-slate-800/80 relative">
                 {showUserMenu && (
-                    <div className="absolute bottom-full left-3 right-3 mb-2 glass-panel rounded-xl overflow-hidden animate-in slide-in-from-bottom-2 fade-in duration-200">
+                    <div
+                        className="absolute bottom-full left-3 right-3 mb-2 glass-panel rounded-xl overflow-hidden animate-in slide-in-from-bottom-2 fade-in duration-200">
                         <div className="p-3 space-y-1">
-                            <button className="w-full flex items-center space-x-3 px-3 py-2 text-sm text-slate-300 hover:bg-slate-700/50 rounded-lg transition-colors">
-                                <Settings size={16} className="text-violet-400" />
+                            <button
+                                onClick={() => { setCurrentPage('settings'); setShowUserMenu(false); }}
+                                className="w-full flex items-center space-x-3 px-3 py-2 text-sm text-slate-300 hover:bg-slate-700/50 rounded-lg transition-colors">
+                                <Settings size={16} className="text-violet-400"/>
                                 <span>Account Settings</span>
                             </button>
-                            <button className="w-full flex items-center space-x-3 px-3 py-2 text-sm text-slate-300 hover:bg-slate-700/50 rounded-lg transition-colors">
-                                <Shield size={16} className="text-blue-400" />
-                                <span>Security</span>
-                            </button>
-                            <button className="w-full flex items-center space-x-3 px-3 py-2 text-sm text-slate-300 hover:bg-slate-700/50 rounded-lg transition-colors">
-                                <CreditCard size={16} className="text-emerald-400" />
+                            <button
+                                onClick={() => { setCurrentPage('pricing'); setShowUserMenu(false); }}
+                                className="w-full flex items-center space-x-3 px-3 py-2 text-sm text-slate-300 hover:bg-slate-700/50 rounded-lg transition-colors">
+                                <CreditCard size={16} className="text-emerald-400"/>
                                 <span>Billing</span>
                             </button>
                         </div>
@@ -176,7 +191,7 @@ const Sidebar = ({ currentPage, setCurrentPage, user, onLogout }: any) => {
                                 onClick={onLogout}
                                 className="w-full flex items-center space-x-3 px-3 py-2 text-sm text-red-400 hover:bg-red-500/10 rounded-lg transition-colors"
                             >
-                                <LogOut size={16} />
+                                <LogOut size={16}/>
                                 <span className="font-medium">Sign Out</span>
                             </button>
                         </div>
@@ -188,14 +203,16 @@ const Sidebar = ({ currentPage, setCurrentPage, user, onLogout }: any) => {
                     className={`w-full rounded-xl p-3 transition-all border backdrop-blur-md group ${showUserMenu
                         ? 'bg-white/10 border-primary-500/50'
                         : 'bg-white/5 border-white/5 hover:bg-white/10 hover:border-white/10'
-                        }`}
+                    }`}
                 >
                     <div className="flex items-center space-x-3">
                         <div className="relative">
-                            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-violet-500 to-fuchsia-500 flex items-center justify-center text-white font-bold text-sm border-2 border-slate-900">
+                            <div
+                                className="w-10 h-10 rounded-full bg-gradient-to-br from-violet-500 to-fuchsia-500 flex items-center justify-center text-white font-bold text-sm border-2 border-slate-900">
                                 {user?.username?.charAt(0)?.toUpperCase() || 'U'}
                             </div>
-                            <div className="absolute bottom-0 right-0 w-3 h-3 bg-emerald-500 border-2 border-slate-900 rounded-full" />
+                            <div
+                                className="absolute bottom-0 right-0 w-3 h-3 bg-emerald-500 border-2 border-slate-900 rounded-full"/>
                         </div>
                         <div className="flex-1 text-left overflow-hidden">
                             <div className="flex items-center justify-between">

@@ -1,4 +1,4 @@
-from typing import Dict
+from typing import Dict, Union
 
 import numpy as np
 import pandas as pd
@@ -11,8 +11,8 @@ class DynamicVolatilityScalingStrategy(BaseVolatilityStrategy):
     """
     Dynamic Volatility Scaling
 
-    Applies volatility scaling to any strategy dynamically
-    Integrates with existing risk manager
+    Applies volatility scaling to any strategy dynamically.
+    Standalone mode: uses momentum direction scaled by HAR vol forecast.
     """
 
     def __init__(
@@ -21,6 +21,7 @@ class DynamicVolatilityScalingStrategy(BaseVolatilityStrategy):
         scaling_method: str = "multiplicative",  # "multiplicative", "additive", "optimal"
         update_frequency: str = "daily",
         forecast_horizon: int = 21,  # 21-day volatility forecast
+        trend_lookback: int = 20,
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -28,10 +29,60 @@ class DynamicVolatilityScalingStrategy(BaseVolatilityStrategy):
         self.scaling_method = scaling_method
         self.update_frequency = update_frequency
         self.forecast_horizon = forecast_horizon
+        self.trend_lookback = trend_lookback
 
         # Scaling factors
         self.scaling_factors = {}
         self.volatility_forecasts = {}
+
+    def generate_signal(self, data: Union[pd.Series, pd.DataFrame]) -> Dict:
+        """Generate signal using momentum direction scaled by vol forecast."""
+        if isinstance(data, pd.DataFrame):
+            if "Close" in data.columns:
+                prices = data["Close"]
+            elif "close" in data.columns:
+                prices = data["close"]
+            else:
+                prices = data.iloc[:, 0]
+        else:
+            prices = data
+
+        min_required = max(self.vol_lookback, self.trend_lookback)
+        if len(prices) < min_required:
+            return {"signal": 0, "position_size": 0.0, "metadata": {"strategy": "dynamic_scaling"}}
+
+        returns = self.calculate_returns(prices)
+        self.update_volatility_state(returns)
+
+        # Momentum direction
+        momentum = prices.iloc[-1] / prices.iloc[-self.trend_lookback] - 1
+        signal = 1 if momentum > 0 else (-1 if momentum < 0 else 0)
+
+        position_size = self.current_leverage * abs(signal)
+
+        return {
+            "signal": signal,
+            "position_size": position_size,
+            "leverage": self.current_leverage,
+            "current_volatility": self.volatility_history[-1] if self.volatility_history else 0.0,
+            "metadata": {"strategy": "dynamic_scaling", "scaling_method": self.scaling_method},
+        }
+
+    def generate_signals_vectorized(self, data: pd.DataFrame) -> pd.Series:
+        """Vectorized signal generation using momentum direction."""
+        close = data["Close"] if "Close" in data.columns else data.get("close", data.iloc[:, 0])
+        signals = pd.Series(0, index=data.index)
+
+        momentum = close / close.shift(self.trend_lookback) - 1
+        direction = pd.Series(0, index=data.index)
+        direction[momentum > 0] = 1
+        direction[momentum < 0] = -1
+
+        direction_change = direction != direction.shift(1)
+        signals[(direction == 1) & direction_change] = 1
+        signals[(direction != 1) & direction_change & (direction.shift(1) == 1)] = -1
+
+        return signals
 
     def forecast_volatility(self, returns: pd.Series, horizon: int = None) -> float:
         """

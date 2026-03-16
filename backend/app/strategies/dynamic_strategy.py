@@ -126,9 +126,9 @@ class DynamicStrategy(BaseStrategy):
             if op == "<":
                 return 1 if current < val else 0
             if op == "cross_above":
-                return 1 if rsi.iloc[-1] > val and rsi.iloc[-2] <= val else 0
+                return 1 if rsi.iloc[-1] > val >= rsi.iloc[-2] else 0
             if op == "cross_below":
-                return -1 if rsi.iloc[-1] < val and rsi.iloc[-2] >= val else 0
+                return -1 if rsi.iloc[-1] < val <= rsi.iloc[-2] else 0
 
         elif i_type == "sma":
             sma = data["Close"].rolling(window=period).mean()

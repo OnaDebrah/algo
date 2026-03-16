@@ -1,15 +1,16 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 
-import { create } from 'zustand';
+import {create} from 'zustand';
 import {
     BacktestResult,
+    EquityCurvePoint,
     MultiAssetConfig,
     SingleAssetConfig,
-    EquityCurvePoint,
     Trade,
-    VisualBlock, MultiAssetBacktestResult
+    VisualBlock
 } from '@/types/all_types';
-import { backtest } from '@/utils/api';
-import { formatDate } from '@/utils/formatters';
+import {backtest} from '@/utils/api';
+import {formatDate} from '@/utils/formatters';
 
 interface BacktestState {
     // Mode
@@ -29,6 +30,7 @@ interface BacktestState {
 
     // Execution — separate results per mode
     isRunning: boolean;
+    backtestError: string | null;
     singleResults: BacktestResult | null;
     multiResults: BacktestResult | null;
     results: BacktestResult | null;
@@ -99,15 +101,16 @@ export const useBacktestStore = create<BacktestState>((set, get) => ({
     })),
 
     isRunning: false,
+    backtestError: null,
     singleResults: null,
     multiResults: null,
     results: null,
-    resetResults: () => set({ results: null, singleResults: null, multiResults: null }),
+    resetResults: () => set({ results: null, singleResults: null, multiResults: null, backtestError: null }),
 
     runBacktest: async () => {
         const { backtestMode, singleConfig, multiConfig } = get();
 
-        set({ isRunning: true, results: null,
+        set({ isRunning: true, results: null, backtestError: null,
             ...(backtestMode === 'single' ? { singleResults: null } : { multiResults: null })
         });
 
@@ -294,8 +297,16 @@ export const useBacktestStore = create<BacktestState>((set, get) => ({
                     set({ results: multiResult, multiResults: multiResult });
                 }
             }
-        } catch (error) {
+        } catch (error: any) {
             console.error("Backtest failed", error);
+            // Preserve 429 quota detail for the UI to detect
+            const status = error?.response?.status;
+            const detail = error?.response?.data?.detail;
+            if (status === 429 && detail && typeof detail === 'object') {
+                set({ backtestError: JSON.stringify({ quota_exceeded: true, ...detail }) });
+            } else {
+                set({ backtestError: error?.message || "Backtest failed. Check server logs for details." });
+            }
         } finally {
             set({ isRunning: false });
         }

@@ -26,6 +26,12 @@ class MarketplaceStrategy(Base):
     win_rate = Column(Float, default=0.0)
     num_trades = Column(Integer, default=0)
 
+    # Access control
+    is_proprietary = Column(Boolean, default=False)
+    status = Column(String, default="approved", index=True)  # pending_review, approved, rejected
+    rejection_reason = Column(Text, nullable=True)
+    custom_strategy_id = Column(Integer, ForeignKey("custom_strategies.id"), nullable=True)
+
     # Marketplace details
     price = Column(Float, default=0.0)
     is_public = Column(Boolean, default=True)
@@ -96,3 +102,16 @@ class StrategyDownload(Base):
     strategy_id = Column(Integer, ForeignKey("marketplace_strategies.id"))
     user_id = Column(Integer, ForeignKey("users.id"))
     downloaded_at = Column(DateTime, server_default=func.now())
+
+
+class StrategyPurchase(Base):
+    __tablename__ = "strategy_purchases"
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    strategy_id = Column(Integer, ForeignKey("marketplace_strategies.id"), nullable=False)
+    stripe_checkout_session_id = Column(String, nullable=True)
+    amount_paid = Column(Float, nullable=False)
+    currency = Column(String, default="usd")
+    status = Column(String, default="completed")  # completed, refunded
+    purchased_at = Column(DateTime, server_default=func.now())
+    __table_args__ = (UniqueConstraint("user_id", "strategy_id", name="_user_strategy_purchase_uc"),)

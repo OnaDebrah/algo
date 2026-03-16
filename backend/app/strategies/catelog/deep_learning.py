@@ -2,7 +2,7 @@ from typing import Dict
 
 from ...strategies.catelog.category import StrategyCategory
 from ...strategies.catelog.strategy_info import StrategyInfo
-from ...strategies.ml.analysis.integrated_moments import IntegratedMomentsStrategy
+from ...strategies.ml.analysis.moments.integrated_moments import IntegratedMomentsStrategy
 
 
 class DeepLearning:
@@ -31,7 +31,7 @@ class DeepLearning:
                     "forecast_horizon": {"default": 5, "range": (1, 20), "description": "Days ahead to forecast"},
                     "min_risk_adjusted": {"default": 0.5, "range": (0.1, 2.0), "description": "Minimum Sharpe-like ratio for entry"},
                     "max_position": {"default": 1.0, "range": (0.1, 2.0), "description": "Maximum position size (can exceed 1.0 with leverage)"},
-                    "confidence_threshold": {"default": 0.6, "range": (0.3, 0.95), "description": "Minimum confidence for trading"},
+                    "confidence_threshold": {"default": 0.3, "range": (0.1, 0.95), "description": "Minimum confidence for trading"},
                     "use_adaptive_sizing": {"default": True, "type": "boolean", "description": "Use Kelly-inspired dynamic position sizing"},
                     "retrain_frequency": {"default": 30, "range": (7, 90), "description": "Days between model retraining"},
                 },

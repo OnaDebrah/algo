@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+
 /**
  * Live Strategy Dashboard
  * Complete monitoring interface for live trading strategies

@@ -1,219 +1,13 @@
-"""
-Custom Strategy Engine - Execute user-defined strategies with safety checks
-"""
-
-import ast
-import io
 import logging
 import re
-import traceback
-from contextlib import redirect_stderr, redirect_stdout
-from datetime import datetime
-from typing import Any, Dict, Optional, Tuple, Union
+from typing import List, Optional, Tuple, cast
 
-import numpy as np
-import pandas as pd
+from anthropic.types import MessageParam
+from openai.types.chat import ChatCompletionMessageParam
 
-from ..strategies.base_strategy import BaseStrategy
+from ...config import settings
 
 logger = logging.getLogger(__name__)
-
-
-class SafeExecutionEnvironment:
-    """Safe environment for executing user code"""
-
-    # Allowed imports for strategies
-    ALLOWED_MODULES = {
-        "pandas": ["pd", "DataFrame", "Series"],
-        "numpy": ["np", "array", "nan", "inf"],
-        "talib": ["*"],  # Technical analysis library
-        "datetime": ["datetime", "timedelta"],
-        "math": ["*"],
-        "statistics": ["mean", "median", "stdev"],
-    }
-
-    # Forbidden operations for security
-    FORBIDDEN_OPERATIONS = [
-        "eval",
-        "exec",
-        "compile",
-        "__import__",
-        "open",
-        "file",
-        "input",
-        "raw_input",
-        "os.",
-        "sys.",
-        "subprocess",
-        "socket",
-        "requests",
-        "urllib",
-        "http",
-        "pickle",
-        "shelve",
-        "marshal",
-        "__builtins__",
-        "globals",
-        "locals",
-        "delattr",
-        "setattr",
-        "getattr",
-    ]
-
-    def __init__(self):
-        self.execution_timeout = 30  # seconds
-        self.max_memory_mb = 100
-
-    def validate_code(self, code: str) -> Tuple[bool, str]:
-        """
-        Validate user code for security issues
-
-        Returns:
-            (is_valid, error_message)
-        """
-        # Check for forbidden operations
-        for forbidden in self.FORBIDDEN_OPERATIONS:
-            if forbidden in code:
-                return False, f"Forbidden operation detected: {forbidden}"
-
-        # Try to parse as valid Python
-        try:
-            ast.parse(code)
-        except SyntaxError as e:
-            return False, f"Syntax error: {str(e)}"
-
-        # Check for required function signature
-        if "def generate_signals(" not in code:
-            return False, "Strategy must define a 'generate_signals(data)' function"
-
-        return True, ""
-
-    def create_safe_globals(self) -> Dict:
-        """Create safe global namespace for execution"""
-        safe_globals = {
-            "__builtins__": {
-                "True": True,
-                "False": False,
-                "None": None,
-                "len": len,
-                "range": range,
-                "enumerate": enumerate,
-                "zip": zip,
-                "map": map,
-                "filter": filter,
-                "sum": sum,
-                "max": max,
-                "min": min,
-                "abs": abs,
-                "round": round,
-                "int": int,
-                "float": float,
-                "str": str,
-                "bool": bool,
-                "list": list,
-                "dict": dict,
-                "tuple": tuple,
-                "set": set,
-                "print": print,  # Allow print for debugging
-            },
-            "pd": pd,
-            "np": np,
-            "datetime": datetime,
-        }
-
-        # Add math functions
-        import math
-
-        safe_globals["math"] = math
-
-        return safe_globals
-
-    def execute_strategy(self, code: str, data: pd.DataFrame) -> Tuple[bool, Any, str]:
-        """
-        Execute user strategy code safely
-
-        Returns:
-            (success, result, error_message/output)
-        """
-        # Validate code first
-        is_valid, error = self.validate_code(code)
-        if not is_valid:
-            return False, None, error
-
-        # Create safe execution environment
-        safe_globals = self.create_safe_globals()
-        safe_locals = {}
-
-        # Capture output
-        stdout_capture = io.StringIO()
-        stderr_capture = io.StringIO()
-
-        try:
-            # Execute the strategy code
-            with redirect_stdout(stdout_capture), redirect_stderr(stderr_capture):
-                exec(code, safe_globals, safe_locals)
-
-                # Get the generate_signals function
-                if "generate_signals" not in safe_locals:
-                    return False, None, "Function 'generate_signals' not found in code"
-
-                generate_signals = safe_locals["generate_signals"]
-
-                # Execute the strategy
-                result = generate_signals(data.copy())
-
-            # Get captured output
-            output = stdout_capture.getvalue()
-            errors = stderr_capture.getvalue()
-
-            if errors:
-                return False, None, f"Execution errors:\n{errors}"
-
-            return True, result, output
-
-        except Exception as e:
-            error_msg = f"Execution error: {str(e)}\n{traceback.format_exc()}"
-            return False, None, error_msg
-
-
-class CustomStrategyAdapter(BaseStrategy):
-    """
-    Adapter that wraps a standalone generate_signals(data) function
-    inside a BaseStrategy-compatible interface for TradingEngine.
-    """
-
-    def __init__(self, name: str, code: str, params: Dict = None):
-        super().__init__(name=name, params=params or {})
-        self.code = code
-        self._env = SafeExecutionEnvironment()
-        self._compiled_func = None
-        self._compile()
-
-    def _compile(self):
-        """Pre-compile the code and extract the generate_signals function."""
-        is_valid, error = self._env.validate_code(self.code)
-        if not is_valid:
-            raise ValueError(f"Invalid strategy code: {error}")
-        safe_globals = self._env.create_safe_globals()
-        safe_locals: Dict[str, Any] = {}
-        exec(self.code, safe_globals, safe_locals)  # noqa: S102 - sandboxed
-        if "generate_signals" not in safe_locals:
-            raise ValueError("Strategy code must define 'generate_signals(data)' function")
-        self._compiled_func = safe_locals["generate_signals"]
-
-    def generate_signal(self, data: pd.DataFrame) -> Union[int, Dict]:
-        """Loop-based: call generate_signals and return the last signal."""
-        signals = self._compiled_func(data.copy())
-        if isinstance(signals, pd.Series) and len(signals) > 0:
-            return int(signals.iloc[-1])
-        return 0
-
-    def generate_signals_vectorized(self, data: pd.DataFrame) -> pd.Series:
-        """Vectorized: return the full signal series from user code."""
-        result = self._compiled_func(data.copy())
-        if isinstance(result, pd.Series):
-            return result
-        return pd.Series(0, index=data.index)
 
 
 class StrategyCodeGenerator:
@@ -223,12 +17,16 @@ class StrategyCodeGenerator:
         self,
         anthropic_api_key: Optional[str] = None,
         deepseek_api_key: Optional[str] = None,
-        # Legacy compat: positional api_key maps to anthropic
+        gemini_api_key: Optional[str] = None,
+        openai_api_key: Optional[str] = None,
         api_key: Optional[str] = None,
     ):
         anthropic_api_key = anthropic_api_key or api_key
         self.anthropic_client = None
         self.deepseek_client = None
+        self.gemini_client = None
+        self.openai_client = None
+
         if anthropic_api_key:
             try:
                 import anthropic
@@ -236,6 +34,7 @@ class StrategyCodeGenerator:
                 self.anthropic_client = anthropic.Anthropic(api_key=anthropic_api_key)
             except Exception as e:
                 logger.warning(f"Failed to initialize Anthropic client: {e}")
+
         if deepseek_api_key:
             try:
                 from openai import OpenAI
@@ -247,6 +46,22 @@ class StrategyCodeGenerator:
             except Exception as e:
                 logger.warning(f"Failed to initialize DeepSeek client: {e}")
 
+        if gemini_api_key:
+            try:
+                from google import genai
+
+                self.gemini_client = genai.Client(api_key=gemini_api_key)
+            except Exception as e:
+                logger.warning(f"Failed to initialize Gemini client: {e}")
+
+        if openai_api_key:
+            try:
+                from openai import OpenAI
+
+                self.openai_client = OpenAI(api_key=openai_api_key)
+            except Exception as e:
+                logger.warning(f"Failed to initialize OpenAI client: {e}")
+
     async def generate_strategy_code(
         self,
         prompt: str,
@@ -255,7 +70,7 @@ class StrategyCodeGenerator:
         """
         Generate strategy code from natural language.
 
-        Fallback chain: Anthropic → DeepSeek → Template
+        Fallback chain: Anthropic → Gemini → ChatGPT → DeepSeek → Template
 
         Returns:
             (code, explanation, example_usage, provider)
@@ -265,26 +80,60 @@ class StrategyCodeGenerator:
         # Attempt 1: Anthropic Claude
         if self.anthropic_client:
             try:
+                messages = cast(List[MessageParam], cast(object, [{"role": "user", "content": ai_prompt}]))
                 message = self.anthropic_client.messages.create(
-                    model="claude-sonnet-4-20250514",
+                    model=settings.ANTHROPIC_MODEL_SONNET_4,
                     max_tokens=3000,
                     temperature=0.3,
-                    messages=[{"role": "user", "content": ai_prompt}],
+                    messages=messages,
                 )
                 response = message.content[0].text
                 code, explanation, example = self._parse_ai_response(response)
                 return code, explanation, example, "anthropic"
             except Exception as e:
-                logger.warning(f"Anthropic generation failed: {e}, trying DeepSeek...")
+                logger.warning(f"Anthropic generation failed: {e}, trying Gemini...")
 
-        # Attempt 2: DeepSeek
+        # Attempt 2: Google Gemini
+        if self.gemini_client:
+            try:
+                from google.genai import types as gemini_types
+
+                response = self.gemini_client.models.generate_content(
+                    model=settings.GEMINI_MODEL,
+                    contents=ai_prompt,
+                    config=gemini_types.GenerateContentConfig(
+                        max_output_tokens=3000,
+                        temperature=0.3,
+                    ),
+                )
+                code, explanation, example = self._parse_ai_response(response.text)
+                return code, explanation, example, "gemini"
+            except Exception as e:
+                logger.warning(f"Gemini generation failed: {e}, trying ChatGPT...")
+
+        # Attempt 3: OpenAI ChatGPT
+        if self.openai_client:
+            try:
+                oai_messages = cast(List[ChatCompletionMessageParam], cast(object, [{"role": "user", "content": ai_prompt}]))
+                response = self.openai_client.chat.completions.create(
+                    model=settings.OPENAI_MODEL,
+                    messages=oai_messages,
+                    max_tokens=3000,
+                    temperature=0.3,
+                )
+                text = response.choices[0].message.content
+                code, explanation, example = self._parse_ai_response(text)
+                return code, explanation, example, "chatgpt"
+            except Exception as e:
+                logger.warning(f"ChatGPT generation failed: {e}, trying DeepSeek...")
+
+        # Attempt 4: DeepSeek
         if self.deepseek_client:
             try:
-                from ..config import settings
-
+                ds_messages = cast(List[ChatCompletionMessageParam], cast(object, [{"role": "user", "content": ai_prompt}]))
                 response = self.deepseek_client.chat.completions.create(
                     model=settings.DEEPSEEK_MODEL,
-                    messages=[{"role": "user", "content": ai_prompt}],
+                    messages=ds_messages,
                     max_tokens=3000,
                     temperature=0.3,
                 )
@@ -294,7 +143,7 @@ class StrategyCodeGenerator:
             except Exception as e:
                 logger.warning(f"DeepSeek generation failed: {e}, using templates...")
 
-        # Attempt 3: Template fallback
+        # Attempt 5: Template fallback
         code, explanation, example = self._generate_template_strategy(prompt, style)
         return code, explanation, example, "template"
 
@@ -353,19 +202,30 @@ Make the strategy practical, well-documented, and production-ready."""
         return system_context
 
     def _parse_ai_response(self, response: str) -> Tuple[str, str, str]:
-        """Parse AI response into code, explanation, and example"""
+        """Parse AI response into code, explanation, and example.
 
-        # Extract code block
-        code_pattern = r"```python\n(.*?)```"
+        Handles format variations across providers (Anthropic, Gemini, ChatGPT, DeepSeek).
+        """
+        if not response:
+            return self._simple_momentum_template()
+
+        # Extract code block — flexible: handles ```python, ``` alone, extra whitespace
+        code_pattern = r"```(?:python)?\s*\n(.*?)```"
         code_match = re.search(code_pattern, response, re.DOTALL)
 
         if code_match:
             code = code_match.group(1).strip()
         else:
-            code = response  # Fallback: assume entire response is code
+            # Fallback: look for the function definition directly in the response
+            func_pattern = r"((?:import\s+\w+.*\n)*(?:#[^\n]*\n)*def\s+generate_signals\(.*?\n(?:.*\n)*?.*return\s+signals.*)"
+            func_match = re.search(func_pattern, response, re.DOTALL)
+            if func_match:
+                code = func_match.group(1).strip()
+            else:
+                code = response  # Last resort: assume entire response is code
 
-        # Extract explanation
-        explanation_pattern = r"EXPLANATION:\n(.*?)(?:EXAMPLE USAGE:|$)"
+        # Extract explanation — flexible whitespace after header
+        explanation_pattern = r"EXPLANATION:\s*\n(.*?)(?:EXAMPLE USAGE:|$)"
         explanation_match = re.search(explanation_pattern, response, re.DOTALL)
 
         if explanation_match:
@@ -373,8 +233,8 @@ Make the strategy practical, well-documented, and production-ready."""
         else:
             explanation = "AI-generated trading strategy based on your requirements."
 
-        # Extract example
-        example_pattern = r"EXAMPLE USAGE:\n(.*?)$"
+        # Extract example — flexible whitespace after header
+        example_pattern = r"EXAMPLE USAGE:\s*\n(.*?)$"
         example_match = re.search(example_pattern, response, re.DOTALL)
 
         if example_match:

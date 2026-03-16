@@ -18,9 +18,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from ...database import get_db
 from ...models.crash_prediction import CrashPrediction
 from ...models.user import User
+from ...models.user_settings import UserSettings
 from ...services.analysis.hedge_service import HedgeRecommendationService
 from ...services.analysis.historical_accuracy_service import HistoricalAccuracyService
 from ...services.analysis.lstm_stress_service import LSTMStressService
+from ...services.auth_service import AuthService
 from ...utils.errors import safe_detail
 from ..deps import get_current_active_user
 
@@ -88,11 +90,12 @@ async def predict_crash(
 
     Returns crash probability, intensity classification, and individual model signals.
     """
+    await AuthService.track_usage(db, current_user.id, "predict_crash", {"symbol": symbol})
+
     try:
         service = _get_hedge_service()
         crash_analysis = await service._get_crash_predictions(current_user, db, symbol)
 
-        # Persist prediction to DB
         try:
             lppls_data = crash_analysis["lppls"]
             lstm_data = crash_analysis["lstm"]
@@ -158,6 +161,8 @@ async def get_market_stress(
 
     Returns stress index, confidence, trend, 60-day forecast.
     """
+    await AuthService.track_usage(db, current_user.id, "get_market_stress", {"symbols": symbols})
+
     try:
         symbol_list = list(dict.fromkeys(s.strip().upper() for s in symbols.split(",") if s.strip()))
         if not symbol_list:
@@ -195,6 +200,10 @@ async def get_hedge_recommendation(
 
     Returns recommended strategy, cost, protection level, ML signals, and monitoring instructions.
     """
+    await AuthService.track_usage(
+        db, current_user.id, "get_hedge_recommendation", {"portfolio_value": portfolio_value, "portfolio_beta": portfolio_beta}
+    )
+
     try:
         service = _get_hedge_service()
         recommendation = await service.get_hedge_recommendation(
@@ -222,6 +231,8 @@ async def get_prediction_history(
     """
     Get historical crash predictions for the current user.
     """
+    await AuthService.track_usage(db, current_user.id, "get_prediction_history", {"symbol": symbol})
+
     try:
         query = (
             select(CrashPrediction)
@@ -262,6 +273,7 @@ async def get_crash_dashboard(
     Aggregates crash prediction, stress analysis, and hedge recommendation
     in a single call for the frontend dashboard.
     """
+    await AuthService.track_usage(db, current_user.id, "get_crash_dashboard", {"symbol": symbol})
     try:
         hedge_service = _get_hedge_service()
         stress_service = _get_stress_service()
@@ -278,7 +290,6 @@ async def get_crash_dashboard(
 
         prediction_result, stress_result = await asyncio.gather(prediction_task, stress_task, return_exceptions=True)
 
-        # Handle prediction result
         prediction_data = {}
         if isinstance(prediction_result, Exception):
             logger.warning(f"Crash prediction failed in dashboard: {prediction_result}")
@@ -293,7 +304,6 @@ async def get_crash_dashboard(
         else:
             prediction_data = prediction_result
 
-        # Handle stress result
         stress_data = {}
         if isinstance(stress_result, Exception):
             logger.warning(f"Stress analysis failed in dashboard: {stress_result}")
@@ -413,10 +423,10 @@ async def configure_crash_alerts(
     """
     Configure crash alert preferences for the current user.
     """
+    await AuthService.track_usage(
+        db, current_user.id, "configure_crash_alerts", {"crash_threshold": crash_threshold, "stress_threshold": stress_threshold}
+    )
     try:
-        # Store preferences in user settings
-        from ...models.user_settings import UserSettings
-
         result = await db.execute(select(UserSettings).where(UserSettings.user_id == current_user.id))
         settings = result.scalar_one_or_none()
 
@@ -473,6 +483,8 @@ async def get_historical_accuracy(
 
     First request computes the backtest (~5-10 min). Results are cached for 24h.
     """
+    await AuthService.track_usage(db, current_user.id, "get_historical_accuracy", {"symbol": symbol})
+
     try:
         service = _get_accuracy_service()
         result = await service.run_historical_accuracy(

@@ -5,6 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from ...config import settings
 from ...core.analyst_agent import FinancialAnalystAgent
+from ...core.data.providers.providers import ProviderFactory
 from ...core.permissions import Permission
 from ...models import User
 from ...schemas.analyst import AnalystReport, FundamentalData, MACDData, RisksData, SentimentData, TechnicalData, ValuationMetric
@@ -14,14 +15,12 @@ from ..deps import check_permission, get_current_active_user, get_db
 
 router = APIRouter(prefix="/analyst", tags=["Analyst"])
 
-# Initialize analyst agent (singleton pattern)
 analyst_agent = FinancialAnalystAgent(api_key=settings.ANTHROPIC_API_KEY)
 
 
 def convert_core_report_to_api(core_report, ticker_info: Dict) -> AnalystReport:
     """Convert core AnalystReport to API schema"""
 
-    # Extract technical data
     tech = core_report.technical_indicators
     ma_data = tech.get("moving_averages", {})
     momentum = tech.get("momentum", {})
@@ -29,11 +28,9 @@ def convert_core_report_to_api(core_report, ticker_info: Dict) -> AnalystReport:
     volume = tech.get("volume", {})
     support_res = tech.get("support_resistance", {})
 
-    # Extract fundamental data
     fund = core_report.valuation_metrics
     profitability = core_report.financial_health
 
-    # Generate valuation metrics for radar chart
     valuation_metrics = [
         ValuationMetric(
             subject="P/E Ratio",
@@ -150,14 +147,12 @@ async def get_analyst_report(
     """
     Generate comprehensive analyst report for a ticker using AI-powered analysis
     """
-    # Track usage
+
     await AuthService.track_usage(db, current_user.id, "ai_analyst_report", {"ticker": ticker, "depth": depth})
     ticker = ticker.upper()
 
     try:
         core_report = await analyst_agent.generate_investment_thesis(ticker, depth=depth)
-
-        from ...core.data.providers.providers import ProviderFactory
 
         ticker_info = await ProviderFactory().get_ticker_info(ticker)
 

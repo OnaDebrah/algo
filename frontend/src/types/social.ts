@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+
 export interface ActivityResponse {
     id: number;
     user_id: number;

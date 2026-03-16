@@ -29,6 +29,7 @@ class User(UserBase):
     id: int
     tier: str
     is_active: bool
+    is_superuser: bool
     created_at: datetime
     last_login: Optional[datetime]
     country: Optional[str] = None

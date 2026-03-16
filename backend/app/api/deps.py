@@ -11,11 +11,12 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..config import settings
-from ..core.permissions import Permission
+from ..core.permissions import Permission, is_promo_active
 from ..database import get_db
 from ..models.user import User
 from ..security.rate_limiter import check_login_rate
 from ..services.auth_service import AuthService
+from ..services.quota_service import QuotaService
 
 logger = logging.getLogger(__name__)
 
@@ -23,11 +24,20 @@ security = HTTPBearer(auto_error=False)  # auto_error=False so cookie-only reque
 
 
 def check_permission(permission: Permission):
-    """Dependency to check if current user has a specific permission"""
+    """Dependency to check if current user has a specific permission.
+
+    During the launch promo window every tier gets all permissions
+    (superusers always bypass).
+    """
 
     async def permission_checker(current_user: User = Depends(get_current_active_user)) -> User:
         if current_user.is_superuser:
             logger.info(f"✅ Superuser bypass: {current_user.email} accessing {permission.value}")
+            return current_user
+
+        # During launch promo all features are unlocked for every tier
+        if is_promo_active():
+            logger.info(f"✅ Promo bypass: {current_user.email} accessing {permission.value}")
             return current_user
 
         # Regular permission check
@@ -42,6 +52,19 @@ def check_permission(permission: Permission):
         return current_user
 
     return permission_checker
+
+
+def enforce_backtest_quota():
+    """Dependency factory — raises 429 if the user's monthly quota is exhausted."""
+
+    async def checker(
+        current_user: User = Depends(get_current_active_user),
+        db: AsyncSession = Depends(get_db),
+    ) -> User:
+        await QuotaService.enforce_quota(db, current_user.id, current_user.tier)
+        return current_user
+
+    return checker
 
 
 async def login_rate_limit(request: Request):
@@ -120,4 +143,11 @@ async def get_current_active_user(current_user: User = Depends(get_current_user)
     if not current_user.is_active:
         logger.warning(f"❌ Inactive user attempted access: {current_user.email}")
         raise HTTPException(status_code=400, detail="Inactive user")
+    return current_user
+
+
+async def require_superuser(current_user: User = Depends(get_current_active_user)) -> User:
+    """Dependency that restricts access to superusers only."""
+    if not current_user.is_superuser:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin access required")
     return current_user

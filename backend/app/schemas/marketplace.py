@@ -72,6 +72,9 @@ class StrategyListing(BaseModel):
     cons: List[str] = []
     is_favorite: bool = False
     is_verified: bool = False
+    is_proprietary: bool = False
+    is_purchased: bool = False
+    status: str = "approved"
     verification_badge: Optional[str] = None
     publish_date: str = ""
 
@@ -95,6 +98,7 @@ class StrategyPublishRequest(BaseModel):
     recommended_capital: Optional[float] = 10000.0
     backtest_id: Optional[int] = None  # Link to an existing backtest
     strategy_key: Optional[str] = None  # Strategy type identifier
+    custom_strategy_id: Optional[int] = None  # Link to user's custom strategy
 
 
 class ReviewCreateRequest(BaseModel):

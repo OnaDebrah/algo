@@ -1,4 +1,6 @@
-import {Strategy, StrategyInfo} from "@/types/all_types";
+/* eslint-disable @typescript-eslint/no-explicit-any */
+
+import {Strategy} from "@/types/all_types";
 
 export const strategies: Strategy[] = [
     // TECHNICAL INDICATORS - TREND FOLLOWING
@@ -314,6 +316,19 @@ export const strategies: Strategy[] = [
         time_horizon: 'Short to Medium-term',
         best_for: ["Sentiment-driven trading", "Probabilistic forecasting", "Risk-aware position sizing", "Multi-factor alpha generation"],
         parameters: { ml_model_type: 'gradient_boosting', lookback_period: 252, forecast_horizon: 20, num_simulations: 10000, confidence_level: 0.95, sentiment_weight: 0.3 },
+        backtest_mode: 'single',
+    },
+
+    // MACHINE LEARNING - GENETIC PROGRAMMING
+    {
+        id: 'genetic_programming',
+        name: 'Genetic Programming',
+        category: 'Machine Learning',
+        description: 'Evolves trading rules using strongly-typed genetic programming. Discovers optimal combinations of technical indicators through evolutionary optimization.',
+        complexity: 'Expert',
+        time_horizon: 'Medium to Long-term',
+        best_for: ["Automated rule discovery", "Complex pattern recognition", "Strategy evolution"],
+        parameters: { population_size: 100, generations: 50, tournament_size: 5, crossover_rate: 0.7, mutation_rate: 0.1, max_depth: 5, fitness_metric: 'sharpe' },
         backtest_mode: 'single',
     },
 

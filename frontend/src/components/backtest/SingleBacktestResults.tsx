@@ -1,15 +1,38 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+
 'use client'
-import React, { useMemo, useState } from 'react';
-import { Area, CartesianGrid, ComposedChart, Line, ResponsiveContainer, Tooltip, XAxis, YAxis, AreaChart, BarChart, Bar, Cell } from 'recharts';
-import { Activity, AlertTriangle, Calendar, Download, Target, TrendingDown, TrendingUp, Info, Shield, Zap, List } from 'lucide-react';
+import React, {useMemo, useState} from 'react';
+import {
+    Area,
+    AreaChart,
+    CartesianGrid,
+    ComposedChart,
+    Line,
+    ResponsiveContainer,
+    Tooltip,
+    XAxis,
+    YAxis
+} from 'recharts';
+import {
+    Activity,
+    AlertTriangle,
+    Download,
+    Info,
+    List,
+    Shield,
+    Target,
+    TrendingDown,
+    TrendingUp,
+    Zap
+} from 'lucide-react';
 import MetricCard from "@/components/backtest/MetricCard";
 import BenchmarkComparison from "@/components/backtest/BenchmarkComparison";
 import RiskAnalysisModal from "@/components/backtest/RiskAnalysisModal";
 import PerformanceHeatmap from "@/components/backtest/PerformanceHeatmap";
 import FactorAttribution from "@/components/backtest/FactorAttribution";
 import TradeChart from "@/components/backtest/TradeChart";
-import { formatCurrency, formatPercent } from "@/utils/formatters";
-import { BacktestResult, EquityCurvePoint, Trade, WFAResponse } from "@/types/all_types";
+import {formatCurrency, formatPercent} from "@/utils/formatters";
+import {BacktestResult, EquityCurvePoint, Trade, WFAResponse} from "@/types/all_types";
 
 interface SingleBacktestResultsProps {
     results?: BacktestResult;

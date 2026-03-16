@@ -1,4 +1,4 @@
-import { StrategyInfo } from '@/types/all_types';
+/* eslint-disable @typescript-eslint/no-explicit-any */
 
 export const mapFrontendStrategyToBackend = (frontendStrategies: any[]): {
     key: string;

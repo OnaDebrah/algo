@@ -55,7 +55,7 @@ def _clear_auth_cookies(response: Response) -> None:
 @router.post("/register")
 async def register(user_data: UserCreate, db: AsyncSession = Depends(get_db)):
     """Register new user"""
-    # Check if user exists
+
     result = await db.execute(select(User).where((User.username == user_data.username) | (User.email == user_data.email)))
     existing_user = result.scalar_one_or_none()
 
@@ -84,7 +84,7 @@ async def register(user_data: UserCreate, db: AsyncSession = Depends(get_db)):
 
     # Build JSON body (tokens still included for backward compat / API clients)
     body = LoginResponse(
-        user=UserSchema.from_orm(new_user),
+        user=UserSchema.model_validate(new_user),
         access_token=access_token,
         refresh_token=refresh_token,
         token_type="bearer",
@@ -111,7 +111,6 @@ async def login(credentials: UserLogin, db: AsyncSession = Depends(get_db)):
     if not user.is_active:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Inactive user")
 
-    # Update last login
     user.last_login = datetime.now(timezone.utc)
     await db.commit()
 

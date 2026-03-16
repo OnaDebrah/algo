@@ -46,7 +46,7 @@ async def get_status():
 async def connect_broker(request: ConnectRequest):
     """Connect to trading broker"""
     # In production, validate credentials and establish actual connection
-    trading_state.connect(request.broker)
+    await trading_state.connect(request.broker)
 
     return {
         "status": "connected",
@@ -70,7 +70,7 @@ async def disconnect_broker(db: AsyncSession = Depends(get_db), current_user=Dep
 
         await db.commit()
 
-    trading_state.disconnect()
+    await trading_state.disconnect()
 
     return {"status": "disconnected"}
 

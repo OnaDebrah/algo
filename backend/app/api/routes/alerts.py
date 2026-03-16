@@ -11,7 +11,7 @@ from ...alerts.sms_provider import SMSProvider
 from ...api.deps import get_current_active_user, get_db
 from ...config import settings
 from ...models.user import User
-from ...schemas.alert import AlertChannel, AlertLevel
+from ...schemas.alert import AlertCategory, AlertChannel, AlertLevel
 from ...schemas.alerts import (
     AlertPreferencesResponse,
     AlertPreferencesUpdate,
@@ -45,7 +45,7 @@ async def init_alert_manager() -> AlertManager:
                 username=settings.FROM_EMAIL,
                 password=settings.SMTP_PASSWORD,
                 from_email=settings.FROM_EMAIL,
-                from_name=settings.EMAIL_FROM_NAME or "Trading Platform",
+                from_name=settings.EMAIL_FROM_NAME or "ORACULUM",
             )
 
         sms_provider = None
@@ -93,10 +93,8 @@ async def send_email_alert(
 ):
     """Send a manual email alert using the new AlertManager"""
     try:
-        # Track usage
         await AuthService.track_usage(db, current_user.id, "send_email_alert", {"subject": request.subject, "level": request.level.value})
 
-        # Determine recipient email
         to_email = request.to_email or alert_manager.user_preferences.get(current_user.id, AlertPreferences.default()).email
 
         if not to_email:
@@ -115,12 +113,12 @@ async def send_email_alert(
             # Update email if different
             user_prefs.email = to_email
 
-        # Send alert using the new async method
         success = await alert_manager.send_alert(
             user_id=current_user.id,
             level=request.level,
             title=request.subject,
             message=request.message,
+            category=AlertCategory.SYSTEM,
             channels=[AlertChannel.EMAIL],  # Explicitly send via email only
         )
 
@@ -147,7 +145,6 @@ async def send_sms_alert(
         # Track usage
         await AuthService.track_usage(db, current_user.id, "send_sms_alert", {"level": request.level.value})
 
-        # Determine recipient phone number
         user_prefs = alert_manager.user_preferences.get(current_user.id)
         to_number = request.to_number or (user_prefs.phone if user_prefs else None)
 
@@ -171,13 +168,13 @@ async def send_sms_alert(
             # Update phone if different
             user_prefs.phone = to_number
 
-        # Send alert using the new async method
         success = await alert_manager.send_alert(
             user_id=current_user.id,
             level=request.level,
-            title="SMS Alert",  # SMS doesn't need a separate title
+            title="SMS Alert",
             message=request.message,
-            channels=[AlertChannel.SMS],  # Explicitly send via SMS only
+            category=AlertCategory.SYSTEM,
+            channels=[AlertChannel.SMS],
         )
 
         if not success:
@@ -201,13 +198,10 @@ async def test_alerts(
     try:
         await AuthService.track_usage(db, current_user.id, "test_alerts")
 
-        # Get user preferences
         user_prefs = alert_manager.user_preferences.get(current_user.id)
 
-        # Determine email status
         email_configured = alert_manager.email_provider is not None and user_prefs and user_prefs.email_enabled and user_prefs.email
 
-        # Determine SMS status
         sms_configured = alert_manager.sms_provider is not None and user_prefs and user_prefs.sms_enabled and user_prefs.phone
 
         return AlertTestResponse(
@@ -263,11 +257,11 @@ async def update_preferences(
         existing_prefs = alert_manager.user_preferences.get(user_id)
 
         if existing_prefs:
-            update_data = preferences.dict(exclude_unset=True)
+            update_data = preferences.model_dump(exclude_unset=True)
             for key, value in update_data.items():
                 setattr(existing_prefs, key, value)
         else:
-            prefs_dict = preferences.dict(exclude_unset=True)
+            prefs_dict = preferences.model_dump(exclude_unset=True)
             existing_prefs = AlertPreferences(**prefs_dict)
             alert_manager.user_preferences[user_id] = existing_prefs
 
@@ -361,6 +355,7 @@ async def send_test(
             level=AlertLevel.INFO,
             title="Test Alert",
             message="This is a test alert from the alert system",
+            category=AlertCategory.SYSTEM,
             channels=[AlertChannel.EMAIL if request.channel.lower() == "email" else AlertChannel.SMS],
         )
 
@@ -389,7 +384,9 @@ async def send_alert(
     """
     try:
         user_id = current_user.id
-        sent = await alert_manager.send_alert(user_id=user_id, level=level, title=title, message=message, strategy_id=strategy_id)
+        sent = await alert_manager.send_alert(
+            user_id=user_id, level=level, title=title, message=message, category=AlertCategory.SYSTEM, strategy_id=strategy_id
+        )
 
         if not sent:
             raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS, detail="Alert rate limited. Please wait before sending another alert.")

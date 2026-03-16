@@ -1,4 +1,4 @@
-from typing import Dict, Optional
+from typing import Dict, Optional, Union
 
 import numpy as np
 import pandas as pd
@@ -10,8 +10,9 @@ class VolatilityTargetingStrategy(BaseVolatilityStrategy):
     """
     Volatility Targeting Strategy
 
-    Dynamically adjusts portfolio exposure to maintain target volatility
-    Used for portfolio-level risk control
+    Dynamically adjusts portfolio exposure to maintain target volatility.
+    Standalone mode: uses momentum direction scaled by target_vol / realized_vol.
+    Meta-strategy mode: wraps a base_strategy and scales its signals.
     """
 
     def __init__(
@@ -20,6 +21,7 @@ class VolatilityTargetingStrategy(BaseVolatilityStrategy):
         lookforward_vol: bool = True,  # Use forward-looking vol estimates
         volatility_buffer: float = 0.1,  # 10% buffer around target
         max_drawdown_adjustment: bool = True,
+        trend_lookback: int = 20,  # Momentum lookback for standalone direction
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -27,11 +29,72 @@ class VolatilityTargetingStrategy(BaseVolatilityStrategy):
         self.lookforward_vol = lookforward_vol
         self.volatility_buffer = volatility_buffer
         self.max_drawdown_adjustment = max_drawdown_adjustment
+        self.trend_lookback = trend_lookback
 
         # Portfolio tracking
         self.portfolio_returns = []
         self.drawdown_level = 0.0
         self.scale_factor = 1.0
+
+    def generate_signal(self, data: Union[pd.Series, pd.DataFrame]) -> Dict:
+        """
+        Generate volatility-targeted signal for standalone backtesting.
+
+        Uses momentum direction scaled by vol-targeting leverage.
+        When base_strategy is provided, delegates direction to it.
+        """
+        if isinstance(data, pd.DataFrame):
+            if "Close" in data.columns:
+                prices = data["Close"]
+            elif "close" in data.columns:
+                prices = data["close"]
+            else:
+                prices = data.iloc[:, 0]
+        else:
+            prices = data
+
+        min_required = max(self.vol_lookback, self.trend_lookback)
+        if len(prices) < min_required:
+            return {"signal": 0, "position_size": 0.0, "metadata": {"strategy": "volatility_targeting"}}
+
+        returns = self.calculate_returns(prices)
+        self.update_volatility_state(returns)
+
+        # Direction: delegate to base_strategy or use momentum
+        if self.base_strategy is not None:
+            base_signal = self.base_strategy.generate_signal(data)
+            signal = base_signal.get("signal", 0) if isinstance(base_signal, dict) else int(base_signal)
+        else:
+            momentum = prices.iloc[-1] / prices.iloc[-self.trend_lookback] - 1
+            signal = 1 if momentum > 0 else (-1 if momentum < 0 else 0)
+
+        position_size = self.current_leverage * abs(signal)
+
+        return {
+            "signal": signal,
+            "position_size": position_size,
+            "leverage": self.current_leverage,
+            "current_volatility": self.volatility_history[-1] if self.volatility_history else 0.0,
+            "target_volatility": self.target_volatility,
+            "metadata": {"strategy": "volatility_targeting", "vol_estimator": self.vol_estimator},
+        }
+
+    def generate_signals_vectorized(self, data: pd.DataFrame) -> pd.Series:
+        """Vectorized signal generation using momentum direction."""
+        close = data["Close"] if "Close" in data.columns else data.get("close", data.iloc[:, 0])
+        signals = pd.Series(0, index=data.index)
+
+        momentum = close / close.shift(self.trend_lookback) - 1
+        direction = pd.Series(0, index=data.index)
+        direction[momentum > 0] = 1
+        direction[momentum < 0] = -1
+
+        # Emit signals at direction transitions
+        direction_change = direction != direction.shift(1)
+        signals[(direction == 1) & direction_change] = 1
+        signals[(direction != 1) & direction_change & (direction.shift(1) == 1)] = -1
+
+        return signals
 
     def calculate_required_leverage(self, strategy_returns: pd.Series, target_vol: Optional[float] = None) -> float:
         """

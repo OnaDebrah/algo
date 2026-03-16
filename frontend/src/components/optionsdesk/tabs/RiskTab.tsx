@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+
 import {BarChart2, Shield} from "lucide-react";
 import React from "react";
 import {formatCurrency, formatPercent} from "@/utils/formatters";

@@ -23,9 +23,14 @@ import {
     AllocationResponse,
     CurrentRegimeResponse,
     FeatureImportance,
-    FeaturesResponse, RegimeBatchResponse, RegimeData, RegimeHistoryResponse, RegimeReportResponse,
-    RegimeStrengthResponse, RegimeTrainResponse, RegimeWarning, RegimeWarningResponse,
-    StrategyAllocation,
+    FeaturesResponse,
+    RegimeBatchResponse,
+    RegimeHistoryResponse,
+    RegimeReportResponse,
+    RegimeStrengthResponse,
+    RegimeTrainResponse,
+    RegimeWarning,
+    RegimeWarningResponse,
     TransitionProbability,
     TransitionResponse
 } from '@/types/all_types';
@@ -52,6 +57,22 @@ const RegimeDetector = () => {
     const [symbolsInput, setSymbolsInput] = useState('SPY,QQQ,IWM');
     const [error, setError] = useState<string | null>(null);
     const [period, setPeriod] = useState('2y');
+
+    const REGIME_LABELS: Record<string, string> = {
+        'bull_quiet': 'Bullish (Low Vol)',
+        'bull_volatile': 'Bullish (High Vol)',
+        'bear_quiet': 'Bearish (Low Vol)',
+        'bear_volatile': 'Bearish (High Vol)',
+        'trending_bull': 'Trending Bull',
+        'trending_bear': 'Trending Bear',
+        'mean_reverting': 'Mean Reverting',
+        'transition': 'Transition',
+        'neutral': 'Neutral',
+        'crisis': 'Crisis',
+        'recovery': 'Recovery',
+        "low_volatility": 'Low Volatility',
+        'high_volatility': 'High Volatility',
+    };
 
     // Initial load
     useEffect(() => {
@@ -369,7 +390,7 @@ const RegimeDetector = () => {
                                             )}
                                         </div>
                                         <h2 className={`text-5xl font-black ${getRegimeColor(regimeData.current_regime.name)} mb-4 tracking-tight`}>
-                                            {regimeData.current_regime.name}
+                                            {REGIME_LABELS[regimeData.current_regime.name]}
                                         </h2>
                                         <p className="text-slate-300 text-lg max-w-xl leading-relaxed">
                                             {regimeData.current_regime.description}
@@ -719,7 +740,7 @@ const RegimeDetector = () => {
                                     Strategy Allocation
                                 </h3>
                                 <div className="text-right">
-                                    <div className="text-sm text-slate-500">{allocationData.current_regime}</div>
+                                    <div className="text-sm text-slate-500">{REGIME_LABELS[allocationData.current_regime]}</div>
                                     <div className="text-xs text-slate-400">Confidence: {formatPercent(allocationData.confidence)}</div>
                                 </div>
                             </div>
@@ -728,7 +749,7 @@ const RegimeDetector = () => {
                                     <div key={strategy} className="space-y-1">
                                         <div className="flex justify-between text-sm">
                                             <span className="text-slate-300 capitalize">{strategy.replace(/_/g, ' ')}</span>
-                                            <span className="text-slate-200 font-bold">{formatPercent(percentage)}</span>
+                                            <span className="text-slate-200 font-bold">{formatPercent(percentage * 100)}</span>
                                         </div>
                                         <div className="w-full bg-slate-800 h-2 rounded-full overflow-hidden">
                                             <div className="h-full bg-gradient-to-r from-emerald-500 to-cyan-500" style={{ width: `${percentage * 100}%` }} />
@@ -765,10 +786,10 @@ const RegimeDetector = () => {
                                     <div key={idx} className="bg-slate-800/30 p-4 rounded-xl border border-slate-700/50">
                                         <div className="flex justify-between items-center mb-2">
                                             <div className="flex items-center gap-2">
-                                                <span className="text-slate-300">{transition.from_regime}</span>
+                                                <span className="text-slate-300">{REGIME_LABELS[transition.from_regime]}</span>
                                                 <span className="text-slate-500">→</span>
                                                 <span className={`font-bold ${getRegimeColor(transition.to_regime)}`}>
-                                                    {transition.to_regime}
+                                                    {REGIME_LABELS[transition.to_regime]}
                                                 </span>
                                             </div>
                                             <span className="text-lg font-bold text-slate-200">
@@ -793,7 +814,7 @@ const RegimeDetector = () => {
                                     <div key={idx} className="bg-slate-800/30 p-4 rounded-xl border border-slate-700/50">
                                         <div className="flex justify-between items-start mb-2">
                                             <span className="text-sm font-bold text-slate-200">
-                                                {feature.feature.replace(/_/g, ' ')}
+                                                <span className="text-slate-300 capitalize">{feature.feature.replace(/_/g, ' ')}</span>
                                             </span>
                                             <span className={`text-xs px-2 py-1 rounded-full ${
                                                 feature.importance > 0.7 ? 'bg-emerald-500/20 text-emerald-400' :

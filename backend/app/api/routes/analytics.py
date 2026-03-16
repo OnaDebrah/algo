@@ -8,10 +8,12 @@ from typing import List
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from ...analytics.performance import calculate_max_drawdown, calculate_performance_metrics, calculate_returns, calculate_risk_metrics
 from ...api.deps import get_current_active_user
 from ...database import get_db
 from ...models.user import User
 from ...services.analysis.lppls_service import LPPLSService
+from ...services.auth_service import AuthService
 from ...services.trading_service import TradingService
 from .. import deps
 
@@ -28,6 +30,8 @@ async def get_performance_analytics(
     db: AsyncSession = Depends(get_db),
 ):
     """Get performance analytics for a portfolio"""
+    await AuthService.track_usage(db, current_user.id, "get_performance_analytics", {"portfolio_id": portfolio_id})
+
     # Calculate date range
     end_date = datetime.now()
     if period == "1D":
@@ -46,8 +50,6 @@ async def get_performance_analytics(
         start_date = None
 
     equity_curve = await trading_service.get_equity_curve(db, portfolio_id, start_date, end_date)
-
-    from ...analytics.performance import calculate_performance_metrics
 
     if equity_curve:
         initial_equity = equity_curve[0]["equity"]
@@ -74,13 +76,11 @@ async def get_performance_analytics(
 @router.get("/returns/{portfolio_id}")
 async def get_returns_analysis(portfolio_id: int, current_user: User = Depends(get_current_active_user), db: AsyncSession = Depends(get_db)):
     """Get returns analysis"""
-
+    await AuthService.track_usage(db, current_user.id, "get_returns_analysis", {"portfolio_id": portfolio_id})
     trades = await trading_service.get_trades(db, portfolio_id)
 
     if not trades:
         return {"daily_returns": [], "monthly_returns": [], "cumulative_returns": []}
-
-    from ...analytics.performance import calculate_returns
 
     returns = calculate_returns(trades)
 
@@ -90,13 +90,12 @@ async def get_returns_analysis(portfolio_id: int, current_user: User = Depends(g
 @router.get("/risk/{portfolio_id}")
 async def get_risk_metrics(portfolio_id: int, current_user: User = Depends(get_current_active_user), db: AsyncSession = Depends(get_db)):
     """Get risk metrics"""
+    await AuthService.track_usage(db, current_user.id, "get_risk_metrics", {"portfolio_id": portfolio_id})
     trades = await trading_service.get_trades(db, portfolio_id)
     equity_curve = await trading_service.get_equity_curve(db, portfolio_id)
 
     if not trades or not equity_curve:
         return {"volatility": 0, "beta": 0, "var_95": 0, "cvar_95": 0, "max_drawdown": 0, "sharpe_ratio": 0, "sortino_ratio": 0}
-
-    from ...analytics.performance import calculate_risk_metrics
 
     metrics = calculate_risk_metrics(trades, equity_curve)
 
@@ -106,12 +105,11 @@ async def get_risk_metrics(portfolio_id: int, current_user: User = Depends(get_c
 @router.get("/drawdown/{portfolio_id}")
 async def get_drawdown_analysis(portfolio_id: int, current_user: User = Depends(get_current_active_user), db: AsyncSession = Depends(get_db)):
     """Get drawdown analysis"""
+    await AuthService.track_usage(db, current_user.id, "get_drawdown_analysis", {"portfolio_id": portfolio_id})
     equity_curve = await trading_service.get_equity_curve(db, portfolio_id)
 
     if not equity_curve:
         return {"drawdowns": [], "max_drawdown": 0, "max_drawdown_duration": 0}
-
-    from ...analytics.performance import calculate_max_drawdown
 
     analysis = calculate_max_drawdown(equity_curve)
 
@@ -131,6 +129,7 @@ async def analyze_bubble(
 
     Returns bubble probability, confidence score, and critical date
     """
+    await AuthService.track_usage(db, current_user.id, "get_drawdown_analysis", {"symbol": symbol})
     service = LPPLSService()
 
     params = {"lookback_window": lookback_days, "confidence_threshold": confidence_threshold}
@@ -154,6 +153,7 @@ async def screen_bubbles(
 
     Returns sorted list by crash probability
     """
+    await AuthService.track_usage(db, current_user.id, "screen_bubbles", {"symbols": symbols})
     service = LPPLSService()
 
     results = await service.analyze_multiple(symbols=symbols, user=current_user, db=db)

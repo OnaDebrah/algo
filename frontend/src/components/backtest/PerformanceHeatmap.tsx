@@ -1,5 +1,4 @@
 import React from 'react';
-import { formatPercent } from "@/utils/formatters";
 
 interface PerformanceHeatmapProps {
     monthlyReturns?: Record<string, Record<string, number>>;
