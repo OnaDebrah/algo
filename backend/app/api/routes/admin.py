@@ -9,11 +9,12 @@ from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import case, distinct, func, select
+from sqlalchemy import distinct, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ...api.deps import get_db, require_superuser
 from ...models import BacktestRun
+from ...models.marketplace import MarketplaceStrategy
 from ...models.usage import UsageTracking
 from ...models.user import User
 from ...schemas.admin import (
@@ -21,6 +22,8 @@ from ...schemas.admin import (
     AdminUserDetail,
     AdminUserListItem,
     StatusUpdateRequest,
+    SubmissionListItem,
+    SubmissionRejectRequest,
     TierUpdateRequest,
     UsageLogItem,
 )
@@ -44,15 +47,9 @@ async def list_users(
     """List all users with optional search/filter."""
 
     # Sub-query for backtest count per user
-    bt_count_sq = (
-        select(BacktestRun.user_id, func.count(BacktestRun.id).label("bt_count"))
-        .group_by(BacktestRun.user_id)
-        .subquery()
-    )
+    bt_count_sq = select(BacktestRun.user_id, func.count(BacktestRun.id).label("bt_count")).group_by(BacktestRun.user_id).subquery()
 
-    query = select(User, func.coalesce(bt_count_sq.c.bt_count, 0).label("backtest_count")).outerjoin(
-        bt_count_sq, User.id == bt_count_sq.c.user_id
-    )
+    query = select(User, func.coalesce(bt_count_sq.c.bt_count, 0).label("backtest_count")).outerjoin(bt_count_sq, User.id == bt_count_sq.c.user_id)
 
     if search:
         pattern = f"%{search}%"
@@ -100,12 +97,7 @@ async def get_user_detail(
     bt_count = bt_result.scalar() or 0
 
     # Recent usage logs (last 50)
-    usage_result = await db.execute(
-        select(UsageTracking)
-        .where(UsageTracking.user_id == user_id)
-        .order_by(UsageTracking.timestamp.desc())
-        .limit(50)
-    )
+    usage_result = await db.execute(select(UsageTracking).where(UsageTracking.user_id == user_id).order_by(UsageTracking.timestamp.desc()).limit(50))
     logs = usage_result.scalars().all()
 
     return AdminUserDetail(
@@ -213,9 +205,7 @@ async def get_system_stats(
     total_backtests = total_bt_r.scalar() or 0
 
     # Backtests by type
-    bt_type_r = await db.execute(
-        select(BacktestRun.backtest_type, func.count(BacktestRun.id)).group_by(BacktestRun.backtest_type)
-    )
+    bt_type_r = await db.execute(select(BacktestRun.backtest_type, func.count(BacktestRun.id)).group_by(BacktestRun.backtest_type))
     backtests_by_type = {t: c for t, c in bt_type_r.all()}
 
     # Backtests today / week / month
@@ -225,15 +215,11 @@ async def get_system_stats(
 
     # Active live strategies (check via usage tracking for deploy actions)
     # Use a simpler approach — count distinct usage entries with 'deploy' action
-    live_r = await db.execute(
-        select(func.count(distinct(UsageTracking.id))).where(UsageTracking.action.like("%deploy%"))
-    )
+    live_r = await db.execute(select(func.count(distinct(UsageTracking.id))).where(UsageTracking.action.like("%deploy%")))
     active_live = live_r.scalar() or 0
 
     # Models trained (ML Studio train actions)
-    models_r = await db.execute(
-        select(func.count(UsageTracking.id)).where(UsageTracking.action == "train_model")
-    )
+    models_r = await db.execute(select(func.count(UsageTracking.id)).where(UsageTracking.action == "train_model"))
     models_trained = models_r.scalar() or 0
 
     return AdminStats(
@@ -263,11 +249,7 @@ async def get_usage_activity(
     """Recent usage activity across all users."""
     cutoff = datetime.now(timezone.utc) - timedelta(days=days)
 
-    query = (
-        select(UsageTracking, User.username, User.email)
-        .join(User, UsageTracking.user_id == User.id)
-        .where(UsageTracking.timestamp >= cutoff)
-    )
+    query = select(UsageTracking, User.username, User.email).join(User, UsageTracking.user_id == User.id).where(UsageTracking.timestamp >= cutoff)
 
     if action:
         query = query.where(UsageTracking.action.ilike(f"%{action}%"))
@@ -288,3 +270,87 @@ async def get_usage_activity(
         }
         for log, username, email in rows
     ]
+
+
+# ── Marketplace submission management ──────────────────────────────
+
+
+@router.get("/submissions", response_model=list[SubmissionListItem])
+async def list_submissions(
+    status_filter: Optional[str] = Query("pending_review", alias="status", description="Filter by status"),
+    limit: int = Query(50, ge=1, le=200),
+    offset: int = Query(0, ge=0),
+    db: AsyncSession = Depends(get_db),
+    _admin: User = Depends(require_superuser),
+):
+    """List marketplace strategy submissions for review."""
+    query = select(MarketplaceStrategy)
+    if status_filter:
+        query = query.where(MarketplaceStrategy.status == status_filter)
+    query = query.order_by(MarketplaceStrategy.created_at.desc()).offset(offset).limit(limit)
+
+    result = await db.execute(query)
+    strategies = result.scalars().all()
+
+    return [
+        SubmissionListItem(
+            id=s.id,
+            name=s.name,
+            creator_name=s.creator_name,
+            category=s.category,
+            complexity=s.complexity,
+            sharpe_ratio=s.sharpe_ratio or 0.0,
+            total_return=s.total_return or 0.0,
+            max_drawdown=s.max_drawdown or 0.0,
+            win_rate=s.win_rate or 0.0,
+            price=s.price or 0.0,
+            status=s.status or "pending_review",
+            submitted_at=s.created_at.isoformat() if s.created_at else None,
+        )
+        for s in strategies
+    ]
+
+
+@router.put("/submissions/{strategy_id}/approve")
+async def approve_submission(
+    strategy_id: int,
+    db: AsyncSession = Depends(get_db),
+    _admin: User = Depends(require_superuser),
+):
+    """Approve a pending marketplace strategy submission."""
+    result = await db.execute(select(MarketplaceStrategy).where(MarketplaceStrategy.id == strategy_id))
+    strategy = result.scalar_one_or_none()
+    if not strategy:
+        raise HTTPException(status_code=404, detail="Strategy not found")
+    if strategy.status != "pending_review":
+        raise HTTPException(status_code=400, detail=f"Strategy is already {strategy.status}")
+
+    strategy.status = "approved"
+    strategy.rejection_reason = None
+    await db.commit()
+
+    logger.info(f"Admin approved marketplace strategy {strategy_id} ({strategy.name})")
+    return {"message": "Strategy approved and published to marketplace", "strategy_id": strategy_id}
+
+
+@router.put("/submissions/{strategy_id}/reject")
+async def reject_submission(
+    strategy_id: int,
+    body: SubmissionRejectRequest,
+    db: AsyncSession = Depends(get_db),
+    _admin: User = Depends(require_superuser),
+):
+    """Reject a pending marketplace strategy submission."""
+    result = await db.execute(select(MarketplaceStrategy).where(MarketplaceStrategy.id == strategy_id))
+    strategy = result.scalar_one_or_none()
+    if not strategy:
+        raise HTTPException(status_code=404, detail="Strategy not found")
+    if strategy.status != "pending_review":
+        raise HTTPException(status_code=400, detail=f"Strategy is already {strategy.status}")
+
+    strategy.status = "rejected"
+    strategy.rejection_reason = body.rejection_reason
+    await db.commit()
+
+    logger.info(f"Admin rejected marketplace strategy {strategy_id} ({strategy.name}): {body.rejection_reason}")
+    return {"message": "Strategy rejected", "strategy_id": strategy_id}

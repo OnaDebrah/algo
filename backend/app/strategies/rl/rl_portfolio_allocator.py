@@ -7,7 +7,7 @@ using PPO actor-critic with continuous action space.
 """
 
 import logging
-from typing import Dict, Optional, Tuple, Union, cast
+from typing import Dict, Optional, Tuple, cast
 
 import numpy as np
 import pandas as pd
@@ -94,8 +94,8 @@ class RLPortfolioAllocator(BaseRLStrategy):
         if len(data) < self.lookback:
             return np.zeros(self.policy.fc1.in_features if self.policy else 1)
 
-        prices = cast(pd.DataFrame, cast(object, data.iloc[-self.lookback:]))
-        returns = cast(pd.DataFrame, cast(object, data.pct_change().fillna(0).iloc[-self.lookback:]))
+        prices = cast(pd.DataFrame, cast(object, data.iloc[-self.lookback :]))
+        returns = cast(pd.DataFrame, cast(object, data.pct_change().fillna(0).iloc[-self.lookback :]))
 
         # Normalize prices by first row
         price_norm = prices.values / np.maximum(prices.values[0], 1e-8)
@@ -167,7 +167,7 @@ class RLPortfolioAllocator(BaseRLStrategy):
                 actions.append(action)
                 rewards.append(reward)
                 values.append(value.item())
-                log_probs.append(-0.5 * float(np.sum((noise.squeeze().numpy()) ** 2) / 0.05 ** 2))
+                log_probs.append(-0.5 * float(np.sum((noise.squeeze().numpy()) ** 2) / 0.05**2))
 
                 state = next_state
                 episode_reward += reward

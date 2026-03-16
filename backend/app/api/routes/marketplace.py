@@ -9,6 +9,8 @@ from ...api.deps import get_current_active_user
 from ...database import get_db
 from ...models import User
 from ...models.backtest import BacktestRun
+from ...models.custom_strategy import CustomStrategy
+from ...models.marketplace import StrategyPurchase
 from ...schemas.marketplace import (
     BacktestResultsSchema,
     ReviewCreateRequest,
@@ -18,6 +20,7 @@ from ...schemas.marketplace import (
     StrategyReviewSchema,
 )
 from ...services.marketplace_service import BacktestResults, MarketplaceService, StrategyListing
+from ...strategies.catelog.strategy_catalog import get_catalog
 
 logger = logging.getLogger(__name__)
 
@@ -39,11 +42,28 @@ async def convert_core_to_schema(
 ) -> StrategyListingSchema:
     """Convert a MarketplaceStrategy ORM object to the API schema."""
     is_fav = False
+    is_purchased = False
     if marketplace and user_id and core_listing.id:
         try:
             is_fav = await marketplace.is_favorite(db, core_listing.id, user_id)
         except Exception:
             is_fav = False
+        # Check purchase status
+        price = getattr(core_listing, "price", 0) or 0
+        if price <= 0:
+            is_purchased = True  # Free strategies are always "owned"
+        else:
+            try:
+                purchase_result = await db.execute(
+                    select(StrategyPurchase).where(
+                        StrategyPurchase.user_id == user_id,
+                        StrategyPurchase.strategy_id == core_listing.id,
+                        StrategyPurchase.status == "completed",
+                    )
+                )
+                is_purchased = purchase_result.scalar_one_or_none() is not None
+            except Exception:
+                is_purchased = False
 
     # Use user-provided pros/cons if available, otherwise auto-generate
     pros = core_listing.pros if core_listing.pros else _generate_pros(core_listing)
@@ -83,6 +103,9 @@ async def convert_core_to_schema(
         cons=cons,
         is_favorite=is_fav,
         is_verified=core_listing.is_verified,
+        is_proprietary=getattr(core_listing, "is_proprietary", False),
+        is_purchased=is_purchased,
+        status=getattr(core_listing, "status", "approved"),
         verification_badge=core_listing.verification_badge,
         publish_date=core_listing.created_at.strftime("%Y-%m-%d") if core_listing.created_at else "",
     )
@@ -328,6 +351,29 @@ async def publish_strategy(
         backtest_results = BacktestResults()
         strategy_config = {}
 
+        # Determine if this is a proprietary (built-in) strategy
+        catalog = get_catalog()
+        strategy_key = request.strategy_key or ""
+        is_proprietary = strategy_key in catalog.strategies
+
+        # Access control: only superusers can publish proprietary strategies
+        if is_proprietary and not current_user.is_superuser:
+            raise HTTPException(
+                status_code=403,
+                detail="Only administrators can publish proprietary strategies to the marketplace",
+            )
+
+        # For custom strategies, verify ownership of the custom strategy
+        if not is_proprietary and request.custom_strategy_id:
+            result = await db.execute(
+                select(CustomStrategy).filter(
+                    CustomStrategy.id == request.custom_strategy_id,
+                    CustomStrategy.user_id == current_user.id,
+                )
+            )
+            if not result.scalar_one_or_none():
+                raise HTTPException(status_code=404, detail="Custom strategy not found or does not belong to you")
+
         if request.backtest_id:
             # Fetch backtest from backtest_runs table
             result = await db.execute(
@@ -346,10 +392,19 @@ async def publish_strategy(
 
             strategy_config = backtest_run.strategy_config or {}
 
-            # Map BacktestRun fields to BacktestResults
+            # Enforce minimum performance standards
+            sharpe = backtest_run.sharpe_ratio or 0.0
+            total_return = backtest_run.total_return_pct or 0.0
+            if sharpe < 1.0:
+                raise HTTPException(status_code=400, detail="Strategy must have Sharpe Ratio >= 1.0 to publish")
+            if total_return < 10.0:
+                raise HTTPException(status_code=400, detail="Strategy must have Total Return >= 10% to publish")
+
+            # Map BacktestRun fields to BacktestResults (including extended metrics)
+            ext = backtest_run.extended_results or {}
             backtest_results = BacktestResults(
-                total_return=backtest_run.total_return_pct or 0.0,
-                sharpe_ratio=backtest_run.sharpe_ratio or 0.0,
+                total_return=total_return,
+                sharpe_ratio=sharpe,
                 max_drawdown=backtest_run.max_drawdown or 0.0,
                 win_rate=backtest_run.win_rate or 0.0,
                 num_trades=backtest_run.total_trades or 0,
@@ -357,10 +412,23 @@ async def publish_strategy(
                 symbols=backtest_run.symbols or [],
                 equity_curve=backtest_run.equity_curve or [],
                 trades=backtest_run.trades_json or [],
+                # Extended metrics from the backtest's extended_results JSON
+                avg_win=ext.get("avg_win", 0.0),
+                avg_loss=ext.get("avg_loss", 0.0),
+                profit_factor=ext.get("profit_factor", 0.0),
+                volatility=ext.get("volatility", 0.0),
+                sortino_ratio=ext.get("sortino_ratio", 0.0),
+                calmar_ratio=ext.get("calmar_ratio", 0.0),
+                var_95=ext.get("var_95", 0.0),
+                cvar_95=ext.get("cvar_95", 0.0),
             )
 
         # Determine strategy_type from request or backtest config
         strategy_type = request.strategy_key or strategy_config.get("strategy_key", "Custom")
+
+        # Superuser publishing proprietary → approved immediately
+        # Regular user publishing custom → pending_review
+        publish_status = "approved" if (current_user.is_superuser and is_proprietary) else "pending_review"
 
         listing = StrategyListing(
             id=None,
@@ -381,10 +449,51 @@ async def publish_strategy(
             risk_level=request.risk_level or "medium",
             recommended_capital=request.recommended_capital or 10000.0,
         )
+        # Attach access control fields to the listing
+        listing.is_proprietary = is_proprietary
+        listing.status = publish_status
+        listing.custom_strategy_id = request.custom_strategy_id
 
         strategy_id = await marketplace.publish_strategy_with_backtest(db, listing)
 
-        return {"id": strategy_id, "status": "published"}
+        # Send email notification to admin for pending submissions
+        if publish_status == "pending_review":
+            try:
+                from ...alerts.email_provider import EmailProvider
+                from ...config import settings
+
+                if settings.EMAIL_ENABLED and settings.ADMIN_EMAIL:
+                    email_provider = EmailProvider(
+                        smtp_host=settings.SMTP_SERVER,
+                        smtp_port=settings.SMTP_PORT,
+                        username=settings.SMTP_USERNAME,
+                        password=settings.SMTP_PASSWORD,
+                        from_email=settings.FROM_EMAIL,
+                        from_name="Oraculum Platform",
+                    )
+                    await email_provider.send_email(
+                        to_email=settings.ADMIN_EMAIL,
+                        subject=f"New Strategy Submission: {request.name}",
+                        body=(
+                            f"A new strategy has been submitted for review.\n\n"
+                            f"Name: {request.name}\n"
+                            f"Creator: {current_user.username}\n"
+                            f"Category: {request.category}\n"
+                            f"Sharpe Ratio: {backtest_results.sharpe_ratio:.2f}\n"
+                            f"Total Return: {backtest_results.total_return:.2f}%\n\n"
+                            f"Please review in the Admin Dashboard."
+                        ),
+                    )
+            except Exception as email_err:
+                logger.warning(f"Failed to send submission notification email: {email_err}")
+
+        response_status = "published" if publish_status == "approved" else "pending_review"
+        message = (
+            "Strategy published to marketplace!"
+            if publish_status == "approved"
+            else "Strategy submitted for review. You'll be notified when approved."
+        )
+        return {"id": strategy_id, "status": response_status, "message": message}
 
     except HTTPException:
         raise

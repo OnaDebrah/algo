@@ -103,8 +103,16 @@ class BacktestService:
         if not self.db:
             raise ValueError("Database session not provided")
 
+        # Auto-generate a descriptive name from strategy key + symbols
+        strategy_key = strategy_config.get("strategy_key", "Custom")
+        # Prettify: "sma_crossover" → "SMA Crossover"
+        pretty_name = strategy_key.replace("_", " ").title()
+        symbol_str = ", ".join(symbols[:3]) + ("..." if len(symbols) > 3 else "")
+        auto_name = f"{pretty_name} — {symbol_str} ({period})"
+
         backtest_run = BacktestRun(
             user_id=user_id,
+            name=auto_name,
             backtest_type=backtest_type,
             symbols=symbols,
             strategy_config=strategy_config,

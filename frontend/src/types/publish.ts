@@ -11,6 +11,7 @@ export interface PublishData {
     cons: string[];
     risk_level: 'low' | 'medium' | 'high';
     recommended_capital: number;
+    custom_strategy_id?: number;
 }
 
 export interface BacktestDataToPublish {

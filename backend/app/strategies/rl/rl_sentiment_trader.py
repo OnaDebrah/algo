@@ -258,7 +258,7 @@ class RLSentimentTrader(BaseRLStrategy):
 
             while True:
                 # Build sentiment features for current step
-                window = data.iloc[:env.current_step + 1] if env.current_step < len(data) else data
+                window = data.iloc[: env.current_step + 1] if env.current_step < len(data) else data
                 sent_features = self._compute_sentiment_features(window)
 
                 tech_tensor = torch.FloatTensor(state).unsqueeze(0).to(self.device)

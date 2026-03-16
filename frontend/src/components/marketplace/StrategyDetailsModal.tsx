@@ -11,19 +11,22 @@ import {
     Clock,
     Download,
     Loader2,
+    Lock,
     MessageSquare,
     Rocket,
     Send,
     Shield,
     Star,
     Target,
+    Unlock,
     X,
     Zap
 } from 'lucide-react';
-import {live, marketplace} from '@/utils/api';
+import {live, marketplace, payments} from '@/utils/api';
 
 import {DeploymentConfig} from '@/types/all_types';
 import DeploymentModal from "@/components/strategies/DeploymentModel";
+import {toPrecision} from "@/utils/formatters";
 
 interface StrategyDetailsModalProps {
     strategyId: number;
@@ -206,22 +209,28 @@ const StrategyDetailsModal = ({ strategyId, onClose }: StrategyDetailsModalProps
                                     </span>
                                 </div>
 
-                                {strategy.price > 0 && (
+                                {strategy.price > 0 && !strategy.is_purchased ? (
                                     <button
-                                        disabled
-                                        className="w-full py-4 bg-slate-700 text-slate-400 rounded-2xl font-bold flex items-center justify-center gap-2 mb-2 cursor-not-allowed"
-                                        title="Purchases coming soon"
+                                        onClick={async () => {
+                                            try {
+                                                const res = await payments.createCheckoutSession(strategy.id as number);
+                                                window.location.href = res.checkout_url;
+                                            } catch (err: any) {
+                                                alert(err?.response?.data?.detail || 'Failed to start checkout');
+                                            }
+                                        }}
+                                        className="w-full py-4 bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-500 hover:to-orange-500 text-white rounded-2xl font-bold transition-all shadow-lg shadow-amber-600/20 flex items-center justify-center gap-2 mb-2"
                                     >
-                                        <Download size={20} /> Purchase - Coming Soon
+                                        <Unlock size={20} /> Unlock for ${strategy.price}
+                                    </button>
+                                ) : (
+                                    <button
+                                        onClick={() => setShowDeployModal(true)}
+                                        className="w-full py-4 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white rounded-2xl font-bold transition-all shadow-lg shadow-emerald-600/20 flex items-center justify-center gap-2"
+                                    >
+                                        <Rocket size={20} /> Deploy to {strategy.price === 0 ? 'Paper' : 'Live'}
                                     </button>
                                 )}
-
-                                <button
-                                    onClick={() => setShowDeployModal(true)}
-                                    className="w-full py-4 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white rounded-2xl font-bold transition-all shadow-lg shadow-emerald-600/20 flex items-center justify-center gap-2"
-                                >
-                                    <Rocket size={20} /> Deploy to {strategy.price === 0 ? 'Paper' : 'Live'}
-                                </button>
                             </div>
                         </div>
 
@@ -232,7 +241,7 @@ const StrategyDetailsModal = ({ strategyId, onClose }: StrategyDetailsModalProps
                                 {[
                                     {
                                         label: 'Total Return',
-                                        val: `+${results.total_return || 0}%`,
+                                        val: `+${toPrecision(results.total_return) || 0}%`,
                                         icon: ArrowUpRight,
                                         color: 'text-emerald-400'
                                     },
@@ -244,13 +253,13 @@ const StrategyDetailsModal = ({ strategyId, onClose }: StrategyDetailsModalProps
                                     },
                                     {
                                         label: 'Max Drawdown',
-                                        val: `${results.max_drawdown || 0}%`,
+                                        val: `${toPrecision(results.max_drawdown) || 0}%`,
                                         icon: Shield,
                                         color: 'text-red-400'
                                     },
                                     {
                                         label: 'Win Rate',
-                                        val: `${results.win_rate || 0}%`,
+                                        val: `${toPrecision(results.win_rate) || 0}%`,
                                         icon: Target,
                                         color: 'text-indigo-400'
                                     },
@@ -272,8 +281,8 @@ const StrategyDetailsModal = ({ strategyId, onClose }: StrategyDetailsModalProps
                                 <h3 className="text-lg font-bold text-slate-100 mb-4">Performance Overview</h3>
                                 <p className="text-slate-400 leading-relaxed">
                                     This strategy has been backtested over {strategy.period || '1 year'} with {results.num_trades || 0} trades,
-                                    achieving a {results.win_rate || 0}% win rate and {results.total_return || 0}% total return.
-                                    With a Sharpe ratio of {(results.sharpe_ratio || 0).toFixed(2)} and maximum drawdown of {results.max_drawdown || 0}%,
+                                    achieving a {toPrecision(results.win_rate) || 0}% win rate and {toPrecision(results.total_return) || 0}% total return.
+                                    With a Sharpe ratio of {(results.sharpe_ratio || 0).toFixed(2)} and maximum drawdown of {toPrecision(results.max_drawdown) || 0}%,
                                     it demonstrates {results.sharpe_ratio > 1.5 ? 'excellent' : 'good'} risk-adjusted returns.
                                 </p>
                             </div>

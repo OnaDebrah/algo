@@ -186,6 +186,15 @@ class Settings(BaseSettings):
     IB_HOST: str = os.getenv("IB_HOST", "127.0.0.1")
     IB_CLIENT_ID: int = int(os.getenv("IB_CLIENT_ID", "1"))
 
+    # Stripe
+    STRIPE_SECRET_KEY: str = os.getenv("STRIPE_SECRET_KEY", "")
+    STRIPE_PUBLISHABLE_KEY: str = os.getenv("STRIPE_PUBLISHABLE_KEY", "")
+    STRIPE_WEBHOOK_SECRET: str = os.getenv("STRIPE_WEBHOOK_SECRET", "")
+
+    ADMIN_EMAIL: str = os.getenv("ADMIN_EMAIL", "")
+    ADMIN_PASSWORD: str = os.getenv("ADMIN_PASSWORD", "")
+    ADMIN_USERNAME: str = os.getenv("ADMIN_USERNAME", "")
+
     class Config:
         case_sensitive = True
         env_file = ".env"
@@ -235,6 +244,10 @@ PREMIUM_TIER_CALLS_PER_MINUTE = settings.PREMIUM_TIER_CALLS_PER_MINUTE
 CALL_DELAY = settings.CALL_DELAY  # seconds between calls for free tier (60/5 = 12)
 
 YAHOO_SEARCH_URL = settings.YAHOO_SEARCH_URL
+
+ADMIN_EMAIL = settings.ADMIN_EMAIL
+ADMIN_PASSWORD = settings.ADMIN_PASSWORD
+ADMIN_USERNAME = settings.ADMIN_USERNAME
 
 
 def validate_settings():

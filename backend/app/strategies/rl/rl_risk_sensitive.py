@@ -9,7 +9,7 @@ not just the expected value — enabling better tail-risk management.
 """
 
 import logging
-from typing import Dict, Tuple, Union
+from typing import Dict, Tuple
 
 import numpy as np
 import pandas as pd
@@ -118,12 +118,7 @@ class RLRiskSensitiveTrader(BaseRLStrategy):
         reward = return - lambda_1 * drawdown^2 - lambda_2 * turnover_cost - risk_free
         """
         risk_free = 0.05 / 252
-        return (
-            portfolio_return
-            - risk_free
-            - self.drawdown_penalty * drawdown ** 2
-            - 0.1 * turnover
-        )
+        return portfolio_return - risk_free - self.drawdown_penalty * drawdown**2 - 0.1 * turnover
 
     def _build_policy(self, state_dim: int) -> nn.Module:
         """Build risk-sensitive policy network."""
@@ -170,9 +165,7 @@ class RLRiskSensitiveTrader(BaseRLStrategy):
         optimizer = optim.Adam(self.policy.parameters(), lr=self.learning_rate)
 
         # Quantile targets for distributional RL
-        tau = torch.FloatTensor(
-            [(2 * i + 1) / (2 * self.n_quantiles) for i in range(self.n_quantiles)]
-        ).to(self.device)
+        tau = torch.FloatTensor([(2 * i + 1) / (2 * self.n_quantiles) for i in range(self.n_quantiles)]).to(self.device)
 
         episode_returns = []
         episode_drawdowns = []
@@ -268,7 +261,7 @@ class RLRiskSensitiveTrader(BaseRLStrategy):
         td_error = target - quantiles
         huber_loss = torch.where(
             td_error.abs() < 1.0,
-            0.5 * td_error ** 2,
+            0.5 * td_error**2,
             td_error.abs() - 0.5,
         )
         quantile_loss = (tau.unsqueeze(0) - (td_error < 0).float()).abs() * huber_loss
@@ -276,12 +269,12 @@ class RLRiskSensitiveTrader(BaseRLStrategy):
 
         # -- CVaR penalty --
         # Penalize low quantiles (tail risk)
-        cvar = quantiles[:, :self.n_quantiles // 5].mean()  # Bottom 20% quantiles
+        cvar = quantiles[:, : self.n_quantiles // 5].mean()  # Bottom 20% quantiles
         cvar_loss = -self.cvar_penalty * cvar  # Penalize low expected tail returns
 
         # -- Entropy bonus --
         std = torch.exp(log_std)
-        entropy = 0.5 * torch.log(2 * np.pi * np.e * std ** 2).mean()
+        entropy = 0.5 * torch.log(2 * np.pi * np.e * std**2).mean()
 
         loss = policy_loss + critic_loss + cvar_loss - self.entropy_coef * entropy
 

@@ -1,6 +1,7 @@
 'use client'
 
-import {Download, Heart, Shield, Star} from "lucide-react";
+import {CheckCircle2, Download, Heart, Lock, Shield, Star} from "lucide-react";
+import {toPrecision} from "@/utils/formatters";
 
 export const StrategyCard = ({ strategy, onSelect, onFavorite, onDownload }: any) => (
     <div
@@ -46,13 +47,13 @@ export const StrategyCard = ({ strategy, onSelect, onFavorite, onDownload }: any
             <div className="p-3 bg-slate-800/50 rounded-lg">
                 <p className="text-xs text-slate-500 mb-1">Return</p>
                 <p className="text-sm font-bold text-emerald-400">
-                    +{strategy.total_return || 0}%
+                    +{toPrecision(strategy.total_return) || 0}%
                 </p>
             </div>
             <div className="p-3 bg-slate-800/50 rounded-lg">
                 <p className="text-xs text-slate-500 mb-1">Sharpe</p>
                 <p className="text-sm font-bold text-blue-400">
-                    {(strategy.sharpe_ratio || 0).toFixed(2)}
+                    {(toPrecision(strategy.sharpe_ratio) || 0).toFixed(2)}
                 </p>
             </div>
         </div>
@@ -69,8 +70,16 @@ export const StrategyCard = ({ strategy, onSelect, onFavorite, onDownload }: any
                     <span>{strategy.total_downloads}</span>
                 </div>
             </div>
-            <div className="text-lg font-bold text-slate-100">
-                {strategy.price === 0 ? 'Free' : `$${strategy.price}`}
+            <div className="flex items-center gap-2">
+                {strategy.price > 0 && !strategy.is_purchased && (
+                    <Lock size={14} className="text-amber-400" />
+                )}
+                {strategy.is_purchased && strategy.price > 0 && (
+                    <CheckCircle2 size={14} className="text-emerald-400" />
+                )}
+                <span className="text-lg font-bold text-slate-100">
+                    {strategy.price === 0 ? 'Free' : strategy.is_purchased ? 'Owned' : `$${strategy.price}`}
+                </span>
             </div>
         </div>
     </div>

@@ -3,6 +3,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import {
     Activity,
     BarChart3,
+    Check,
     ChevronDown,
     Cpu,
     RefreshCw,
@@ -11,6 +12,7 @@ import {
     TrendingUp,
     UserCheck,
     Users,
+    X,
     Zap,
 } from 'lucide-react';
 import { api } from '@/utils/api';
@@ -61,19 +63,24 @@ const AdminDashboard: React.FC = () => {
     const [loading, setLoading] = useState(true);
     const [search, setSearch] = useState('');
     const [tierFilter, setTierFilter] = useState('');
-    const [activeTab, setActiveTab] = useState<'users' | 'activity'>('users');
+    const [activeTab, setActiveTab] = useState<'users' | 'submissions' | 'activity'>('users');
+    const [submissions, setSubmissions] = useState<any[]>([]);
+    const [rejectingId, setRejectingId] = useState<number | null>(null);
+    const [rejectReason, setRejectReason] = useState('');
 
     const fetchAll = useCallback(async () => {
         setLoading(true);
         try {
-            const [s, u, logs] = await Promise.all([
+            const [s, u, logs, subs] = await Promise.all([
                 api.admin.getStats(),
                 api.admin.getUsers({ search: search || undefined, tier: tierFilter || undefined, limit: 50 }),
                 api.admin.getUsage({ limit: 50 }),
+                api.admin.getSubmissions('pending_review'),
             ]);
             setStats(s);
             setUsers(u);
             setUsageLogs(logs);
+            setSubmissions(subs as any[]);
         } catch (err) {
             console.error('Admin data fetch failed', err);
         } finally {
@@ -100,6 +107,27 @@ const AdminDashboard: React.FC = () => {
             fetchAll();
         } catch (err) {
             console.error('Status toggle failed', err);
+        }
+    };
+
+    const handleApprove = async (strategyId: number) => {
+        try {
+            await api.admin.approveSubmission(strategyId);
+            fetchAll();
+        } catch (err) {
+            console.error('Approval failed', err);
+        }
+    };
+
+    const handleReject = async (strategyId: number) => {
+        if (!rejectReason.trim()) return;
+        try {
+            await api.admin.rejectSubmission(strategyId, rejectReason);
+            setRejectingId(null);
+            setRejectReason('');
+            fetchAll();
+        } catch (err) {
+            console.error('Rejection failed', err);
         }
     };
 
@@ -160,17 +188,26 @@ const AdminDashboard: React.FC = () => {
 
             {/* Tabs */}
             <div className="flex items-center gap-1 border-b border-slate-800">
-                {(['users', 'activity'] as const).map((tab) => (
+                {([
+                    { key: 'users' as const, label: 'User Management', badge: 0 },
+                    { key: 'submissions' as const, label: 'Submissions', badge: submissions.length },
+                    { key: 'activity' as const, label: 'Activity Feed', badge: 0 },
+                ]).map(({ key, label, badge }) => (
                     <button
-                        key={tab}
-                        onClick={() => setActiveTab(tab)}
-                        className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
-                            activeTab === tab
+                        key={key}
+                        onClick={() => setActiveTab(key as any)}
+                        className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors flex items-center gap-2 ${
+                            activeTab === key
                                 ? 'border-violet-500 text-slate-100'
                                 : 'border-transparent text-slate-500 hover:text-slate-300'
                         }`}
                     >
-                        {tab === 'users' ? 'User Management' : 'Activity Feed'}
+                        {label}
+                        {badge ? (
+                            <span className="bg-amber-500/20 text-amber-400 text-[10px] font-bold px-1.5 py-0.5 rounded-full">
+                                {badge}
+                            </span>
+                        ) : null}
                     </button>
                 ))}
             </div>
@@ -273,6 +310,101 @@ const AdminDashboard: React.FC = () => {
                             </tbody>
                         </table>
                     </div>
+                </div>
+            )}
+
+            {/* Submissions Tab */}
+            {activeTab === 'submissions' && (
+                <div className="bg-slate-800/30 border border-slate-700/60 rounded-xl overflow-hidden">
+                    <table className="w-full text-sm">
+                        <thead>
+                            <tr className="border-b border-slate-700/60">
+                                <th className="text-left px-4 py-3 text-slate-500 font-medium">Strategy</th>
+                                <th className="text-left px-4 py-3 text-slate-500 font-medium">Creator</th>
+                                <th className="text-left px-4 py-3 text-slate-500 font-medium">Category</th>
+                                <th className="text-right px-4 py-3 text-slate-500 font-medium">Sharpe</th>
+                                <th className="text-right px-4 py-3 text-slate-500 font-medium">Return</th>
+                                <th className="text-right px-4 py-3 text-slate-500 font-medium">Price</th>
+                                <th className="text-left px-4 py-3 text-slate-500 font-medium">Submitted</th>
+                                <th className="text-right px-4 py-3 text-slate-500 font-medium">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-700/40">
+                            {submissions.map((s: any) => (
+                                <tr key={s.id} className="hover:bg-slate-800/30 transition-colors">
+                                    <td className="px-4 py-3">
+                                        <p className="text-slate-200 font-medium">{s.name}</p>
+                                        <p className="text-xs text-slate-500">{s.complexity}</p>
+                                    </td>
+                                    <td className="px-4 py-3 text-slate-400">{s.creator_name}</td>
+                                    <td className="px-4 py-3">
+                                        <span className="text-xs bg-slate-700 text-slate-300 px-2 py-0.5 rounded-full">
+                                            {s.category}
+                                        </span>
+                                    </td>
+                                    <td className="px-4 py-3 text-right text-blue-400 font-mono">
+                                        {(s.sharpe_ratio || 0).toFixed(2)}
+                                    </td>
+                                    <td className="px-4 py-3 text-right text-emerald-400 font-mono">
+                                        {(s.total_return || 0).toFixed(1)}%
+                                    </td>
+                                    <td className="px-4 py-3 text-right text-slate-300 font-mono">
+                                        ${(s.price || 0).toFixed(0)}
+                                    </td>
+                                    <td className="px-4 py-3 text-slate-500 text-xs">
+                                        {s.submitted_at ? new Date(s.submitted_at).toLocaleDateString() : '-'}
+                                    </td>
+                                    <td className="px-4 py-3 text-right">
+                                        {rejectingId === s.id ? (
+                                            <div className="flex items-center gap-2 justify-end">
+                                                <input
+                                                    value={rejectReason}
+                                                    onChange={(e) => setRejectReason(e.target.value)}
+                                                    placeholder="Reason..."
+                                                    className="w-40 px-2 py-1 bg-slate-700 border border-slate-600 rounded text-xs text-slate-200 focus:outline-none"
+                                                />
+                                                <button
+                                                    onClick={() => handleReject(s.id)}
+                                                    disabled={!rejectReason.trim()}
+                                                    className="px-2 py-1 bg-red-500/20 text-red-400 rounded text-xs font-medium hover:bg-red-500/30 disabled:opacity-40"
+                                                >
+                                                    Confirm
+                                                </button>
+                                                <button
+                                                    onClick={() => { setRejectingId(null); setRejectReason(''); }}
+                                                    className="text-slate-500 hover:text-slate-300"
+                                                >
+                                                    <X size={14} />
+                                                </button>
+                                            </div>
+                                        ) : (
+                                            <div className="flex items-center gap-2 justify-end">
+                                                <button
+                                                    onClick={() => handleApprove(s.id)}
+                                                    className="flex items-center gap-1 px-2.5 py-1 bg-emerald-500/20 text-emerald-400 rounded text-xs font-medium hover:bg-emerald-500/30"
+                                                >
+                                                    <Check size={12} /> Approve
+                                                </button>
+                                                <button
+                                                    onClick={() => setRejectingId(s.id)}
+                                                    className="flex items-center gap-1 px-2.5 py-1 bg-red-500/20 text-red-400 rounded text-xs font-medium hover:bg-red-500/30"
+                                                >
+                                                    <X size={12} /> Reject
+                                                </button>
+                                            </div>
+                                        )}
+                                    </td>
+                                </tr>
+                            ))}
+                            {submissions.length === 0 && (
+                                <tr>
+                                    <td colSpan={8} className="px-4 py-8 text-center text-slate-500">
+                                        No pending submissions
+                                    </td>
+                                </tr>
+                            )}
+                        </tbody>
+                    </table>
                 </div>
             )}
 

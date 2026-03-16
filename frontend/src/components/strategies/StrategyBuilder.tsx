@@ -54,8 +54,11 @@ import {
     ZAxis
 } from 'recharts';
 import type {CustomStrategy as CustomStrategyType, StrategyGenerateResponse} from '@/utils/api';
-import {strategy as strategyApi} from '@/utils/api';
+import {marketplace, strategy as strategyApi} from '@/utils/api';
 import TickerSearch from "@/components/common/TickerSearch";
+import PublishModal from "@/components/strategies/PublishModel";
+import {PublishData} from "@/types/publish";
+import {Upload} from "lucide-react";
 
 const STRATEGY_TEMPLATES = [
     {
@@ -247,6 +250,7 @@ def generate_signals(data: pd.DataFrame) -> pd.Series:
     const [backtestCapital, setBacktestCapital] = useState(10000);
     const [isSaving, setIsSaving] = useState(false);
     const [isValidating, setIsValidating] = useState(false);
+    const [showPublishModal, setShowPublishModal] = useState(false);
 
     // Derived chart data from backtest results
     const equityChartData = useMemo(() => {
@@ -406,6 +410,27 @@ def generate_signals(data: pd.DataFrame) -> pd.Series:
 
     const handleCopyCode = () => {
         navigator.clipboard.writeText(code);
+    };
+
+    const canPublish = backtestResult &&
+        currentStrategyId &&
+        (backtestResult.result.sharpe_ratio ?? 0) >= 1.0 &&
+        (backtestResult.result.total_return_pct ?? 0) >= 10;
+
+    const handlePublishConfirm = async (data: PublishData) => {
+        if (!currentStrategyId) return;
+        try {
+            const res = await marketplace.publish({
+                ...data,
+                custom_strategy_id: currentStrategyId,
+            }) as any;
+            alert(res.message || 'Strategy submitted for review!');
+            setShowPublishModal(false);
+        } catch (err: any) {
+            const detail = err?.response?.data?.detail || err?.message || 'Publish failed';
+            alert(detail);
+            throw err;
+        }
     };
 
     return (
@@ -963,6 +988,19 @@ def generate_signals(data: pd.DataFrame) -> pd.Series:
                                             })}
                                         </div>
 
+                                        {/* Publish to Marketplace */}
+                                        {canPublish && (
+                                            <div className="flex justify-end">
+                                                <button
+                                                    onClick={() => setShowPublishModal(true)}
+                                                    className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-purple-600 to-indigo-600 text-white text-sm font-semibold rounded-xl hover:from-purple-500 hover:to-indigo-500 transition-all shadow-lg shadow-purple-900/30"
+                                                >
+                                                    <Upload size={16} />
+                                                    Publish to Marketplace
+                                                </button>
+                                            </div>
+                                        )}
+
                                         {/* Equity Curve Chart */}
                                         <div className="bg-gradient-to-br from-slate-900/50 to-slate-800/30 border border-slate-800/50 rounded-2xl p-6">
                                             <div className="flex items-center justify-between mb-6">
@@ -1185,6 +1223,24 @@ def generate_signals(data: pd.DataFrame) -> pd.Series:
                     </div>
                 </div>
             </div>
+            {showPublishModal && backtestResult && (
+                <PublishModal
+                    onClose={() => setShowPublishModal(false)}
+                    onPublish={handlePublishConfirm}
+                    backtest={{
+                        id: currentStrategyId ?? 0,
+                        name: strategyName,
+                        strategy_key: strategyName,
+                        symbols: [backtestSymbol],
+                        total_return_pct: backtestResult.result.total_return_pct ?? 0,
+                        sharpe_ratio: backtestResult.result.sharpe_ratio ?? 0,
+                        max_drawdown: backtestResult.result.max_drawdown ?? 0,
+                        win_rate: backtestResult.result.win_rate ?? 0,
+                        total_trades: backtestResult.result.total_trades ?? 0,
+                        period: backtestPeriod,
+                    }}
+                />
+            )}
         </div>
     );
 };

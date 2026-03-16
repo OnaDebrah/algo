@@ -1167,6 +1167,7 @@ export interface StrategyPublishRequest {
     recommended_capital?: number;
     backtest_id?: number | null;
     strategy_key?: string | null;
+    custom_strategy_id?: number;
 }
 
 export interface MarketplaceFilterParams {

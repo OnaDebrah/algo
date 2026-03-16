@@ -13,7 +13,7 @@ And learns which sub-strategies to allocate capital to.
 """
 
 import logging
-from typing import Dict, List, Optional, Tuple, Union
+from typing import Dict, Tuple
 
 import numpy as np
 import pandas as pd
@@ -121,7 +121,7 @@ class RLRegimeAllocator(BaseRLStrategy):
 
         # 2. Trend strength (R-squared of linear fit)
         x = np.arange(min(n, 20))
-        y = close[-len(x):]
+        y = close[-len(x) :]
         if len(x) > 1:
             slope, intercept = np.polyfit(x, y, 1)
             y_pred = slope * x + intercept
@@ -162,8 +162,8 @@ class RLRegimeAllocator(BaseRLStrategy):
         for i in range(self.n_strategies):
             # Generate simplified signals for each sub-strategy type
             signals = self._generate_sub_signals(data, strategy_idx=i)
-            strategy_returns = signals[1:] * returns[-len(signals[1:]):]
-            recent = strategy_returns[-self.performance_window:]
+            strategy_returns = signals[1:] * returns[-len(signals[1:]) :]
+            recent = strategy_returns[-self.performance_window :]
 
             avg_ret = float(np.mean(recent)) if len(recent) > 0 else 0.0
             win_rate = float(np.mean(recent > 0)) if len(recent) > 0 else 0.5
@@ -254,7 +254,7 @@ class RLRegimeAllocator(BaseRLStrategy):
 
         # Map dominant strategy to signal direction
         # Positive = trend-following strategies favored, negative = mean-reversion
-        trend_weight = weights[0] + weights[3] + weights[4]   # SMA + MACD + Momentum
+        trend_weight = weights[0] + weights[3] + weights[4]  # SMA + MACD + Momentum
         reversion_weight = weights[1] + weights[2] + weights[5]  # RSI + BB + VolBreakout
 
         if trend_weight > reversion_weight + 0.15:
@@ -293,7 +293,7 @@ class RLRegimeAllocator(BaseRLStrategy):
             states, rewards = [], []
 
             for t in range(start, end - 1):
-                window = episode_data.iloc[:t + 1]
+                window = episode_data.iloc[: t + 1]
                 state = self._build_state(window)
                 states.append(state)
 
@@ -309,9 +309,7 @@ class RLRegimeAllocator(BaseRLStrategy):
                 actual_return = (close[t + 1] - close[t]) / max(close[t], 1e-8)
 
                 # Get signal from each sub-strategy and weight
-                sub_signals = np.array([
-                    self._generate_sub_signals(window, i)[-1] for i in range(self.n_strategies)
-                ])
+                sub_signals = np.array([self._generate_sub_signals(window, i)[-1] for i in range(self.n_strategies)])
                 portfolio_return = float(np.dot(action, sub_signals)) * actual_return
 
                 # Reward: return with drawdown penalty

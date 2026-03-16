@@ -11,6 +11,7 @@ import Header from "@/app/layouts/Header";
 import {User} from "@/types/all_types";
 import {api} from '@/utils/api';
 import {useNavigationStore} from '@/store/useNavigationStore';
+import {UserProvider} from '@/contexts/UserContext';
 
 // ── Lazy-loaded page components (each gets its own chunk) ─────────
 const Dashboard = lazy(() => import("@/components/dashboard/Dashboard"));
@@ -227,20 +228,22 @@ const AppShell: React.FC<AppShellProps> = () => {
           />
 
           <main className="mt-6 animate-fade-in">
-            <Suspense
-              fallback={
-                <div className="flex items-center justify-center min-h-[60vh]">
-                  <div className="text-center">
-                    <div className="w-10 h-10 border-3 border-violet-500 border-t-transparent rounded-full animate-spin mx-auto" />
-                    <p className="mt-3 text-sm text-slate-400">Loading…</p>
+            <UserProvider user={user}>
+              <Suspense
+                fallback={
+                  <div className="flex items-center justify-center min-h-[60vh]">
+                    <div className="text-center">
+                      <div className="w-10 h-10 border-3 border-violet-500 border-t-transparent rounded-full animate-spin mx-auto" />
+                      <p className="mt-3 text-sm text-slate-400">Loading…</p>
+                    </div>
                   </div>
-                </div>
-              }
-            >
-              <ErrorBoundary key={currentPage} onReset={() => setCurrentPage('dashboard')}>
-                {PAGE_COMPONENTS[currentPage]}
-              </ErrorBoundary>
-            </Suspense>
+                }
+              >
+                <ErrorBoundary key={currentPage} onReset={() => setCurrentPage('dashboard')}>
+                  {PAGE_COMPONENTS[currentPage]}
+                </ErrorBoundary>
+              </Suspense>
+            </UserProvider>
           </main>
 
           {/* Status indicator */}

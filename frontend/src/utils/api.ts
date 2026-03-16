@@ -1013,6 +1013,15 @@ export const admin = {
 
     getUsage: (params?: { action?: string; days?: number; limit?: number; offset?: number }) =>
         client.get('/admin/usage', { params }),
+
+    getSubmissions: (status?: string) =>
+        client.get('/admin/submissions', { params: { status: status || 'pending_review' } }),
+
+    approveSubmission: (strategyId: number) =>
+        client.put(`/admin/submissions/${strategyId}/approve`),
+
+    rejectSubmission: (strategyId: number, rejection_reason: string) =>
+        client.put(`/admin/submissions/${strategyId}/reject`, { rejection_reason }),
 };
 
 // ==================== PRICING & QUOTA ====================
@@ -1265,6 +1274,18 @@ export type ApiEndpoint =
     | 'settings/reset'
     | 'health'
     | '/';
+
+// ==================== PAYMENTS ====================
+export const payments = {
+    createCheckoutSession: (strategyId: number) =>
+        client.post<{ checkout_url: string }>('/payments/create-checkout-session', { strategy_id: strategyId }) as Promise<{ checkout_url: string }>,
+
+    getPurchases: () =>
+        client.get<number[]>('/payments/purchases') as Promise<number[]>,
+
+    checkPurchase: (strategyId: number) =>
+        client.get<{ purchased: boolean }>(`/payments/check/${strategyId}`) as Promise<{ purchased: boolean }>,
+};
 
 // ==================== ERROR TYPES ====================
 export interface ApiError {

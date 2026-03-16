@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-import {Download, Heart, Shield, Star, Zap} from "lucide-react";
+import {CheckCircle2, Download, Heart, Lock, Shield, Star, Zap} from "lucide-react";
 
 export const StrategyListItem = ({ strategy, onSelect, onFavorite, onDownload }: any) => (
     <div
@@ -43,8 +43,16 @@ export const StrategyListItem = ({ strategy, onSelect, onFavorite, onDownload }:
                     {(strategy.sharpe_ratio || 0).toFixed(2)}
                 </p>
             </div>
-            <div className="text-2xl font-bold text-slate-100 min-w-[80px] text-right">
-                {strategy.price === 0 ? 'Free' : `$${strategy.price}`}
+            <div className="flex items-center gap-2 min-w-[80px] justify-end">
+                {strategy.price > 0 && !strategy.is_purchased && (
+                    <Lock size={16} className="text-amber-400" />
+                )}
+                {strategy.is_purchased && strategy.price > 0 && (
+                    <CheckCircle2 size={16} className="text-emerald-400" />
+                )}
+                <span className="text-2xl font-bold text-slate-100">
+                    {strategy.price === 0 ? 'Free' : strategy.is_purchased ? 'Owned' : `$${strategy.price}`}
+                </span>
             </div>
         </div>
 

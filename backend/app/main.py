@@ -31,6 +31,7 @@ from .api.routes import (
     mlstudio,
     optimise,
     options,
+    payments,
     portfolio,
     pricing,
     regime,
@@ -136,6 +137,7 @@ app.include_router(advisor.router)
 app.include_router(alerts.router)
 app.include_router(live.router)
 app.include_router(marketplace.router)
+app.include_router(payments.router)
 app.include_router(mlstudio.router)
 app.include_router(options.router)
 app.include_router(optimise.router)

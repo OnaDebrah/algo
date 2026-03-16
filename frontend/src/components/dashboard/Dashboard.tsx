@@ -46,6 +46,7 @@ import {motion} from "framer-motion";
 import DeploymentModal from "@/components/strategies/DeploymentModel";
 import PublishModal from "@/components/strategies/PublishModel";
 import {PublishData} from "@/types/publish";
+import {useUser} from "@/contexts/UserContext";
 import {
     calculateAvgLoss,
     calculateAvgProfit,
@@ -75,6 +76,7 @@ interface PerformanceMetrics {
 
 
 const Dashboard = () => {
+    const user = useUser();
     const [metrics, setMetrics] = useState<PerformanceMetrics>({
         total_return: 0,
         total_return_pct: 0,
@@ -222,21 +224,17 @@ const Dashboard = () => {
     const onPublishConfirm = async (publishData: PublishData) => {
         if (!selectedBacktestForAction) return;
 
-        try {
-            await marketplace.publish({
-                backtest_id: selectedBacktestForAction.id,
-                strategy_key: selectedBacktestForAction.strategy_key || selectedBacktestForAction.strategy_config?.strategy_key || '',
-                ...publishData
-            });
+        const response = await marketplace.publish({
+            backtest_id: selectedBacktestForAction.id,
+            strategy_key: selectedBacktestForAction.strategy_key || selectedBacktestForAction.strategy_config?.strategy_key || '',
+            ...publishData
+        }) as any;
 
-            alert('Strategy submitted for review! You\'ll be notified when approved.');
+        const message = response?.message || 'Strategy published successfully!';
+        alert(message);
 
-            setShowPublishModal(false);
-            setSelectedBacktestForAction(null);
-        } catch (error: any) {
-            console.error('Failed to publish strategy:', error);
-            alert(error.response?.data?.detail || 'Failed to publish strategy');
-        }
+        setShowPublishModal(false);
+        setSelectedBacktestForAction(null);
     };
 
     useEffect(() => {
@@ -556,8 +554,8 @@ const Dashboard = () => {
                                                 Deploy
                                             </button>
 
-                                            {/* Publish Button - Only for good strategies */}
-                                            {(bt.sharpe_ratio || 0) >= 1.0 && (bt.total_return_pct || 0) >= 10 && (
+                                            {/* Publish Button - Superusers only (proprietary strategies) */}
+                                            {user?.is_superuser && (bt.sharpe_ratio || 0) >= 1.0 && (bt.total_return_pct || 0) >= 10 && (
                                                 <button
                                                     onClick={(e) => {
                                                         e.stopPropagation();

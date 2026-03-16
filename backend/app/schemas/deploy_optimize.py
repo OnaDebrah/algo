@@ -2,7 +2,7 @@
 Pydantic schemas for the pre-live portfolio optimization API.
 """
 
-from typing import Dict, List, Optional
+from typing import Dict, List
 
 from pydantic import BaseModel
 

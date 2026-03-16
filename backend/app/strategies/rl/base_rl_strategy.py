@@ -150,12 +150,15 @@ class BaseRLStrategy(BaseStrategy):
             os.makedirs(RL_MODELS_DIR, exist_ok=True)
             path = os.path.join(RL_MODELS_DIR, f"{self.name}.pth")
 
-        torch.save({
-            "policy_state_dict": self.policy.state_dict(),
-            "params": self.params,
-            "is_trained": self.is_trained,
-            "training_history": self.training_history,
-        }, path)
+        torch.save(
+            {
+                "policy_state_dict": self.policy.state_dict(),
+                "params": self.params,
+                "is_trained": self.is_trained,
+                "training_history": self.training_history,
+            },
+            path,
+        )
 
         logger.info(f"RL model saved to {path}")
         return path

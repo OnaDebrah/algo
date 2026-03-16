@@ -9,7 +9,7 @@ import {BacktestDataToPublish, PublishData} from "@/types/publish";
 interface PublishModalProps {
     backtest: BacktestDataToPublish;
     onClose: () => void;
-    onPublish: (data: PublishData) => void;
+    onPublish: (data: PublishData) => Promise<void>;
 }
 
 const PublishModal = ({ backtest, onClose, onPublish }: PublishModalProps) => {
@@ -70,6 +70,7 @@ const PublishModal = ({ backtest, onClose, onPublish }: PublishModalProps) => {
         }
 
         setIsSubmitting(true);
+        setErrors({});
         try {
             // Filter out empty pros/cons
             const cleanedData = {
@@ -78,7 +79,12 @@ const PublishModal = ({ backtest, onClose, onPublish }: PublishModalProps) => {
                 cons: formData.cons.filter(c => c.trim())
             };
 
-            onPublish(cleanedData);
+            await onPublish(cleanedData);
+        } catch (err: any) {
+            console.error('Publish failed:', err);
+            // Axios interceptor transforms errors to { status, data, message }
+            const detail = err?.data?.detail || err?.message || err?.detail || 'Failed to publish strategy';
+            setErrors({ submit: typeof detail === 'string' ? detail : JSON.stringify(detail) });
         } finally {
             setIsSubmitting(false);
         }
@@ -466,7 +472,17 @@ const PublishModal = ({ backtest, onClose, onPublish }: PublishModalProps) => {
                     </div>
                 </div>
 
-                {/* Footer */}
+                {/* Footer errors */}
+                {Object.keys(errors).length > 0 && (
+                    <div className="mx-8 mb-2 p-3 bg-red-500/10 border border-red-500/20 rounded-xl text-red-400 text-sm space-y-1">
+                        {Object.entries(errors).map(([key, msg]) => (
+                            <div key={key} className="flex items-center gap-2">
+                                <AlertCircle size={14} className="flex-shrink-0" />
+                                <span>{msg}</span>
+                            </div>
+                        ))}
+                    </div>
+                )}
                 <div className="p-8 border-t border-slate-700/30 flex items-center justify-between">
                     <p className="text-sm text-slate-400">
                         * Required fields

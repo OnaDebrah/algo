@@ -143,15 +143,15 @@ class SingleAssetTradingEnv:
 
         # Record trade if position changed
         if abs(action - self.position) > 0.01:
-            self.trades.append({
-                "step": self.current_step,
-                "old_pos": self.position,
-                "new_pos": action,
-                "turnover": turnover,
-            })
+            self.trades.append(
+                {
+                    "step": self.current_step,
+                    "old_pos": self.position,
+                    "new_pos": action,
+                    "turnover": turnover,
+                }
+            )
 
-        # Update position
-        old_position = self.position
         self.position = action
 
         # Advance step
@@ -162,7 +162,7 @@ class SingleAssetTradingEnv:
             # Portfolio return
             step_return = self.returns[self.current_step]
             portfolio_return = self.position * step_return
-            self.portfolio_value *= (1 + portfolio_return)
+            self.portfolio_value *= 1 + portfolio_return
             self.portfolio_value -= cost
             self.peak_value = max(self.peak_value, self.portfolio_value)
 
@@ -272,7 +272,7 @@ class MultiAssetTradingEnv:
         if not done:
             step_returns = self.returns.iloc[self.current_step].values
             portfolio_return = float(np.dot(self.weights, step_returns))
-            self.portfolio_value *= (1 + portfolio_return)
+            self.portfolio_value *= 1 + portfolio_return
             self.portfolio_value -= cost
             self.peak_value = max(self.peak_value, self.portfolio_value)
 

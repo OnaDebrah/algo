@@ -2,8 +2,7 @@
 Pydantic schemas for the Admin dashboard API.
 """
 
-from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Dict, List, Optional
 
 from pydantic import BaseModel
 
@@ -53,3 +52,22 @@ class TierUpdateRequest(BaseModel):
 
 class StatusUpdateRequest(BaseModel):
     is_active: bool
+
+
+class SubmissionListItem(BaseModel):
+    id: int
+    name: str
+    creator_name: str
+    category: str
+    complexity: str
+    sharpe_ratio: float
+    total_return: float
+    max_drawdown: float
+    win_rate: float
+    price: float
+    status: str
+    submitted_at: Optional[str] = None
+
+
+class SubmissionRejectRequest(BaseModel):
+    rejection_reason: str
