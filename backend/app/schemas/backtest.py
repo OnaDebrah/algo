@@ -169,8 +169,8 @@ class BacktestHistoryItem(BaseModel):
     win_rate: Optional[float] = None
     total_trades: Optional[int] = None
     final_equity: Optional[float] = None
-    equity_curve: Optional[List[EquityCurvePoint]] = None
-    trades: Optional[List[Trade]] = None
+    equity_curve: Optional[List[Dict[str, Any]]] = None  # Dict to support both regular and options formats
+    trades: Optional[List[Dict[str, Any]]] = None  # Dict to support both regular and options trades
 
     # Extended results (advanced metrics, benchmark, price data, factor attribution)
     extended_results: Optional[Dict[str, Any]] = None

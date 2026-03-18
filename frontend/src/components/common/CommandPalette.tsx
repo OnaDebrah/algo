@@ -66,7 +66,7 @@ export const CommandPalette = () => {
                                 onSelect={() => runCommand(() => navigateTo('dashboard'))}
                                 className="flex cursor-pointer select-none items-center rounded-lg px-3 py-3 text-sm text-slate-300 hover:bg-slate-800/80 hover:text-white data-[selected=true]:bg-violet-500/20 data-[selected=true]:text-violet-300 transition-colors mt-1"
                             >
-                                <Activity className="mr-3 h-4 w-4 text-violet-400" /> Performance Hub
+                                <Activity className="mr-3 h-4 w-4 text-violet-400" /> Activity Hub
                             </Command.Item>
                             <Command.Item
                                 onSelect={() => runCommand(() => navigateTo('live'))}

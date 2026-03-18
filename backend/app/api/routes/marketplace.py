@@ -20,6 +20,7 @@ from ...schemas.marketplace import (
     StrategyReviewSchema,
 )
 from ...services.marketplace_service import BacktestResults, MarketplaceService, StrategyListing
+from ...services.social_service import ActivityService
 from ...strategies.catelog.strategy_catalog import get_catalog
 
 logger = logging.getLogger(__name__)
@@ -493,6 +494,29 @@ async def publish_strategy(
             if publish_status == "approved"
             else "Strategy submitted for review. You'll be notified when approved."
         )
+
+        # Log activity for the social feed
+        try:
+            activity_service = ActivityService(db)
+            activity_type = "STRATEGY_PUBLISHED" if publish_status == "approved" else "STRATEGY_SUBMITTED"
+            activity_content = (
+                f"published '{request.name}' to the marketplace" if publish_status == "approved" else f"submitted '{request.name}' for review"
+            )
+            await activity_service.log_activity(
+                user_id=current_user.id,
+                activity_type=activity_type,
+                content=activity_content,
+                metadata={
+                    "strategy_id": strategy_id,
+                    "strategy_name": request.name,
+                    "category": request.category,
+                    "sharpe_ratio": round(backtest_results.sharpe_ratio, 2),
+                    "total_return": round(backtest_results.total_return, 2),
+                },
+            )
+        except Exception as act_err:
+            logger.warning(f"Failed to log publish activity: {act_err}")
+
         return {"id": strategy_id, "status": response_status, "message": message}
 
     except HTTPException:

@@ -60,7 +60,7 @@ class OptionsStrategyBuilder:
             if volatility is None:
                 volatility = 0.3  # Default IV when not provided
             engine = OptionsPricingEngine()
-            premium = engine.price(
+            result = engine.price(
                 S=current_price,
                 K=strike,
                 T=T,
@@ -69,6 +69,8 @@ class OptionsStrategyBuilder:
                 option_type=option_type,
                 q=self.dividend_yield,
             )
+            # engine.price() returns a PricingResult; extract the float price
+            premium = result.price if hasattr(result, "price") else float(result)
 
         leg = OptionLeg(
             option_type=option_type,

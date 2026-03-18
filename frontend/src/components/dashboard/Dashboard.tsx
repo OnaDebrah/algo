@@ -4,9 +4,11 @@
 
 import MetricCard from "@/components/backtest/MetricCard";
 import {
+    Activity,
     AlertTriangle,
     ArrowDownRight,
     ArrowUpRight,
+    BarChart3,
     Calendar,
     Download,
     Eye,
@@ -15,9 +17,11 @@ import {
     RefreshCw,
     Rocket,
     Search,
+    Target,
     TrendingDown,
     TrendingUp,
-    Upload
+    Upload,
+    X
 } from "lucide-react";
 import {
     Area,
@@ -101,11 +105,12 @@ const Dashboard = () => {
     const [selectedBacktest, setSelectedBacktest] = useState<BacktestHistoryItem | null>(null);
     const [tradeDistribution, setTradeDistribution] = useState<any[]>([]);
     const [searchQuery, setSearchQuery] = useState('');
-    const [filterType, setFilterType] = useState<'all' | 'single' | 'multi'>('all');
+    const [filterType, setFilterType] = useState<'all' | 'single' | 'multi' | 'options' | 'wfa'>('all');
     const [showRiskAnalysis, setShowRiskAnalysis] = useState(false);
 
     const [showDeployModal, setShowDeployModal] = useState(false);
     const [showPublishModal, setShowPublishModal] = useState(false);
+    const [showDetailModal, setShowDetailModal] = useState(false);
     const [selectedBacktestForAction, setSelectedBacktestForAction] = useState<BacktestHistoryItem | null>(null);
 
     const monthlyReturns = useMemo(() => {
@@ -292,6 +297,9 @@ const Dashboard = () => {
             const details = await backtest.getDetails(backtestItem.id);
 
             if (details) {
+                // Update selectedBacktest with full details (trades, equity_curve, extended_results)
+                setSelectedBacktest(prev => prev ? { ...prev, ...details } : details);
+
                 setMetrics({
                     total_return: (details.final_equity || details.initial_capital) - details.initial_capital,
                     total_return_pct: details.total_return_pct || 0,
@@ -312,13 +320,16 @@ const Dashboard = () => {
                     initial_capital: details.initial_capital
                 });
 
-                const curve = (details.equity_curve || []).map((p: EquityCurvePoint) => ({
-                    date: new Date(p.timestamp).toLocaleDateString(undefined, {month: 'short', day: 'numeric'}),
-                    timestamp: p.timestamp,
-                    value: p.equity,
-                    equity: p.equity,
-                    cash: p.cash || 0
-                }));
+                const curve = (details.equity_curve || []).map((p: any) => {
+                    const ts = p.timestamp || p.date || '';
+                    return {
+                        date: ts ? new Date(ts).toLocaleDateString(undefined, {month: 'short', day: 'numeric'}) : '',
+                        timestamp: ts,
+                        value: p.equity,
+                        equity: p.equity,
+                        cash: p.cash || 0
+                    };
+                });
                 setEquityData(curve);
 
                 const winningCount = details.winning_trades || calculateWinningTrades(details.trades);
@@ -385,8 +396,8 @@ const Dashboard = () => {
             {/* Header */}
             <div className="flex items-center justify-between">
                 <div>
-                    <h1 className="text-4xl font-black text-slate-100 tracking-tight">Replay Center</h1>
-                    <p className="text-slate-400 mt-1">Overview of your trading performance and analytics</p>
+                    <h1 className="text-2xl font-black text-slate-100 tracking-tight">Activity Hub</h1>
+                    <p className="text-slate-400 mt-1">Overview of your backtesting activities and analytics</p>
                 </div>
                 <button
                     onClick={handleRefresh}
@@ -462,7 +473,7 @@ const Dashboard = () => {
 
                             {/* Filter */}
                             <div className="flex gap-2 mt-3">
-                                {['all', 'single', 'multi'].map((type) => (
+                                {['all', 'single', 'multi', 'options', 'wfa'].map((type) => (
                                     <button
                                         key={type}
                                         onClick={() => setFilterType(type as any)}
@@ -472,7 +483,7 @@ const Dashboard = () => {
                                                 : 'bg-slate-800/40 text-slate-500 hover:bg-slate-700/40'
                                         }`}
                                     >
-                                        {type === 'all' ? 'All' : type === 'single' ? 'Single' : 'Multi'}
+                                        {type === 'all' ? 'All' : type === 'single' ? 'Single' : type === 'multi' ? 'Multi' : type === 'options' ? 'Options' : 'WFA'}
                                     </button>
                                 ))}
                             </div>
@@ -506,11 +517,15 @@ const Dashboard = () => {
                                                 </p>
                                                 <div className="flex items-center gap-2 mt-1">
                                                     <span className={`text-xs px-2 py-0.5 rounded ${
-                                                        bt.backtest_type === 'multi'
-                                                            ? 'bg-blue-500/20 text-blue-400'
-                                                            : 'bg-amber-500/20 text-amber-400'
+                                                        bt.backtest_type === 'options'
+                                                            ? 'bg-violet-500/20 text-violet-400'
+                                                            : bt.backtest_type === 'wfa'
+                                                                ? 'bg-cyan-500/20 text-cyan-400'
+                                                                : bt.backtest_type === 'multi'
+                                                                    ? 'bg-blue-500/20 text-blue-400'
+                                                                    : 'bg-amber-500/20 text-amber-400'
                                                     }`}>
-                                                        {bt.backtest_type}
+                                                        {bt.backtest_type === 'options' ? 'Options' : bt.backtest_type === 'wfa' ? 'WFA' : bt.backtest_type}
                                                     </span>
                                                     <span className="text-xs text-slate-500">
                                                         {bt.symbols.slice(0, 2).join(', ')}
@@ -569,14 +584,15 @@ const Dashboard = () => {
                                                 </button>
                                             )}
 
-                                            {/* View Details - Keep existing functionality */}
+                                            {/* View Full Details Modal */}
                                             <button
-                                                onClick={(e) => {
+                                                onClick={async (e) => {
                                                     e.stopPropagation();
-                                                    handleBacktestSelect(bt);
+                                                    await handleBacktestSelect(bt);
+                                                    setShowDetailModal(true);
                                                 }}
                                                 className="px-3 py-2 bg-slate-700/50 hover:bg-slate-600/50 text-slate-300 rounded-lg text-xs font-medium transition-all"
-                                                title="View details"
+                                                title="View full details"
                                             >
                                                 <Eye size={14}/>
                                             </button>
@@ -629,6 +645,18 @@ const Dashboard = () => {
                                             Risk Analysis
                                         </button>
                                         <button
+                                            onClick={() => {
+                                                if (!selectedBacktest || !equityData.length) return;
+                                                const header = 'Date,Equity,Cash\n';
+                                                const rows = equityData.map(d => `${d.timestamp || d.date},${d.value},${d.cash || ''}`).join('\n');
+                                                const blob = new Blob([header + rows], { type: 'text/csv' });
+                                                const url = URL.createObjectURL(blob);
+                                                const a = document.createElement('a');
+                                                a.href = url;
+                                                a.download = `${selectedBacktest.name || 'backtest'}_equity.csv`;
+                                                a.click();
+                                                URL.revokeObjectURL(url);
+                                            }}
                                             className="flex items-center gap-2 px-4 py-2 bg-slate-800/60 hover:bg-slate-700/60 border border-slate-700/50 rounded-lg transition-all text-sm font-medium text-slate-300">
                                             <Download size={16}/>
                                             Export
@@ -899,6 +927,159 @@ const Dashboard = () => {
                     }}
                     onDeploy={onDeployConfirm}
                 />
+            )}
+
+            {/* Full-Screen Backtest Detail Modal */}
+            {showDetailModal && selectedBacktest && (
+                <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200">
+                    <div className="bg-slate-900 border border-slate-700/50 rounded-2xl w-full max-w-5xl max-h-[90vh] overflow-y-auto">
+                        {/* Header */}
+                        <div className="sticky top-0 z-10 bg-slate-900 border-b border-slate-700/50 px-6 py-4 flex items-center justify-between rounded-t-2xl">
+                            <div>
+                                <h2 className="text-xl font-bold text-slate-100">
+                                    {selectedBacktest.name || `Backtest #${selectedBacktest.id}`}
+                                </h2>
+                                <p className="text-sm text-slate-400 mt-1">
+                                    {selectedBacktest.symbols?.join(', ')} &middot; {selectedBacktest.period} &middot; {selectedBacktest.interval}
+                                </p>
+                            </div>
+                            <button
+                                onClick={() => setShowDetailModal(false)}
+                                className="p-2 hover:bg-slate-800 rounded-lg transition-all text-slate-400 hover:text-slate-200"
+                            >
+                                <X size={20} />
+                            </button>
+                        </div>
+
+                        {/* Metrics Grid */}
+                        <div className="px-6 py-5 grid grid-cols-2 md:grid-cols-4 gap-4">
+                            {[
+                                { label: 'Total Return', value: `${metrics.total_return_pct >= 0 ? '+' : ''}${metrics.total_return_pct.toFixed(2)}%`, color: metrics.total_return_pct >= 0 ? 'text-emerald-400' : 'text-red-400', icon: TrendingUp },
+                                { label: 'Sharpe Ratio', value: metrics.sharpe_ratio.toFixed(2), color: metrics.sharpe_ratio >= 1 ? 'text-emerald-400' : 'text-amber-400', icon: Target },
+                                { label: 'Max Drawdown', value: `${metrics.max_drawdown.toFixed(2)}%`, color: 'text-red-400', icon: TrendingDown },
+                                { label: 'Win Rate', value: `${metrics.win_rate.toFixed(1)}%`, color: metrics.win_rate >= 50 ? 'text-emerald-400' : 'text-amber-400', icon: Activity },
+                                { label: 'Total Trades', value: `${metrics.total_trades}`, color: 'text-slate-300', icon: BarChart3 },
+                                { label: 'Profit Factor', value: metrics.profit_factor.toFixed(2), color: metrics.profit_factor >= 1 ? 'text-emerald-400' : 'text-red-400', icon: BarChart3 },
+                                { label: 'Avg Win', value: formatCurrency(metrics.avg_win), color: 'text-emerald-400', icon: TrendingUp },
+                                { label: 'Avg Loss', value: formatCurrency(metrics.avg_loss), color: 'text-red-400', icon: TrendingDown },
+                            ].map((m, i) => {
+                                const Icon = m.icon;
+                                return (
+                                    <div key={i} className="bg-slate-800/50 border border-slate-700/30 rounded-xl p-4">
+                                        <div className="flex items-center justify-between mb-1">
+                                            <p className="text-xs text-slate-500 font-medium uppercase">{m.label}</p>
+                                            <Icon size={14} className="text-slate-600" />
+                                        </div>
+                                        <p className={`text-lg font-bold ${m.color}`}>{m.value}</p>
+                                    </div>
+                                );
+                            })}
+                        </div>
+
+                        {/* Extended Metrics */}
+                        {selectedBacktest.extended_results && (
+                            <div className="px-6 pb-4">
+                                <h3 className="text-sm font-semibold text-slate-400 uppercase mb-3">Risk Analytics</h3>
+                                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                                    {[
+                                        { label: 'Volatility (Ann.)', value: `${((selectedBacktest.extended_results.volatility || 0) * 100).toFixed(2)}%` },
+                                        { label: 'Sortino Ratio', value: (selectedBacktest.extended_results.sortino_ratio || 0).toFixed(2) },
+                                        { label: 'Calmar Ratio', value: (selectedBacktest.extended_results.calmar_ratio || 0).toFixed(2) },
+                                        { label: 'VaR (95%)', value: `${((selectedBacktest.extended_results.var_95 || 0) * 100).toFixed(2)}%` },
+                                    ].map((m, i) => (
+                                        <div key={i} className="bg-slate-800/30 border border-slate-700/20 rounded-lg p-3">
+                                            <p className="text-[11px] text-slate-500 mb-1">{m.label}</p>
+                                            <p className="text-sm font-bold text-slate-300">{m.value}</p>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Equity Curve */}
+                        {equityData.length > 0 && (
+                            <div className="px-6 pb-5">
+                                <h3 className="text-sm font-semibold text-slate-400 uppercase mb-3">Equity Curve</h3>
+                                <div className="h-[300px] bg-slate-800/30 rounded-xl p-4">
+                                    <ResponsiveContainer width="100%" height="100%">
+                                        <AreaChart data={equityData}>
+                                            <defs>
+                                                <linearGradient id="detailEquityGrad" x1="0" y1="0" x2="0" y2="1">
+                                                    <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.3}/>
+                                                    <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0}/>
+                                                </linearGradient>
+                                            </defs>
+                                            <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} />
+                                            <XAxis dataKey="date" stroke="#64748b" fontSize={10} axisLine={false} tickLine={false} />
+                                            <YAxis stroke="#64748b" fontSize={10} axisLine={false} tickLine={false} tickFormatter={(v) => `$${(v/1000).toFixed(0)}k`} />
+                                            <Tooltip
+                                                contentStyle={{ backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '8px' }}
+                                                labelStyle={{ color: '#94a3b8' }}
+                                                formatter={(value: any) => [`$${Number(value).toLocaleString()}`, 'Equity']}
+                                            />
+                                            <Area type="monotone" dataKey="value" stroke="#8b5cf6" fill="url(#detailEquityGrad)" strokeWidth={2} />
+                                        </AreaChart>
+                                    </ResponsiveContainer>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Trade History Table */}
+                        {selectedBacktest.trades && selectedBacktest.trades.length > 0 && (
+                            <div className="px-6 pb-6">
+                                <h3 className="text-sm font-semibold text-slate-400 uppercase mb-3">
+                                    Recent Trades ({selectedBacktest.trades.length} total)
+                                </h3>
+                                <div className="overflow-x-auto max-h-[300px] overflow-y-auto rounded-xl border border-slate-700/30">
+                                    <table className="w-full text-sm">
+                                        <thead className="sticky top-0 bg-slate-800 text-slate-400">
+                                            <tr>
+                                                <th className="text-left px-4 py-2 font-medium">Date</th>
+                                                <th className="text-left px-4 py-2 font-medium">Symbol</th>
+                                                <th className="text-left px-4 py-2 font-medium">Type</th>
+                                                <th className="text-right px-4 py-2 font-medium">Price</th>
+                                                <th className="text-right px-4 py-2 font-medium">Qty</th>
+                                                <th className="text-right px-4 py-2 font-medium">P&L</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {selectedBacktest.trades.slice(0, 50).map((t: any, i: number) => {
+                                                const tradeType = t.order_type || t.type || t.side || 'TRADE';
+                                                const tradeDate = t.executed_at || t.date || t.timestamp;
+                                                const isBuy = ['BUY', 'LONG', 'ENTRY'].includes(tradeType.toUpperCase());
+                                                const pnl = t.profit ?? t.pnl ?? 0;
+                                                return (
+                                                    <tr key={i} className="border-t border-slate-800/50 hover:bg-slate-800/30">
+                                                        <td className="px-4 py-2 text-slate-400">
+                                                            {tradeDate ? new Date(tradeDate).toLocaleDateString() : '-'}
+                                                        </td>
+                                                        <td className="px-4 py-2 text-slate-300 font-medium">
+                                                            {t.symbol || selectedBacktest.symbols?.[0] || '-'}
+                                                        </td>
+                                                        <td className="px-4 py-2">
+                                                            <span className={`px-2 py-0.5 rounded text-xs font-semibold ${isBuy ? 'bg-emerald-500/10 text-emerald-400' : 'bg-red-500/10 text-red-400'}`}>
+                                                                {tradeType}
+                                                            </span>
+                                                        </td>
+                                                        <td className="px-4 py-2 text-right text-slate-300">
+                                                            {t.price != null ? `$${Number(t.price).toFixed(2)}` : '-'}
+                                                        </td>
+                                                        <td className="px-4 py-2 text-right text-slate-400">
+                                                            {t.quantity ?? '-'}
+                                                        </td>
+                                                        <td className={`px-4 py-2 text-right font-semibold ${pnl >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                                                            {pnl !== 0 ? formatCurrency(pnl) : '-'}
+                                                        </td>
+                                                    </tr>
+                                                );
+                                            })}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                </div>
             )}
 
             {/* Publish Modal */}

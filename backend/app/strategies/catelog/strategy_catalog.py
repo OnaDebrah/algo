@@ -170,7 +170,7 @@ class StrategyCatalog:
                 }
             )
 
-        return matrix
+        return dict(matrix)
 
     def get_strategy_count_by_category(self) -> Dict[str, int]:
         """Get count of strategies in each category"""

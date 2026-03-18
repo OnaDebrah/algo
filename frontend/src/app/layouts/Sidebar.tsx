@@ -27,7 +27,7 @@ const Sidebar = ({currentPage, setCurrentPage, user, onLogout}: any) => {
             id: 'monitor',
             title: 'MONITOR',
             items: [
-                {id: 'dashboard', icon: Activity, label: 'Performance Hub'},
+                {id: 'dashboard', icon: Activity, label: 'Activity Hub'},
                 {id: 'live', icon: Zap, label: 'Live Execution'}
             ]
         },
@@ -63,7 +63,6 @@ const Sidebar = ({currentPage, setCurrentPage, user, onLogout}: any) => {
 
     const bottomItems = [
         {id: 'marketplace', icon: Package, label: 'Marketplace'},
-        ...(user?.is_superuser ? [{id: 'admin', icon: ShieldCheck, label: 'Admin'}] : []),
     ];
 
     const toggleSection = (sectionTitle: string) => {
@@ -150,7 +149,7 @@ const Sidebar = ({currentPage, setCurrentPage, user, onLogout}: any) => {
 
                 {/* System Section */}
                 <div className="space-y-1 pt-4 border-t border-slate-800/80">
-                    <p className="px-3 text-[11px] font-bold text-slate-600 tracking-wider mb-2">SYSTEM</p>
+                    <p className="px-3 text-[11px] font-bold text-slate-600 tracking-wider mb-2">COMMUNITY</p>
                     {bottomItems.map((item) => (
                         <button
                             key={item.id}
@@ -185,6 +184,14 @@ const Sidebar = ({currentPage, setCurrentPage, user, onLogout}: any) => {
                                 <CreditCard size={16} className="text-emerald-400"/>
                                 <span>Billing</span>
                             </button>
+                            {user?.is_superuser && (
+                                <button
+                                    onClick={() => { setCurrentPage('admin'); setShowUserMenu(false); }}
+                                    className="w-full flex items-center space-x-3 px-3 py-2 text-sm text-slate-300 hover:bg-slate-700/50 rounded-lg transition-colors">
+                                    <ShieldCheck size={16} className="text-amber-400"/>
+                                    <span>Admin</span>
+                                </button>
+                            )}
                         </div>
                         <div className="border-t border-slate-700/80 p-2">
                             <button

@@ -2,7 +2,8 @@ import random
 from typing import Dict
 
 import numpy as np
-from strategies.ml.genetics.ga.parameter_range import ParameterRange
+
+from .parameter_range import ParameterRange
 
 
 class Chromosome:

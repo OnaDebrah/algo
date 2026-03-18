@@ -1,10 +1,13 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-import {Calendar, ChevronDown, ChevronUp, DollarSign, Loader2, Play, Settings, Sliders} from "lucide-react";
+import {Calendar, ChevronDown, ChevronUp, DollarSign, Loader2, Package, Play, Settings, Sliders} from "lucide-react";
 import {Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis} from "recharts";
 import React, {useEffect, useMemo, useState} from "react";
 import {STRATEGY_TEMPLATES} from "@/components/optionsdesk/contants/strategyTemplates";
 import {BacktestConfig, BacktestResult, RecentTrades} from "@/types/all_types";
+import PublishModal from "@/components/strategies/PublishModel";
+import {PublishData} from "@/types/publish";
+import {marketplace} from "@/utils/api";
 
 interface BackTestTabProps {
     backtestConfig: BacktestConfig,
@@ -16,6 +19,7 @@ interface BackTestTabProps {
     isLoading: boolean,
     expirationDates: string[],
     selectedSymbol: string,
+    backtestId?: number | null,
 }
 
 /* ── Strategy-specific parameter definitions ──────────────────────── */
@@ -228,7 +232,31 @@ const BackTestTab: React.FC<BackTestTabProps> = ({
                                                      isLoading,
                                                      expirationDates,
                                                      selectedSymbol,
+                                                     backtestId,
                                                  }: BackTestTabProps) => {
+
+    const [showPublishModal, setShowPublishModal] = useState(false);
+
+    const canPublish = backtestResults && backtestId &&
+        (backtestResults.sharpe_ratio ?? 0) >= 1.0 &&
+        (backtestResults.total_return ?? 0) >= 10;
+
+    const handlePublishConfirm = async (data: PublishData) => {
+        if (!backtestId) return;
+        try {
+            const res = await marketplace.publish({
+                ...data,
+                backtest_id: backtestId,
+                strategy_key: backtestConfig.strategy_type || 'options',
+            }) as any;
+            alert(res.message || 'Strategy submitted for review!');
+            setShowPublishModal(false);
+        } catch (err: any) {
+            const detail = err?.response?.data?.detail || err?.message || 'Publish failed';
+            alert(detail);
+            throw err;
+        }
+    };
 
     const selectedTemplate = useMemo(
         () => STRATEGY_TEMPLATES.find(s => s.id === backtestConfig.strategy_type),
@@ -573,6 +601,34 @@ const BackTestTab: React.FC<BackTestTabProps> = ({
                                     </table>
                                 </div>
                             </div>
+
+                            {/* ── Saved + Publish Actions ─────────── */}
+                            <div className="flex items-center justify-between bg-slate-900/50 p-4 rounded-xl border border-slate-800/50">
+                                <div className="flex items-center gap-2 text-sm text-slate-400">
+                                    {backtestId ? (
+                                        <span className="flex items-center gap-1.5 text-emerald-400 text-xs font-medium">
+                                            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"/>
+                                            Saved to Activity Hub (#{backtestId})
+                                        </span>
+                                    ) : (
+                                        <span className="text-xs text-slate-500">Run a backtest to save results</span>
+                                    )}
+                                </div>
+                                {canPublish && (
+                                    <button
+                                        onClick={() => setShowPublishModal(true)}
+                                        className="px-5 py-2 bg-gradient-to-r from-violet-600 to-fuchsia-600 hover:from-violet-500 hover:to-fuchsia-500 text-white text-sm font-bold rounded-xl flex items-center gap-2 transition-all shadow-lg shadow-violet-900/30"
+                                    >
+                                        <Package size={16}/>
+                                        Publish to Marketplace
+                                    </button>
+                                )}
+                                {backtestResults && !canPublish && backtestId && (
+                                    <span className="text-[10px] text-slate-600">
+                                        Sharpe {'≥'} 1.0 & Return {'≥'} 10% required to publish
+                                    </span>
+                                )}
+                            </div>
                         </>
                     ) : (
                         <div
@@ -584,6 +640,26 @@ const BackTestTab: React.FC<BackTestTabProps> = ({
                     )}
                 </div>
             </div>
+
+            {/* Publish Modal */}
+            {showPublishModal && backtestResults && backtestId && (
+                <PublishModal
+                    backtest={{
+                        id: backtestId,
+                        name: `${backtestConfig.strategy_type?.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())} — ${selectedSymbol}`,
+                        strategy_key: backtestConfig.strategy_type || 'options',
+                        symbols: [selectedSymbol],
+                        total_return_pct: backtestResults.total_return ?? 0,
+                        sharpe_ratio: backtestResults.sharpe_ratio ?? 0,
+                        max_drawdown: backtestResults.max_drawdown ?? 0,
+                        win_rate: backtestResults.win_rate ?? 0,
+                        total_trades: backtestResults.total_trades ?? 0,
+                        period: `${backtestConfig.start_date} to ${backtestConfig.end_date}`,
+                    }}
+                    onClose={() => setShowPublishModal(false)}
+                    onPublish={handlePublishConfirm}
+                />
+            )}
         </div>
     )
 }

@@ -197,7 +197,6 @@ async def _run_wfa(backtest_id: int, request_data: dict, user_id: int):
 async def _run_custom_backtest(backtest_id: int, request_data: dict, user_id: int):
     """Async implementation of custom strategy backtest task."""
     from sqlalchemy import select
-    from strategies.custom.custom_strategy_engine import CustomStrategyAdapter
 
     from ..analytics.performance import calculate_performance_metrics
     from ..core.benchmark_calculator import BenchmarkCalculator
@@ -207,6 +206,7 @@ async def _run_custom_backtest(backtest_id: int, request_data: dict, user_id: in
     from ..models import BacktestRun
     from ..schemas.custom_strategy import CustomBacktestRequest
     from ..services.backtest_service import _sanitize_value
+    from ..strategies.custom.custom_strategy_engine import CustomStrategyAdapter
 
     task_engine, TaskSession = _create_task_session()
 
@@ -222,18 +222,15 @@ async def _run_custom_backtest(backtest_id: int, request_data: dict, user_id: in
                     run.status = "running"
                     await db.commit()
 
-                # Create adapter from custom code
                 adapter = CustomStrategyAdapter(
                     name=request.strategy_name or "Custom Strategy",
                     code=request.code,
                 )
 
-                # Fetch market data
                 data = await fetch_stock_data(request.symbol, request.period, request.interval)
                 if data is None or data.empty:
                     raise ValueError(f"No data available for {request.symbol}")
 
-                # Run backtest using TradingEngine
                 engine = TradingEngine(
                     strategy=adapter,
                     initial_capital=request.initial_capital,
@@ -243,7 +240,6 @@ async def _run_custom_backtest(backtest_id: int, request_data: dict, user_id: in
                 )
                 await engine.run_backtest(request.symbol, data)
 
-                # Calculate benchmark
                 benchmark_calc = BenchmarkCalculator(request.initial_capital)
                 benchmark = await benchmark_calc.calculate_spy_benchmark(
                     period=request.period,
@@ -252,7 +248,6 @@ async def _run_custom_backtest(backtest_id: int, request_data: dict, user_id: in
                 )
                 benchmark_equity = benchmark.get("equity_curve") if benchmark else None
 
-                # Calculate metrics
                 metrics = calculate_performance_metrics(
                     engine.trades,
                     engine.equity_curve,
@@ -260,7 +255,6 @@ async def _run_custom_backtest(backtest_id: int, request_data: dict, user_id: in
                     benchmark_equity=benchmark_equity,
                 )
 
-                # Store results
                 result = await db.execute(select(BacktestRun).where(BacktestRun.id == backtest_id))
                 run = result.scalars().first()
                 if run:

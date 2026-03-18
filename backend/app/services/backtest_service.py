@@ -168,6 +168,45 @@ class BacktestService:
 
         logger.info(f"Updated backtest {backtest_id} - Status: {status}")
 
+        # Log activity for social feed on successful completion
+        if status == "completed" and results:
+            try:
+                from .social_service import ActivityService
+
+                total_return_pct = results.get("total_return_pct", 0) or 0
+                sharpe = results.get("sharpe_ratio", 0) or 0
+                strategy_key = (backtest_run.strategy_config or {}).get("strategy_key", "Custom")
+                pretty_name = strategy_key.replace("_", " ").title()
+                symbols_str = ", ".join(backtest_run.symbols[:3]) if backtest_run.symbols else "N/A"
+
+                # Determine activity type based on performance
+                if total_return_pct >= 50:
+                    activity_type = "BIG_WIN"
+                    content = f"achieved {total_return_pct:.1f}% return with {pretty_name} on {symbols_str}"
+                elif total_return_pct >= 20:
+                    activity_type = "MILESTONE"
+                    content = f"hit {total_return_pct:.1f}% return with {pretty_name} on {symbols_str}"
+                else:
+                    activity_type = "BACKTEST_COMPLETED"
+                    content = f"completed a {backtest_run.backtest_type} backtest: {pretty_name} on {symbols_str} ({total_return_pct:+.1f}%)"
+
+                activity_service = ActivityService(self.db)
+                await activity_service.log_activity(
+                    user_id=backtest_run.user_id,
+                    activity_type=activity_type,
+                    content=content,
+                    metadata={
+                        "backtest_id": backtest_run.id,
+                        "strategy_key": strategy_key,
+                        "symbols": backtest_run.symbols,
+                        "total_return_pct": round(total_return_pct, 2),
+                        "sharpe_ratio": round(sharpe, 2),
+                        "backtest_type": backtest_run.backtest_type,
+                    },
+                )
+            except Exception as act_err:
+                logger.warning(f"Failed to log backtest activity: {act_err}")
+
     async def run_single_backtest(self, request: BacktestRequest, user_id: int, backtest_run_id: int = None) -> BacktestResponse:
         """Run single asset backtest"""
         backtest_run = None
