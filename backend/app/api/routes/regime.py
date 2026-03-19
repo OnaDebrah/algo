@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from ...analytics.market_regime_detector import MarketRegimeDetector
 from ...api.deps import get_current_active_user
+from ...config import DEFAULT_ANNUAL_LOOKBACK
 from ...core import fetch_stock_data
 from ...database import get_db
 from ...models.user import User
@@ -36,7 +37,9 @@ _detector_cache = {}
 def get_detector(symbol: str) -> MarketRegimeDetector:
     """Get or create a MarketRegimeDetector instance for a symbol"""
     if symbol not in _detector_cache:
-        _detector_cache[symbol] = MarketRegimeDetector(lookback_period=252, primary_index=symbol, use_ml=True, confidence_threshold=0.7)
+        _detector_cache[symbol] = MarketRegimeDetector(
+            lookback_period=DEFAULT_ANNUAL_LOOKBACK, primary_index=symbol, use_ml=True, confidence_threshold=0.7
+        )
     return _detector_cache[symbol]
 
 

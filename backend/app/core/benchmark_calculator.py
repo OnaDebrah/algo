@@ -8,6 +8,8 @@ from typing import Dict, List
 import numpy as np
 import pandas as pd
 
+from ..config import DEFAULT_ANNUAL_LOOKBACK
+
 logger = logging.getLogger(__name__)
 
 
@@ -67,7 +69,7 @@ class BenchmarkCalculator:
         # Sharpe ratio (annualized)
         returns = equity_series.pct_change().dropna()
         if len(returns) > 1:
-            sharpe_ratio = (returns.mean() / returns.std()) * np.sqrt(252) if returns.std() > 0 else 0
+            sharpe_ratio = (returns.mean() / returns.std()) * np.sqrt(DEFAULT_ANNUAL_LOOKBACK) if returns.std() > 0 else 0
         else:
             sharpe_ratio = 0
 
@@ -161,7 +163,7 @@ class BenchmarkCalculator:
         # Sharpe ratio
         returns = equity_series.pct_change().dropna()
         if len(returns) > 1:
-            sharpe_ratio = (returns.mean() / returns.std()) * np.sqrt(252) if returns.std() > 0 else 0
+            sharpe_ratio = (returns.mean() / returns.std()) * np.sqrt(DEFAULT_ANNUAL_LOOKBACK) if returns.std() > 0 else 0
         else:
             sharpe_ratio = 0
 

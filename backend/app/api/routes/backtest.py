@@ -57,7 +57,7 @@ async def run_single_backtest(
         user_id=current_user.id,
         backtest_type="single",
         symbols=[request.symbol],
-        strategy_config=request.model_dump().get("strategy", {}),
+        strategy_config={"strategy_key": request.strategy_key, "parameters": request.parameters},
         period=request.period,
         interval=request.interval,
         initial_capital=request.initial_capital,
@@ -92,11 +92,16 @@ async def run_multi_asset_backtest(
     # Create the backtest run record
     service = BacktestService(db)
     strategy_configs = request.model_dump(mode="json").get("strategy_configs", {})
+    # Extract the first strategy_key for naming (multi-asset may have different strategies per symbol)
+    first_key = next(
+        (cfg.get("strategy_key", "Custom") for cfg in strategy_configs.values() if isinstance(cfg, dict)),
+        "Multi-Strategy",
+    )
     backtest_run = await service.create_backtest_run(
         user_id=current_user.id,
         backtest_type="multi",
         symbols=request.symbols,
-        strategy_config=strategy_configs,
+        strategy_config={"strategy_key": first_key, "strategy_configs": strategy_configs},
         period=request.period,
         interval=request.interval,
         initial_capital=request.initial_capital,

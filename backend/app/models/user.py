@@ -27,6 +27,10 @@ class User(Base):
     investor_type = Column(String(50), nullable=True)
     risk_profile = Column(String(50), nullable=True)
 
+    # Password reset
+    password_reset_token = Column(String, nullable=True)
+    password_reset_expires = Column(DateTime(timezone=True), nullable=True)
+
     backtest_runs = relationship("BacktestRun", back_populates="user", cascade="all, delete-orphan")
     custom_strategies = relationship("CustomStrategy", back_populates="user", cascade="all, delete-orphan")
     portfolios = relationship("Portfolio", back_populates="user", cascade="all, delete-orphan")

@@ -11,14 +11,17 @@ import numpy as np
 import pandas as pd
 from scipy.optimize import minimize
 
+from ..config import DEFAULT_ANNUAL_LOOKBACK
+
 logger = logging.getLogger(__name__)
+
 warnings.filterwarnings("ignore")
 
 
 class PortfolioOptimizer:
     """Portfolio optimization using Modern Portfolio Theory"""
 
-    def __init__(self, symbols: List[str], lookback_days: int = 252):
+    def __init__(self, symbols: List[str], lookback_days: int = DEFAULT_ANNUAL_LOOKBACK):
         """
         Initialize portfolio optimizer
 
@@ -72,10 +75,10 @@ class PortfolioOptimizer:
             Tuple of (expected_return, volatility)
         """
         # Annualized return
-        returns = np.sum(self.mean_returns * weights) * 252
+        returns = np.sum(self.mean_returns * weights) * DEFAULT_ANNUAL_LOOKBACK
 
         # Annualized volatility
-        volatility = np.sqrt(np.dot(weights.T, np.dot(self.cov_matrix * 252, weights)))
+        volatility = np.sqrt(np.dot(weights.T, np.dot(self.cov_matrix * DEFAULT_ANNUAL_LOOKBACK, weights)))
 
         return returns, volatility
 
@@ -249,8 +252,8 @@ class PortfolioOptimizer:
         target_returns = np.linspace(min_return, max_return, num_portfolios)
 
         # Pre-compute annualized covariance matrix once
-        cov_annual = self.cov_matrix.values * 252
-        mean_ret_annual = self.mean_returns.values * 252
+        cov_annual = self.cov_matrix.values * DEFAULT_ANNUAL_LOOKBACK
+        mean_ret_annual = self.mean_returns.values * DEFAULT_ANNUAL_LOOKBACK
         num_assets = len(self.symbols)
         bounds = tuple((0, 1) for _ in range(num_assets))
 
@@ -333,7 +336,7 @@ class PortfolioOptimizer:
 
         def risk_contribution(weights):
             portfolio_vol = self.calculate_portfolio_performance(weights)[1]
-            marginal_contrib = np.dot(self.cov_matrix * 252, weights)
+            marginal_contrib = np.dot(self.cov_matrix * DEFAULT_ANNUAL_LOOKBACK, weights)
             contrib = weights * marginal_contrib / portfolio_vol
 
             # Minimize variance of risk contributions
@@ -380,7 +383,7 @@ class PortfolioOptimizer:
         # Market equilibrium returns
         market_weights = np.array([1.0 / len(self.symbols)] * len(self.symbols))
         risk_aversion = 2.5
-        pi = risk_aversion * np.dot(self.cov_matrix * 252, market_weights)
+        pi = risk_aversion * np.dot(self.cov_matrix * DEFAULT_ANNUAL_LOOKBACK, market_weights)
 
         # Views matrix
         P = np.zeros((len(views), len(self.symbols)))
@@ -393,11 +396,11 @@ class PortfolioOptimizer:
                 Q[i] = view_return
 
         # Uncertainty in views
-        omega = confidence * np.dot(np.dot(P, self.cov_matrix * 252), P.T)
+        omega = confidence * np.dot(np.dot(P, self.cov_matrix * DEFAULT_ANNUAL_LOOKBACK), P.T)
 
         # Black-Litterman formula
         tau = 0.025
-        M_inverse = np.linalg.inv(tau * self.cov_matrix * 252)
+        M_inverse = np.linalg.inv(tau * self.cov_matrix * DEFAULT_ANNUAL_LOOKBACK)
         omega_inverse = np.linalg.inv(omega)
 
         bl_returns = np.linalg.inv(M_inverse + np.dot(np.dot(P.T, omega_inverse), P))
@@ -408,7 +411,7 @@ class PortfolioOptimizer:
 
         def neg_utility(weights):
             portfolio_return = np.sum(bl_returns * weights)
-            portfolio_vol = np.sqrt(np.dot(weights.T, np.dot(self.cov_matrix * 252, weights)))
+            portfolio_vol = np.sqrt(np.dot(weights.T, np.dot(self.cov_matrix * DEFAULT_ANNUAL_LOOKBACK, weights)))
             return -(portfolio_return - risk_aversion * portfolio_vol**2)
 
         constraints = {"type": "eq", "fun": lambda x: np.sum(x) - 1}
@@ -490,8 +493,8 @@ class PortfolioBacktest:
 
         # Calculate metrics
         total_return = (equity.iloc[-1] / start_capital - 1) * 100
-        volatility = portfolio_returns.std() * np.sqrt(252) * 100
-        sharpe = (portfolio_returns.mean() / portfolio_returns.std()) * np.sqrt(252)
+        volatility = portfolio_returns.std() * np.sqrt(DEFAULT_ANNUAL_LOOKBACK) * 100
+        sharpe = (portfolio_returns.mean() / portfolio_returns.std()) * np.sqrt(DEFAULT_ANNUAL_LOOKBACK)
 
         # Max drawdown
         cummax = equity.cummax()

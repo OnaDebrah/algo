@@ -11,7 +11,7 @@ from typing import Dict, List, Optional
 import pandas as pd
 from anthropic.types import MessageParam
 
-from ..config import ANTHROPIC_MODEL_SONNET_4
+from ..config import ANTHROPIC_MODEL_SONNET_4, DEFAULT_ANNUAL_LOOKBACK
 from ..core.data.providers.providers import ProviderFactory
 from ..services.sentiment_service import SentimentService
 
@@ -186,8 +186,8 @@ class FinancialAnalystAgent:
             avg_volume = hist["Volume"].rolling(window=20).mean()
 
             # Support and resistance
-            recent_high = close.tail(252).max()
-            recent_low = close.tail(252).min()
+            recent_high = close.tail(DEFAULT_ANNUAL_LOOKBACK).max()
+            recent_low = close.tail(DEFAULT_ANNUAL_LOOKBACK).min()
 
             current = close.iloc[-1]
 

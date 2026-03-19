@@ -7,11 +7,12 @@ Used by: AQR, Fama-French research, systematic hedge funds
 
 import logging
 import warnings
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, cast
 
 import numpy as np
 import pandas as pd
 
+from ..config import DEFAULT_ANNUAL_LOOKBACK, DEFAULT_INITIAL_CAPITAL
 from ..strategies import BaseStrategy
 
 warnings.filterwarnings("ignore")
@@ -35,7 +36,7 @@ class CrossSectionalMomentumStrategy(BaseStrategy):
     def __init__(
         self,
         universe: List[str],
-        formation_period: int = 252,  # 12-month formation
+        formation_period: int = DEFAULT_ANNUAL_LOOKBACK,  # 12-month formation
         skip_period: int = 21,  # Skip last month (avoid reversal)
         holding_period: int = 21,  # Monthly rebalancing
         top_quantile: float = 0.3,  # Long top 30%
@@ -76,7 +77,7 @@ class CrossSectionalMomentumStrategy(BaseStrategy):
         self.transaction_cost_bps = transaction_cost_bps
 
         # Additional parameters
-        self.momentum_horizons = kwargs.get("momentum_horizons", [21, 63, 126, 252])
+        self.momentum_horizons = kwargs.get("momentum_horizons", [21, 63, 126, DEFAULT_ANNUAL_LOOKBACK])
         self.min_data_points = kwargs.get("min_data_points", formation_period // 2)
         self.zero_cost_portfolio = kwargs.get("zero_cost_portfolio", True)
         self.long_only_mode = kwargs.get("long_only_mode", False)
@@ -115,10 +116,6 @@ class CrossSectionalMomentumStrategy(BaseStrategy):
         }
 
         super().__init__(name="Cross Sectional Momentum Strategy", params=params)
-
-    # ============================================================================
-    # CORE MOMENTUM CALCULATION METHODS
-    # ============================================================================
 
     def calculate_momentum(self, price_data: pd.DataFrame, method: str = "skip_period") -> pd.DataFrame:
         """
@@ -167,11 +164,11 @@ class CrossSectionalMomentumStrategy(BaseStrategy):
                     momentum_return = prices.iloc[-self.skip_period - 1] / prices.iloc[-self.formation_period - self.skip_period] - 1
 
                     # Calculate volatility
-                    returns = np.log(prices / prices.shift(1))
+                    returns = cast(pd.DataFrame, cast(object, np.log(prices / prices.shift(1))))
                     if len(returns) >= 63:
-                        volatility = returns.rolling(63).std().iloc[-1] * np.sqrt(252)
+                        volatility = float(returns.rolling(63).std().iloc[-1] * np.sqrt(DEFAULT_ANNUAL_LOOKBACK))
                     else:
-                        volatility = returns.std() * np.sqrt(252) if len(returns) > 0 else 0.15
+                        volatility = float(returns.std() * np.sqrt(DEFAULT_ANNUAL_LOOKBACK) if len(returns) > 0 else 0.15)
 
                     # Risk-adjusted momentum (Sharpe-like)
                     if volatility > 0:
@@ -201,11 +198,11 @@ class CrossSectionalMomentumStrategy(BaseStrategy):
         for asset in price_data.columns:
             prices = price_data[asset].dropna()
             if len(prices) >= lookback:
-                returns = np.log(prices / prices.shift(1)).dropna()
+                returns = cast(pd.DataFrame, cast(object, np.log(prices / prices.shift(1)))).dropna()
                 if len(returns) >= lookback:
-                    vol = returns.rolling(lookback).std().iloc[-1] * np.sqrt(252)
+                    vol = returns.rolling(lookback).std().iloc[-1] * np.sqrt(DEFAULT_ANNUAL_LOOKBACK)
                 else:
-                    vol = returns.std() * np.sqrt(252) if len(returns) > 0 else 0.15
+                    vol = returns.std() * np.sqrt(DEFAULT_ANNUAL_LOOKBACK) if len(returns) > 0 else 0.15
             else:
                 vol = 0.15  # Default
 
@@ -248,7 +245,7 @@ class CrossSectionalMomentumStrategy(BaseStrategy):
 
             if len(sector_scores) >= 2:  # Need at least 2 assets
                 # Rank within sector
-                sector_ranks = sector_scores["momentum"].rank(ascending=False)
+                sector_ranks = cast(pd.DataFrame, cast(object, sector_scores["momentum"])).rank(ascending=False)
 
                 # Determine long/short cutoff
                 n_sector = len(sector_scores)
@@ -320,12 +317,12 @@ class CrossSectionalMomentumStrategy(BaseStrategy):
         Returns:
             Adjusted positions with crash protection
         """
-        if not self.momentum_crash_protection or len(market_data) < 252:
+        if not self.momentum_crash_protection or len(market_data) < DEFAULT_ANNUAL_LOOKBACK:
             return positions
 
         # Calculate market conditions
-        market_returns = np.log(market_data.iloc[-1] / market_data.iloc[-252]) - 1
-        market_vol = np.log(market_data / market_data.shift(1)).std() * np.sqrt(252)
+        market_returns = np.log(market_data.iloc[-1] / market_data.iloc[-DEFAULT_ANNUAL_LOOKBACK]) - 1
+        market_vol = np.log(market_data / market_data.shift(1)).std() * np.sqrt(DEFAULT_ANNUAL_LOOKBACK)
 
         # Check for momentum crash conditions
         # 1. Market down significantly
@@ -517,23 +514,28 @@ class CrossSectionalMomentumStrategy(BaseStrategy):
         }
 
     def _is_rebalance_day(self, price_data: pd.DataFrame) -> bool:
-        """Check if today is a rebalance day based on holding period"""
-        if len(self.rebalance_dates) == 0:
+        """
+        Check if today is a rebalance day based on the defined holding period.
+        Supports both DatetimeIndex and integer-based indexing.
+        """
+        if not self.rebalance_dates:
             return True
-
-        # Simple implementation: rebalance every holding_period days
+        current_time = price_data.index[-1]
+        last_rebalance = self.rebalance_dates[-1]
         if isinstance(price_data.index, pd.DatetimeIndex):
-            days_since_rebalance = (price_data.index[-1] - self.rebalance_dates[-1]).days
-        else:
-            days_since_rebalance = len(price_data) - self.rebalance_dates[-1]
-
-        return days_since_rebalance >= self.holding_period
+            delta = current_time - last_rebalance
+            return delta.days >= self.holding_period
+        try:
+            steps_since = int(current_time) - int(last_rebalance)
+            return steps_since >= self.holding_period
+        except (ValueError, TypeError):
+            return len(price_data) % self.holding_period == 0
 
     def backtest(
         self,
         price_data: pd.DataFrame,
         market_index: Optional[pd.Series] = None,
-        initial_capital: float = 1000000,
+        initial_capital: float = DEFAULT_INITIAL_CAPITAL,
     ) -> pd.DataFrame:
         """
         Run backtest on historical data
@@ -550,10 +552,9 @@ class CrossSectionalMomentumStrategy(BaseStrategy):
         capital = initial_capital
         positions = {}
 
-        # Run strategy
         for i in range(self.formation_period + self.skip_period, len(price_data)):
             current_date = price_data.index[i]
-            historical_data = price_data.iloc[: i + 1]
+            historical_data = cast(pd.DataFrame, cast(object, price_data.iloc[: i + 1]))
 
             # Market data for crash protection
             if market_index is not None and len(market_index) > i:
@@ -561,32 +562,25 @@ class CrossSectionalMomentumStrategy(BaseStrategy):
             else:
                 market_slice = None
 
-            # Check if rebalance day
             days_since_start = i - (self.formation_period + self.skip_period)
             rebalance = days_since_start % self.holding_period == 0
 
-            # Generate signals
             signal_result = self.generate_signal(historical_data, market_slice, positions, rebalance)
 
-            # Update positions
             positions = signal_result["signals"]
 
-            # Calculate daily P&L
             daily_returns = {}
             portfolio_return = 0.0
 
             for asset, weight in positions.items():
                 if i > 0 and asset in price_data.columns:
-                    # Calculate asset return
                     asset_return = price_data[asset].iloc[i] / price_data[asset].iloc[i - 1] - 1
                     position_return = weight * asset_return * capital
                     daily_returns[asset] = position_return
                     portfolio_return += position_return
 
-            # Update capital
             capital += portfolio_return
 
-            # Store results
             results.append(
                 {
                     "date": current_date,
@@ -617,8 +611,8 @@ class CrossSectionalMomentumStrategy(BaseStrategy):
 
         # Basic metrics
         total_return = (results["capital"].iloc[-1] / results["capital"].iloc[0]) - 1
-        annual_return = (1 + total_return) ** (252 / len(results)) - 1
-        volatility = returns.std() * np.sqrt(252)
+        annual_return = (1 + total_return) ** (DEFAULT_ANNUAL_LOOKBACK / len(results)) - 1
+        volatility = returns.std() * np.sqrt(DEFAULT_ANNUAL_LOOKBACK)
         sharpe = annual_return / volatility if volatility > 0 else 0
 
         # Drawdown
@@ -632,7 +626,7 @@ class CrossSectionalMomentumStrategy(BaseStrategy):
 
         # Turnover metrics
         avg_turnover = results["turnover"].mean()
-        avg_annual_turnover = avg_turnover * (252 / self.holding_period)
+        avg_annual_turnover = avg_turnover * (DEFAULT_ANNUAL_LOOKBACK / self.holding_period)
 
         # Win rate
         win_rate = len(returns[returns > 0]) / len(returns) if len(returns) > 0 else 0
@@ -665,7 +659,7 @@ class CrossSectionalMomentumStrategy(BaseStrategy):
         """
         if parameter_grid is None:
             parameter_grid = {
-                "formation_period": [63, 126, 252],
+                "formation_period": [63, 126, DEFAULT_ANNUAL_LOOKBACK],
                 "skip_period": [0, 5, 21],
                 "top_quantile": [0.2, 0.3, 0.4],
                 "bottom_quantile": [0.2, 0.3, 0.4],
@@ -674,8 +668,8 @@ class CrossSectionalMomentumStrategy(BaseStrategy):
         # Walk-forward optimization
         # Split data into in-sample and out-of-sample
         split_idx = int(len(price_data) * 0.7)
-        train_data = price_data.iloc[:split_idx]
-        test_data = price_data.iloc[split_idx:]
+        train_data = cast(pd.DataFrame, cast(object, price_data.iloc[:split_idx]))
+        test_data = cast(pd.DataFrame, cast(object, price_data.iloc[split_idx:]))
 
         best_params = {}
         best_sharpe = -np.inf

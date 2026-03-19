@@ -2,6 +2,7 @@ from typing import Dict, List, Union
 
 import numpy as np
 import pandas as pd
+from config import DEFAULT_ANNUAL_LOOKBACK
 from numpy.lib.stride_tricks import sliding_window_view
 
 from ...strategies.volatility.base_volatility import BaseVolatilityStrategy
@@ -65,10 +66,10 @@ class VarianceRiskPremiumStrategy(BaseVolatilityStrategy):
             high = data["High"].iloc[-self.lookback_vrp :]
             low = data["Low"].iloc[-self.lookback_vrp :]
             hl_ratio = np.log(high / low)
-            implied_vol = np.sqrt((1 / (4 * np.log(2))) * (hl_ratio**2).mean()) * np.sqrt(252)
+            implied_vol = np.sqrt((1 / (4 * np.log(2))) * (hl_ratio**2).mean()) * np.sqrt(DEFAULT_ANNUAL_LOOKBACK)
         else:
             # Use short-term vol as proxy (5-day) scaled up
-            short_vol = returns.iloc[-5:].std() * np.sqrt(252) if len(returns) >= 5 else realized_vol
+            short_vol = returns.iloc[-5:].std() * np.sqrt(DEFAULT_ANNUAL_LOOKBACK) if len(returns) >= 5 else realized_vol
             implied_vol = short_vol * 1.15  # Implied typically trades at premium
 
         signal_result = self.generate_vrp_signal(implied_vol, realized_vol, self.vrp_history)
@@ -81,7 +82,7 @@ class VarianceRiskPremiumStrategy(BaseVolatilityStrategy):
         signals = pd.Series(0, index=data.index)
 
         returns = np.log(close / close.shift(1))
-        realized_vol = returns.rolling(self.lookback_vrp).std() * np.sqrt(252)
+        realized_vol = returns.rolling(self.lookback_vrp).std() * np.sqrt(DEFAULT_ANNUAL_LOOKBACK)
 
         # Implied vol proxy: use Parkinson if OHLC available, else scaled short-term vol
         if "High" in data.columns and "Low" in data.columns:
@@ -93,9 +94,9 @@ class VarianceRiskPremiumStrategy(BaseVolatilityStrategy):
             padding = np.full(self.lookback_vrp - 1, np.nan)
             ms_padded = np.concatenate([padding, ms_rolling])
 
-            implied_vol = np.sqrt((1 / (4 * np.log(2))) * ms_padded) * np.sqrt(252)
+            implied_vol = np.sqrt((1 / (4 * np.log(2))) * ms_padded) * np.sqrt(DEFAULT_ANNUAL_LOOKBACK)
         else:
-            short_vol = returns.rolling(5).std() * np.sqrt(252)
+            short_vol = returns.rolling(5).std() * np.sqrt(DEFAULT_ANNUAL_LOOKBACK)
             implied_vol = short_vol * 1.15
 
         vrp = implied_vol - realized_vol

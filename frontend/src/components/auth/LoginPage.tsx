@@ -1,5 +1,5 @@
 import {useState, KeyboardEvent, ChangeEvent} from "react";
-import {AlertCircle, ArrowRight, RefreshCw, ShieldCheck, Zap} from "lucide-react";
+import {AlertCircle, ArrowRight, Eye, EyeOff, RefreshCw, ShieldCheck, Zap} from "lucide-react";
 import {User} from "@/types/all_types";
 import {api} from "@/utils/api";
 import CountrySelect from "@/components/auth/CountrySelect";
@@ -11,6 +11,7 @@ interface LoginPageProps {
     onLogin: (userData: User, token: string) => void;
     setCurrentPage: (page: string) => void;
     onBackToLanding?: () => void;
+    initialMode?: 'login' | 'signup';
 }
 
 interface LoginFormData {
@@ -38,11 +39,36 @@ const INITIAL_FORM: LoginFormData = {
     riskProfile: 'Moderate',
 };
 
-const LoginPage = ({onLogin, setCurrentPage, onBackToLanding}: LoginPageProps) => {
-    const [isLogin, setIsLogin] = useState(true);
+const LoginPage = ({onLogin, setCurrentPage, onBackToLanding, initialMode = 'login'}: LoginPageProps) => {
+    const [isLogin, setIsLogin] = useState(initialMode === 'login');
     const [formData, setFormData] = useState<LoginFormData>({...INITIAL_FORM});
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
+    const [showPassword, setShowPassword] = useState(false);
+    const [forgotMode, setForgotMode] = useState(false);
+    const [forgotEmail, setForgotEmail] = useState('');
+
+    const handleForgotPassword = async (): Promise<void> => {
+        if (!forgotEmail.trim()) {
+            setError('Please enter your email address');
+            return;
+        }
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(forgotEmail)) {
+            setError('Please enter a valid email address');
+            return;
+        }
+        setLoading(true);
+        setError('');
+        try {
+            await api.auth.forgotPassword(forgotEmail);
+            setError('✓ If an account exists with that email, a password reset link has been sent.');
+        } catch {
+            setError('✓ If an account exists with that email, a password reset link has been sent.');
+        } finally {
+            setLoading(false);
+        }
+    };
 
     const handleSubmit = async (): Promise<void> => {
         if (!validateForm()) return;
@@ -230,8 +256,57 @@ const LoginPage = ({onLogin, setCurrentPage, onBackToLanding}: LoginPageProps) =
                         </p>
                     </div>
 
+                    {/* Forgot Password Mode */}
+                    {forgotMode && (
+                        <div className="space-y-5">
+                            <div className="space-y-1.5">
+                                <label className={labelClass}>Email Address</label>
+                                <input
+                                    type="email"
+                                    placeholder="Enter your registered email"
+                                    value={forgotEmail}
+                                    onChange={(e) => setForgotEmail(e.target.value)}
+                                    onKeyDown={(e) => { if (e.key === 'Enter') handleForgotPassword(); }}
+                                    className={inputClass}
+                                />
+                            </div>
+
+                            {error && (
+                                <div className={`p-4 rounded-xl text-sm font-medium border ${
+                                    error.startsWith('✓')
+                                        ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'
+                                        : 'bg-red-500/10 border-red-500/30 text-red-400'
+                                }`}>
+                                    {error}
+                                </div>
+                            )}
+
+                            <button
+                                onClick={handleForgotPassword}
+                                disabled={loading}
+                                className="w-full py-4 bg-gradient-to-r from-violet-600 to-fuchsia-600 hover:from-violet-500 hover:to-fuchsia-500 disabled:from-slate-700 disabled:to-slate-700 text-white rounded-xl font-semibold transition-all shadow-xl shadow-violet-500/20 disabled:shadow-none flex items-center justify-center space-x-2 disabled:opacity-70"
+                            >
+                                {loading ? (
+                                    <>
+                                        <RefreshCw size={20} className="animate-spin"/>
+                                        <span>Sending...</span>
+                                    </>
+                                ) : (
+                                    <span>Send Reset Link</span>
+                                )}
+                            </button>
+
+                            <button
+                                onClick={() => { setForgotMode(false); setError(''); setForgotEmail(''); }}
+                                className="w-full text-center text-sm text-slate-400 hover:text-slate-300 transition-colors py-2 font-medium hover:underline"
+                            >
+                                Back to Sign In
+                            </button>
+                        </div>
+                    )}
+
                     {/* Form */}
-                    <div className="space-y-5">
+                    {!forgotMode && <div className="space-y-5">
                         {/* Account Personalization — registration only */}
                         {!isLogin && (
                             <div className="space-y-4 p-4 rounded-xl bg-violet-500/5 border border-violet-500/20">
@@ -314,17 +389,36 @@ const LoginPage = ({onLogin, setCurrentPage, onBackToLanding}: LoginPageProps) =
 
                             <div className="space-y-1.5">
                                 <label className={labelClass}>Password</label>
-                                <input
-                                    type="password"
-                                    name="password"
-                                    placeholder="••••••••••"
-                                    value={formData.password}
-                                    onChange={handleInputChange}
-                                    onKeyDown={handleKeyPress}
-                                    className={inputClass}
-                                />
+                                <div className="relative">
+                                    <input
+                                        type={showPassword ? "text" : "password"}
+                                        name="password"
+                                        placeholder="••••••••••"
+                                        value={formData.password}
+                                        onChange={handleInputChange}
+                                        onKeyDown={handleKeyPress}
+                                        className={`${inputClass} pr-12`}
+                                    />
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowPassword(!showPassword)}
+                                        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 transition-colors"
+                                        tabIndex={-1}
+                                    >
+                                        {showPassword ? <EyeOff size={18}/> : <Eye size={18}/>}
+                                    </button>
+                                </div>
                                 {!isLogin && (
                                     <p className="text-xs text-slate-500 mt-1">Minimum 8 characters</p>
+                                )}
+                                {isLogin && (
+                                    <button
+                                        type="button"
+                                        onClick={() => { setForgotMode(true); setError(''); }}
+                                        className="text-xs text-violet-400 hover:text-violet-300 transition-colors mt-1 font-medium"
+                                    >
+                                        Forgot password?
+                                    </button>
                                 )}
                             </div>
                         </div>
@@ -363,7 +457,7 @@ const LoginPage = ({onLogin, setCurrentPage, onBackToLanding}: LoginPageProps) =
                         >
                             {isLogin ? "Don't have an account? Sign up" : "Already have an account? Sign in"}
                         </button>
-                    </div>
+                    </div>}
 
                     {/* Footer */}
                     <div className="mt-8 pt-6 border-t border-slate-800/80 flex items-center justify-between">

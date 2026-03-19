@@ -14,6 +14,7 @@ from sklearn.decomposition import PCA
 from statsmodels.tsa.vector_ar.vecm import coint_johansen
 
 from ... import BaseStrategy
+from ...config import DEFAULT_ANNUAL_LOOKBACK
 
 warnings.filterwarnings("ignore")
 
@@ -33,7 +34,7 @@ class StatisticalArbitrageStrategy(BaseStrategy):
         self,
         universe: List[str],
         basket_size: int = 3,
-        lookback_period: int = 252,
+        lookback_period: int = DEFAULT_ANNUAL_LOOKBACK,
         entry_threshold: float = 2.0,
         exit_threshold: float = 0.5,
         stop_loss_threshold: float = 3.0,
@@ -787,8 +788,8 @@ class StatisticalArbitrageStrategy(BaseStrategy):
 
         # Basic metrics
         total_return = (results["capital"].iloc[-1] / results["capital"].iloc[0]) - 1
-        annual_return = (1 + total_return) ** (252 / len(results)) - 1
-        volatility = returns.std() * np.sqrt(252)
+        annual_return = (1 + total_return) ** (DEFAULT_ANNUAL_LOOKBACK / len(results)) - 1
+        volatility = returns.std() * np.sqrt(DEFAULT_ANNUAL_LOOKBACK)
         sharpe = annual_return / volatility if volatility > 0 else 0
 
         # Drawdown

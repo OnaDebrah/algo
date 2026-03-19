@@ -173,6 +173,12 @@ export const auth = {
     // Token refresh (if implemented)
     refreshToken: (refreshToken: string) =>
         client.post<{ access_token: string }>('/auth/refresh', { refresh_token: refreshToken }),
+
+    // Password recovery
+    forgotPassword: (email: string) =>
+        client.post<{ message: string }>('/auth/forgot-password', { email }),
+    resetPassword: (token: string, newPassword: string) =>
+        client.post<{ message: string }>('/auth/reset-password', { token, new_password: newPassword }),
 };
 
 // ==================== BACKTEST ====================

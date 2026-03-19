@@ -3,6 +3,7 @@ from typing import Dict, Optional, Union
 import numpy as np
 import pandas as pd
 
+from ...config import DEFAULT_ANNUAL_LOOKBACK
 from ...strategies.volatility.base_volatility import BaseVolatilityStrategy
 
 
@@ -114,7 +115,7 @@ class VolatilityTargetingStrategy(BaseVolatilityStrategy):
             return 1.0
 
         # Calculate strategy volatility
-        strategy_vol = strategy_returns.std() * np.sqrt(252)
+        strategy_vol = strategy_returns.std() * np.sqrt(DEFAULT_ANNUAL_LOOKBACK)
 
         if strategy_vol <= 0:
             return 1.0
@@ -165,7 +166,7 @@ class VolatilityTargetingStrategy(BaseVolatilityStrategy):
                     scaled_signal["vol_targeting"] = {
                         "required_leverage": required_leverage,
                         "target_volatility": self.target_volatility,
-                        "strategy_volatility": (strategy_returns.std() * np.sqrt(252) if len(strategy_returns) > 0 else 0),
+                        "strategy_volatility": (strategy_returns.std() * np.sqrt(DEFAULT_ANNUAL_LOOKBACK) if len(strategy_returns) > 0 else 0),
                     }
 
                     scaled_signals[key] = scaled_signal
@@ -187,7 +188,7 @@ class VolatilityTargetingStrategy(BaseVolatilityStrategy):
             return {"adjustment": 0, "new_exposure": current_exposure}
 
         # Calculate portfolio volatility
-        portfolio_vol = portfolio_returns.std() * np.sqrt(252)
+        portfolio_vol = portfolio_returns.std() * np.sqrt(DEFAULT_ANNUAL_LOOKBACK)
 
         # Calculate required adjustment
         if portfolio_vol > 0:

@@ -4,6 +4,7 @@ import numpy as np
 import pandas as pd
 import statsmodels.api as sm
 
+from ....config import DEFAULT_ANNUAL_LOOKBACK
 from ....strategies.arbitrage.derivative.garch.garch_ensemble import GARCHEnsemble
 
 
@@ -14,7 +15,7 @@ class VolatilityForecaster:
         self.model = model
         self.lookback_period = lookback_period
 
-    def forecast(self, prices: pd.Series, horizon: int = 252) -> float:
+    def forecast(self, prices: pd.Series, horizon: int = DEFAULT_ANNUAL_LOOKBACK) -> float:
         """Forecast realized volatility over horizon"""
 
         forecasters = {
@@ -28,7 +29,7 @@ class VolatilityForecaster:
         forecaster = forecasters.get(self.model, self._historical_volatility)
         return forecaster(prices, horizon)
 
-    def _historical_volatility(self, prices: pd.Series, horizon: int = 252) -> float:
+    def _historical_volatility(self, prices: pd.Series, horizon: int = DEFAULT_ANNUAL_LOOKBACK) -> float:
         """Simple historical volatility"""
         returns = cast(pd.Series, cast(object, np.log(prices / prices.shift(1)))).dropna()
         return returns.iloc[-self.lookback_period :].std() * np.sqrt(horizon)
@@ -49,7 +50,7 @@ class VolatilityForecaster:
         returns_array = returns.values
 
         if len(returns_array) < 50:
-            return returns.std() * np.sqrt(252)
+            return returns.std() * np.sqrt(DEFAULT_ANNUAL_LOOKBACK)
 
         try:
             ensemble = GARCHEnsemble()
@@ -57,28 +58,28 @@ class VolatilityForecaster:
             forecast_result = ensemble.forecast(horizon=horizon)
 
             if isinstance(forecast_result, (float, np.float64)):
-                return forecast_result * np.sqrt(252)  # Annualize
+                return forecast_result * np.sqrt(DEFAULT_ANNUAL_LOOKBACK)  # Annualize
 
             elif isinstance(forecast_result, dict):
                 forecast = forecast_result.get("forecast", 0)
                 if isinstance(forecast, (list, np.ndarray)):
                     return forecast[-1]  # Get last value for horizon
-                return float(forecast) * np.sqrt(252)
+                return float(forecast) * np.sqrt(DEFAULT_ANNUAL_LOOKBACK)
 
             elif isinstance(forecast_result, (list, np.ndarray)):
                 if len(forecast_result) > 0:
                     if horizon <= len(forecast_result):
-                        return forecast_result[horizon - 1] * np.sqrt(252)
+                        return forecast_result[horizon - 1] * np.sqrt(DEFAULT_ANNUAL_LOOKBACK)
                     else:
-                        return forecast_result[-1] * np.sqrt(252)
+                        return forecast_result[-1] * np.sqrt(DEFAULT_ANNUAL_LOOKBACK)
 
             # Fallback
-            return returns.std() * np.sqrt(252)
+            return returns.std() * np.sqrt(DEFAULT_ANNUAL_LOOKBACK)
 
         except Exception:
-            return returns.std() * np.sqrt(252)
+            return returns.std() * np.sqrt(DEFAULT_ANNUAL_LOOKBACK)
 
-    def _ewma_forecast(self, prices: pd.Series, horizon: int = 252) -> float:
+    def _ewma_forecast(self, prices: pd.Series, horizon: int = DEFAULT_ANNUAL_LOOKBACK) -> float:
         """Exponentially weighted moving average"""
         returns = cast(pd.Series, cast(object, np.log(prices / prices.shift(1)))).dropna()
         lambda_param = 0.94
@@ -89,7 +90,7 @@ class VolatilityForecaster:
         var_ewma = np.sum(weights * returns.values**2)
         return np.sqrt(var_ewma * horizon)
 
-    def _har_forecast(self, prices: pd.Series, horizon: int = 252) -> float:
+    def _har_forecast(self, prices: pd.Series, horizon: int = DEFAULT_ANNUAL_LOOKBACK) -> float:
         """
         Heterogeneous Autoregressive (HAR-RV) model forecast.
         Predicts future volatility based on daily, weekly, and monthly

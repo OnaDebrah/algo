@@ -396,7 +396,7 @@ const Dashboard = () => {
             {/* Header */}
             <div className="flex items-center justify-between">
                 <div>
-                    <h1 className="text-2xl font-black text-slate-100 tracking-tight">Activity Hub</h1>
+                    {/*<h1 className="text-2xl font-black text-slate-100 tracking-tight">Activity Hub</h1>*/}
                     <p className="text-slate-400 mt-1">Overview of your backtesting activities and analytics</p>
                 </div>
                 <button

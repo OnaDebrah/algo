@@ -94,6 +94,7 @@ class Settings(BaseSettings):
     DEFAULT_MAX_POSITION_SIZE: int = int(os.getenv("DEFAULT_MAX_POSITION_SIZE", "20"))
     DEFAULT_STOP_LOSS_PCT: float = float(os.getenv("DEFAULT_STOP_LOSS_PCT", "0.05"))
     DEFAULT_MAX_DRAWDOWN: float = float(os.getenv("DEFAULT_MAX_DRAWDOWN", "0.10"))
+    DEFAULT_ANNUAL_LOOKBACK: int = int(os.getenv("DEFAULT_ANNUAL_LOOKBACK", "252"))
 
     # Strategy Specific Defaults
     DEFAULT_SMA_SHORT: int = 20
@@ -156,6 +157,7 @@ class Settings(BaseSettings):
     FROM_EMAIL: str = os.getenv("FROM_EMAIL", "alerts@oraculum.com")
     TO_EMAIL: str = os.getenv("TO_EMAIL", "")
     EMAIL_ENABLED: bool = os.getenv("EMAIL_ENABLED", "false").lower() == "true"
+    FRONTEND_URL: str = os.getenv("FRONTEND_URL", "http://localhost:3000")
 
     # Alerts (Twilio)
     TWILIO_ACCOUNT_SID: str = os.getenv("TWILIO_ACCOUNT_SID", "")
@@ -224,6 +226,7 @@ DEFAULT_MACD_SLOW = settings.DEFAULT_MACD_SLOW
 DEFAULT_MACD_SIGNAL = settings.DEFAULT_MACD_SIGNAL
 DEFAULT_ML_TEST_SIZE = settings.DEFAULT_ML_TEST_SIZE
 DEFAULT_ML_THRESHOLD = settings.DEFAULT_ML_THRESHOLD
+DEFAULT_ANNUAL_LOOKBACK = settings.DEFAULT_ANNUAL_LOOKBACK
 
 ML_MODELS_DIR = settings.ML_MODELS_DIR
 

@@ -13,6 +13,7 @@ from typing import Dict, Optional, Tuple, Union
 import numpy as np
 import pandas as pd
 
+from ..config import DEFAULT_ANNUAL_LOOKBACK
 from ..strategies import BaseStrategy
 
 warnings.filterwarnings("ignore")
@@ -38,7 +39,7 @@ class TimeSeriesMomentumStrategy(BaseStrategy):
         signal_method: str = "dual_ma",
         fast_period: int = 20,
         slow_period: int = 50,
-        momentum_period: int = 252,
+        momentum_period: int = DEFAULT_ANNUAL_LOOKBACK,
         volatility_lookback: int = 63,
         target_volatility: float = 0.15,
         max_position: float = 1.0,
@@ -71,7 +72,7 @@ class TimeSeriesMomentumStrategy(BaseStrategy):
         if self.asset_class == "equity":
             self.fast_period = fast_period
             self.slow_period = slow_period or 200
-            self.momentum_period = momentum_period or 252  # 12 months
+            self.momentum_period = momentum_period or DEFAULT_ANNUAL_LOOKBACK  # 12 months
         elif self.asset_class == "commodity":
             self.fast_period = fast_period or 40
             self.slow_period = slow_period or 100
@@ -133,7 +134,7 @@ class TimeSeriesMomentumStrategy(BaseStrategy):
 
         vol = returns.std()
         if annualize:
-            vol = vol * np.sqrt(252)  # Annualize assuming 252 trading days
+            vol = vol * np.sqrt(DEFAULT_ANNUAL_LOOKBACK)
 
         return vol
 
@@ -490,8 +491,8 @@ class TimeSeriesMomentumStrategy(BaseStrategy):
 
         # Basic metrics
         total_return = (1 + strategy_returns).prod() - 1
-        annual_return = (1 + total_return) ** (252 / len(strategy_returns)) - 1
-        volatility = strategy_returns.std() * np.sqrt(252)
+        annual_return = (1 + total_return) ** (DEFAULT_ANNUAL_LOOKBACK / len(strategy_returns)) - 1
+        volatility = strategy_returns.std() * np.sqrt(DEFAULT_ANNUAL_LOOKBACK)
 
         # Risk metrics
         sharpe_ratio = annual_return / volatility if volatility > 0 else 0

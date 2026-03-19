@@ -2,10 +2,10 @@ from typing import Dict, List, Optional, cast
 
 import numpy as np
 import pandas as pd
-from config import DEFAULT_RISK_FREE_RATE
-from core.options.pricers.engine import OptionsPricingEngine
 from pandas.core.arraylike import OpsMixin
 
+from ....config import DEFAULT_RISK_FREE_RATE
+from ....core.options.pricers.engine import OptionsPricingEngine
 from .greek_calculator import GreekCalculator
 from .volatility_forecaster import VolatilityForecaster
 from .volatility_surface import VolatilitySurface
@@ -20,13 +20,13 @@ class ArbitrageDetector:
         self.min_liquidity = min_liquidity
 
     def detect_all(
-            self,
-            asset: str,
-            option_chain: pd.DataFrame,
-            spot: float,
-            vol_surface: VolatilitySurface,
-            vol_forecaster: VolatilityForecaster,
-            greek_calc: GreekCalculator,
+        self,
+        asset: str,
+        option_chain: pd.DataFrame,
+        spot: float,
+        vol_surface: VolatilitySurface,
+        vol_forecaster: VolatilityForecaster,
+        greek_calc: GreekCalculator,
     ) -> List[Dict]:
         """Detect all types of arbitrage"""
 
@@ -52,8 +52,7 @@ class ArbitrageDetector:
             return cast(pd.DataFrame, cast(OpsMixin, option_chain[liquidity >= self.min_liquidity]))
         return option_chain
 
-    def _volatility_arbitrage(self, asset: str, options: pd.DataFrame, spot: float,
-                              vol_forecaster: VolatilityForecaster) -> List[Dict]:
+    def _volatility_arbitrage(self, asset: str, options: pd.DataFrame, spot: float, vol_forecaster: VolatilityForecaster) -> List[Dict]:
         """Detect volatility arbitrage opportunities"""
         opportunities = []
 
@@ -138,52 +137,64 @@ class ArbitrageDetector:
 
         return opportunities
 
-    def _term_structure_arbitrage(self, asset: str, options: pd.DataFrame, vol_surface: VolatilitySurface) -> List[
-        Dict]:
-        """Detect term structure arbitrage"""
+    def _term_structure_arbitrage(self, asset: str, options: pd.DataFrame, vol_surface: VolatilitySurface) -> List[Dict]:
         opportunities = []
+        spot = options["spot"].iloc[0] if "spot" in options else 0  # Ensure you have spot
 
+        # Group by moneyness to compare like-for-like strikes across time
         options["moneyness_bucket"] = pd.cut(
-            options["inTheMoney"], bins=[0, 0.9, 0.95, 1.05, 1.1, np.inf],
-            labels=["deep_otm_put", "otm_put", "atm", "otm_call", "deep_otm_call"]
+            options["strike"] / spot, bins=[0, 0.9, 0.95, 1.05, 1.1, np.inf], labels=["deep_otm_put", "otm_put", "atm", "otm_call", "deep_otm_call"]
         )
 
         for moneyness, group in options.groupby("moneyness_bucket"):
-            if len(group) < 3:
+            if len(group) < 2:
                 continue
 
             group = group.sort_values("dte")
-            vols = group["iv"].values
+
             dtes = group["dte"].values
+            vols = group["iv"].values
+            strikes = group["strike"].values
 
-            for i in range(len(vols) - 1):
+            for i in range(len(dtes) - 1):
                 T1, T2 = dtes[i] / 365, dtes[i + 1] / 365
-                var1, var2 = vols[i] ** 2 * T1, vols[i + 1] ** 2 * T2
 
-                if T2 > T1:
+                # USE VOL_SURFACE HERE: Get smoothed IVs instead of raw noisy ones
+                iv1 = vol_surface.get_volatility(asset, strikes[i], dtes[i], spot)
+                iv2 = vol_surface.get_volatility(asset, strikes[i + 1], dtes[i + 1], spot)
+
+                var1, var2 = (iv1**2) * T1, (iv2**2) * T2
+
+                # CALENDAR ARBITRAGE CHECK: Total variance must increase with time
+                if var2 < var1:
+                    # This is a "Pure" Arbitrage: Buy Far, Sell Near for guaranteed profit
+                    forward_vol = 0
+                    is_calendar_arb = True
+                else:
                     forward_var = (var2 - var1) / (T2 - T1)
-                    forward_vol = np.sqrt(max(forward_var, 0))
+                    forward_vol = np.sqrt(forward_var)
+                    is_calendar_arb = False
 
-                    vol_diff = forward_vol - vols[i + 1]
+                vol_diff = forward_vol - iv2
 
-                    if abs(vol_diff) > self.entry_threshold * 0.05:
-                        opportunities.append(
-                            {
-                                "asset": asset,
-                                "type": "term_structure_arb",
-                                "moneyness": moneyness,
-                                "near_expiry": group.iloc[i]["dte"],
-                                "far_expiry": group.iloc[i + 1]["dte"],
-                                "near_dte": dtes[i],
-                                "far_dte": dtes[i + 1],
-                                "near_vol": vols[i],
-                                "far_vol": vols[i + 1],
-                                "forward_vol": forward_vol,
-                                "vol_diff": vol_diff,
-                                "direction": 1 if vol_diff < 0 else -1,
-                                "confidence": min(abs(vol_diff) / (self.entry_threshold * 0.05), 3.0),
-                            }
-                        )
+                if is_calendar_arb or abs(vol_diff) > self.entry_threshold * 0.05:
+                    opportunities.append(
+                        {
+                            "asset": asset,
+                            "type": "term_structure_arb",
+                            "moneyness": moneyness,
+                            "near_expiry": group.iloc[i]["dte"],
+                            "far_expiry": group.iloc[i + 1]["dte"],
+                            "near_dte": dtes[i],
+                            "far_dte": dtes[i + 1],
+                            "near_vol": vols[i],
+                            "far_vol": vols[i + 1],
+                            "forward_vol": forward_vol,
+                            "vol_diff": vol_diff,
+                            "direction": 1 if vol_diff < 0 else -1,
+                            "confidence": min(abs(vol_diff) / (self.entry_threshold * 0.05), 3.0),
+                        }
+                    )
 
         return opportunities
 
@@ -304,8 +315,7 @@ class ArbitrageDetector:
                                             "strategy": "buy_butterfly" if butterfly_price < 0 else "sell_butterfly",
                                             "direction": 1 if butterfly_price < 0 else -1,
                                             "max_profit": abs(butterfly_price),
-                                            "max_loss": abs(butterfly_price) + (K2 - K1) if butterfly_price < 0 else (
-                                                    K2 - K1),
+                                            "max_loss": abs(butterfly_price) + (K2 - K1) if butterfly_price < 0 else (K2 - K1),
                                             "breakevens": [K1 + butterfly_price, K3 - butterfly_price],
                                             "confidence": min(abs(butterfly_price) / (0.01 * K2), 3.0),
                                         }
@@ -366,8 +376,7 @@ class ArbitrageDetector:
                                             "subtype": "put",
                                             "expiry": expiry,
                                             "strikes": [K1, K2, K3],
-                                            "option_symbols": [put_group.iloc[i]["symbol"], put_group.iloc[j]["symbol"],
-                                                               put_group.iloc[k]["symbol"]],
+                                            "option_symbols": [put_group.iloc[i]["symbol"], put_group.iloc[j]["symbol"], put_group.iloc[k]["symbol"]],
                                             "prices": [P1, P2, P3],
                                             "butterfly_price": butterfly_price,
                                             "intrinsic_value": intrinsic,
@@ -380,12 +389,7 @@ class ArbitrageDetector:
 
         return opportunities
 
-    def _box_spread_arbitrage(
-            self,
-            asset: str,
-            options: pd.DataFrame,
-            spot: float
-    ) -> List[Dict]:
+    def _box_spread_arbitrage(self, asset: str, options: pd.DataFrame, spot: float) -> List[Dict]:
         """
         Detect box spread arbitrage
 
@@ -444,13 +448,13 @@ class ArbitrageDetector:
                     if abs(mispricing_pct) > 0.01:  # 1% threshold
                         # Check liquidity
                         min_liquidity = (
-                                min(
-                                    call_k1.get("openInterest", 0) * call_k1.get("mid", 0),
-                                    put_k1.get("openInterest", 0) * put_k1.get("mid", 0),
-                                    call_k2.get("openInterest", 0) * call_k2.get("mid", 0),
-                                    put_k2.get("openInterest", 0) * put_k2.get("mid", 0),
-                                )
-                                / 1e6
+                            min(
+                                call_k1.get("openInterest", 0) * call_k1.get("mid", 0),
+                                put_k1.get("openInterest", 0) * put_k1.get("mid", 0),
+                                call_k2.get("openInterest", 0) * call_k2.get("mid", 0),
+                                put_k2.get("openInterest", 0) * put_k2.get("mid", 0),
+                            )
+                            / 1e6
                         )
 
                         if min_liquidity >= self.min_liquidity:
@@ -486,13 +490,7 @@ class ArbitrageDetector:
 
         return opportunities
 
-    def _calendar_spread_arbitrage(
-            self,
-            asset: str,
-            options: pd.DataFrame,
-            vol_surface: VolatilitySurface,
-            spot: float
-    ) -> List[Dict]:
+    def _calendar_spread_arbitrage(self, asset: str, options: pd.DataFrame, vol_surface: VolatilitySurface, spot: float) -> List[Dict]:
         """
         Detect calendar spread arbitrage
 
@@ -536,8 +534,7 @@ class ArbitrageDetector:
                         near_call = calls.iloc[i]
                         far_call = calls.iloc[j]
 
-                        opportunity = self._analyze_calendar_spread(asset, near_call, far_call, "call", vol_surface,
-                                                                    spot)
+                        opportunity = self._analyze_calendar_spread(asset, near_call, far_call, "call", vol_surface, spot)
                         if opportunity:
                             opportunities.append(opportunity)
 
@@ -557,13 +554,7 @@ class ArbitrageDetector:
         return opportunities
 
     def _analyze_calendar_spread(
-            self,
-            asset: str,
-            near_option: pd.Series,
-            far_option: pd.Series,
-            option_type: str,
-            vol_surface: VolatilitySurface,
-            spot: float
+        self, asset: str, near_option: pd.Series, far_option: pd.Series, option_type: str, vol_surface: VolatilitySurface, spot: float
     ) -> Optional[Dict]:
         """Analyze a single calendar spread for arbitrage"""
         opportunities = []
@@ -578,8 +569,8 @@ class ArbitrageDetector:
         spread_price = far_option["mid"] - near_option["mid"]
 
         if T2 > T1:
-            var1 = iv1 ** 2 * T1
-            var2 = iv2 ** 2 * T2
+            var1 = iv1**2 * T1
+            var2 = iv2**2 * T2
             forward_var = (var2 - var1) / (T2 - T1)
 
             if forward_var < -0.0001:  # Negative forward variance is arbitrage
@@ -658,14 +649,7 @@ class ArbitrageDetector:
 
         return None
 
-    def _analyze_diagonal_calendars(
-            self,
-            asset: str,
-            options: pd.DataFrame,
-            vol_surface: VolatilitySurface,
-            spot: float,
-            opportunities: List[Dict]
-    ):
+    def _analyze_diagonal_calendars(self, asset: str, options: pd.DataFrame, vol_surface: VolatilitySurface, spot: float, opportunities: List[Dict]):
         """
         Analyze diagonal calendar spreads (different strikes and expiries)
 
@@ -711,22 +695,8 @@ class ArbitrageDetector:
 
                         # Calculate what the options SHOULD cost based on your model
                         engine = OptionsPricingEngine()
-                        theoretical_near = engine.price(
-                            spot,
-                            K_near,
-                            T_near,
-                            DEFAULT_RISK_FREE_RATE,
-                            iv_near,
-                            option_type
-                        )
-                        theoretical_far = engine.price(
-                            spot,
-                            K_far,
-                            T_far,
-                            DEFAULT_RISK_FREE_RATE,
-                            iv_far,
-                            option_type
-                        )
+                        theoretical_near = engine.price(spot, K_near, T_near, DEFAULT_RISK_FREE_RATE, iv_near, option_type)
+                        theoretical_far = engine.price(spot, K_far, T_far, DEFAULT_RISK_FREE_RATE, iv_far, option_type)
 
                         actual_spread = far_opt["mid"] - near_opt["mid"]
                         theoretical_spread = theoretical_far - theoretical_near

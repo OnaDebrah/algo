@@ -2,11 +2,13 @@ from typing import Any, Dict, List, Optional
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
+from ..config import DEFAULT_ANNUAL_LOOKBACK
+
 
 # Request/Response Models
 class PortfolioRequest(BaseModel):
     symbols: List[str] = Field(..., min_length=2, description="List of stock symbols")
-    lookback_days: int = Field(252, ge=30, le=1000, description="Historical lookback period in days")
+    lookback_days: int = Field(DEFAULT_ANNUAL_LOOKBACK, ge=30, le=1000, description="Historical lookback period in days")
 
     @field_validator("symbols")
     def validate_symbols(cls, v):
