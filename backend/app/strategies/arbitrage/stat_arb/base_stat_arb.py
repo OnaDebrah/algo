@@ -14,7 +14,7 @@ from sklearn.decomposition import PCA
 from statsmodels.tsa.vector_ar.vecm import coint_johansen
 
 from ... import BaseStrategy
-from ...config import DEFAULT_ANNUAL_LOOKBACK
+from ....config import DEFAULT_ANNUAL_LOOKBACK
 
 warnings.filterwarnings("ignore")
 
