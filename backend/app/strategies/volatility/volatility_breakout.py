@@ -3,6 +3,7 @@ from typing import Dict, Tuple, Union
 import numpy as np
 import pandas as pd
 
+from ...config import DEFAULT_ANNUAL_LOOKBACK
 from ...strategies.volatility.base_volatility import BaseVolatilityStrategy
 
 
@@ -44,7 +45,7 @@ class VolatilityBreakoutStrategy(BaseVolatilityStrategy):
         current_vol = self.estimate_volatility(returns)
 
         # Calculate rolling volatility
-        rolling_vol = returns.rolling(window=self.vol_lookback).std().dropna() * np.sqrt(252)
+        rolling_vol = returns.rolling(window=self.vol_lookback).std().dropna() * np.sqrt(DEFAULT_ANNUAL_LOOKBACK)
 
         if len(rolling_vol) < 1:
             return False, 0

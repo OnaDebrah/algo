@@ -7,10 +7,11 @@ import logging
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
-from typing import Dict, List
+from typing import Dict, List, cast
 
 import numpy as np
 import pandas as pd
+from ..config import DEFAULT_ANNUAL_LOOKBACK
 
 from ..core.data.providers.providers import ProviderFactory
 
@@ -144,7 +145,7 @@ class OptionsChain:
 
             # Find closest to ATM
             if not calls.empty and "strike" in calls.columns:
-                atm_call = calls.iloc[(calls["strike"] - current_price).abs().argsort()[:1]]
+                atm_call = cast(pd.DataFrame, cast(object, calls.iloc[(calls["strike"] - current_price).abs().argsort()[:1]]))
                 if not atm_call.empty and "impliedVolatility" in atm_call.columns:
                     return float(atm_call["impliedVolatility"].iloc[0])
 
@@ -152,7 +153,7 @@ class OptionsChain:
             hist = await self._factory.fetch_data(self.symbol, "1y", "1d")
             if not hist.empty:
                 returns = hist["Close"].pct_change().dropna()
-                return returns.std() * np.sqrt(252)
+                return returns.std() * np.sqrt(DEFAULT_ANNUAL_LOOKBACK)
 
             return 0.3  # Default 30%
 

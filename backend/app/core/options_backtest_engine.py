@@ -10,7 +10,7 @@ from typing import Dict, List
 import numpy as np
 import pandas as pd
 
-from ..config import settings
+from ..config import DEFAULT_COMMISSION_RATE, DEFAULT_INITIAL_CAPITAL, DEFAULT_RISK_FREE_RATE, settings
 from ..strategies.options_builder import OptionsStrategyBuilder, create_preset_strategy
 from ..strategies.options_strategies import (
     OptionsStrategy,
@@ -514,7 +514,7 @@ class OptionsBacktestEngine:
             "max_drawdown": max_drawdown,
             "sharpe_ratio": sharpe_ratio,
             "avg_days_held": np.mean([p["days_held"] for p in self.closed_positions]),
-            "avg_pnl_pct": np.mean([p["pnl_pct"] for p in self.closed_positions]) * 100,
+            "avg_pnl_pct": float(np.mean([p["pnl_pct"] for p in self.closed_positions])) * 100,
         }
 
 
@@ -533,9 +533,9 @@ def backtest_options_strategy(symbol: str, data: pd.DataFrame, strategy_type: Op
     """
 
     engine = OptionsBacktestEngine(
-        initial_capital=kwargs.get("initial_capital", 100000),
-        risk_free_rate=kwargs.get("risk_free_rate", 0.05),
-        commission_per_contract=kwargs.get("commission", 0.65),
+        initial_capital=kwargs.get("initial_capital", DEFAULT_INITIAL_CAPITAL),
+        risk_free_rate=kwargs.get("risk_free_rate", DEFAULT_RISK_FREE_RATE),
+        commission_per_contract=kwargs.get("commission", DEFAULT_COMMISSION_RATE),
     )
 
     entry_rules = kwargs.get(

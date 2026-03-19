@@ -39,6 +39,7 @@ import BacktestTab from './tabs/BacktestTab';
 import VolatilityTab from './tabs/VolatilityTab';
 import RiskTab from './tabs/RiskTab';
 import ForecastTab from './tabs/ForecastTab';
+import ArbitrageTab from './tabs/ArbitrageTab';
 import Tabs from "@/components/optionsdesk/tabs/Tabs";
 import {market, options, regime} from "@/utils/api";
 import {toPrecision} from "@/utils/formatters";
@@ -49,7 +50,7 @@ const OptionsDesk = () => {
     const [currentPrice, setCurrentPrice] = useState(450);
     const [optionsChain, setOptionsChain] = useState<ChainResponse | null>(null);
     const [isLoading, setIsLoading] = useState(false);
-    const [activeTab, setActiveTab] = useState<'chain' | 'builder' | 'compare' | 'backtest' | 'volatility' | 'risk' | 'ml'>('chain');
+    const [activeTab, setActiveTab] = useState<'chain' | 'builder' | 'compare' | 'backtest' | 'volatility' | 'risk' | 'ml' | 'arbitrage'>('chain');
     const [mlForecast, setMlForecast] = useState<MLForecast | null>(null);
     const [customLegs, setCustomLegs] = useState<OptionLeg[]>([]);
     const [selectedStrategies, setSelectedStrategies] = useState<StrategyTemplate[]>([]);
@@ -65,6 +66,7 @@ const OptionsDesk = () => {
     const [backtestResults, setBacktestResults] = useState<any>(null);
     const [equityData, setEquityData] = useState<any[]>([]);
     const [recentTrades, setRecentTrades] = useState<RecentTrades[]>([]);
+    const [lastBacktestId, setLastBacktestId] = useState<number | null>(null);
 
     const [newLeg, setNewLeg] = useState<Partial<OptionLeg>>({
         type: 'call',
@@ -542,6 +544,9 @@ const OptionsDesk = () => {
 
             if (response) {
                 setBacktestResults(response);
+                if (response.backtest_id) {
+                    setLastBacktestId(response.backtest_id);
+                }
 
                 const formattedCurve = response.equity_curve.map((point: any) => {
                     const dateStr = point.date || point.timestamp || '';
@@ -666,6 +671,7 @@ const OptionsDesk = () => {
                         isLoading={isLoading}
                         expirationDates={optionsChain?.expiration_dates || []}
                         selectedSymbol={selectedSymbol}
+                        backtestId={lastBacktestId}
                     />
                 )}
 
@@ -681,6 +687,13 @@ const OptionsDesk = () => {
                     <RiskTab
                         portfolioStats={portfolioStats}
                         riskMetrics={riskMetrics}
+                    />
+                )}
+
+                {activeTab === 'arbitrage' && (
+                    <ArbitrageTab
+                        selectedSymbol={selectedSymbol}
+                        currentPrice={currentPrice}
                     />
                 )}
 

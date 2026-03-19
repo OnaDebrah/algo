@@ -2,8 +2,8 @@ from typing import Dict
 
 from ...strategies.catelog.category import StrategyCategory
 from ...strategies.catelog.strategy_info import StrategyInfo
-from ...strategies.stat_arb.sector_neutral import SectorNeutralStrategy
-from ..stat_arb.base_stat_arb import RiskParityStatArb
+from ..arbitrage.stat_arb import RiskParityStatArb
+from ..arbitrage.stat_arb.sector_neutral import SectorNeutralStrategy
 
 
 class StatisticalArbitrage:

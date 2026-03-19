@@ -4,6 +4,7 @@ from datetime import date, datetime, timedelta
 import numpy as np
 import pandas as pd
 from fastapi import APIRouter, Depends, HTTPException, Query
+from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.options.pop.probability_of_profit import ProbabilityMethod, ProbabilityOfProfit
@@ -41,6 +42,7 @@ from ...schemas.options import (
 )
 from ...services.analysis.hedge_service import HedgeRecommendationService
 from ...services.auth_service import AuthService
+from ...services.backtest_service import BacktestService
 from ...services.market_service import get_market_service
 from ...strategies.options_builder import OptionsStrategy, OptionsStrategyBuilder, OptionType, create_preset_strategy
 from ...strategies.options_strategies import OptionsChain
@@ -354,6 +356,62 @@ async def run_backtest(request: BacktestRequest, current_user: User = Depends(ge
                 return default
             return v
 
+        # ── Persist to database so it shows in Activity Hub ──────────
+        backtest_id = None
+        try:
+            service = BacktestService(db)
+            strategy_key = request.strategy_type
+            backtest_run = await service.create_backtest_run(
+                user_id=current_user.id,
+                backtest_type="options",
+                symbols=[request.symbol],
+                strategy_config={
+                    "strategy_key": strategy_key,
+                    "strategy_type": "options",
+                    "initial_capital": request.initial_capital,
+                    "risk_free_rate": request.risk_free_rate,
+                    "start_date": request.start_date,
+                    "end_date": request.end_date,
+                    "entry_rules": request.entry_rules or {},
+                    "exit_rules": request.exit_rules or {},
+                },
+                period=f"{request.start_date} to {request.end_date}",
+                interval="1d",
+                initial_capital=request.initial_capital,
+            )
+
+            total_return_pct = safe_float(results["total_return"])
+            initial_cap = request.initial_capital or 100000
+            total_return_abs = initial_cap * (total_return_pct / 100.0)
+            final_eq = initial_cap + total_return_abs
+
+            await service.update_backtest_status(
+                backtest_id=backtest_run.id,
+                status="completed",
+                results={
+                    "total_return": total_return_abs,
+                    "total_return_pct": total_return_pct,
+                    "sharpe_ratio": safe_float(results["sharpe_ratio"]),
+                    "max_drawdown": safe_float(results["max_drawdown"]),
+                    "win_rate": safe_float(results["win_rate"]),
+                    "total_trades": int(results["total_trades"]),
+                    "final_equity": final_eq,
+                    "equity_curve": equity_curve_data,
+                    "trades": trades_data,
+                    "extended_results": {
+                        "profit_factor": safe_float(results["profit_factor"]),
+                        "total_profit": safe_float(results["total_profit"]),
+                        "total_loss": safe_float(results["total_loss"]),
+                        "winning_trades": int(results["winning_trades"]),
+                        "losing_trades": int(results["losing_trades"]),
+                    },
+                },
+            )
+            backtest_id = backtest_run.id
+            logger.info(f"💾 Options backtest saved as BacktestRun #{backtest_id}")
+        except Exception as save_err:
+            logger.warning(f"⚠️ Failed to persist options backtest: {save_err}")
+
         # Transform results for API response
         return BacktestResult(
             total_trades=int(results["total_trades"]),
@@ -368,6 +426,7 @@ async def run_backtest(request: BacktestRequest, current_user: User = Depends(ge
             total_loss=safe_float(results["total_loss"]),
             equity_curve=equity_curve_data,
             trades=trades_data,
+            backtest_id=backtest_id,
         )
 
     except Exception as e:
@@ -864,3 +923,170 @@ async def hedge_portfolio(
     )
 
     return result
+
+
+# ─── Derivative Arbitrage Scanner ─────────────────────────────────────────────
+
+
+class ArbitrageScanRequest(BaseModel):
+    """Request body for the arbitrage scanner"""
+
+    symbol: str
+    arb_types: list[str] = ["volatility", "put_call", "term_structure", "skew", "butterfly", "box_spread", "calendar"]
+    volatility_model: str = "garch"
+    entry_threshold: float = 2.0
+    min_liquidity: float = 1.0
+
+
+class ArbitrageOpportunity(BaseModel):
+    type: str
+    asset: str
+    strike: float | None = None
+    direction: int
+    confidence: float
+    mispricing: float | None = None
+    entry_price: float | None = None
+    size: float | None = None
+    details: dict | None = None
+
+
+class ArbitrageScanResponse(BaseModel):
+    symbol: str
+    spot_price: float
+    opportunities: list[ArbitrageOpportunity]
+    vol_surface_summary: dict | None = None
+    greek_exposure: dict | None = None
+    scanned_at: str
+
+
+@router.post("/arbitrage/scan", response_model=ArbitrageScanResponse)
+async def scan_arbitrage_opportunities(
+    request: ArbitrageScanRequest,
+    current_user: User = Depends(get_current_active_user),
+):
+    """
+    Scan for derivative arbitrage opportunities using the DerivativeArbitrage engine.
+    Detects: volatility arb, put-call parity, term structure, skew, butterfly, box spread, calendar.
+    """
+    try:
+        from ...strategies.arbitrage.derivative.arbitrage_detector import ArbitrageDetector
+        from ...strategies.arbitrage.derivative.greek_calculator import GreekCalculator
+        from ...strategies.arbitrage.derivative.volatility_forecaster import VolatilityForecaster
+        from ...strategies.arbitrage.derivative.volatility_surface import VolatilitySurface
+
+        # Fetch real option chain
+        chain_response = await fetch_real_option_chain(request.symbol)
+        spot = chain_response.current_price
+
+        if spot <= 0:
+            raise HTTPException(status_code=400, detail=f"Could not get price for {request.symbol}")
+
+        # Build a DataFrame from the chain (calls + puts)
+        rows = []
+        for c in chain_response.calls:
+            d = c.model_dump() if hasattr(c, "model_dump") else (c if isinstance(c, dict) else dict(c))
+            d["option_type"] = "call"
+            d["dte"] = 30
+            rows.append(d)
+        for p in chain_response.puts:
+            d = p.model_dump() if hasattr(p, "model_dump") else (p if isinstance(p, dict) else dict(p))
+            d["option_type"] = "put"
+            d["dte"] = 30
+            rows.append(d)
+        option_chain = pd.DataFrame(rows)
+
+        if option_chain.empty:
+            return ArbitrageScanResponse(
+                symbol=request.symbol,
+                spot_price=spot,
+                opportunities=[],
+                scanned_at=datetime.utcnow().isoformat(),
+            )
+
+        # Compute DTE from expiration dates if available
+        if chain_response.expiration_dates:
+            first_exp = datetime.strptime(chain_response.expiration_dates[0], "%Y-%m-%d")
+            dte_val = max((first_exp - datetime.now()).days, 1)
+            option_chain["dte"] = dte_val
+
+        # Ensure required columns
+        if "impliedVolatility" in option_chain.columns:
+            option_chain.rename(columns={"impliedVolatility": "iv"}, inplace=True)
+        if "iv" not in option_chain.columns:
+            option_chain["iv"] = 0.3
+        if "mid" not in option_chain.columns:
+            option_chain["mid"] = (option_chain.get("bid", 0) + option_chain.get("ask", 0)) / 2
+        # Separate call_price / put_price columns for put-call parity detection
+        option_chain["call_price"] = option_chain.apply(lambda r: r["mid"] if r["option_type"] == "call" else np.nan, axis=1)
+        option_chain["put_price"] = option_chain.apply(lambda r: r["mid"] if r["option_type"] == "put" else np.nan, axis=1)
+
+        # Initialize modular components
+        vol_surface = VolatilitySurface(min_moneyness=0.8, max_moneyness=1.2, min_dte=7, max_dte=180)
+        vol_forecaster = VolatilityForecaster(model=request.volatility_model, lookback_period=60)
+        greek_calculator = GreekCalculator(risk_free_rate=0.03)
+        arb_detector = ArbitrageDetector(
+            entry_threshold=request.entry_threshold,
+            min_liquidity=request.min_liquidity,
+        )
+
+        # Build volatility surface
+        vol_surface.build_surface(request.symbol, option_chain, spot)
+
+        # Fetch historical data for vol forecaster
+        try:
+            hist_data = await market_service.get_historical(request.symbol, period="1y", interval="1d")
+            if hist_data and len(hist_data) > 0:
+                closes = pd.Series([d.get("close", d.get("Close", 0)) for d in hist_data])
+                vol_forecaster.fit(closes)
+        except Exception:
+            pass  # forecaster will use defaults
+
+        # Detect arbitrage opportunities
+        all_opportunities = arb_detector.detect_all(request.symbol, option_chain, spot, vol_surface, vol_forecaster, greek_calculator)
+
+        # Filter by requested arb types
+        filtered = [o for o in all_opportunities if o.get("type") in request.arb_types]
+
+        # Convert to response model
+        opportunities = []
+        for opp in filtered[:50]:  # Cap at 50
+            opportunities.append(
+                ArbitrageOpportunity(
+                    type=opp.get("type", "unknown"),
+                    asset=request.symbol,
+                    strike=opp.get("strike"),
+                    direction=opp.get("direction", 0),
+                    confidence=opp.get("confidence", 0),
+                    mispricing=opp.get("mispricing"),
+                    entry_price=opp.get("entry_price", opp.get("call_price", opp.get("put_price"))),
+                    size=None,
+                    details={
+                        k: v
+                        for k, v in opp.items()
+                        if k not in ("type", "strike", "direction", "confidence", "mispricing", "entry_price", "call_price", "put_price")
+                    },
+                )
+            )
+
+        # Vol surface summary
+        vol_summary = None
+        if hasattr(vol_surface, "term_structure") and vol_surface.term_structure:
+            vol_summary = {
+                "atm_iv": float(vol_surface.term_structure.get(30, 0.3)) if isinstance(vol_surface.term_structure, dict) else 0.3,
+                "skew": float(getattr(vol_surface, "skew", {}).get(request.symbol, 0)),
+            }
+
+        return ArbitrageScanResponse(
+            symbol=request.symbol,
+            spot_price=spot,
+            opportunities=opportunities,
+            vol_surface_summary=vol_summary,
+            greek_exposure=None,
+            scanned_at=datetime.utcnow().isoformat(),
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Arbitrage scan failed for {request.symbol}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=safe_detail("Arbitrage scan failed", e))

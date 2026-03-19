@@ -1,7 +1,8 @@
-from typing import Dict, Union
+from typing import Dict, Union, cast
 
 import numpy as np
 import pandas as pd
+from ...config import DEFAULT_ANNUAL_LOOKBACK
 from scipy import stats
 
 from ...strategies.volatility.base_volatility import BaseVolatilityStrategy
@@ -86,52 +87,60 @@ class DynamicVolatilityScalingStrategy(BaseVolatilityStrategy):
 
     def forecast_volatility(self, returns: pd.Series, horizon: int = None) -> float:
         """
-        Forecast future volatility
-
-        Args:
-            returns: Historical returns
-            horizon: Forecast horizon in days
-
-        Returns:
-            Volatility forecast
+        Forecast future volatility using a calibrated HAR model.
+        Calibrates b0, b1, b2, b3 based on historical realized volatility.
         """
         if horizon is None:
-            horizon = self.forecast_horizon
+            _ = getattr(self, "forecast_horizon", 1)
 
-        if len(returns) < 20:
-            return self.target_volatility
+        min_train_size = 60  # 3 months of data
+        if len(returns) < min_train_size:
+            return float(returns.std() * np.sqrt(DEFAULT_ANNUAL_LOOKBACK))
 
-        # Simple HAR (Heterogeneous Autoregressive) model
-        # Use daily, weekly, monthly volatilities
+        # Calculate Realized Volatility (RV) series
+        # Using daily absolute returns as the proxy for daily volatility
+        rv = np.abs(returns)
 
-        # Daily volatility (1-day)
-        vol_d = returns.std()
+        # Create the HAR Feature Matrix (X) and Target (y)
+        # y = RV_tomorrow
+        # X1 = RV_today (Daily)
+        # X2 = Avg(RV_last_5_days) (Weekly)
+        # X3 = Avg(RV_last_22_days) (Monthly)
 
-        # Weekly volatility (5-day)
-        if len(returns) >= 5:
-            weekly_returns = returns.rolling(5).sum()
-            vol_w = weekly_returns.std()
-        else:
-            vol_w = vol_d * np.sqrt(5)
+        df_har = pd.DataFrame({"y": rv}).shift(-1)  # Target is tomorrow's vol
+        df_har["d"] = rv
+        df_har["w"] = cast(pd.Series, cast(object, rv)).rolling(5).mean()
+        df_har["m"] = cast(pd.Series, cast(object, rv)).rolling(22).mean()
 
-        # Monthly volatility (21-day)
-        if len(returns) >= 21:
-            monthly_returns = returns.rolling(21).sum()
-            vol_m = monthly_returns.std()
-        else:
-            vol_m = vol_d * np.sqrt(21)
+        # Drop rows with NaNs (due to rolling and shift)
+        df_har = df_har.dropna()
 
-        # HAR regression coefficients (simplified)
-        # In production, estimate via OLS
-        b0, b1, b2, b3 = 0.01, 0.6, 0.3, 0.1
+        # Perform OLS Calibration (y = Xb)
+        # b = (X^T * X)^-1 * X^T * y
+        y = df_har["y"].values
+        X = df_har[["d", "w", "m"]].values
+        X = np.column_stack([np.ones(len(X)), X])  # Add intercept (b0)
 
-        # Forecast
-        vol_forecast = b0 + b1 * vol_d + b2 * vol_w + b3 * vol_m
+        try:
+            # Solve for coefficients [b0, b1, b2, b3]
+            coeffs, _, _, _ = np.linalg.lstsq(X, y, rcond=None)
+            b0, b1, b2, b3 = coeffs
+        except np.linalg.LinAlgError:
+            # Fallback to robust defaults if the matrix is singular
+            b0, b1, b2, b3 = 0.0001, 0.45, 0.30, 0.20
 
-        # Annualize
-        vol_forecast = vol_forecast * np.sqrt(252)
+        # 5. Generate the Forecast for "Tomorrow"
+        # We use the most recent available data points
+        curr_d = cast(pd.Series, cast(object, rv)).iloc[-1]
+        curr_w = cast(pd.Series, cast(object, rv)).tail(5).mean()
+        curr_m = cast(pd.Series, cast(object, rv)).tail(22).mean()
 
-        return vol_forecast
+        daily_forecast = b0 + b1 * curr_d + b2 * curr_w + b3 * curr_m
+
+        annualized_vol = max(daily_forecast, 0) * np.sqrt(DEFAULT_ANNUAL_LOOKBACK)
+
+        hist_vol = returns.std() * np.sqrt(DEFAULT_ANNUAL_LOOKBACK)
+        return float(np.clip(annualized_vol, hist_vol * 0.5, hist_vol * 3.0))
 
     def calculate_scaling_factor(self, asset: str, returns: pd.Series, current_position: float = 0.0) -> float:
         """
@@ -145,14 +154,11 @@ class DynamicVolatilityScalingStrategy(BaseVolatilityStrategy):
         Returns:
             Scaling factor (0 to 1+)
         """
-        # Forecast volatility
         vol_forecast = self.forecast_volatility(returns)
         self.volatility_forecasts[asset] = vol_forecast
 
-        # Base scaling: inverse volatility
         base_scale = self.target_volatility / max(vol_forecast, self.min_vol)
 
-        # Apply risk manager constraints if available
         if self.risk_manager is not None:
             risk_constraints = self.risk_manager.get_constraints(asset, current_position)
 
@@ -164,7 +170,6 @@ class DynamicVolatilityScalingStrategy(BaseVolatilityStrategy):
                     base_scale = min(base_scale, max_scale)
 
             if "var_limit" in risk_constraints:
-                # Adjust for VaR constraints
                 var_limit = risk_constraints["var_limit"]
                 portfolio_var = self._estimate_portfolio_var(asset, current_position, vol_forecast)
 
@@ -172,12 +177,10 @@ class DynamicVolatilityScalingStrategy(BaseVolatilityStrategy):
                     var_scale = var_limit / portfolio_var
                     base_scale = min(base_scale, var_scale)
 
-        # Apply scaling method
         if self.scaling_method == "multiplicative":
             scale_factor = base_scale
 
         elif self.scaling_method == "additive":
-            # Adjust position additively
             target_exposure = self.target_volatility / vol_forecast
             current_exposure = abs(current_position) if current_position != 0 else 0
             scale_factor = 1.0 + (target_exposure - current_exposure) * 0.1  # 10% adjustment
@@ -192,17 +195,31 @@ class DynamicVolatilityScalingStrategy(BaseVolatilityStrategy):
         # Apply bounds
         scale_factor = np.clip(scale_factor, 0.1, 3.0)
 
-        # Store
         self.scaling_factors[asset] = scale_factor
 
         return scale_factor
 
     def _estimate_portfolio_var(self, asset: str, position: float, volatility: float, confidence: float = 0.95) -> float:
-        """Estimate portfolio VaR for position"""
-        # Simplified VaR calculation
+        """
+        Estimate Parametric Value at Risk (VaR) for a specific position.
+
+        Formula: VaR = Position_Value * Volatility * Z-Score * sqrt(Time_Horizon)
+        """
+        if volatility <= 0 or position == 0:
+            return 0.0
+
+        # 0.95 -> ~1.645, 0.99 -> ~2.326
         z_score = stats.norm.ppf(confidence)
-        var = abs(position) * volatility * z_score / np.sqrt(252)
-        return var
+
+        # Time Scaling Logic
+        # If 'volatility' is annualized (e.g., 0.20 for 20%):
+        # To get 1-Day VaR, we scale by sqrt(1/252)
+        annual_days = DEFAULT_ANNUAL_LOOKBACK  # Standard trading year
+        time_scale = 1 / np.sqrt(annual_days)
+
+        var = abs(position) * volatility * z_score * time_scale
+
+        return float(var)
 
     def scale_position(self, asset: str, position: float, returns: pd.Series) -> float:
         """
@@ -235,7 +252,6 @@ class DynamicVolatilityScalingStrategy(BaseVolatilityStrategy):
             "metrics": self.metrics.copy(),
         }
 
-        # Add risk concentrations
         if hasattr(self, "portfolio_positions"):
             report["risk_concentrations"] = self._calculate_risk_concentrations()
 

@@ -2,6 +2,7 @@
 
 import React, {lazy, Suspense, useCallback, useEffect, useState} from 'react';
 import LoginPage from "@/components/auth/LoginPage";
+import ResetPasswordPage from "@/components/auth/ResetPasswordPage";
 import LandingPage from "@/components/landing/LandingPage";
 import {TickerTape} from "@/components/widgets/TickerTape";
 import {CommandPalette} from "@/components/common/CommandPalette";
@@ -74,8 +75,10 @@ const AppShell: React.FC<AppShellProps> = () => {
   const [currentPage, setCurrentPage] = useState<PageKey>('dashboard');
   const [user, setUser] = useState<User | null>(null);
   const [showLanding, setShowLanding] = useState(true);
+  const [authMode, setAuthMode] = useState<'login' | 'signup'>('login');
   const [serverStatus, setServerStatus] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [resetToken, setResetToken] = useState<string | null>(null);
 
   // Session restoration — cookie is sent automatically with the request
   const restoreSession = useCallback(async () => {
@@ -113,6 +116,18 @@ const AppShell: React.FC<AppShellProps> = () => {
     } catch (error) {
       console.error("Health check failed:", error);
       setServerStatus(false);
+    }
+  }, []);
+
+  // Check for password reset token in URL
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const token = params.get('reset_token');
+    if (token) {
+      setResetToken(token);
+      setShowLanding(false);
+      // Clean up the URL without reloading
+      window.history.replaceState({}, '', window.location.pathname);
     }
   }, []);
 
@@ -183,13 +198,23 @@ const AppShell: React.FC<AppShellProps> = () => {
     );
   }
 
+  // Show reset password page if token present
+  if (resetToken) {
+    return (
+      <ResetPasswordPage
+        token={resetToken}
+        onBackToLogin={() => { setResetToken(null); setShowLanding(false); }}
+      />
+    );
+  }
+
   // Show landing page or login page if no user
   if (!user) {
     if (showLanding) {
       return (
         <LandingPage
-          onGetStarted={() => setShowLanding(false)}
-          onSignIn={() => setShowLanding(false)}
+          onGetStarted={() => { setAuthMode('signup'); setShowLanding(false); }}
+          onSignIn={() => { setAuthMode('login'); setShowLanding(false); }}
         />
       );
     }
@@ -198,6 +223,7 @@ const AppShell: React.FC<AppShellProps> = () => {
         onLogin={handleLogin}
         setCurrentPage={(page: string) => setCurrentPage(page as PageKey)}
         onBackToLanding={() => setShowLanding(true)}
+        initialMode={authMode}
       />
     );
   }

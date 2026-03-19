@@ -62,6 +62,7 @@ class BacktestResult(BaseModel):
     total_loss: float
     equity_curve: List[Dict[str, Any]]
     trades: List[Dict[str, Any]]
+    backtest_id: Optional[int] = None
 
 
 # New schemas for enhanced endpoints

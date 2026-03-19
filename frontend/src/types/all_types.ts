@@ -424,6 +424,7 @@ export interface OptionsBacktestResponse {
     result: OptionsBacktestResult;
     equity_curve: EquityCurvePoint[];
     trades: Trade[];
+    backtest_id?: number | null;
 }
 
 // ==================== BACKTEST HISTORY ====================

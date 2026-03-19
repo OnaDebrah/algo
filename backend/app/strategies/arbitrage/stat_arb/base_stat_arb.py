@@ -6,14 +6,15 @@ Why add it: Market-neutral, Low correlation to trend strategies, Institutional c
 """
 
 import warnings
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple, cast
 
 import numpy as np
 import pandas as pd
 from sklearn.decomposition import PCA
 from statsmodels.tsa.vector_ar.vecm import coint_johansen
 
-from ...strategies import BaseStrategy
+from ... import BaseStrategy
+from ....config import DEFAULT_ANNUAL_LOOKBACK
 
 warnings.filterwarnings("ignore")
 
@@ -33,7 +34,7 @@ class StatisticalArbitrageStrategy(BaseStrategy):
         self,
         universe: List[str],
         basket_size: int = 3,
-        lookback_period: int = 252,
+        lookback_period: int = DEFAULT_ANNUAL_LOOKBACK,
         entry_threshold: float = 2.0,
         exit_threshold: float = 0.5,
         stop_loss_threshold: float = 3.0,
@@ -156,7 +157,7 @@ class StatisticalArbitrageStrategy(BaseStrategy):
                 continue
 
             # Prepare data for Johansen test
-            basket_data = test_data[selected].dropna()
+            basket_data = cast(pd.DataFrame, cast(object, test_data[selected])).dropna()
             if len(basket_data) < test_period // 2:
                 continue
 
@@ -185,7 +186,7 @@ class StatisticalArbitrageStrategy(BaseStrategy):
                     half_life = self._calculate_half_life(spread)
 
                     # Score based on half-life and cointegration strength
-                    score = trace_stat / critical_value - max(0, half_life - 30) / 100
+                    score = trace_stat / critical_value - max(0, int(half_life - 30)) / 100
 
                     if score > best_score and half_life > self.min_half_life:
                         best_score = score
@@ -198,7 +199,7 @@ class StatisticalArbitrageStrategy(BaseStrategy):
         if best_basket is not None:
             # Ensure weights sum to 0 (market neutral)
             if np.sum(best_vector) != 0:
-                best_vector = best_vector - np.mean(best_vector)
+                best_vector = best_vector - float(np.mean(best_vector))
 
             # Normalize for risk parity
             best_vector = self._normalize_weights(best_vector)
@@ -221,7 +222,7 @@ class StatisticalArbitrageStrategy(BaseStrategy):
             return None
 
         # Calculate returns
-        returns = np.log(prices / prices.shift(1)).dropna()
+        returns = cast(pd.DataFrame, cast(object, np.log(prices / prices.shift(1)))).dropna()
 
         if len(returns) < 30:
             return None
@@ -730,7 +731,7 @@ class StatisticalArbitrageStrategy(BaseStrategy):
         # Run strategy day by day
         for i in range(self.lookback_period, len(prices)):
             current_date = prices.index[i]
-            historical_data = prices.iloc[: i + 1]
+            historical_data = cast(pd.DataFrame, cast(object, prices.iloc[: i + 1]))
 
             # Update baskets periodically
             if i % 63 == 0:  # Quarterly
@@ -787,8 +788,8 @@ class StatisticalArbitrageStrategy(BaseStrategy):
 
         # Basic metrics
         total_return = (results["capital"].iloc[-1] / results["capital"].iloc[0]) - 1
-        annual_return = (1 + total_return) ** (252 / len(results)) - 1
-        volatility = returns.std() * np.sqrt(252)
+        annual_return = (1 + total_return) ** (DEFAULT_ANNUAL_LOOKBACK / len(results)) - 1
+        volatility = returns.std() * np.sqrt(DEFAULT_ANNUAL_LOOKBACK)
         sharpe = annual_return / volatility if volatility > 0 else 0
 
         # Drawdown
@@ -809,19 +810,3 @@ class StatisticalArbitrageStrategy(BaseStrategy):
                 "win_rate": (len(returns[returns > 0]) / len(returns) if len(returns) > 0 else 0),
             }
         )
-
-
-class RiskParityStatArb(StatisticalArbitrageStrategy):
-    """
-    Risk-Parity Statistical Arbitrage
-    Allocates based on risk contribution rather than equal weights
-    """
-
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-
-    def _normalize_weights(self, weights: np.ndarray) -> np.ndarray:
-        """Override for risk parity weighting"""
-        # In production, calculate risk contributions
-        # For now, use inverse volatility weighting
-        return weights / np.sum(np.abs(weights))

@@ -46,9 +46,7 @@ async def create_checkout_session(
     stripe.api_key = settings.STRIPE_SECRET_KEY
 
     # Look up strategy
-    result = await db.execute(
-        select(MarketplaceStrategy).where(MarketplaceStrategy.id == body.strategy_id)
-    )
+    result = await db.execute(select(MarketplaceStrategy).where(MarketplaceStrategy.id == body.strategy_id))
     strategy = result.scalar_one_or_none()
     if not strategy:
         raise HTTPException(status_code=404, detail="Strategy not found")
@@ -122,6 +120,7 @@ async def stripe_webhook(
         else:
             # Dev mode — no signature verification
             import json
+
             event = stripe.Event.construct_from(json.loads(payload), stripe.api_key)
     except (ValueError, stripe.SignatureVerificationError) as e:
         logger.warning(f"Webhook signature verification failed: {e}")

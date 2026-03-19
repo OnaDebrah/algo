@@ -173,6 +173,12 @@ export const auth = {
     // Token refresh (if implemented)
     refreshToken: (refreshToken: string) =>
         client.post<{ access_token: string }>('/auth/refresh', { refresh_token: refreshToken }),
+
+    // Password recovery
+    forgotPassword: (email: string) =>
+        client.post<{ message: string }>('/auth/forgot-password', { email }),
+    resetPassword: (token: string, newPassword: string) =>
+        client.post<{ message: string }>('/auth/reset-password', { token, new_password: newPassword }),
 };
 
 // ==================== BACKTEST ====================
@@ -885,6 +891,33 @@ export const options = {
 
     runMonteCarlo: async (request: MonteCarloRequest): Promise<MonteCarloResponse> => {
         return client.post<MonteCarloResponse>('/options/analytics/monte-carlo', request)
+    },
+
+    scanArbitrage: async (request: {
+        symbol: string;
+        arb_types?: string[];
+        volatility_model?: string;
+        entry_threshold?: number;
+        min_liquidity?: number;
+    }): Promise<{
+        symbol: string;
+        spot_price: number;
+        opportunities: Array<{
+            type: string;
+            asset: string;
+            strike: number | null;
+            direction: number;
+            confidence: number;
+            mispricing: number | null;
+            entry_price: number | null;
+            size: number | null;
+            details: Record<string, any> | null;
+        }>;
+        vol_surface_summary: Record<string, any> | null;
+        greek_exposure: Record<string, any> | null;
+        scanned_at: string;
+    }> => {
+        return client.post('/options/arbitrage/scan', request) as any;
     }
 };
 

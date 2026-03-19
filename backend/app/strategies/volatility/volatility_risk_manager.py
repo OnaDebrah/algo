@@ -1,11 +1,9 @@
-# ============================================================================
-# INTEGRATION WITH RISK MANAGER
-# ============================================================================
 from typing import Dict
 
 import numpy as np
 import pandas as pd
 
+from ...config import DEFAULT_ANNUAL_LOOKBACK
 from ...strategies.volatility.dynamic_scaling import DynamicVolatilityScalingStrategy
 from ...strategies.volatility.volatility_targeting import VolatilityTargetingStrategy
 
@@ -20,7 +18,6 @@ class VolatilityRiskManager:
     def __init__(self, config: Dict):
         self.config = config
 
-        # Volatility strategies
         self.vol_targeting = VolatilityTargetingStrategy(
             target_volatility=config.get("target_volatility", 0.15),
             vol_lookback=config.get("vol_lookback", 63),
@@ -31,12 +28,10 @@ class VolatilityRiskManager:
             scaling_method=config.get("scaling_method", "multiplicative"),
         )
 
-        # Risk limits
         self.position_limits = config.get("position_limits", {})
         self.sector_limits = config.get("sector_limits", {})
         self.var_limits = config.get("var_limits", {})
 
-        # Monitoring
         self.risk_alerts = []
         self.breach_history = []
 
@@ -52,12 +47,10 @@ class VolatilityRiskManager:
             "adjustments": [],
         }
 
-        # 1. Volatility scaling
         scaled_position = self.dynamic_scaling.scale_position(asset, position, returns)
         checks["scaled_position"] = scaled_position
         checks["risk_metrics"]["volatility_scale_factor"] = self.dynamic_scaling.scaling_factors.get(asset, 1.0)
 
-        # 2. Position limits
         if asset in self.position_limits:
             limit = self.position_limits[asset]
             if abs(scaled_position) > limit["max"]:
@@ -72,7 +65,6 @@ class VolatilityRiskManager:
                 )
                 scaled_position = np.sign(scaled_position) * limit["max"]
 
-        # 3. Portfolio volatility targeting
         if metadata and "portfolio_returns" in metadata:
             portfolio_signal = self.vol_targeting.generate_portfolio_signal(metadata["portfolio_returns"], current_exposure=abs(scaled_position))
 
@@ -81,7 +73,6 @@ class VolatilityRiskManager:
                 checks["risk_metrics"]["target_volatility"] = portfolio_signal["target_volatility"]
                 checks["risk_metrics"]["current_portfolio_vol"] = portfolio_signal["current_volatility"]
 
-                # Apply adjustment
                 new_exposure = portfolio_signal["new_exposure"]
                 if new_exposure != abs(scaled_position):
                     scaled_position = np.sign(scaled_position) * new_exposure
@@ -93,11 +84,10 @@ class VolatilityRiskManager:
                         }
                     )
 
-        # 4. VaR check (simplified)
         if asset in self.var_limits:
             var_limit = self.var_limits[asset]
             vol = self.dynamic_scaling.volatility_forecasts.get(asset, 0.15)
-            estimated_var = abs(scaled_position) * vol * 2.33 / np.sqrt(252)  # 99% VaR
+            estimated_var = abs(scaled_position) * vol * 2.33 / np.sqrt(DEFAULT_ANNUAL_LOOKBACK)  # 99% VaR
 
             if estimated_var > var_limit:
                 checks["warnings"].append(f"VaR limit warning: ${estimated_var:.2f} > ${var_limit:.2f}")

@@ -7,10 +7,12 @@ Why add it: Natural risk control, Very clean integration with risk manager, Usef
 """
 
 import warnings
+from typing import Dict, Union, cast
 
 import numpy as np
 import pandas as pd
 
+from ...config import DEFAULT_ANNUAL_LOOKBACK
 from ...strategies import BaseStrategy
 
 warnings.filterwarnings("ignore")
@@ -77,9 +79,12 @@ class BaseVolatilityStrategy(BaseStrategy):
         }
         super().__init__("Base Volatility Strategy", params)
 
+    def generate_signal(self, data: pd.DataFrame) -> Union[int, Dict]:
+        pass
+
     def calculate_returns(self, prices: pd.Series) -> pd.Series:
         """Calculate logarithmic returns"""
-        return np.log(prices / prices.shift(1))
+        return cast(pd.Series, cast(object, np.log(prices / prices.shift(1))))
 
     def estimate_volatility(self, returns: pd.Series) -> float:
         """
@@ -98,7 +103,7 @@ class BaseVolatilityStrategy(BaseStrategy):
 
         if self.vol_estimator == "simple":
             # Simple historical volatility
-            vol = returns_clean.std() * np.sqrt(252)
+            vol = returns_clean.std() * np.sqrt(DEFAULT_ANNUAL_LOOKBACK)
 
         elif self.vol_estimator == "ewma":
             # Exponentially Weighted Moving Average (RiskMetrics)
@@ -107,7 +112,7 @@ class BaseVolatilityStrategy(BaseStrategy):
             weights = weights / weights.sum()
 
             mean_return = (returns_clean * weights).sum()
-            vol = np.sqrt(((weights * (returns_clean - mean_return) ** 2).sum())) * np.sqrt(252)
+            vol = np.sqrt(((weights * (returns_clean - mean_return) ** 2).sum())) * np.sqrt(DEFAULT_ANNUAL_LOOKBACK)
 
         elif self.vol_estimator == "parkinson":
             # Parkinson estimator using high-low range
@@ -115,9 +120,9 @@ class BaseVolatilityStrategy(BaseStrategy):
             if hasattr(self, "high_prices") and hasattr(self, "low_prices"):
                 h = np.log(self.high_prices / self.low_prices)
                 parkinson_vol = np.sqrt((1 / (4 * np.log(2))) * (h**2).mean())
-                vol = parkinson_vol * np.sqrt(252)
+                vol = parkinson_vol * np.sqrt(DEFAULT_ANNUAL_LOOKBACK)
             else:
-                vol = returns_clean.std() * np.sqrt(252)
+                vol = returns_clean.std() * np.sqrt(DEFAULT_ANNUAL_LOOKBACK)
 
         elif self.vol_estimator == "garch":
             # Simplified GARCH(1,1) estimate
@@ -128,7 +133,7 @@ class BaseVolatilityStrategy(BaseStrategy):
             vol = self._yang_zhang_volatility(returns_clean)
 
         else:
-            vol = returns_clean.std() * np.sqrt(252)
+            vol = returns_clean.std() * np.sqrt(DEFAULT_ANNUAL_LOOKBACK)
 
         # Apply volatility bounds
         vol = np.clip(vol, self.min_vol, self.max_vol)
@@ -154,7 +159,7 @@ class BaseVolatilityStrategy(BaseStrategy):
                 variances[t] = omega + alpha * returns.iloc[t - 1] ** 2 + beta * variances[t - 1]
 
             # Current volatility (annualized)
-            vol = np.sqrt(variances[-1]) * np.sqrt(252)
+            vol = np.sqrt(variances[-1]) * np.sqrt(DEFAULT_ANNUAL_LOOKBACK)
         else:
             vol = self.min_vol
 
@@ -178,7 +183,7 @@ class BaseVolatilityStrategy(BaseStrategy):
         var_intraday = returns.var()
 
         # Yang-Zhang estimator
-        vol = np.sqrt(var_overnight + k * var_intraday + (1 - k) * var_intraday) * np.sqrt(252)
+        vol = np.sqrt(var_overnight + k * var_intraday + (1 - k) * var_intraday) * np.sqrt(DEFAULT_ANNUAL_LOOKBACK)
 
         return vol
 
@@ -209,9 +214,9 @@ class BaseVolatilityStrategy(BaseStrategy):
 
         # Update metrics
         if len(self.volatility_history) > 20:
-            self.metrics["realized_vol"] = np.mean(self.volatility_history[-20:])
-            self.metrics["vol_target_hit_rate"] = np.mean(
-                [abs(v - self.target_volatility) / self.target_volatility < 0.2 for v in self.volatility_history[-20:]]
+            self.metrics["realized_vol"] = float(np.mean(self.volatility_history[-20:]))
+            self.metrics["vol_target_hit_rate"] = float(
+                np.mean([abs(v - self.target_volatility) / self.target_volatility < 0.2 for v in self.volatility_history[-20:]])
             )
             self.metrics["max_leverage"] = max(self.leverage_history)
             self.metrics["min_leverage"] = min(self.leverage_history)

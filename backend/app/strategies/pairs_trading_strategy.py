@@ -4,6 +4,7 @@ import numpy as np
 import pandas as pd
 from statsmodels.tsa.stattools import coint
 
+from ..config import DEFAULT_ANNUAL_LOOKBACK
 from ..strategies import BaseStrategy
 
 
@@ -69,7 +70,7 @@ class PairsTradingStrategy(BaseStrategy):
         asset_2 = self.params["asset_2"]
         lookback = self.params["lookback"]
 
-        if len(data) < max(lookback, 252):  # Need data for cointegration test
+        if len(data) < max(lookback, DEFAULT_ANNUAL_LOOKBACK):  # Need data for cointegration test
             return {"signal": 0, "position_size": 0, "metadata": {}}
 
         prices_1 = data[asset_1]
@@ -77,7 +78,7 @@ class PairsTradingStrategy(BaseStrategy):
 
         # 1. Check cointegration (quarterly)
         if len(data) % 63 == 0:  # Roughly quarterly
-            if not self._is_cointegrated(prices_1[-252:], prices_2[-252:]):
+            if not self._is_cointegrated(prices_1[-DEFAULT_ANNUAL_LOOKBACK:], prices_2[-DEFAULT_ANNUAL_LOOKBACK:]):
                 return {
                     "signal": 0,
                     "position_size": 0,

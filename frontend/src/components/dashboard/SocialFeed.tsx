@@ -29,8 +29,10 @@ const SocialFeed = () => {
     const getActivityIcon = (type: string) => {
         switch (type) {
             case 'STRATEGY_PUBLISHED': return <Rocket className="text-violet-400" size={16} />;
+            case 'STRATEGY_SUBMITTED': return <Rocket className="text-amber-400" size={16} />;
             case 'BIG_WIN': return <TrendingUp className="text-emerald-400" size={16} />;
             case 'MILESTONE': return <Trophy className="text-amber-400" size={16} />;
+            case 'BACKTEST_COMPLETED': return <Zap className="text-blue-400" size={16} />;
             case 'VERIFIED': return <ShieldCheck className="text-blue-400" size={16} />;
             default: return <Zap className="text-slate-400" size={16} />;
         }
@@ -105,11 +107,23 @@ const SocialFeed = () => {
                                             {activity.content}
                                         </p>
 
-                                        {activity.metadata_json && activity.metadata_json.profit_pct && (
-                                            <div className="mt-2 flex items-center gap-2">
-                                                <span className="text-[10px] font-black px-2 py-0.5 bg-emerald-500/10 text-emerald-400 rounded uppercase">
-                                                    +{activity.metadata_json.profit_pct}% Profit
-                                                </span>
+                                        {activity.metadata_json && (activity.metadata_json.profit_pct || activity.metadata_json.total_return_pct || activity.metadata_json.sharpe_ratio) && (
+                                            <div className="mt-2 flex items-center gap-2 flex-wrap">
+                                                {(activity.metadata_json.profit_pct || activity.metadata_json.total_return_pct) && (
+                                                    <span className={`text-[10px] font-black px-2 py-0.5 rounded uppercase ${
+                                                        (activity.metadata_json.profit_pct || activity.metadata_json.total_return_pct) >= 0
+                                                            ? 'bg-emerald-500/10 text-emerald-400'
+                                                            : 'bg-red-500/10 text-red-400'
+                                                    }`}>
+                                                        {(activity.metadata_json.profit_pct || activity.metadata_json.total_return_pct) >= 0 ? '+' : ''}
+                                                        {activity.metadata_json.profit_pct || activity.metadata_json.total_return_pct}% Return
+                                                    </span>
+                                                )}
+                                                {activity.metadata_json.sharpe_ratio != null && (
+                                                    <span className="text-[10px] font-black px-2 py-0.5 bg-blue-500/10 text-blue-400 rounded uppercase">
+                                                        Sharpe {activity.metadata_json.sharpe_ratio}
+                                                    </span>
+                                                )}
                                             </div>
                                         )}
                                     </div>

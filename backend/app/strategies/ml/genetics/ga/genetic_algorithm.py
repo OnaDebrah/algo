@@ -20,12 +20,13 @@ from typing import Dict, List, Tuple
 
 import numpy as np
 import pandas as pd
-from strategies import BaseStrategy
-from strategies.base_strategy import normalize_signal
-from strategies.ml.genetics.de.differential_evolution import StrategyType
-from strategies.ml.genetics.ga.chromosome import Chromosome
-from strategies.ml.genetics.ga.objective import OptimizationObjective
-from strategies.ml.genetics.ga.parameter_range import ParameterRange
+
+from .... import BaseStrategy
+from ....base_strategy import normalize_signal
+from ..de.differential_evolution import StrategyType
+from .chromosome import Chromosome
+from .objective import OptimizationObjective
+from .parameter_range import ParameterRange
 
 
 class GeneticAlgorithmStrategy(BaseStrategy):

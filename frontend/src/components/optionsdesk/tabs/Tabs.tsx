@@ -1,9 +1,9 @@
-import {BrainCircuit, GitCompare, Layers, Play, Settings, Shield, Zap} from "lucide-react";
+import {BrainCircuit, GitCompare, Layers, Play, Search, Settings, Shield, Zap} from "lucide-react";
 import React from "react";
 
 interface TabsProps {
-    activeTab: "chain" | "builder" | "compare" | "backtest" | "volatility" | "risk" | "ml",
-    setActiveTab: React.Dispatch<React.SetStateAction<"ml" | "chain" | "builder" | "compare" | "backtest" | "volatility" | "risk">>
+    activeTab: "chain" | "builder" | "compare" | "backtest" | "volatility" | "risk" | "ml" | "arbitrage",
+    setActiveTab: React.Dispatch<React.SetStateAction<"ml" | "chain" | "builder" | "compare" | "backtest" | "volatility" | "risk" | "arbitrage">>
 }
 
 const Tabs: React.FC<TabsProps> = ({
@@ -12,7 +12,7 @@ const Tabs: React.FC<TabsProps> = ({
                                    }: TabsProps) => {
 
     return (
-        <div className="flex gap-2 p-1 bg-slate-900/50 rounded-xl border border-slate-800/50">
+        <div className="flex gap-2 p-1 bg-slate-900/50 rounded-xl border border-slate-800/50 overflow-x-auto">
             {[
                 {id: 'ml', label: 'AI Forecast', icon: BrainCircuit},
                 {id: 'chain', label: 'Options Chain', icon: Layers},
@@ -20,12 +20,13 @@ const Tabs: React.FC<TabsProps> = ({
                 {id: 'compare', label: 'Compare', icon: GitCompare},
                 {id: 'backtest', label: 'Backtest', icon: Play},
                 {id: 'volatility', label: 'Volatility', icon: Zap},
-                {id: 'risk', label: 'Risk Analysis', icon: Shield}
+                {id: 'risk', label: 'Risk Analysis', icon: Shield},
+                {id: 'arbitrage', label: 'Arbitrage', icon: Search}
             ].map((tab) => (
                 <button
                     key={tab.id}
                     onClick={() => setActiveTab(tab.id as any)}
-                    className={`px-4 py-2.5 rounded-lg text-xs font-bold uppercase flex items-center justify-center gap-2 transition-all ${
+                    className={`px-4 py-2.5 rounded-lg text-xs font-bold uppercase flex items-center justify-center gap-2 transition-all whitespace-nowrap ${
                         activeTab === tab.id
                             ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-lg'
                             : 'text-slate-500 hover:text-slate-300'

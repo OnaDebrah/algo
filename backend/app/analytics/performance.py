@@ -9,6 +9,8 @@ import numpy as np
 import pandas as pd
 from scipy import stats
 
+from ..config import DEFAULT_ANNUAL_LOOKBACK
+
 
 def _sanitize_float(value, default=0.0, cap=999999.0):
     """
@@ -89,7 +91,7 @@ def calculate_performance_metrics(trades: List[Dict], equity_curve: List[Dict], 
     equity_values = pd.Series([e["equity"] for e in equity_curve])
     daily_returns = equity_values.pct_change().dropna()
     if len(daily_returns) > 1 and daily_returns.std() != 0:
-        sharpe_ratio = (daily_returns.mean() / daily_returns.std()) * np.sqrt(252)
+        sharpe_ratio = (daily_returns.mean() / daily_returns.std()) * np.sqrt(DEFAULT_ANNUAL_LOOKBACK)
     else:
         sharpe_ratio = 0
 
@@ -153,7 +155,7 @@ def calculate_risk_metrics(trades: List[Dict], equity_curve: List[Dict]) -> Dict
     df = df.sort_values("timestamp")
 
     returns = df["equity"].pct_change().dropna()
-    volatility = returns.std() * np.sqrt(252) if not returns.empty else 0
+    volatility = returns.std() * np.sqrt(DEFAULT_ANNUAL_LOOKBACK) if not returns.empty else 0
 
     # var_95 is the 5th percentile of returns
     var_95 = np.percentile(returns, 5) if not returns.empty else 0
@@ -264,7 +266,7 @@ def calculate_factor_metrics(strategy_df: pd.DataFrame, benchmark_equity: List[D
     # Annualize Alpha (daily returns -> annual)
     # Alpha is the intercept. Annual Alpha = (1 + intercept)^252 - 1
     # But usually, it's simplified as intercept * 252
-    annual_alpha = intercept * 252
+    annual_alpha = intercept * DEFAULT_ANNUAL_LOOKBACK
 
     return {
         "alpha": float(annual_alpha * 100),  # As percentage
@@ -291,7 +293,7 @@ def calculate_sharpe_ratio(returns: pd.Series, risk_free_rate: float = 0.0) -> f
     if std_dev == 0 or np.isnan(std_dev):
         return 0.0
 
-    sharpe_ratio = (excess_returns.mean() / std_dev) * np.sqrt(252)
+    sharpe_ratio = (excess_returns.mean() / std_dev) * np.sqrt(DEFAULT_ANNUAL_LOOKBACK)
 
     return float(sharpe_ratio)
 
@@ -334,7 +336,7 @@ def calculate_sortino_ratio(returns: pd.Series, risk_free_rate: float = 0.0) -> 
     if downside_std == 0:
         return 0
 
-    result = np.mean(excess_returns) / downside_std * np.sqrt(252)
+    result = np.mean(excess_returns) / downside_std * np.sqrt(DEFAULT_ANNUAL_LOOKBACK)
     return float(result) if np.isfinite(result) else 0.0
 
 

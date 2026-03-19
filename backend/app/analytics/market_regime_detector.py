@@ -26,6 +26,7 @@ from sklearn.ensemble import RandomForestClassifier
 from sklearn.preprocessing import LabelEncoder, StandardScaler
 
 from ..analytics.regimes.markov_regime_chain import MarkovRegimeChain
+from ..config import DEFAULT_ANNUAL_LOOKBACK
 
 warnings.filterwarnings("ignore")
 
@@ -46,7 +47,7 @@ class MarketRegimeDetector:
 
     def __init__(
         self,
-        lookback_period: int = 252,
+        lookback_period: int = DEFAULT_ANNUAL_LOOKBACK,
         regime_types: List[str] = None,
         primary_index: str = "SPY",
         volatility_thresholds: Dict = None,
@@ -162,15 +163,15 @@ class MarketRegimeDetector:
         features = pd.DataFrame(index=returns.index)
 
         # Volatility features
-        features["volatility_21d"] = returns.rolling(21).std() * np.sqrt(252)
-        features["volatility_63d"] = returns.rolling(63).std() * np.sqrt(252)
+        features["volatility_21d"] = returns.rolling(21).std() * np.sqrt(DEFAULT_ANNUAL_LOOKBACK)
+        features["volatility_63d"] = returns.rolling(63).std() * np.sqrt(DEFAULT_ANNUAL_LOOKBACK)
         features["volatility_ratio"] = features["volatility_21d"] / (features["volatility_63d"] + 1e-10)
         features["volatility_regime"] = self._classify_volatility(features["volatility_21d"])
 
         # Trend features
         features["trend_21d"] = prices / prices.shift(21) - 1
         features["trend_63d"] = prices / prices.shift(63) - 1
-        features["trend_252d"] = prices / prices.shift(252) - 1
+        features["trend_252d"] = prices / prices.shift(DEFAULT_ANNUAL_LOOKBACK) - 1
 
         features["trend_strength"] = self._calculate_trend_strength(prices, window=14)
         features["trend_direction"] = np.sign(features["trend_21d"])
@@ -203,7 +204,7 @@ class MarketRegimeDetector:
         # 8. Statistical features
         features["skewness"] = returns.rolling(63).skew()
         features["kurtosis"] = returns.rolling(63).kurt()
-        features["var_95"] = returns.rolling(63).quantile(0.05) * np.sqrt(252)
+        features["var_95"] = returns.rolling(63).quantile(0.05) * np.sqrt(DEFAULT_ANNUAL_LOOKBACK)
 
         # 9. Regime persistence
         if len(self.regime_history) > 0:

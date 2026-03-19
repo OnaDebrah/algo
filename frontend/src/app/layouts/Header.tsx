@@ -160,7 +160,7 @@ const Header = ({ user, currentPage, serverStatus = false, onLogout }: HeaderPro
                             <span className="font-semibold tracking-wide">INSTITUTIONAL TERMINAL</span>
                         </div>
                         <h1 className="text-3xl font-bold text-slate-100 tracking-tight">
-                            {currentPage === 'live' ? 'Live' : 'Performance'} <span className="text-slate-400 font-normal">Dashboard</span>
+                            {currentPage === 'live' ? 'Live' : 'Activity'} <span className="text-slate-400 font-normal">Dashboard</span>
                         </h1>
                     </div>
 

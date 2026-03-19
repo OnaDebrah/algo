@@ -8,6 +8,8 @@ from typing import Dict, List
 import numpy as np
 import pandas as pd
 
+from ..config import DEFAULT_ANNUAL_LOOKBACK
+
 
 class OptionsAnalytics:
     """Advanced analytics for options strategies"""
@@ -267,7 +269,7 @@ class OptionsAnalytics:
 
         # Rolling metrics
         df["rolling_return"] = df["returns"].rolling(window).sum() * 100
-        df["rolling_volatility"] = df["returns"].rolling(window).std() * np.sqrt(252) * 100
+        df["rolling_volatility"] = df["returns"].rolling(window).std() * np.sqrt(DEFAULT_ANNUAL_LOOKBACK) * 100
         df["rolling_sharpe"] = (df["rolling_return"] / df["rolling_volatility"]).fillna(0)
 
         # Rolling drawdown
@@ -291,7 +293,7 @@ class OptionsAnalytics:
         Returns:
             Array of final prices (num_simulations,)
         """
-        dt = 1 / 252  # Daily time step
+        dt = 1 / DEFAULT_ANNUAL_LOOKBACK  # Daily time step
 
         # Generate random price paths
         returns = np.random.normal(drift * dt, volatility * np.sqrt(dt), (num_simulations, days))

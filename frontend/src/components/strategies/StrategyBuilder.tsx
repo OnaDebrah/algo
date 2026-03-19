@@ -55,6 +55,8 @@ import {
 } from 'recharts';
 import type {CustomStrategy as CustomStrategyType, StrategyGenerateResponse} from '@/utils/api';
 import {marketplace, strategy as strategyApi} from '@/utils/api';
+import WalkForwardAnalysis from '@/components/backtest/WalkForwardAnalysis';
+import {Strategy} from '@/types/all_types';
 import TickerSearch from "@/components/common/TickerSearch";
 import PublishModal from "@/components/strategies/PublishModel";
 import {PublishData} from "@/types/publish";
@@ -188,6 +190,8 @@ function highlightPython(code: string): string {
 
 const StrategyBuilder = () => {
     const [activeTab, setActiveTab] = useState('ai');
+    const [backtestSubTab, setBacktestSubTab] = useState<'standard' | 'walkforward'>('standard');
+    const [strategyCatalog, setStrategyCatalog] = useState<Strategy[]>([]);
     const [prompt, setPrompt] = useState("");
     const [code, setCode] = useState(`import pandas as pd
 import numpy as np
@@ -276,6 +280,27 @@ def generate_signals(data: pd.DataFrame) -> pd.Series:
     useEffect(() => {
         if (activeTab === 'library') loadLibrary();
     }, [activeTab]);
+
+    // Load strategy catalog for Walk-Forward Analysis
+    useEffect(() => {
+        if (activeTab === 'backtest' && backtestSubTab === 'walkforward' && strategyCatalog.length === 0) {
+            strategyApi.list('single').then((infos) => {
+                const mapped: Strategy[] = infos.map((s) => ({
+                    id: s.key,
+                    name: s.name,
+                    category: s.category,
+                    description: s.description,
+                    complexity: (s.complexity || 'Beginner') as Strategy['complexity'],
+                    time_horizon: s.time_horizon,
+                    best_for: s.best_for,
+                    backtest_mode: s.backtest_mode,
+                    parameters: Object.fromEntries(s.parameters.map((p) => [p.name, p.default])),
+                    parameterMetadata: s.parameters,
+                }));
+                setStrategyCatalog(mapped);
+            }).catch(() => {});
+        }
+    }, [activeTab, backtestSubTab]);
 
     // --- API handlers ---
 
@@ -859,6 +884,32 @@ def generate_signals(data: pd.DataFrame) -> pd.Series:
                         {/* Backtest Tab */}
                         {activeTab === 'backtest' && (
                             <div className="space-y-6 animate-in slide-in-from-bottom-4">
+                                {/* Sub-Tab Toggle: Standard / Walk-Forward */}
+                                <div className="flex bg-slate-900/50 p-1 rounded-xl border border-slate-800/50 w-fit">
+                                    {[
+                                        { id: 'standard' as const, label: 'Standard Backtest', icon: FlaskConical },
+                                        { id: 'walkforward' as const, label: 'Walk-Forward', icon: GitMerge },
+                                    ].map((sub) => {
+                                        const Icon = sub.icon;
+                                        return (
+                                            <button
+                                                key={sub.id}
+                                                onClick={() => setBacktestSubTab(sub.id)}
+                                                className={`flex items-center gap-2 px-5 py-2 rounded-lg text-xs font-bold uppercase tracking-widest transition-all ${
+                                                    backtestSubTab === sub.id
+                                                        ? 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-lg shadow-purple-600/20'
+                                                        : 'text-slate-500 hover:text-slate-300'
+                                                }`}
+                                            >
+                                                <Icon size={14} /> {sub.label}
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+
+                                {backtestSubTab === 'walkforward' ? (
+                                    <WalkForwardAnalysis strategies={strategyCatalog} />
+                                ) : (
                                 <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
                                     {/* Backtest Controls */}
                                     <div className="bg-gradient-to-br from-slate-900/50 to-slate-800/30 border border-slate-800/50 rounded-2xl p-6 space-y-6">
@@ -1161,6 +1212,7 @@ def generate_signals(data: pd.DataFrame) -> pd.Series:
                                         </div>
                                     </div>
                                 </div>
+                                )}
                             </div>
                         )}
 

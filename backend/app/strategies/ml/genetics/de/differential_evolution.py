@@ -25,12 +25,13 @@ from typing import Dict, List
 
 import numpy as np
 import pandas as pd
-from strategies import BaseStrategy
-from strategies.base_strategy import normalize_signal
-from strategies.ml.genetics.de.de_individual import DEIndividual
-from strategies.ml.genetics.de.devariant import DEVariant
-from strategies.ml.genetics.de.parameter_range import ParameterRange
-from strategies.ml.genetics.de.strategy import StrategyType
+
+from .... import BaseStrategy
+from ....base_strategy import normalize_signal
+from .de_individual import DEIndividual
+from .devariant import DEVariant
+from .parameter_range import ParameterRange
+from .strategy import StrategyType
 
 
 class DifferentialEvolutionStrategy(BaseStrategy):

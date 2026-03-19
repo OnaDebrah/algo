@@ -13,6 +13,7 @@ from typing import Dict, Union
 import numpy as np
 import pandas as pd
 
+from ..config import DEFAULT_ANNUAL_LOOKBACK
 from ..strategies.ts_momentum_strategy import TimeSeriesMomentumStrategy
 
 warnings.filterwarnings("ignore")
@@ -57,7 +58,7 @@ class AdaptiveTrendFollowingStrategy(TimeSeriesMomentumStrategy):
             vol_regime = "high_vol"
 
         # IMPROVED TREND DETECTION
-        recent_prices = prices.iloc[-252:] if len(prices) >= 252 else prices
+        recent_prices = prices.iloc[-DEFAULT_ANNUAL_LOOKBACK:] if len(prices) >= DEFAULT_ANNUAL_LOOKBACK else prices
 
         if len(recent_prices) >= 60:  # Need enough data for meaningful tests
             # Option 1: Simple price-based trend detection (current approach)
