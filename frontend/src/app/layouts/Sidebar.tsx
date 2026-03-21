@@ -5,6 +5,7 @@ import {
     Activity,
     Banknote,
     BarChart3,
+    BookOpen,
     ChevronDown,
     Cpu,
     CreditCard,
@@ -18,6 +19,7 @@ import {
     Target,
     TrendingUp,
     Trophy,
+    Users,
     Zap
 } from "lucide-react";
 
@@ -33,7 +35,8 @@ const Sidebar = ({currentPage, setCurrentPage, user, onLogout}: any) => {
                 {id: 'dashboard', icon: Activity, label: 'Activity Hub'},
                 {id: 'watchlist', icon: Eye, label: 'Watchlist'},
                 {id: 'live', icon: Zap, label: 'Live Execution'},
-                {id: 'paper-trading', icon: Banknote, label: 'Paper Trading'}
+                {id: 'paper-trading', icon: Banknote, label: 'Paper Trading'},
+                {id: 'trade-journal', icon: BookOpen, label: 'Trade Journal'}
             ]
         },
         {
@@ -44,7 +47,8 @@ const Sidebar = ({currentPage, setCurrentPage, user, onLogout}: any) => {
                 {id: 'regime', icon: TrendingUp, label: 'Market Regime'},
                 {id: 'crash-prediction', icon: Shield, label: 'Crash Prediction'},
                 {id: 'analyst', icon: Activity, label: 'Deep Analyst'},
-                {id: 'sector-scanner', icon: Target, label: 'Sector Scanner'}
+                {id: 'sector-scanner', icon: Target, label: 'Sector Scanner'},
+                {id: 'economic-calendar', icon: Activity, label: 'Economic Calendar'}
             ]
         },
         {
@@ -69,6 +73,7 @@ const Sidebar = ({currentPage, setCurrentPage, user, onLogout}: any) => {
     const bottomItems = [
         {id: 'marketplace', icon: Package, label: 'Marketplace'},
         {id: 'leaderboard', icon: Trophy, label: 'Leaderboard'},
+        {id: 'teams', icon: Users, label: 'Teams'},
     ];
 
     const toggleSection = (sectionTitle: string) => {

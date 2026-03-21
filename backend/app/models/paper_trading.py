@@ -20,10 +20,10 @@ class PaperPortfolio(Base):
     is_active = Column(Boolean, default=True)
 
     # Strategy automation (optional — null means manual-only portfolio)
-    strategy_key = Column(String(100), nullable=True)          # e.g. "sma_crossover"
-    strategy_params = Column(Text, nullable=True)              # JSON string of params
-    strategy_symbol = Column(String(20), nullable=True)        # e.g. "AAPL"
-    trade_quantity = Column(Float, nullable=True, default=100) # shares per strategy signal
+    strategy_key = Column(String(100), nullable=True)  # e.g. "sma_crossover"
+    strategy_params = Column(Text, nullable=True)  # JSON string of params
+    strategy_symbol = Column(String(20), nullable=True)  # e.g. "AAPL"
+    trade_quantity = Column(Float, nullable=True, default=100)  # shares per strategy signal
     data_interval = Column(String(10), nullable=True, default="1d")  # e.g. "1h", "30m", "1d"
 
     created_at = Column(DateTime(timezone=True), server_default=func.now())
@@ -31,11 +31,11 @@ class PaperPortfolio(Base):
 
     positions = relationship("PaperPosition", back_populates="portfolio", cascade="all, delete-orphan")
     trades = relationship("PaperTrade", back_populates="portfolio", cascade="all, delete-orphan", order_by="PaperTrade.executed_at.desc()")
-    equity_snapshots = relationship("PaperEquitySnapshot", back_populates="portfolio", cascade="all, delete-orphan", order_by="PaperEquitySnapshot.timestamp")
-
-    __table_args__ = (
-        Index("ix_paper_portfolios_user_id", "user_id"),
+    equity_snapshots = relationship(
+        "PaperEquitySnapshot", back_populates="portfolio", cascade="all, delete-orphan", order_by="PaperEquitySnapshot.timestamp"
     )
+
+    __table_args__ = (Index("ix_paper_portfolios_user_id", "user_id"),)
 
 
 class PaperPosition(Base):
@@ -52,9 +52,7 @@ class PaperPosition(Base):
 
     portfolio = relationship("PaperPortfolio", back_populates="positions")
 
-    __table_args__ = (
-        Index("ix_paper_positions_portfolio_symbol", "portfolio_id", "symbol", unique=True),
-    )
+    __table_args__ = (Index("ix_paper_positions_portfolio_symbol", "portfolio_id", "symbol", unique=True),)
 
 
 class PaperTrade(Base):
@@ -74,9 +72,7 @@ class PaperTrade(Base):
 
     portfolio = relationship("PaperPortfolio", back_populates="trades")
 
-    __table_args__ = (
-        Index("ix_paper_trades_portfolio_id", "portfolio_id"),
-    )
+    __table_args__ = (Index("ix_paper_trades_portfolio_id", "portfolio_id"),)
 
 
 class PaperEquitySnapshot(Base):
@@ -91,6 +87,4 @@ class PaperEquitySnapshot(Base):
 
     portfolio = relationship("PaperPortfolio", back_populates="equity_snapshots")
 
-    __table_args__ = (
-        Index("ix_paper_equity_snapshots_portfolio_id", "portfolio_id"),
-    )
+    __table_args__ = (Index("ix_paper_equity_snapshots_portfolio_id", "portfolio_id"),)

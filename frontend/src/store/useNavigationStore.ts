@@ -17,7 +17,10 @@ type PageKey =
     | 'admin'
     | 'pricing'
     | 'settings'
-    | 'paper-trading';
+    | 'paper-trading'
+    | 'trade-journal'
+    | 'economic-calendar'
+    | 'teams';
 
 interface NavigationState {
     /** Set by child components to request a page change */

@@ -77,6 +77,8 @@ class StrategyListing(BaseModel):
     status: str = "approved"
     verification_badge: Optional[str] = None
     publish_date: str = ""
+    parent_strategy_id: Optional[int] = None
+    fork_count: int = 0
 
 
 class StrategyListingDetailed(StrategyListing):

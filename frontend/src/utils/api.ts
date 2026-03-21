@@ -125,7 +125,7 @@ import {AnalystReportParams} from "@/types/analyst";
 // Use environment variable or default to localhost
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
-const client = axios.create({
+export const client = axios.create({
     baseURL: API_URL,
     timeout: 30000,
     headers: {
@@ -833,6 +833,93 @@ export const marketplace = {
 
     leaderboard: (params?: { metric?: string; category?: string; limit?: number }) =>
         client.get('/marketplace/leaderboard', { params }) as Promise<any>,
+
+    cloneStrategy: (strategy_id: number) =>
+        client.post<{ id: number; name: string; parent_strategy_id: number; message: string }>(
+            `/marketplace/strategies/${strategy_id}/clone`
+        ),
+};
+
+// ==================== AUDIT / TRADE JOURNAL ====================
+
+export const auditApi = {
+    getEvents: (params?: { event_type?: string; category?: string; search?: string; page?: number; page_size?: number }) =>
+        client.get('/audit/events', { params }),
+    getJournal: (params?: { search?: string; page?: number; page_size?: number }) =>
+        client.get('/audit/journal', { params }),
+    updateNotes: (eventId: number, data: { notes?: string; tags?: string[] }) =>
+        client.patch(`/audit/events/${eventId}/notes`, data),
+    exportCsv: async (eventType?: string) => {
+        const res = await client.get('/audit/events/export/csv', { params: { event_type: eventType }, responseType: 'blob' });
+        const url = window.URL.createObjectURL(res as unknown as Blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'audit_trail.csv';
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        window.URL.revokeObjectURL(url);
+    },
+};
+
+// ==================== API KEYS ====================
+
+export const apiKeys = {
+    list: () => client.get<any[]>('/api-keys/'),
+    create: (data: { name: string; permissions?: string[]; expires_in_days?: number }) =>
+        client.post('/api-keys/', data),
+    revoke: (keyId: number) => client.delete(`/api-keys/${keyId}`),
+    rotate: (keyId: number) => client.post(`/api-keys/${keyId}/rotate`),
+};
+
+// ==================== TEAMS ====================
+
+export const teamsApi = {
+    list: () => client.get<any[]>('/teams/'),
+    create: (data: { name: string; description?: string }) => client.post('/teams/', data),
+    join: (teamId: number, inviteCode: string) =>
+        client.post(`/teams/${teamId}/join?invite_code=${encodeURIComponent(inviteCode)}`),
+    getMembers: (teamId: number) => client.get<any[]>(`/teams/${teamId}/members`),
+    updateMemberRole: (teamId: number, userId: number, role: string) =>
+        client.patch(`/teams/${teamId}/members/${userId}`, { role }),
+    removeMember: (teamId: number, userId: number) =>
+        client.delete(`/teams/${teamId}/members/${userId}`),
+    addComment: (teamId: number, data: { target_type: string; target_id: number; content: string; parent_comment_id?: number }) =>
+        client.post(`/teams/${teamId}/comments`, data),
+    getComments: (teamId: number, targetType?: string, targetId?: number) => {
+        const params = new URLSearchParams();
+        if (targetType) params.set('target_type', targetType);
+        if (targetId) params.set('target_id', String(targetId));
+        return client.get<any[]>(`/teams/${teamId}/comments?${params.toString()}`);
+    },
+};
+
+// ==================== EXPORT ====================
+
+const triggerDownload = (blob: Blob, filename: string) => {
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    window.URL.revokeObjectURL(url);
+};
+
+export const exportApi = {
+    backtestCsv: async (runId: number) => {
+        const res = await client.get(`/export/backtest/${runId}/csv`, { responseType: 'blob' });
+        triggerDownload(res as unknown as Blob, `backtest_${runId}.csv`);
+    },
+    backtestPdf: async (runId: number) => {
+        const res = await client.get(`/export/backtest/${runId}/pdf`, { responseType: 'blob' });
+        triggerDownload(res as unknown as Blob, `backtest_${runId}.pdf`);
+    },
+    paperTradesCsv: async (portfolioId: number) => {
+        const res = await client.get(`/export/paper/${portfolioId}/csv`, { responseType: 'blob' });
+        triggerDownload(res as unknown as Blob, `paper_trades_${portfolioId}.csv`);
+    },
 };
 
 // ==================== ML STUDIO ====================

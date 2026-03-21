@@ -1,6 +1,6 @@
 'use client'
 
-import {CheckCircle2, Download, Heart, Lock, Shield, Star} from "lucide-react";
+import {CheckCircle2, Download, GitFork, Heart, Lock, Shield, Star} from "lucide-react";
 import {toPrecision} from "@/utils/formatters";
 
 export const StrategyCard = ({ strategy, onSelect, onFavorite, onDownload }: any) => (
@@ -69,6 +69,12 @@ export const StrategyCard = ({ strategy, onSelect, onFavorite, onDownload }: any
                     <Download size={14} />
                     <span>{strategy.total_downloads}</span>
                 </div>
+                {(strategy.fork_count ?? 0) > 0 && (
+                    <div className="flex items-center gap-1">
+                        <GitFork size={14} />
+                        <span>{strategy.fork_count}</span>
+                    </div>
+                )}
             </div>
             <div className="flex items-center gap-2">
                 {strategy.price > 0 && !strategy.is_purchased && (

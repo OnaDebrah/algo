@@ -31,14 +31,15 @@ service = PaperTradingService()
 async def market_status():
     """Check if US stock market is currently open."""
     from datetime import datetime
+
     import pytz
+
     et = pytz.timezone("US/Eastern")
     now_et = datetime.now(et)
     return {
         "market_open": is_market_open(),
         "current_time_et": now_et.strftime("%Y-%m-%d %H:%M:%S ET"),
-        "next_action": "Market is open — live prices available" if is_market_open()
-            else "Market is closed — prices reflect last close",
+        "next_action": "Market is open — live prices available" if is_market_open() else "Market is closed — prices reflect last close",
     }
 
 
@@ -50,20 +51,24 @@ async def list_available_strategies(
     catalog = get_catalog()
     strategies = []
     for key, info in catalog.strategies.items():
-        strategies.append({
-            "key": key,
-            "name": info.name,
-            "category": info.category,
-            "description": getattr(info, "description", ""),
-            "parameters": {
-                pname: {
-                    "default": pinfo.get("default"),
-                    "type": pinfo.get("type", "float"),
-                    "description": pinfo.get("description", ""),
+        strategies.append(
+            {
+                "key": key,
+                "name": info.name,
+                "category": info.category,
+                "description": getattr(info, "description", ""),
+                "parameters": {
+                    pname: {
+                        "default": pinfo.get("default"),
+                        "type": pinfo.get("type", "float"),
+                        "description": pinfo.get("description", ""),
+                    }
+                    for pname, pinfo in info.parameters.items()
                 }
-                for pname, pinfo in info.parameters.items()
-            } if info.parameters else {},
-        })
+                if info.parameters
+                else {},
+            }
+        )
     return strategies
 
 
@@ -75,7 +80,10 @@ async def create_portfolio(
 ):
     """Create a new paper trading portfolio."""
     portfolio = await service.create_portfolio(
-        db, current_user.id, req.name, req.initial_cash,
+        db,
+        current_user.id,
+        req.name,
+        req.initial_cash,
         strategy_key=req.strategy_key,
         strategy_params=req.strategy_params,
         strategy_symbol=req.strategy_symbol,
@@ -201,9 +209,13 @@ async def attach_strategy(
     """Attach a strategy to a paper portfolio for signal-driven trading."""
     try:
         portfolio = await service.attach_strategy(
-            db, portfolio_id, current_user.id,
-            req.strategy_key, req.strategy_symbol,
-            req.strategy_params, req.trade_quantity,
+            db,
+            portfolio_id,
+            current_user.id,
+            req.strategy_key,
+            req.strategy_symbol,
+            req.strategy_params,
+            req.trade_quantity,
             data_interval=req.data_interval or "1d",
         )
         return _portfolio_response(portfolio)
@@ -267,10 +279,7 @@ async def deactivate_portfolio(
 
 def _portfolio_response(portfolio) -> dict:
     """Convert a portfolio ORM object to a response dict."""
-    positions_value = sum(
-        (p.current_price or p.avg_entry_price) * p.quantity
-        for p in portfolio.positions
-    )
+    positions_value = sum((p.current_price or p.avg_entry_price) * p.quantity for p in portfolio.positions)
     equity = portfolio.current_cash + positions_value
 
     # Parse strategy_params JSON string
@@ -302,7 +311,9 @@ def _portfolio_response(portfolio) -> dict:
                 "avg_entry_price": round(p.avg_entry_price, 2),
                 "current_price": round(p.current_price, 2) if p.current_price else None,
                 "unrealized_pnl": round((p.current_price - p.avg_entry_price) * p.quantity, 2) if p.current_price else None,
-                "unrealized_pnl_pct": round((p.current_price - p.avg_entry_price) / p.avg_entry_price * 100, 2) if p.current_price and p.avg_entry_price > 0 else None,
+                "unrealized_pnl_pct": round((p.current_price - p.avg_entry_price) / p.avg_entry_price * 100, 2)
+                if p.current_price and p.avg_entry_price > 0
+                else None,
                 "market_value": round(p.current_price * p.quantity, 2) if p.current_price else None,
                 "opened_at": p.opened_at,
             }

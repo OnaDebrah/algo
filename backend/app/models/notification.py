@@ -2,7 +2,7 @@
 Notification and PriceAlert models
 """
 
-from sqlalchemy import Boolean, Column, DateTime, Float, ForeignKey, Index, Integer, JSON, String
+from sqlalchemy import JSON, Boolean, Column, DateTime, Float, ForeignKey, Index, Integer, String
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 
@@ -24,9 +24,7 @@ class Notification(Base):
 
     user = relationship("User", back_populates="notifications")
 
-    __table_args__ = (
-        Index("ix_notifications_user_read", "user_id", "is_read"),
-    )
+    __table_args__ = (Index("ix_notifications_user_read", "user_id", "is_read"),)
 
     def to_dict(self):
         return {
@@ -55,9 +53,7 @@ class PriceAlert(Base):
     notification_id = Column(Integer, ForeignKey("notifications.id", ondelete="SET NULL"), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
-    __table_args__ = (
-        Index("ix_price_alerts_user_active", "user_id", "is_active"),
-    )
+    __table_args__ = (Index("ix_price_alerts_user_active", "user_id", "is_active"),)
 
     def to_dict(self):
         return {

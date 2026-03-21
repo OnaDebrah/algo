@@ -42,7 +42,10 @@ type PageKey =
   | 'admin'
   | 'pricing'
   | 'settings'
-  | 'paper-trading';
+  | 'paper-trading'
+  | 'trade-journal'
+  | 'economic-calendar'
+  | 'teams';
 
 const Header = ({ user, currentPage, serverStatus = false, onLogout }: HeaderProps) => {
     const [marketData, setMarketData] = useState<QuoteData[]>([]);

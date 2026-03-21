@@ -29,6 +29,7 @@ import {UserSettings} from "@/types/all_types";
 import AlertManagement from "@/components/settings/AlertManagement";
 import PriceAlertManager from "@/components/notifications/PriceAlertManager";
 import TwoFactorSetup from "@/components/auth/TwoFactorSetup";
+import ApiKeysTab from "@/components/settings/ApiKeysTab";
 import {tabs} from "@/components/settings/Tabs";
 import {dataProviders} from "@/components/settings/DataProviders";
 import {brokerOptions} from "@/components/settings/BrokerOptions";
@@ -824,6 +825,11 @@ const SettingsPage = () => {
                                         </label>
                                     </div>
                                 </>
+                            )}
+
+                            {/* API KEYS TAB */}
+                            {activeTab === 'api-keys' && (
+                                <ApiKeysTab />
                             )}
 
                             {/* GENERAL SETTINGS TAB */}

@@ -5,16 +5,16 @@ API routes for watchlists and stock screener
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ...database import get_db
 from ...api.deps import get_current_active_user
+from ...database import get_db
 from ...models.user import User
 from ...schemas.watchlist import (
-    WatchlistCreate,
-    WatchlistOut,
-    WatchlistItemAdd,
-    WatchlistItemOut,
     ScreenerFilter,
     ScreenerResult,
+    WatchlistCreate,
+    WatchlistItemAdd,
+    WatchlistItemOut,
+    WatchlistOut,
 )
 from ...services.watchlist_service import WatchlistService
 

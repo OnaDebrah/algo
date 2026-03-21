@@ -28,23 +28,14 @@ class WatchlistService:
         await db.commit()
 
         # Re-query with eager loading so `items` is available for serialization
-        query = (
-            select(Watchlist)
-            .where(Watchlist.id == watchlist.id)
-            .options(selectinload(Watchlist.items))
-        )
+        query = select(Watchlist).where(Watchlist.id == watchlist.id).options(selectinload(Watchlist.items))
         result = await db.execute(query)
         return result.scalar_one()
 
     @staticmethod
     async def get_watchlists(db: AsyncSession, user_id: int) -> list[Watchlist]:
         """Get all watchlists for a user with items eager-loaded."""
-        query = (
-            select(Watchlist)
-            .where(Watchlist.user_id == user_id)
-            .options(selectinload(Watchlist.items))
-            .order_by(Watchlist.created_at.desc())
-        )
+        query = select(Watchlist).where(Watchlist.user_id == user_id).options(selectinload(Watchlist.items)).order_by(Watchlist.created_at.desc())
         result = await db.execute(query)
         return list(result.scalars().all())
 
@@ -107,11 +98,7 @@ class WatchlistService:
     async def get_watchlist_quotes(db: AsyncSession, watchlist_id: int, user_id: int) -> list[dict]:
         """Get live quotes for all symbols in a watchlist."""
         # Verify ownership and get items
-        query = (
-            select(Watchlist)
-            .where(Watchlist.id == watchlist_id, Watchlist.user_id == user_id)
-            .options(selectinload(Watchlist.items))
-        )
+        query = select(Watchlist).where(Watchlist.id == watchlist_id, Watchlist.user_id == user_id).options(selectinload(Watchlist.items))
         result = await db.execute(query)
         watchlist = result.scalar_one_or_none()
         if not watchlist:

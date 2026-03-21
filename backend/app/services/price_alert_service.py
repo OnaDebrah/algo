@@ -41,11 +41,7 @@ class PriceAlertService:
     @staticmethod
     async def get_alerts(db: AsyncSession, user_id: int) -> list[PriceAlert]:
         """Get all price alerts for a user."""
-        result = await db.execute(
-            select(PriceAlert)
-            .where(PriceAlert.user_id == user_id)
-            .order_by(PriceAlert.created_at.desc())
-        )
+        result = await db.execute(select(PriceAlert).where(PriceAlert.user_id == user_id).order_by(PriceAlert.created_at.desc()))
         return list(result.scalars().all())
 
     @staticmethod
@@ -110,8 +106,7 @@ class PriceAlertService:
                                 type="price_alert",
                                 title=f"Price Alert: {symbol}",
                                 message=(
-                                    f"{symbol} is now ${current_price:.2f}, which is "
-                                    f"{alert.condition} your target of ${alert.target_price:.2f}"
+                                    f"{symbol} is now ${current_price:.2f}, which is " f"{alert.condition} your target of ${alert.target_price:.2f}"
                                 ),
                                 data={
                                     "symbol": symbol,

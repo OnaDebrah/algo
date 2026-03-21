@@ -59,6 +59,7 @@ ib_insync==0.9.86
 openai>=1.0
 optuna==4.7.0
 regex==2026.1.15
+reportlab==4.4.0
 requests==2.32.5
 rich==14.3.3
 rich-toolkit==0.19.6

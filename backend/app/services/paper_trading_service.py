@@ -8,7 +8,6 @@ from datetime import datetime, time
 from typing import Optional
 
 import numpy as np
-import pandas as pd
 import pytz
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -82,11 +81,7 @@ class PaperTradingService:
         await db.commit()
 
         # Re-query with eager loading
-        query = (
-            select(PaperPortfolio)
-            .where(PaperPortfolio.id == portfolio.id)
-            .options(selectinload(PaperPortfolio.positions))
-        )
+        query = select(PaperPortfolio).where(PaperPortfolio.id == portfolio.id).options(selectinload(PaperPortfolio.positions))
         result = await db.execute(query)
         return result.scalar_one()
 
@@ -171,9 +166,7 @@ class PaperTradingService:
             if existing:
                 # Average down
                 total_qty = existing.quantity + quantity
-                existing.avg_entry_price = (
-                    (existing.avg_entry_price * existing.quantity + exec_price * quantity) / total_qty
-                )
+                existing.avg_entry_price = (existing.avg_entry_price * existing.quantity + exec_price * quantity) / total_qty
                 existing.quantity = total_qty
                 existing.current_price = price
             else:
@@ -234,12 +227,7 @@ class PaperTradingService:
         if not portfolio:
             raise ValueError("Portfolio not found")
 
-        query = (
-            select(PaperTrade)
-            .where(PaperTrade.portfolio_id == portfolio_id)
-            .order_by(PaperTrade.executed_at.desc())
-            .limit(limit)
-        )
+        query = select(PaperTrade).where(PaperTrade.portfolio_id == portfolio_id).order_by(PaperTrade.executed_at.desc()).limit(limit)
         result = await db.execute(query)
         return list(result.scalars().all())
 
@@ -249,11 +237,7 @@ class PaperTradingService:
         if not portfolio:
             raise ValueError("Portfolio not found")
 
-        query = (
-            select(PaperEquitySnapshot)
-            .where(PaperEquitySnapshot.portfolio_id == portfolio_id)
-            .order_by(PaperEquitySnapshot.timestamp)
-        )
+        query = select(PaperEquitySnapshot).where(PaperEquitySnapshot.portfolio_id == portfolio_id).order_by(PaperEquitySnapshot.timestamp)
         result = await db.execute(query)
         return list(result.scalars().all())
 
@@ -269,10 +253,7 @@ class PaperTradingService:
         trades = list(result.scalars().all())
 
         # Calculate current equity
-        positions_value = sum(
-            (p.current_price or p.avg_entry_price) * p.quantity
-            for p in portfolio.positions
-        )
+        positions_value = sum((p.current_price or p.avg_entry_price) * p.quantity for p in portfolio.positions)
         equity = portfolio.current_cash + positions_value
         total_return = equity - portfolio.initial_cash
         total_return_pct = (total_return / portfolio.initial_cash) * 100 if portfolio.initial_cash > 0 else 0
@@ -339,17 +320,19 @@ class PaperTradingService:
             unrealized_pnl_pct = ((price - pos.avg_entry_price) / pos.avg_entry_price * 100) if pos.avg_entry_price > 0 else 0
             positions_value += market_value
 
-            enriched.append({
-                "id": pos.id,
-                "symbol": pos.symbol,
-                "quantity": pos.quantity,
-                "avg_entry_price": round(pos.avg_entry_price, 2),
-                "current_price": round(price, 2),
-                "unrealized_pnl": round(unrealized_pnl, 2),
-                "unrealized_pnl_pct": round(unrealized_pnl_pct, 2),
-                "market_value": round(market_value, 2),
-                "opened_at": pos.opened_at.isoformat() if pos.opened_at else None,
-            })
+            enriched.append(
+                {
+                    "id": pos.id,
+                    "symbol": pos.symbol,
+                    "quantity": pos.quantity,
+                    "avg_entry_price": round(pos.avg_entry_price, 2),
+                    "current_price": round(price, 2),
+                    "unrealized_pnl": round(unrealized_pnl, 2),
+                    "unrealized_pnl_pct": round(unrealized_pnl_pct, 2),
+                    "market_value": round(market_value, 2),
+                    "opened_at": pos.opened_at.isoformat() if pos.opened_at else None,
+                }
+            )
 
         return enriched, positions_value
 
@@ -385,11 +368,7 @@ class PaperTradingService:
         await db.commit()
 
         # Re-query with eager load
-        query = (
-            select(PaperPortfolio)
-            .where(PaperPortfolio.id == portfolio_id)
-            .options(selectinload(PaperPortfolio.positions))
-        )
+        query = select(PaperPortfolio).where(PaperPortfolio.id == portfolio_id).options(selectinload(PaperPortfolio.positions))
         result = await db.execute(query)
         return result.scalar_one()
 
@@ -405,11 +384,7 @@ class PaperTradingService:
         portfolio.strategy_symbol = None
         await db.commit()
 
-        query = (
-            select(PaperPortfolio)
-            .where(PaperPortfolio.id == portfolio_id)
-            .options(selectinload(PaperPortfolio.positions))
-        )
+        query = select(PaperPortfolio).where(PaperPortfolio.id == portfolio_id).options(selectinload(PaperPortfolio.positions))
         result = await db.execute(query)
         return result.scalar_one()
 
@@ -508,9 +483,7 @@ class PaperTradingService:
                 trade_qty = existing.quantity
 
             try:
-                trade = await PaperTradingService.place_trade(
-                    db, portfolio_id, user_id, symbol, side, trade_qty, source="strategy"
-                )
+                trade = await PaperTradingService.place_trade(db, portfolio_id, user_id, symbol, side, trade_qty, source="strategy")
                 result.trade_executed = True
                 result.trade_detail = f"{side.upper()} {trade_qty} {symbol} @ ${trade.price:.2f}"
             except ValueError as e:
@@ -560,10 +533,7 @@ class PaperTradingService:
     @staticmethod
     async def _snapshot_equity(db: AsyncSession, portfolio: PaperPortfolio):
         """Save an equity snapshot after a trade."""
-        positions_value = sum(
-            (p.current_price or p.avg_entry_price) * p.quantity
-            for p in portfolio.positions
-        )
+        positions_value = sum((p.current_price or p.avg_entry_price) * p.quantity for p in portfolio.positions)
         equity = portfolio.current_cash + positions_value
 
         snapshot = PaperEquitySnapshot(

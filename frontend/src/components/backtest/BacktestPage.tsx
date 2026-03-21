@@ -2,14 +2,15 @@
 
 'use client'
 import React, {useEffect, useState} from 'react';
-import {AlertCircle, Banknote, BarChart3, CheckCircle, Rocket, TrendingUp, Zap} from 'lucide-react';
+import {AlertCircle, Banknote, BarChart3, CheckCircle, Clock, Download, FileText, Rocket, TrendingUp, Zap} from 'lucide-react';
 import MultiAssetBacktest from "@/components/backtest/MultiAssetBacktest";
 import SingleAssetBacktest from "@/components/backtest/SingleAssetBacktest";
 import WalkForwardAnalysis from "@/components/backtest/WalkForwardAnalysis";
+import ScheduledBacktests from "@/components/backtest/ScheduledBacktests";
 import {strategies} from "@/components/strategies/Strategies";
 import {BacktestResultToDeploy, DeploymentConfig, MultiAssetConfig, Strategy, StrategyInfo} from "@/types/all_types";
 
-import {live, strategy as strategyApi} from "@/utils/api";
+import {exportApi, live, strategy as strategyApi} from "@/utils/api";
 import DeploymentModal from "@/components/strategies/DeploymentModel";
 import {useBacktestStore} from "@/store/useBacktestStore";
 import {useNavigationStore} from "@/store/useNavigationStore";
@@ -227,6 +228,16 @@ const BacktestPage = () => {
                             <Zap size={16} className="inline mr-2" strokeWidth={2} />
                             Walk-Forward
                         </button>
+                        <button
+                            onClick={() => setBacktestMode('scheduled' as any)}
+                            className={`px-5 py-2.5 rounded-lg text-sm font-semibold transition-all ${backtestMode === ('scheduled' as any)
+                                ? 'bg-gradient-to-r from-violet-600 to-fuchsia-600 text-white shadow-lg'
+                                : 'text-slate-400 hover:text-slate-200'
+                                }`}
+                        >
+                            <Clock size={16} className="inline mr-2" strokeWidth={2} />
+                            Scheduled
+                        </button>
                     </div>
                 </div>
             </div>
@@ -252,15 +263,37 @@ const BacktestPage = () => {
                     addSymbol={addSymbol}
                     removeSymbol={removeSymbol}
                 />
-            ) : (
+            ) : backtestMode === ('walkforward' as any) ? (
                 <WalkForwardAnalysis
                     strategies={strategiesList}
                 />
+            ) : (
+                <ScheduledBacktests />
             )}
 
             {/* Action Buttons - Show when results exist */}
             {activeResults && (
                 <div className="fixed bottom-8 right-8 z-50 flex items-center gap-3">
+                    {/* Export Buttons */}
+                    {activeResults.backtest_id && (
+                        <>
+                            <button
+                                onClick={() => exportApi.backtestCsv(activeResults.backtest_id!)}
+                                className="p-3 bg-slate-800/90 hover:bg-slate-700 border border-slate-600/50 rounded-xl text-slate-300 hover:text-white transition-all shadow-lg"
+                                title="Export CSV"
+                            >
+                                <Download size={20} />
+                            </button>
+                            <button
+                                onClick={() => exportApi.backtestPdf(activeResults.backtest_id!)}
+                                className="p-3 bg-slate-800/90 hover:bg-slate-700 border border-slate-600/50 rounded-xl text-slate-300 hover:text-white transition-all shadow-lg"
+                                title="Export PDF Report"
+                            >
+                                <FileText size={20} />
+                            </button>
+                        </>
+                    )}
+
                     {/* Paper Trade Button - Always visible when results exist */}
                     <button
                         onClick={handlePaperTrade}

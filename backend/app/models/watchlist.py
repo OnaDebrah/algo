@@ -20,9 +20,7 @@ class Watchlist(Base):
 
     items = relationship("WatchlistItem", back_populates="watchlist", cascade="all, delete-orphan")
 
-    __table_args__ = (
-        Index("ix_watchlists_user_id", "user_id"),
-    )
+    __table_args__ = (Index("ix_watchlists_user_id", "user_id"),)
 
     def to_dict(self):
         return {
@@ -46,9 +44,7 @@ class WatchlistItem(Base):
 
     watchlist = relationship("Watchlist", back_populates="items")
 
-    __table_args__ = (
-        UniqueConstraint("watchlist_id", "symbol", name="uq_watchlist_item_symbol"),
-    )
+    __table_args__ = (UniqueConstraint("watchlist_id", "symbol", name="uq_watchlist_item_symbol"),)
 
     def to_dict(self):
         return {

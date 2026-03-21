@@ -5,10 +5,10 @@ API routes for notifications and price alerts
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ...database import get_db
 from ...api.deps import get_current_active_user
+from ...database import get_db
 from ...models.user import User
-from ...schemas.notification import NotificationOut, NotificationList, PriceAlertCreate, PriceAlertOut
+from ...schemas.notification import NotificationList, PriceAlertCreate, PriceAlertOut
 from ...services.notification_service import NotificationService
 from ...services.price_alert_service import PriceAlertService
 

@@ -2,17 +2,20 @@
 API dependencies
 """
 
+import hashlib
 import logging
+from datetime import datetime, timezone
 
 from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jose import JWTError, jwt
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..config import settings
 from ..core.permissions import Permission, is_promo_active
 from ..database import get_db
+from ..models.api_key import ApiKey
 from ..models.user import User
 from ..security.rate_limiter import check_login_rate
 from ..services.auth_service import AuthService
@@ -91,6 +94,28 @@ async def get_current_user(
     1. httpOnly cookie ``access_token`` (set by login/register endpoints)
     2. Bearer header (fallback for API clients / Swagger UI)
     """
+    # 0. Try API key header first (X-API-Key)
+    api_key_header = request.headers.get("X-API-Key")
+    if api_key_header:
+        key_hash = hashlib.sha256(api_key_header.encode()).hexdigest()
+        result = await db.execute(
+            select(ApiKey).where(ApiKey.key_hash == key_hash, ApiKey.is_active == True)  # noqa: E712
+        )
+        api_key = result.scalar_one_or_none()
+        if not api_key:
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid API key")
+        if api_key.expires_at and api_key.expires_at < datetime.now(timezone.utc):
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="API key expired")
+        # Update last_used_at
+        await db.execute(update(ApiKey).where(ApiKey.id == api_key.id).values(last_used_at=datetime.now(timezone.utc)))
+        await db.commit()
+        # Fetch user
+        user_result = await db.execute(select(User).filter(User.id == api_key.user_id))
+        user = user_result.scalar_one_or_none()
+        if not user:
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="API key user not found")
+        return user
+
     # 1. Try cookie first
     token = request.cookies.get("access_token")
     # 2. Fall back to Bearer header

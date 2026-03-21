@@ -21,6 +21,7 @@ import {
     TrendingDown,
     TrendingUp,
     Banknote,
+    FileText,
     Upload,
     X
 } from "lucide-react";
@@ -42,7 +43,7 @@ import {
 import {formatCurrency, formatPercent, toPrecision} from "@/utils/formatters";
 
 import {useEffect, useMemo, useState} from "react";
-import {backtest, live, marketplace} from "@/utils/api";
+import {backtest, exportApi, live, marketplace} from "@/utils/api";
 import {BacktestHistoryItem, DeploymentConfig, EquityCurvePoint} from "@/types/all_types";
 import RiskAnalysisModal from "@/components/backtest/RiskAnalysisModal";
 import SocialFeed from "@/components/dashboard/SocialFeed";
@@ -556,69 +557,82 @@ const Dashboard = () => {
                                             </div>
                                         </div>
 
-                                        {/* ✅ NEW: Action Buttons */}
-                                        <div className="flex gap-2 pt-3 border-t border-slate-700/30">
-                                            {/* Paper Trade Button - Always available */}
-                                            <button
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    useNavigationStore.getState().navigateTo('paper-trading', {
-                                                        fromBacktest: true,
-                                                        strategy_key: bt.strategy_config?.strategy || bt.strategy_config?.key,
-                                                        strategy_symbol: bt.symbols?.[0] || '',
-                                                        strategy_params: bt.strategy_config?.params || {},
-                                                        data_interval: bt.interval || '1d',
-                                                        initial_capital: bt.initial_capital || 100000,
-                                                        trade_quantity: 100,
-                                                    });
-                                                }}
-                                                className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-500 hover:to-orange-500 text-white rounded-lg font-semibold text-xs transition-all shadow-lg shadow-amber-600/20"
-                                                title="Paper trade this strategy"
-                                            >
-                                                <Banknote size={14}/>
-                                                Paper Trade
-                                            </button>
-
-                                            {/* Deploy Button - Always available */}
-                                            <button
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    handleDeploy(bt);
-                                                }}
-                                                className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white rounded-lg font-semibold text-xs transition-all shadow-lg shadow-emerald-600/20"
-                                                title="Deploy to live or paper trading"
-                                            >
-                                                <Rocket size={14}/>
-                                                Deploy
-                                            </button>
-
-                                            {/* Publish Button - Superusers only (proprietary strategies) */}
-                                            {user?.is_superuser && (bt.sharpe_ratio || 0) >= 1.0 && (bt.total_return_pct || 0) >= 10 && (
+                                        {/* Action Buttons — two rows to avoid overflow */}
+                                        <div className="pt-3 border-t border-slate-700/30 space-y-2">
+                                            {/* Primary actions */}
+                                            <div className="flex gap-2">
                                                 <button
                                                     onClick={(e) => {
                                                         e.stopPropagation();
-                                                        handlePublish(bt);
+                                                        useNavigationStore.getState().navigateTo('paper-trading', {
+                                                            fromBacktest: true,
+                                                            strategy_key: bt.strategy_config?.strategy || bt.strategy_config?.key,
+                                                            strategy_symbol: bt.symbols?.[0] || '',
+                                                            strategy_params: bt.strategy_config?.params || {},
+                                                            data_interval: bt.interval || '1d',
+                                                            initial_capital: bt.initial_capital || 100000,
+                                                            trade_quantity: 100,
+                                                        });
                                                     }}
-                                                    className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 bg-violet-600 hover:bg-violet-500 text-white rounded-lg font-semibold text-xs transition-all shadow-lg shadow-violet-600/20"
-                                                    title="Publish to marketplace"
+                                                    className="flex-1 flex items-center justify-center gap-1.5 px-2 py-1.5 bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-500 hover:to-orange-500 text-white rounded-lg font-semibold text-xs transition-all"
+                                                    title="Paper trade this strategy"
                                                 >
-                                                    <Upload size={14}/>
-                                                    Publish
+                                                    <Banknote size={13}/>
+                                                    Paper
                                                 </button>
-                                            )}
-
-                                            {/* View Full Details Modal */}
-                                            <button
-                                                onClick={async (e) => {
-                                                    e.stopPropagation();
-                                                    await handleBacktestSelect(bt);
-                                                    setShowDetailModal(true);
-                                                }}
-                                                className="px-3 py-2 bg-slate-700/50 hover:bg-slate-600/50 text-slate-300 rounded-lg text-xs font-medium transition-all"
-                                                title="View full details"
-                                            >
-                                                <Eye size={14}/>
-                                            </button>
+                                                <button
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        handleDeploy(bt);
+                                                    }}
+                                                    className="flex-1 flex items-center justify-center gap-1.5 px-2 py-1.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white rounded-lg font-semibold text-xs transition-all"
+                                                    title="Deploy to live or paper trading"
+                                                >
+                                                    <Rocket size={13}/>
+                                                    Deploy
+                                                </button>
+                                                {user?.is_superuser && (bt.sharpe_ratio || 0) >= 1.0 && (bt.total_return_pct || 0) >= 10 && (
+                                                    <button
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            handlePublish(bt);
+                                                        }}
+                                                        className="flex-1 flex items-center justify-center gap-1.5 px-2 py-1.5 bg-violet-600 hover:bg-violet-500 text-white rounded-lg font-semibold text-xs transition-all"
+                                                        title="Publish to marketplace"
+                                                    >
+                                                        <Upload size={13}/>
+                                                        Publish
+                                                    </button>
+                                                )}
+                                            </div>
+                                            {/* Secondary actions */}
+                                            <div className="flex gap-2">
+                                                {bt.id && (
+                                                    <button
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            exportApi.backtestPdf(bt.id);
+                                                        }}
+                                                        className="flex-1 flex items-center justify-center gap-1.5 px-2 py-1.5 bg-slate-700/50 hover:bg-slate-600/50 text-slate-300 rounded-lg text-xs font-medium transition-all"
+                                                        title="Export PDF report"
+                                                    >
+                                                        <FileText size={13}/>
+                                                        PDF
+                                                    </button>
+                                                )}
+                                                <button
+                                                    onClick={async (e) => {
+                                                        e.stopPropagation();
+                                                        await handleBacktestSelect(bt);
+                                                        setShowDetailModal(true);
+                                                    }}
+                                                    className="flex-1 flex items-center justify-center gap-1.5 px-2 py-1.5 bg-slate-700/50 hover:bg-slate-600/50 text-slate-300 rounded-lg text-xs font-medium transition-all"
+                                                    title="View full details"
+                                                >
+                                                    <Eye size={13}/>
+                                                    Details
+                                                </button>
+                                            </div>
                                         </div>
                                     </div>
                                 ))

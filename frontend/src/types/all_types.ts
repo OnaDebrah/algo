@@ -301,6 +301,7 @@ export interface BenchmarkInfo {
 }
 
 export interface BacktestResult {
+    backtest_id?: number;
     total_return: number;
     total_return_pct: number;
     win_rate: number;
@@ -1320,6 +1321,10 @@ export interface StrategyListing {
 
     pros: string[];
     cons: string[];
+
+    // Cloning / Forking
+    parent_strategy_id?: number | null;
+    fork_count?: number;
 }
 
 export interface StrategyListingDetailed extends StrategyListing {

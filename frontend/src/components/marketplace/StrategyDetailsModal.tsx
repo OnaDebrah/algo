@@ -10,6 +10,7 @@ import {
     CheckCircle2,
     Clock,
     Download,
+    GitFork,
     Loader2,
     Lock,
     MessageSquare,
@@ -38,6 +39,9 @@ const StrategyDetailsModal = ({ strategyId, onClose }: StrategyDetailsModalProps
     const [isLoading, setIsLoading] = useState(true);
     const [showDeployModal, setShowDeployModal] = useState(false);
     const [error, setError] = useState<string | null>(null);
+
+    // Clone state
+    const [isCloning, setIsCloning] = useState(false);
 
     // Review state
     const [reviewRating, setReviewRating] = useState(5);
@@ -75,6 +79,19 @@ const StrategyDetailsModal = ({ strategyId, onClose }: StrategyDetailsModalProps
         } catch (err: any) {
             console.error('Failed to deploy strategy:', err);
             alert(err?.message || 'Failed to deploy strategy');
+        }
+    };
+
+    const handleClone = async () => {
+        setIsCloning(true);
+        try {
+            const res = await marketplace.cloneStrategy(strategyId);
+            alert(res.message || 'Strategy forked successfully!');
+        } catch (err: any) {
+            console.error('Failed to clone strategy:', err);
+            alert(err?.response?.data?.detail || 'Failed to fork strategy');
+        } finally {
+            setIsCloning(false);
         }
     };
 
@@ -231,6 +248,19 @@ const StrategyDetailsModal = ({ strategyId, onClose }: StrategyDetailsModalProps
                                         <Rocket size={20} /> Deploy to {strategy.price === 0 ? 'Paper' : 'Live'}
                                     </button>
                                 )}
+
+                                <button
+                                    onClick={handleClone}
+                                    disabled={isCloning}
+                                    className="w-full py-3 mt-2 bg-slate-800 hover:bg-slate-700 border border-slate-700/50 text-slate-200 rounded-2xl font-semibold transition-all flex items-center justify-center gap-2 text-sm disabled:opacity-50"
+                                >
+                                    {isCloning ? (
+                                        <Loader2 size={16} className="animate-spin" />
+                                    ) : (
+                                        <GitFork size={16} />
+                                    )}
+                                    Fork Strategy
+                                </button>
                             </div>
                         </div>
 

@@ -44,6 +44,10 @@ class MarketplaceStrategy(Base):
     risk_level = Column(String, default="medium")
     recommended_capital = Column(Float, default=10000.0)
 
+    # Cloning / Forking
+    parent_strategy_id = Column(Integer, ForeignKey("marketplace_strategies.id"), nullable=True)
+    fork_count = Column(Integer, default=0)
+
     # Social
     downloads = Column(Integer, default=0)
     rating = Column(Float, default=0.0)
