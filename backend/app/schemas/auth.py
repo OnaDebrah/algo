@@ -36,6 +36,8 @@ class User(UserBase):
     investor_type: Optional[str] = None
     risk_profile: Optional[str] = None
 
+    totp_enabled: Optional[bool] = False
+
     class Config:
         from_attributes = True
 
@@ -52,10 +54,12 @@ class TokenData(BaseModel):
 
 
 class LoginResponse(BaseModel):
-    user: User
+    user: Optional[User] = None
     access_token: str
     refresh_token: str
     token_type: str = "bearer"
+    requires_2fa: bool = False
+    pending_2fa_token: Optional[str] = None
 
 
 class ForgotPasswordRequest(BaseModel):
@@ -65,3 +69,23 @@ class ForgotPasswordRequest(BaseModel):
 class ResetPasswordRequest(BaseModel):
     token: str
     new_password: str = Field(..., min_length=8)
+
+
+class TwoFactorSetupResponse(BaseModel):
+    secret: str
+    qr_uri: str
+    qr_image_base64: str
+
+
+class TwoFactorVerifyRequest(BaseModel):
+    code: str = Field(..., min_length=6, max_length=8)
+
+
+class TwoFactorVerifyLoginRequest(BaseModel):
+    pending_2fa_token: str
+    code: str = Field(..., min_length=6, max_length=8)
+
+
+class TwoFactorBackupCodesResponse(BaseModel):
+    backup_codes: list[str]
+    message: str = "Save these backup codes securely. They can only be shown once."

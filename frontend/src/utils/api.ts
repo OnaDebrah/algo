@@ -179,6 +179,12 @@ export const auth = {
         client.post<{ message: string }>('/auth/forgot-password', { email }),
     resetPassword: (token: string, newPassword: string) =>
         client.post<{ message: string }>('/auth/reset-password', { token, new_password: newPassword }),
+
+    // Two-Factor Authentication
+    setup2FA: () => client.post('/auth/2fa/setup') as Promise<any>,
+    verifySetup2FA: (code: string) => client.post('/auth/2fa/verify-setup', { code }) as Promise<any>,
+    verify2FA: (pending_2fa_token: string, code: string) => client.post('/auth/2fa/verify', { pending_2fa_token, code }) as Promise<any>,
+    disable2FA: (code: string) => client.post('/auth/2fa/disable', { code }) as Promise<any>,
 };
 
 // ==================== BACKTEST ====================
@@ -640,6 +646,11 @@ export const analytics = {
 
     getDrawdownAnalysis: (portfolio_id: number) =>
         client.get<Record<string, any>>(`/analytics/drawdown/${portfolio_id}`),
+
+    correlation: (symbols: string[], period: string = '1Y') =>
+        client.post<{ symbols: string[]; matrix: number[][]; data_points: number; errors: string[] }>(
+            '/analytics/correlation', { symbols, period }
+        ),
 };
 
 // ==================== MARKET REGIME ====================
@@ -819,6 +830,9 @@ export const marketplace = {
 
     createReview: (strategy_id: number, data: { rating: number; review_text: string; performance_achieved?: Record<string, any> }) =>
         client.post<{ id: number; status: string }>(`/marketplace/${strategy_id}/review`, data),
+
+    leaderboard: (params?: { metric?: string; category?: string; limit?: number }) =>
+        client.get('/marketplace/leaderboard', { params }) as Promise<any>,
 };
 
 // ==================== ML STUDIO ====================
@@ -1318,6 +1332,80 @@ export const payments = {
 
     checkPurchase: (strategyId: number) =>
         client.get<{ purchased: boolean }>(`/payments/check/${strategyId}`) as Promise<{ purchased: boolean }>,
+};
+
+// ==================== NOTIFICATIONS ====================
+export const notifications = {
+    list: (params?: { limit?: number; offset?: number; unread_only?: boolean }) =>
+        client.get('/notifications', { params }) as Promise<any>,
+    unreadCount: () =>
+        client.get('/notifications/unread-count') as Promise<{ count: number }>,
+    markRead: (id: number) =>
+        client.post(`/notifications/${id}/read`) as Promise<any>,
+    markAllRead: () =>
+        client.post('/notifications/read-all') as Promise<any>,
+    delete: (id: number) =>
+        client.delete(`/notifications/${id}`) as Promise<any>,
+};
+
+export const priceAlerts = {
+    list: () =>
+        client.get('/price-alerts') as Promise<any>,
+    create: (data: { symbol: string; condition: string; target_price: number }) =>
+        client.post('/price-alerts', data) as Promise<any>,
+    delete: (id: number) =>
+        client.delete(`/price-alerts/${id}`) as Promise<any>,
+};
+
+// ==================== WATCHLIST ====================
+export const watchlists = {
+    list: () =>
+        client.get('/watchlists') as Promise<any>,
+    create: (name: string) =>
+        client.post('/watchlists', { name }) as Promise<any>,
+    remove: (id: number) =>
+        client.delete(`/watchlists/${id}`) as Promise<any>,
+    addSymbol: (watchlistId: number, symbol: string, notes?: string) =>
+        client.post(`/watchlists/${watchlistId}/symbols`, { symbol, notes }) as Promise<any>,
+    removeSymbol: (watchlistId: number, symbol: string) =>
+        client.delete(`/watchlists/${watchlistId}/symbols/${symbol}`) as Promise<any>,
+    getQuotes: (watchlistId: number) =>
+        client.get(`/watchlists/${watchlistId}/quotes`) as Promise<any>,
+    screen: (filters: { min_price?: number; max_price?: number; min_change_pct?: number; max_change_pct?: number; min_volume?: number }) =>
+        client.post('/screener', filters) as Promise<any>,
+};
+
+// ==================== PAPER TRADING ====================
+export const paper = {
+    listPortfolios: () =>
+        client.get('/paper/portfolios') as Promise<any>,
+    createPortfolio: (name: string, initial_cash: number = 100000, strategyKey?: string, strategySymbol?: string, strategyParams?: Record<string, unknown>, tradeQuantity?: number, dataInterval?: string) =>
+        client.post('/paper/portfolios', { name, initial_cash, strategy_key: strategyKey, strategy_symbol: strategySymbol, strategy_params: strategyParams, trade_quantity: tradeQuantity ?? 100, data_interval: dataInterval ?? '1d' }) as Promise<any>,
+    getPortfolio: (id: number) =>
+        client.get(`/paper/portfolios/${id}`) as Promise<any>,
+    placeTrade: (portfolioId: number, symbol: string, side: string, quantity: number) =>
+        client.post(`/paper/portfolios/${portfolioId}/trade`, { symbol, side, quantity }) as Promise<any>,
+    getTrades: (portfolioId: number, limit: number = 100) =>
+        client.get(`/paper/portfolios/${portfolioId}/trades`, { params: { limit } }) as Promise<any>,
+    getPerformance: (portfolioId: number) =>
+        client.get(`/paper/portfolios/${portfolioId}/performance`) as Promise<any>,
+    getEquity: (portfolioId: number) =>
+        client.get(`/paper/portfolios/${portfolioId}/equity`) as Promise<any>,
+    deactivate: (id: number) =>
+        client.delete(`/paper/portfolios/${id}`) as Promise<any>,
+    // Strategy integration
+    listStrategies: () =>
+        client.get('/paper/strategies') as Promise<any>,
+    attachStrategy: (portfolioId: number, strategyKey: string, strategySymbol: string, strategyParams?: Record<string, unknown>, tradeQuantity?: number, dataInterval?: string) =>
+        client.post(`/paper/portfolios/${portfolioId}/attach-strategy`, { strategy_key: strategyKey, strategy_symbol: strategySymbol, strategy_params: strategyParams, trade_quantity: tradeQuantity ?? 100, data_interval: dataInterval ?? '1d' }) as Promise<any>,
+    detachStrategy: (portfolioId: number) =>
+        client.post(`/paper/portfolios/${portfolioId}/detach-strategy`) as Promise<any>,
+    runSignal: (portfolioId: number, autoExecute: boolean = true) =>
+        client.post(`/paper/portfolios/${portfolioId}/run-signal`, null, { params: { auto_execute: autoExecute } }) as Promise<any>,
+    refreshEquity: (portfolioId: number) =>
+        client.post(`/paper/portfolios/${portfolioId}/refresh-equity`) as Promise<any>,
+    marketStatus: () =>
+        client.get('/paper/market-status') as Promise<any>,
 };
 
 // ==================== ERROR TYPES ====================

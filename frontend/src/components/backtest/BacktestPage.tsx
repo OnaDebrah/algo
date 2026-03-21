@@ -2,7 +2,7 @@
 
 'use client'
 import React, {useEffect, useState} from 'react';
-import {AlertCircle, BarChart3, CheckCircle, Rocket, TrendingUp, Zap} from 'lucide-react';
+import {AlertCircle, Banknote, BarChart3, CheckCircle, Rocket, TrendingUp, Zap} from 'lucide-react';
 import MultiAssetBacktest from "@/components/backtest/MultiAssetBacktest";
 import SingleAssetBacktest from "@/components/backtest/SingleAssetBacktest";
 import WalkForwardAnalysis from "@/components/backtest/WalkForwardAnalysis";
@@ -12,6 +12,7 @@ import {BacktestResultToDeploy, DeploymentConfig, MultiAssetConfig, Strategy, St
 import {live, strategy as strategyApi} from "@/utils/api";
 import DeploymentModal from "@/components/strategies/DeploymentModel";
 import {useBacktestStore} from "@/store/useBacktestStore";
+import {useNavigationStore} from "@/store/useNavigationStore";
 import QuotaIndicator from "@/components/common/QuotaIndicator";
 import UpgradePrompt from "@/components/common/UpgradePrompt";
 import PortfolioOptimizeStep from "@/components/strategies/PortfolioOptimizeStep";
@@ -119,6 +120,21 @@ const BacktestPage = () => {
         }
 
         openDeploymentModal();
+    };
+
+    const handlePaperTrade = () => {
+        if (!activeResults) return;
+        const config = backtestMode === 'single' ? singleConfig : multiConfig;
+        const symbol = backtestMode === 'single' ? singleConfig.symbol : (multiConfig.symbols?.[0] ?? '');
+        useNavigationStore.getState().navigateTo('paper-trading', {
+            fromBacktest: true,
+            strategy_key: backtestMode === 'single' ? config.strategy : multiConfig.strategy,
+            strategy_symbol: symbol,
+            strategy_params: backtestMode === 'single' ? singleConfig.params : multiConfig.params,
+            data_interval: config.interval || '1d',
+            initial_capital: activeResults.initial_capital || 100000,
+            trade_quantity: 100,
+        });
     };
 
     const openDeploymentModal = (optimizedWeights?: Record<string, number>) => {
@@ -242,20 +258,32 @@ const BacktestPage = () => {
                 />
             )}
 
-            {/* Go Live Button - Shows when results exist for active mode */}
-            {activeResults && activeResults.sharpe_ratio >= 1 && activeResults.total_return >= 10.0 && (
-                <div className="fixed bottom-8 right-8 z-50">
+            {/* Action Buttons - Show when results exist */}
+            {activeResults && (
+                <div className="fixed bottom-8 right-8 z-50 flex items-center gap-3">
+                    {/* Paper Trade Button - Always visible when results exist */}
                     <button
-                        onClick={handleGoLive}
-                        className="group relative px-8 py-4 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 rounded-2xl text-white font-bold text-lg shadow-2xl shadow-emerald-500/50 transition-all transform hover:scale-105 flex items-center gap-3"
+                        onClick={handlePaperTrade}
+                        className="group px-6 py-4 bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-500 hover:to-orange-500 rounded-2xl text-white font-bold text-lg shadow-2xl shadow-amber-500/40 transition-all transform hover:scale-105 flex items-center gap-3"
                     >
-                        <Rocket size={24} className="group-hover:animate-bounce" />
-                        Go Live with This Strategy
-                        <div
-                            className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 rounded-full flex items-center justify-center">
-                            <span className="text-xs font-black">!</span>
-                        </div>
+                        <Banknote size={24} className="group-hover:animate-bounce" />
+                        Paper Trade
                     </button>
+
+                    {/* Go Live Button - Gated by performance */}
+                    {activeResults.sharpe_ratio >= 1 && activeResults.total_return >= 10.0 && (
+                        <button
+                            onClick={handleGoLive}
+                            className="group relative px-8 py-4 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 rounded-2xl text-white font-bold text-lg shadow-2xl shadow-emerald-500/50 transition-all transform hover:scale-105 flex items-center gap-3"
+                        >
+                            <Rocket size={24} className="group-hover:animate-bounce" />
+                            Go Live with This Strategy
+                            <div
+                                className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 rounded-full flex items-center justify-center">
+                                <span className="text-xs font-black">!</span>
+                            </div>
+                        </button>
+                    )}
                 </div>
             )}
 

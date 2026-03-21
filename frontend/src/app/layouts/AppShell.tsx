@@ -13,6 +13,7 @@ import {User} from "@/types/all_types";
 import {api} from '@/utils/api';
 import {useNavigationStore} from '@/store/useNavigationStore';
 import {UserProvider} from '@/contexts/UserContext';
+import TourOverlay, {isTourCompleted} from '@/components/onboarding/TourOverlay';
 
 // ── Lazy-loaded page components (each gets its own chunk) ─────────
 const Dashboard = lazy(() => import("@/components/dashboard/Dashboard"));
@@ -28,9 +29,12 @@ const PortfolioOptimization = lazy(() => import("@/components/portfolio/Portfoli
 const SectorScanner = lazy(() => import("@/components/sector/SectorScanner"));
 const StrategyBuilder = lazy(() => import("@/components/strategies/StrategyBuilder"));
 const Marketplace = lazy(() => import("@/components/marketplace/Marketplace"));
+const WatchlistPage = lazy(() => import("@/components/watchlist/WatchlistPage"));
+const Leaderboard = lazy(() => import("@/components/marketplace/Leaderboard"));
 const AdminDashboard = lazy(() => import("@/components/admin/AdminDashboard"));
 const PricingPage = lazy(() => import("@/components/pricing/PricingPage"));
 const SettingsPage = lazy(() => import("@/components/settings/SettingsPage"));
+const PaperTradingDashboard = lazy(() => import("@/components/paper/PaperTradingDashboard"));
 
 export type PageKey =
   | 'dashboard'
@@ -46,9 +50,12 @@ export type PageKey =
   | 'sector-scanner'
   | 'strategy-builder'
   | 'marketplace'
+  | 'watchlist'
+  | 'leaderboard'
   | 'admin'
   | 'pricing'
-  | 'settings';
+  | 'settings'
+  | 'paper-trading';
 
 const PAGE_COMPONENTS: Record<PageKey, React.ReactNode> = {
   dashboard: <Dashboard />,
@@ -64,9 +71,12 @@ const PAGE_COMPONENTS: Record<PageKey, React.ReactNode> = {
   'sector-scanner': <SectorScanner />,
   'strategy-builder': <StrategyBuilder />,
   marketplace: <Marketplace />,
+  watchlist: <WatchlistPage />,
+  leaderboard: <Leaderboard />,
   admin: <AdminDashboard />,
   pricing: <PricingPage />,
   settings: <SettingsPage />,
+  'paper-trading': <PaperTradingDashboard />,
 };
 
 type AppShellProps = object
@@ -79,6 +89,7 @@ const AppShell: React.FC<AppShellProps> = () => {
   const [serverStatus, setServerStatus] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [resetToken, setResetToken] = useState<string | null>(null);
+  const [showTour, setShowTour] = useState(false);
 
   // Session restoration — cookie is sent automatically with the request
   const restoreSession = useCallback(async () => {
@@ -157,6 +168,11 @@ const AppShell: React.FC<AppShellProps> = () => {
     if ((userData?.tier ?? 'FREE') === 'FREE') {
       setCurrentPage('dashboard');
     }
+
+    // Trigger onboarding tour for first-time users
+    if (!isTourCompleted()) {
+      setTimeout(() => setShowTour(true), 1000);
+    }
   }, []);
 
   // Handle logout — server clears the httpOnly cookie
@@ -189,10 +205,10 @@ const AppShell: React.FC<AppShellProps> = () => {
   // Show loading state
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-slate-950">
+      <div className="flex items-center justify-center min-h-screen bg-background">
         <div className="text-center">
           <div className="w-16 h-16 border-4 border-violet-500 border-t-transparent rounded-full animate-spin mx-auto"></div>
-          <p className="mt-4 text-slate-300">Restoring session...</p>
+          <p className="mt-4 text-muted-foreground">Restoring session...</p>
         </div>
       </div>
     );
@@ -229,7 +245,7 @@ const AppShell: React.FC<AppShellProps> = () => {
   }
 
   return (
-    <div className="flex min-h-screen bg-slate-950 text-slate-200 font-sans selection:bg-violet-500/30">
+    <div className="flex min-h-screen bg-background text-foreground font-sans selection:bg-violet-500/30">
       <CommandPalette />
       <Sidebar
         currentPage={currentPage}
@@ -241,7 +257,7 @@ const AppShell: React.FC<AppShellProps> = () => {
 
       <div className="flex-1 ml-64 min-h-screen flex flex-col">
         {/* Global Ticker */}
-        <div className="w-full border-b border-slate-800/80 bg-slate-900/50">
+        <div className="w-full border-b border-border bg-card/50">
           <TickerTape />
         </div>
 
@@ -282,6 +298,14 @@ const AppShell: React.FC<AppShellProps> = () => {
           )}
         </div>
       </div>
+
+      {/* Onboarding Tour */}
+      {showTour && (
+        <TourOverlay
+          onComplete={() => setShowTour(false)}
+          onNavigate={(page) => setCurrentPage(page as PageKey)}
+        />
+      )}
     </div>
   );
 };

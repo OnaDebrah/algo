@@ -165,27 +165,60 @@ class BaseVolatilityStrategy(BaseStrategy):
 
         return vol
 
-    def _yang_zhang_volatility(self, returns: pd.Series) -> float:
+    def _yang_zhang_volatility(self, data: pd.DataFrame, window: int = 22) -> float:
         """
-        Yang-Zhang volatility estimator
-        Requires open, high, low, close prices
+        Full Yang-Zhang Volatility Estimator (2000).
+        The most efficient estimator for handling overnight gaps and intraday drift.
+
+        Args:
+            data: DataFrame with 'open', 'high', 'low', 'close'
+            window: The lookback period (N)
+
+        Returns:
+            Annualized Yang-Zhang Volatility
         """
-        # Simplified version - in production use full OHLC
-        k = 0.34 / (1.34 + (len(returns) + 1) / (len(returns) - 1))
+        if len(data) < window:
+            return 0.3  # Default or fallback
 
-        # Calculate overnight volatility (close to open)
-        if hasattr(self, "overnight_returns"):
-            var_overnight = self.overnight_returns.var()
-        else:
-            var_overnight = 0.1 * returns.var()  # Approximation
+        # Calculate Log Returns
+        # u: Open-to-Close (Intraday)
+        # d: Close-to-Open (Overnight Gap)
+        # c: Close-to-Close
+        o = data["open"]
+        h = data["high"]
+        low = data["low"]
+        c = data["close"]
+        c_prev = c.shift(1)
 
-        # Calculate open-to-close volatility
-        var_intraday = returns.var()
+        u = cast(pd.DataFrame, cast(object, np.log(c / o)))
+        d = cast(pd.DataFrame, cast(object, np.log(o / c_prev)))
 
-        # Yang-Zhang estimator
-        vol = np.sqrt(var_overnight + k * var_intraday + (1 - k) * var_intraday) * np.sqrt(DEFAULT_ANNUAL_LOOKBACK)
+        # Calculate Components over the window
+        # Overnight Variance (V_overnight)
+        v_overnight = d.tail(window).var()
 
-        return vol
+        # Open-to-Close Variance (V_open_to_close)
+        v_open_to_close = u.tail(window).var()
+
+        # Rogers-Satchell Variance (V_rs)
+        # This captures intraday volatility using High/Low/Open/Close
+        rs_elements = cast(pd.DataFrame, cast(object, (np.log(h / c) * np.log(h / o)) + (np.log(low / c) * np.log(low / o))))
+        v_rs = rs_elements.tail(window).mean()
+
+        # Calculate Weight (k)
+        # This constant minimizes the overall estimation error
+        n = window
+        k = 0.34 / (1.34 + (n + 1) / (n - 1))
+
+        # Combined Yang-Zhang Variance
+        # Sigma^2 = Var_overnight + k * Var_open_to_close + (1-k) * Var_rs
+        yz_var = v_overnight + (k * v_open_to_close) + ((1 - k) * v_rs)
+
+        # Ensure variance is positive before sqrt
+        annual_days = getattr(self, "annual_lookback", 252)
+        vol = np.sqrt(max(yz_var, 0)) * np.sqrt(annual_days)
+
+        return float(vol)
 
     def calculate_leverage(self, current_vol: float) -> float:
         """

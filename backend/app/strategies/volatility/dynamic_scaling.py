@@ -2,9 +2,9 @@ from typing import Dict, Union, cast
 
 import numpy as np
 import pandas as pd
-from ...config import DEFAULT_ANNUAL_LOOKBACK
 from scipy import stats
 
+from ...config import DEFAULT_ANNUAL_LOOKBACK
 from ...strategies.volatility.base_volatility import BaseVolatilityStrategy
 
 

@@ -20,6 +20,7 @@ import {
     Target,
     TrendingDown,
     TrendingUp,
+    Banknote,
     Upload,
     X
 } from "lucide-react";
@@ -47,6 +48,7 @@ import RiskAnalysisModal from "@/components/backtest/RiskAnalysisModal";
 import SocialFeed from "@/components/dashboard/SocialFeed";
 import LightweightChart from "@/components/charts/LightweightChart";
 import {motion} from "framer-motion";
+import {useNavigationStore} from "@/store/useNavigationStore";
 import DeploymentModal from "@/components/strategies/DeploymentModel";
 import PublishModal from "@/components/strategies/PublishModel";
 import {PublishData} from "@/types/publish";
@@ -556,6 +558,27 @@ const Dashboard = () => {
 
                                         {/* ✅ NEW: Action Buttons */}
                                         <div className="flex gap-2 pt-3 border-t border-slate-700/30">
+                                            {/* Paper Trade Button - Always available */}
+                                            <button
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    useNavigationStore.getState().navigateTo('paper-trading', {
+                                                        fromBacktest: true,
+                                                        strategy_key: bt.strategy_config?.strategy || bt.strategy_config?.key,
+                                                        strategy_symbol: bt.symbols?.[0] || '',
+                                                        strategy_params: bt.strategy_config?.params || {},
+                                                        data_interval: bt.interval || '1d',
+                                                        initial_capital: bt.initial_capital || 100000,
+                                                        trade_quantity: 100,
+                                                    });
+                                                }}
+                                                className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-500 hover:to-orange-500 text-white rounded-lg font-semibold text-xs transition-all shadow-lg shadow-amber-600/20"
+                                                title="Paper trade this strategy"
+                                            >
+                                                <Banknote size={14}/>
+                                                Paper Trade
+                                            </button>
+
                                             {/* Deploy Button - Always available */}
                                             <button
                                                 onClick={(e) => {

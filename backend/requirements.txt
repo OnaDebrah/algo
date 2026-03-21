@@ -105,3 +105,5 @@ httpx>=0.27.0
 pytest-env>=1.1.0
 yfinance==1.2.0
 stripe==14.4.1
+pyotp==2.9.0
+qrcode[pil]==8.0

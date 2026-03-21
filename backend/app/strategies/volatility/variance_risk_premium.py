@@ -2,9 +2,9 @@ from typing import Dict, List, Union
 
 import numpy as np
 import pandas as pd
-from ...config import DEFAULT_ANNUAL_LOOKBACK
 from numpy.lib.stride_tricks import sliding_window_view
 
+from ...config import DEFAULT_ANNUAL_LOOKBACK
 from ...strategies.volatility.base_volatility import BaseVolatilityStrategy
 
 

@@ -16,17 +16,21 @@ type PageKey =
     | 'marketplace'
     | 'admin'
     | 'pricing'
-    | 'settings';
+    | 'settings'
+    | 'paper-trading';
 
 interface NavigationState {
     /** Set by child components to request a page change */
     pendingPage: PageKey | null;
-    navigateTo: (page: PageKey) => void;
+    /** Optional payload for cross-page data passing (e.g., backtest → paper trade) */
+    pendingPayload: Record<string, unknown> | null;
+    navigateTo: (page: PageKey, payload?: Record<string, unknown>) => void;
     clearPending: () => void;
 }
 
 export const useNavigationStore = create<NavigationState>((set) => ({
     pendingPage: null,
-    navigateTo: (page) => set({ pendingPage: page }),
-    clearPending: () => set({ pendingPage: null }),
+    pendingPayload: null,
+    navigateTo: (page, payload) => set({ pendingPage: page, pendingPayload: payload ?? null }),
+    clearPending: () => set({ pendingPage: null, pendingPayload: null }),
 }));

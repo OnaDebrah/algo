@@ -11,8 +11,8 @@ from typing import Dict, List, cast
 
 import numpy as np
 import pandas as pd
-from ..config import DEFAULT_ANNUAL_LOOKBACK
 
+from ..config import DEFAULT_ANNUAL_LOOKBACK
 from ..core.data.providers.providers import ProviderFactory
 
 logger = logging.getLogger(__name__)

@@ -233,7 +233,7 @@ def generate_signals(data: pd.DataFrame) -> pd.Series:
 
     const [isGenerating, setIsGenerating] = useState(false);
     const [isBacktesting, setIsBacktesting] = useState(false);
-    const [strategyName, setStrategyName] = useState("Quantum Momentum AI v2.0");
+    const [strategyName, setStrategyName] = useState("Strategy Builder AI");
     const [draggedComponent, setDraggedComponent] = useState<string | null>(null);
     const [canvasComponents, setCanvasComponents] = useState<string[]>([
         "RSI Indicator", "MACD Cross", "Stop Loss", "Take Profit"

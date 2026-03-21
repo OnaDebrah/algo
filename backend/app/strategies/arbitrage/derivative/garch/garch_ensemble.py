@@ -2,6 +2,7 @@ from typing import Dict, List
 
 import numpy as np
 
+from .....config import DEFAULT_ANNUAL_LOOKBACK
 from .....strategies.arbitrage.derivative.garch.base_garch_model import BaseGARCHModel
 from .component_garch_model import ComponentGARCHModel
 from .egarch_model import EGARCHModel
@@ -162,12 +163,12 @@ class GARCHEnsemble:
         for model, weight in zip(self.models, self.weights):
             forecast = model.forecast(horizon)
             all_forecasts.append(forecast * weight)
-            individual_forecasts[model.name] = forecast * 252  # Annualized
+            individual_forecasts[model.name] = forecast * DEFAULT_ANNUAL_LOOKBACK  # Annualized
 
-        ensemble_forecast = np.sum(all_forecasts, axis=0) * 252  # Annualized
+        ensemble_forecast = np.sum(all_forecasts, axis=0) * DEFAULT_ANNUAL_LOOKBACK  # Annualized
 
         # Calculate confidence intervals from ensemble dispersion
-        forecast_array = np.array([f * 252 for f in all_forecasts])
+        forecast_array = np.array([f * DEFAULT_ANNUAL_LOOKBACK for f in all_forecasts])
         forecast_std = np.std(forecast_array, axis=0)
 
         result = {

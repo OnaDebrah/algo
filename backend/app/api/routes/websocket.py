@@ -85,6 +85,10 @@ class ConnectionManager:
                 self.user_connections[user_id].discard(connection)
 
 
+# Module-level singleton for notifications (importable by other modules)
+notification_manager = ConnectionManager()
+
+
 async def get_current_user_ws(token: str):
     """Get current user from WebSocket token"""
     try:
@@ -258,3 +262,22 @@ async def notify_portfolio_update(portfolio_id: int, user_id: int, update_data: 
         {"type": "portfolio_update", "portfolio_id": portfolio_id, "data": update_data, "timestamp": datetime.now().isoformat()},
         f"portfolio:{portfolio_id}",
     )
+
+
+@router.websocket("/ws/notifications")
+async def websocket_notifications(websocket: WebSocket, token: str = None):
+    """WebSocket endpoint for real-time notification delivery"""
+    user_id = await get_current_user_ws(token) if token else None
+    if not user_id:
+        await websocket.close(code=http_status.WS_1008_POLICY_VIOLATION)
+        return
+
+    await notification_manager.connect(websocket, user_id, "notifications")
+
+    try:
+        while True:
+            data = await websocket.receive_text()
+            if data == "ping":
+                await websocket.send_json({"type": "pong", "timestamp": datetime.now(timezone.utc).isoformat()})
+    except WebSocketDisconnect:
+        notification_manager.disconnect(websocket, user_id, "notifications")

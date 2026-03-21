@@ -117,6 +117,11 @@ async def get_current_user(
             logger.warning("❌ Token missing 'sub' claim")
             raise credentials_exception
 
+        # Reject 2FA-pending tokens for regular auth
+        if payload.get("2fa_pending"):
+            logger.warning("❌ 2FA-pending token used for regular auth")
+            raise credentials_exception
+
         logger.info(f"✅ Token decoded successfully for user_id: {user_id}")
 
     except JWTError as e:

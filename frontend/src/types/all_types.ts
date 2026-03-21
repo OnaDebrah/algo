@@ -26,6 +26,179 @@ export interface User {
     country: string | null;
     investor_type: string | null;
     risk_profile: string | null;
+    totp_enabled?: boolean;
+}
+
+export interface TwoFactorSetupResponse {
+    secret: string;
+    qr_uri: string;
+    qr_image_base64: string;
+}
+
+export interface TwoFactorBackupCodesResponse {
+    backup_codes: string[];
+    message: string;
+}
+
+// ==================== NOTIFICATIONS ====================
+
+export interface AppNotification {
+    id: number;
+    type: 'strategy' | 'marketplace' | 'price_alert' | 'system';
+    title: string;
+    message: string;
+    data?: Record<string, any>;
+    is_read: boolean;
+    created_at: string;
+}
+
+export interface NotificationList {
+    notifications: AppNotification[];
+    unread_count: number;
+    total: number;
+}
+
+export interface PriceAlert {
+    id: number;
+    symbol: string;
+    condition: 'above' | 'below';
+    target_price: number;
+    is_active: boolean;
+    triggered_at: string | null;
+    created_at: string;
+}
+
+// ==================== WATCHLIST ====================
+
+export interface WatchlistItem {
+    id: number;
+    symbol: string;
+    notes: string | null;
+    added_at: string;
+}
+
+export interface Watchlist {
+    id: number;
+    name: string;
+    items: WatchlistItem[];
+    created_at: string;
+}
+
+export interface WatchlistQuote {
+    symbol: string;
+    price: number;
+    change: number;
+    change_percent: number;
+    volume: number;
+    day_high: number;
+    day_low: number;
+    name?: string;
+}
+
+export interface ScreenerResult {
+    symbol: string;
+    price: number;
+    change_percent: number;
+    volume: number;
+    name?: string;
+}
+
+// ==================== LEADERBOARD ====================
+
+export interface LeaderboardEntry {
+    rank: number;
+    strategy: StrategyListing;
+}
+
+// Paper Trading
+export interface PaperPosition {
+    id: number;
+    symbol: string;
+    quantity: number;
+    avg_entry_price: number;
+    current_price: number | null;
+    unrealized_pnl: number | null;
+    unrealized_pnl_pct: number | null;
+    market_value: number | null;
+    opened_at: string | null;
+}
+
+export interface PaperPortfolio {
+    id: number;
+    name: string;
+    initial_cash: number;
+    current_cash: number;
+    is_active: boolean;
+    strategy_key: string | null;
+    strategy_symbol: string | null;
+    strategy_params: Record<string, unknown> | null;
+    trade_quantity: number | null;
+    data_interval?: string;
+    created_at: string | null;
+    updated_at: string | null;
+    positions: PaperPosition[];
+    equity: number | null;
+    total_return_pct: number | null;
+}
+
+export interface PaperTrade {
+    id: number;
+    symbol: string;
+    side: string;
+    quantity: number;
+    price: number;
+    slippage: number;
+    total_cost: number;
+    realized_pnl: number | null;
+    source: string;
+    executed_at: string | null;
+}
+
+export interface PaperStrategyInfo {
+    key: string;
+    name: string;
+    category: string;
+    description: string;
+    parameters: Record<string, { default: unknown; type: string; description: string }>;
+}
+
+export interface StrategySignalResult {
+    signal: number;
+    signal_label: string;
+    strategy_key: string;
+    symbol: string;
+    current_price: number;
+    trade_executed: boolean;
+    trade_detail: string | null;
+    data_interval?: string;
+    market_open: boolean;
+    data_as_of: string | null;
+}
+
+export interface MarketStatus {
+    market_open: boolean;
+    current_time_et: string;
+    next_action: string;
+}
+
+export interface PaperPerformance {
+    total_return: number;
+    total_return_pct: number;
+    total_trades: number;
+    winning_trades: number;
+    losing_trades: number;
+    win_rate: number;
+    avg_win: number;
+    avg_loss: number;
+    max_drawdown: number;
+    sharpe_ratio: number | null;
+}
+
+export interface PaperEquitySnapshot {
+    equity: number;
+    cash: number;
+    positions_value: number;
+    timestamp: string | null;
 }
 
 export interface UserCreate {

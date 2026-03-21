@@ -1,7 +1,7 @@
-import {useState, KeyboardEvent, ChangeEvent} from "react";
-import {AlertCircle, ArrowRight, Eye, EyeOff, RefreshCw, ShieldCheck, Zap} from "lucide-react";
+import {useState, useEffect, KeyboardEvent, ChangeEvent} from "react";
+import {AlertCircle, ArrowRight, Eye, EyeOff, RefreshCw, Shield, ShieldCheck, Zap} from "lucide-react";
 import {User} from "@/types/all_types";
-import {api} from "@/utils/api";
+import {api, auth} from "@/utils/api";
 import CountrySelect from "@/components/auth/CountrySelect";
 
 type InvestorType = 'Retail' | 'Professional' | 'Institutional' | 'Academic';
@@ -47,6 +47,11 @@ const LoginPage = ({onLogin, setCurrentPage, onBackToLanding, initialMode = 'log
     const [showPassword, setShowPassword] = useState(false);
     const [forgotMode, setForgotMode] = useState(false);
     const [forgotEmail, setForgotEmail] = useState('');
+    const [show2FA, setShow2FA] = useState(false);
+    const [pending2FAToken, setPending2FAToken] = useState('');
+    const [twoFACode, setTwoFACode] = useState('');
+    const [twoFAError, setTwoFAError] = useState('');
+    const [verifying2FA, setVerifying2FA] = useState(false);
 
     const handleForgotPassword = async (): Promise<void> => {
         if (!forgotEmail.trim()) {
@@ -83,7 +88,14 @@ const LoginPage = ({onLogin, setCurrentPage, onBackToLanding, initialMode = 'log
                     password: formData.password,
                 };
 
-                const response = await api.auth.login(loginData) as unknown as LoginResponse;
+                const response = await api.auth.login(loginData) as unknown as any;
+
+                if (response.requires_2fa) {
+                    setPending2FAToken(response.pending_2fa_token);
+                    setShow2FA(true);
+                    setLoading(false);
+                    return;
+                }
 
                 const userData = response.user;
                 const userForApp: User = {
@@ -149,6 +161,44 @@ const LoginPage = ({onLogin, setCurrentPage, onBackToLanding, initialMode = 'log
             setLoading(false);
         }
     };
+
+    const handle2FAVerify = async () => {
+        setVerifying2FA(true);
+        setTwoFAError('');
+        try {
+            const response = await auth.verify2FA(pending2FAToken, twoFACode);
+            if (response?.user) {
+                const userData = response.user;
+                const userForApp: User = {
+                    id: userData.id,
+                    username: userData.username,
+                    email: userData.email,
+                    tier: userData.tier || 'FREE',
+                    is_active: userData.is_active,
+                    is_superuser: userData.is_superuser ?? false,
+                    created_at: userData.created_at,
+                    last_login: userData.last_login,
+                    country: userData.country,
+                    investor_type: userData.investor_type,
+                    risk_profile: userData.risk_profile,
+                };
+                onLogin(userForApp, response.access_token);
+                setCurrentPage('dashboard');
+            }
+        } catch (err: any) {
+            setTwoFAError(err?.response?.data?.detail || 'Invalid verification code');
+            setTwoFACode('');
+        } finally {
+            setVerifying2FA(false);
+        }
+    };
+
+    useEffect(() => {
+        if (twoFACode.length === 6 && show2FA) {
+            handle2FAVerify();
+        }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [twoFACode]);
 
     const validateForm = (): boolean => {
         if (isLogin) {
@@ -256,8 +306,66 @@ const LoginPage = ({onLogin, setCurrentPage, onBackToLanding, initialMode = 'log
                         </p>
                     </div>
 
+                    {/* 2FA Verification Mode */}
+                    {show2FA && (
+                        <div className="space-y-6">
+                            <div className="flex flex-col items-center text-center">
+                                <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-violet-500 to-fuchsia-500 flex items-center justify-center shadow-xl shadow-violet-500/30 mb-4">
+                                    <Shield size={32} className="text-white"/>
+                                </div>
+                                <h3 className="text-xl font-bold text-slate-100">Two-Factor Authentication</h3>
+                                <p className="text-slate-400 text-sm mt-2">
+                                    Enter the 6-digit code from your authenticator app
+                                </p>
+                            </div>
+
+                            <div className="flex justify-center">
+                                <input
+                                    type="text"
+                                    maxLength={6}
+                                    inputMode="numeric"
+                                    autoFocus
+                                    value={twoFACode}
+                                    onChange={(e) => {
+                                        const val = e.target.value.replace(/[^0-9]/g, '');
+                                        setTwoFACode(val);
+                                        setTwoFAError('');
+                                    }}
+                                    placeholder="000000"
+                                    className="w-48 bg-slate-800/50 border border-slate-700/50 rounded-lg px-4 py-4 text-slate-200 text-center text-2xl font-mono tracking-[0.5em] placeholder:text-slate-700 focus:border-violet-500 focus:ring-1 focus:ring-violet-500 outline-none transition-all"
+                                    disabled={verifying2FA}
+                                />
+                            </div>
+
+                            {verifying2FA && (
+                                <div className="flex items-center justify-center gap-2 text-sm text-slate-400">
+                                    <RefreshCw size={16} className="animate-spin"/>
+                                    <span>Verifying...</span>
+                                </div>
+                            )}
+
+                            {twoFAError && (
+                                <div className="p-4 rounded-xl text-sm font-medium border bg-red-500/10 border-red-500/30 text-red-400">
+                                    {twoFAError}
+                                </div>
+                            )}
+
+                            <button
+                                onClick={() => {
+                                    setShow2FA(false);
+                                    setPending2FAToken('');
+                                    setTwoFACode('');
+                                    setTwoFAError('');
+                                }}
+                                className="w-full text-center text-sm text-slate-400 hover:text-slate-300 transition-colors py-2 font-medium hover:underline"
+                            >
+                                Back to Sign In
+                            </button>
+                        </div>
+                    )}
+
                     {/* Forgot Password Mode */}
-                    {forgotMode && (
+                    {!show2FA && forgotMode && (
                         <div className="space-y-5">
                             <div className="space-y-1.5">
                                 <label className={labelClass}>Email Address</label>
@@ -306,7 +414,7 @@ const LoginPage = ({onLogin, setCurrentPage, onBackToLanding, initialMode = 'log
                     )}
 
                     {/* Form */}
-                    {!forgotMode && <div className="space-y-5">
+                    {!show2FA && !forgotMode && <div className="space-y-5">
                         {/* Account Personalization — registration only */}
                         {!isLogin && (
                             <div className="space-y-4 p-4 rounded-xl bg-violet-500/5 border border-violet-500/20">

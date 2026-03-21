@@ -23,9 +23,12 @@ import {
     TestTube,
     Zap
 } from "lucide-react";
-import {settings} from "@/utils/api";
+import {settings, auth} from "@/utils/api";
+import {useTheme, Theme} from "@/contexts/ThemeContext";
 import {UserSettings} from "@/types/all_types";
 import AlertManagement from "@/components/settings/AlertManagement";
+import PriceAlertManager from "@/components/notifications/PriceAlertManager";
+import TwoFactorSetup from "@/components/auth/TwoFactorSetup";
 import {tabs} from "@/components/settings/Tabs";
 import {dataProviders} from "@/components/settings/DataProviders";
 import {brokerOptions} from "@/components/settings/BrokerOptions";
@@ -61,11 +64,17 @@ const SettingsPage = () => {
     const [showApiSecret, setShowApiSecret] = useState(false);
     const [brokerConfigured, setBrokerConfigured] = useState(false);
 
-    // General settings
-    const [theme, setTheme] = useState('dark');
+    // General settings — theme comes from context
+    const { theme, setTheme } = useTheme();
     const [notifications, setNotifications] = useState(true);
     const [autoRefresh, setAutoRefresh] = useState(true);
     const [refreshInterval, setRefreshInterval] = useState(30);
+
+    // Security / 2FA
+    const [show2FASetup, setShow2FASetup] = useState(false);
+    const [totpEnabled, setTotpEnabled] = useState(false);
+    const [disableCode, setDisableCode] = useState('');
+    const [disabling2FA, setDisabling2FA] = useState(false);
 
     useEffect(() => {
         fetchSettings();
@@ -97,10 +106,18 @@ const SettingsPage = () => {
                 }
 
                 // General settings
-                setTheme(response.general?.theme || 'dark');
+                setTheme((response.general?.theme as Theme) || 'dark');
                 setNotifications(response.general?.notifications ?? true);
                 setAutoRefresh(response.general?.auto_refresh ?? true);
                 setRefreshInterval(response.general?.refresh_interval || 30);
+            }
+
+            // Fetch 2FA status
+            try {
+                const me = await auth.getMe();
+                setTotpEnabled(me.totp_enabled || false);
+            } catch {
+                // Silently fail if user info unavailable
             }
         } catch (error) {
             console.error("Failed to fetch settings:", error);
@@ -245,7 +262,7 @@ const SettingsPage = () => {
                         Configure your trading environment and preferences
                     </p>
                 </div>
-                {activeTab !== 'alerts' && (
+                {activeTab !== 'alerts' && activeTab !== 'security' && (
                     <button
                         onClick={handleSave}
                         disabled={isSaving}
@@ -300,7 +317,137 @@ const SettingsPage = () => {
                 {/* Content Area */}
                 <div className="lg:col-span-3">
                     {activeTab === 'alerts' ? (
-                        <AlertManagement/>
+                        <div className="space-y-8">
+                            <AlertManagement/>
+                            <div className="bg-slate-900/50 border border-slate-800/50 rounded-2xl p-6">
+                                <PriceAlertManager />
+                            </div>
+                        </div>
+                    ) : activeTab === 'security' ? (
+                        <div className="bg-slate-900/50 border border-slate-800/50 rounded-2xl p-6 space-y-8">
+                            <div>
+                                <h3 className="text-xl font-bold text-slate-100 mb-2 flex items-center gap-2">
+                                    <ShieldCheck size={24} className="text-violet-400"/>
+                                    Two-Factor Authentication
+                                </h3>
+                                <p className="text-slate-400 text-sm">
+                                    Add an extra layer of security to your account
+                                </p>
+                            </div>
+
+                            {!totpEnabled ? (
+                                <div className="space-y-4">
+                                    <div className="p-4 bg-slate-800/30 rounded-xl border border-slate-700">
+                                        <p className="text-sm text-slate-300">
+                                            Two-factor authentication adds an additional layer of security to your account by requiring
+                                            a verification code from your authenticator app when you sign in.
+                                        </p>
+                                    </div>
+                                    <button
+                                        onClick={() => setShow2FASetup(true)}
+                                        className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-violet-600 to-fuchsia-600 hover:from-violet-500 hover:to-fuchsia-500 text-white rounded-xl font-semibold text-sm transition-all shadow-xl shadow-violet-500/20"
+                                    >
+                                        <ShieldCheck size={18}/>
+                                        Enable 2FA
+                                    </button>
+                                </div>
+                            ) : (
+                                <div className="space-y-6">
+                                    <div className="flex items-center gap-3">
+                                        <span className="px-3 py-1.5 bg-emerald-500/20 text-emerald-400 rounded-lg text-sm font-bold flex items-center gap-2">
+                                            <CheckCircle size={16}/>
+                                            Enabled
+                                        </span>
+                                        <span className="text-sm text-slate-400">
+                                            Your account is protected with 2FA
+                                        </span>
+                                    </div>
+
+                                    <div className="space-y-3 pt-4 border-t border-slate-700">
+                                        <label className="text-sm font-bold text-slate-300">
+                                            Disable Two-Factor Authentication
+                                        </label>
+                                        <p className="text-xs text-slate-400">
+                                            Enter your current authenticator code to disable 2FA
+                                        </p>
+                                        <div className="flex items-center gap-3">
+                                            <input
+                                                type="text"
+                                                maxLength={6}
+                                                inputMode="numeric"
+                                                value={disableCode}
+                                                onChange={(e) => setDisableCode(e.target.value.replace(/[^0-9]/g, ''))}
+                                                placeholder="000000"
+                                                className="w-40 px-4 py-3 bg-slate-800 border border-slate-700 rounded-xl text-slate-200 text-center font-mono tracking-[0.3em] placeholder:text-slate-600 focus:border-red-500 outline-none"
+                                                disabled={disabling2FA}
+                                            />
+                                            <button
+                                                onClick={async () => {
+                                                    if (disableCode.length !== 6) return;
+                                                    setDisabling2FA(true);
+                                                    try {
+                                                        await auth.disable2FA(disableCode);
+                                                        setTotpEnabled(false);
+                                                        setDisableCode('');
+                                                        setTestResult({
+                                                            type: 'success',
+                                                            message: 'Two-factor authentication has been disabled'
+                                                        });
+                                                        setTimeout(() => setTestResult(null), 3000);
+                                                    } catch (err: any) {
+                                                        setTestResult({
+                                                            type: 'error',
+                                                            message: err?.response?.data?.detail || 'Failed to disable 2FA. Check your code.'
+                                                        });
+                                                    } finally {
+                                                        setDisabling2FA(false);
+                                                    }
+                                                }}
+                                                disabled={disabling2FA || disableCode.length !== 6}
+                                                className="px-5 py-3 bg-red-600/80 hover:bg-red-500 disabled:bg-slate-700 text-white rounded-xl font-semibold text-sm transition-all disabled:opacity-70 flex items-center gap-2"
+                                            >
+                                                {disabling2FA ? (
+                                                    <Loader2 size={16} className="animate-spin"/>
+                                                ) : (
+                                                    <AlertCircle size={16}/>
+                                                )}
+                                                Disable 2FA
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+
+                            {show2FASetup && (
+                                <TwoFactorSetup
+                                    onClose={() => setShow2FASetup(false)}
+                                    onEnabled={() => {
+                                        setShow2FASetup(false);
+                                        setTotpEnabled(true);
+                                        setTestResult({
+                                            type: 'success',
+                                            message: 'Two-factor authentication has been enabled!'
+                                        });
+                                        setTimeout(() => setTestResult(null), 3000);
+                                    }}
+                                />
+                            )}
+
+                            {/* Onboarding Tour */}
+                            <div className="pt-6 border-t border-slate-700">
+                                <h3 className="text-lg font-bold text-slate-100 mb-2">Onboarding Tour</h3>
+                                <p className="text-sm text-slate-400 mb-4">Re-take the guided tour of the platform</p>
+                                <button
+                                    onClick={() => {
+                                        localStorage.removeItem('oraculum_tour_completed');
+                                        window.location.reload();
+                                    }}
+                                    className="px-5 py-2.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 text-sm font-medium rounded-xl transition-all"
+                                >
+                                    Take a Tour
+                                </button>
+                            </div>
+                        </div>
                     ) : (
                         <div className="bg-slate-900/50 border border-slate-800/50 rounded-2xl p-6 space-y-8">
 

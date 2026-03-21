@@ -2,7 +2,7 @@
 User model
 """
 
-from sqlalchemy import Boolean, Column, DateTime, Integer, String
+from sqlalchemy import JSON, Boolean, Column, DateTime, Integer, String
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 
@@ -31,10 +31,16 @@ class User(Base):
     password_reset_token = Column(String, nullable=True)
     password_reset_expires = Column(DateTime(timezone=True), nullable=True)
 
+    # Two-Factor Authentication
+    totp_secret = Column(String, nullable=True)
+    totp_enabled = Column(Boolean, default=False, server_default="false")
+    totp_backup_codes = Column(JSON, nullable=True)
+
     backtest_runs = relationship("BacktestRun", back_populates="user", cascade="all, delete-orphan")
     custom_strategies = relationship("CustomStrategy", back_populates="user", cascade="all, delete-orphan")
     portfolios = relationship("Portfolio", back_populates="user", cascade="all, delete-orphan")
     settings = relationship("UserSettings", back_populates="user", uselist=False, cascade="all, delete-orphan")
+    notifications = relationship("Notification", back_populates="user", cascade="all, delete-orphan")
 
     def to_dict(self):
         return {
@@ -49,4 +55,5 @@ class User(Base):
             "country": self.country,
             "investor_type": self.investor_type,
             "risk_profile": self.risk_profile,
+            "totp_enabled": self.totp_enabled or False,
         }

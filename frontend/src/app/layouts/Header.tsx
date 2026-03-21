@@ -1,11 +1,13 @@
 'use client'
 
 import React, {useEffect, useState} from "react";
-import {ChevronRight, Clock, Globe, Shield, TrendingUp} from "lucide-react";
+import {ChevronRight, Clock, Globe, Moon, Shield, Sun, TrendingUp} from "lucide-react";
 import {formatCurrency} from "@/utils/formatters";
 import {api, live} from "@/utils/api";
 import {QuoteData, User} from "@/types/all_types";
 import {useNavigationStore} from "@/store/useNavigationStore";
+import NotificationBell from "@/components/notifications/NotificationBell";
+import {useTheme} from "@/contexts/ThemeContext";
 
 interface HeaderProps {
     user: User;
@@ -35,15 +37,19 @@ type PageKey =
   | 'sector-scanner'
   | 'strategy-builder'
   | 'marketplace'
+  | 'watchlist'
+  | 'leaderboard'
   | 'admin'
   | 'pricing'
-  | 'settings';
+  | 'settings'
+  | 'paper-trading';
 
 const Header = ({ user, currentPage, serverStatus = false, onLogout }: HeaderProps) => {
     const [marketData, setMarketData] = useState<QuoteData[]>([]);
     const [loading, setLoading] = useState<boolean>(false);
     const [accountInfo, setAccountInfo] = useState<{ buying_power: number; equity: number } | null>(null);
     const navigateTo = useNavigationStore(state => state.navigateTo);
+    const { theme, toggleTheme } = useTheme();
 
     const showMainHeader = currentPage === 'live' || currentPage === 'dashboard';
 
@@ -113,26 +119,42 @@ const Header = ({ user, currentPage, serverStatus = false, onLogout }: HeaderPro
     return (
         <header className="space-y-4">
             {/* Status Bar - Always Visible */}
-            <div className="flex items-center justify-between py-3 border-b border-slate-800/80 text-xs">
-                <div className="flex items-center space-x-6 text-slate-500">
+            <div className="flex items-center justify-between py-3 border-b border-border text-xs">
+                <div className="flex items-center space-x-6 text-muted-foreground">
                     <div className="flex items-center space-x-2">
                         <div className={`w-2 h-2 rounded-full ${serverStatus ? 'bg-emerald-500' : 'bg-red-500'} animate-pulse`} />
-                        <span className="font-medium">System <span className="text-slate-400">{serverStatus ? 'Online' : 'Offline'}</span></span>
+                        <span className="font-medium">System <span className="text-foreground/60">{serverStatus ? 'Online' : 'Offline'}</span></span>
                     </div>
-                    <div className="flex items-center space-x-2 border-l border-slate-800 pl-6">
-                        <Globe size={14} className={serverStatus ? "text-blue-500" : "text-slate-600"} />
-                        <span className="font-medium">Backend <span className="text-slate-400">{serverStatus ? 'Connected' : 'Disconnected'}</span></span>
+                    <div className="flex items-center space-x-2 border-l border-border pl-6">
+                        <Globe size={14} className={serverStatus ? "text-blue-500" : "text-muted-foreground"} />
+                        <span className="font-medium">Backend <span className="text-foreground/60">{serverStatus ? 'Connected' : 'Disconnected'}</span></span>
+                    </div>
+
+                    {/* Notifications */}
+                    <div className="border-l border-border pl-6" data-tour="notifications">
+                        <NotificationBell />
+                    </div>
+
+                    {/* Theme toggle */}
+                    <div className="border-l border-border pl-6">
+                        <button
+                            onClick={toggleTheme}
+                            className="p-1.5 rounded-lg hover:bg-accent transition-colors text-muted-foreground hover:text-foreground"
+                            title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+                        >
+                            {theme === 'dark' ? <Sun size={14} /> : <Moon size={14} />}
+                        </button>
                     </div>
 
                     {/* User info */}
-                    <div className="flex items-center space-x-2 border-l border-slate-800 pl-6">
-                        <span className="font-medium text-slate-400">
+                    <div className="flex items-center space-x-2 border-l border-border pl-6">
+                        <span className="font-medium text-foreground/60">
                             {user?.username ?? 'User'} • {user?.tier ?? 'FREE'} Tier
                         </span>
                         {onLogout && (
                             <button
                                 onClick={onLogout}
-                                className="text-xs text-slate-500 hover:text-slate-300 transition-colors ml-2"
+                                className="text-xs text-muted-foreground hover:text-foreground transition-colors ml-2"
                             >
                                 (Logout)
                             </button>
@@ -143,8 +165,8 @@ const Header = ({ user, currentPage, serverStatus = false, onLogout }: HeaderPro
                 <div className="flex items-center space-x-6">
                     {displayData.map((m, i) => (
                         <div key={i} className="flex items-center space-x-2 font-medium">
-                            <span className="text-slate-500">{m.symbol}</span>
-                            <span className="text-slate-300">{m.price}</span>
+                            <span className="text-muted-foreground">{m.symbol}</span>
+                            <span className="text-foreground">{m.price}</span>
                             <span className={m.up ? 'text-emerald-400' : 'text-red-400'}>{m.change}</span>
                         </div>
                     ))}

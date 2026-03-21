@@ -3,12 +3,18 @@ Authentication routes
 """
 
 import asyncio
+import base64
+import io
+import json
 import logging
 import secrets
 from datetime import datetime, timedelta, timezone
 
+import pyotp
+import qrcode
 from fastapi import APIRouter, Depends, HTTPException, Response, status
 from fastapi.responses import JSONResponse
+from jose import JWTError, jwt
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -20,6 +26,10 @@ from ...schemas.auth import (
     ForgotPasswordRequest,
     LoginResponse,
     ResetPasswordRequest,
+    TwoFactorBackupCodesResponse,
+    TwoFactorSetupResponse,
+    TwoFactorVerifyLoginRequest,
+    TwoFactorVerifyRequest,
     User as UserSchema,
     UserCreate,
     UserLogin,
@@ -137,6 +147,24 @@ async def login(credentials: UserLogin, db: AsyncSession = Depends(get_db)):
 
     user.last_login = datetime.now(timezone.utc)
     await db.commit()
+
+    # Check if 2FA is enabled
+    if user.totp_enabled:
+        # Issue a short-lived 2FA-pending token (5 minutes)
+        pending_token = create_access_token(
+            data={"sub": str(user.id), "2fa_pending": True},
+            expires_delta=timedelta(minutes=5),
+        )
+        return JSONResponse(
+            content={
+                "requires_2fa": True,
+                "pending_2fa_token": pending_token,
+                "user": None,
+                "access_token": "",
+                "refresh_token": "",
+                "token_type": "bearer",
+            }
+        )
 
     access_token = create_access_token(data={"sub": str(user.id)})
     refresh_token = create_access_token(data={"sub": str(user.id), "refresh": True})
@@ -258,3 +286,151 @@ async def reset_password(request: ResetPasswordRequest, db: AsyncSession = Depen
 
     logger.info(f"Password reset successful for user: {user.email}")
     return {"message": "Password has been reset successfully. You can now sign in with your new password."}
+
+
+# ---------------------------------------------------------------------------
+# Two-Factor Authentication (2FA) endpoints
+# ---------------------------------------------------------------------------
+
+
+@router.post("/2fa/setup", response_model=TwoFactorSetupResponse)
+async def setup_2fa(
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Generate a TOTP secret and QR code for 2FA setup."""
+    secret = pyotp.random_base32()
+    totp = pyotp.totp.TOTP(secret)
+    provisioning_uri = totp.provisioning_uri(current_user.email, issuer_name="Oraculum")
+
+    # Generate QR code as base64 PNG
+    qr = qrcode.make(provisioning_uri)
+    buf = io.BytesIO()
+    qr.save(buf, format="PNG")
+    qr_base64 = base64.b64encode(buf.getvalue()).decode("utf-8")
+
+    # Store secret but don't enable yet (user must verify first)
+    current_user.totp_secret = secret
+    await db.commit()
+
+    return TwoFactorSetupResponse(
+        secret=secret,
+        qr_uri=provisioning_uri,
+        qr_image_base64=qr_base64,
+    )
+
+
+@router.post("/2fa/verify-setup", response_model=TwoFactorBackupCodesResponse)
+async def verify_2fa_setup(
+    body: TwoFactorVerifyRequest,
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Verify the TOTP code to complete 2FA setup and return backup codes."""
+    if not current_user.totp_secret:
+        raise HTTPException(status_code=400, detail="2FA setup not initiated. Call /auth/2fa/setup first.")
+
+    totp = pyotp.TOTP(current_user.totp_secret)
+    if not totp.verify(body.code, valid_window=1):
+        raise HTTPException(status_code=400, detail="Invalid verification code.")
+
+    # Enable 2FA
+    current_user.totp_enabled = True
+
+    # Generate 10 backup codes
+    plaintext_codes = [secrets.token_hex(4) for _ in range(10)]
+    hashed_codes = [get_password_hash(code) for code in plaintext_codes]
+    current_user.totp_backup_codes = json.dumps(hashed_codes)
+
+    await db.commit()
+
+    return TwoFactorBackupCodesResponse(backup_codes=plaintext_codes)
+
+
+@router.post("/2fa/verify", dependencies=[Depends(login_rate_limit)])
+async def verify_2fa_login(
+    body: TwoFactorVerifyLoginRequest,
+    db: AsyncSession = Depends(get_db),
+):
+    """Verify a TOTP or backup code during login (no auth required)."""
+    credentials_exception = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Invalid 2FA code or token.",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+
+    # Decode the pending 2FA token
+    try:
+        payload = jwt.decode(
+            body.pending_2fa_token,
+            settings.JWT_SECRET_KEY,
+            algorithms=[settings.JWT_ALGORITHM],
+        )
+        user_id: str = payload.get("sub")
+        is_pending = payload.get("2fa_pending")
+        if user_id is None or not is_pending:
+            raise credentials_exception
+    except JWTError:
+        raise credentials_exception
+
+    # Fetch user
+    result = await db.execute(select(User).where(User.id == int(user_id)))
+    user = result.scalar_one_or_none()
+    if not user or not user.totp_enabled or not user.totp_secret:
+        raise credentials_exception
+
+    # Try TOTP verification first
+    totp = pyotp.TOTP(user.totp_secret)
+    verified = totp.verify(body.code, valid_window=1)
+
+    # If TOTP fails, try backup codes
+    if not verified and user.totp_backup_codes:
+        stored_hashes = json.loads(user.totp_backup_codes)
+        for i, stored_hash in enumerate(stored_hashes):
+            if verify_password(body.code, stored_hash):
+                # Remove used backup code
+                stored_hashes.pop(i)
+                user.totp_backup_codes = json.dumps(stored_hashes)
+                verified = True
+                break
+
+    if not verified:
+        raise credentials_exception
+
+    # Issue full JWT tokens (same as normal login)
+    access_token = create_access_token(data={"sub": str(user.id)})
+    refresh_token = create_access_token(data={"sub": str(user.id), "refresh": True})
+
+    await AuthService.track_usage(db, user.id, "login")
+
+    login_body = LoginResponse(
+        user=UserSchema.model_validate(user),
+        access_token=access_token,
+        refresh_token=refresh_token,
+        token_type="bearer",
+    )
+    response = JSONResponse(content=login_body.model_dump(mode="json"))
+    _set_auth_cookies(response, access_token, refresh_token)
+    return response
+
+
+@router.post("/2fa/disable")
+async def disable_2fa(
+    body: TwoFactorVerifyRequest,
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Disable 2FA by verifying a current TOTP code."""
+    if not current_user.totp_enabled or not current_user.totp_secret:
+        raise HTTPException(status_code=400, detail="2FA is not enabled.")
+
+    totp = pyotp.TOTP(current_user.totp_secret)
+    if not totp.verify(body.code, valid_window=1):
+        raise HTTPException(status_code=400, detail="Invalid verification code.")
+
+    current_user.totp_secret = None
+    current_user.totp_enabled = False
+    current_user.totp_backup_codes = None
+    await db.commit()
+
+    return {"message": "Two-factor authentication has been disabled."}

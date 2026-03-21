@@ -5,11 +5,12 @@ Revises: f6g7h8i9j0k1
 Create Date: 2026-03-19 10:00:00.000000
 
 """
+
 from typing import Union
 
-from alembic import op
 import sqlalchemy as sa
 
+from alembic import op
 
 # revision identifiers, used by Alembic.
 revision: str = "g7h8i9j0k1l2"

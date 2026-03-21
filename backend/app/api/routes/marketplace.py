@@ -150,6 +150,41 @@ def _generate_cons(listing) -> List[str]:
     return cons[:3]
 
 
+@router.get("/leaderboard")
+async def get_leaderboard(
+    metric: str = Query("sharpe_ratio", enum=["sharpe_ratio", "total_return", "win_rate", "downloads", "rating"]),
+    category: Optional[str] = Query(None),
+    limit: int = Query(25, ge=1, le=100),
+    current_user: User = Depends(get_current_active_user),
+    marketplace: MarketplaceService = Depends(get_marketplace),
+    db: AsyncSession = Depends(get_db),
+):
+    """Get strategy leaderboard ranked by a chosen metric."""
+    sort_map = {
+        "sharpe_ratio": "sharpe_ratio",
+        "total_return": "total_return",
+        "win_rate": "win_rate",
+        "downloads": "downloads",
+        "rating": "rating",
+    }
+    core_listings = await marketplace.browse_strategies(
+        db,
+        category=None if category == "All" else category,
+        sort_by=sort_map.get(metric, "sharpe_ratio"),
+        limit=limit,
+    )
+    results = []
+    for rank, listing in enumerate(core_listings, 1):
+        schema = await convert_core_to_schema(listing, db, marketplace, current_user.id)
+        results.append(
+            {
+                "rank": rank,
+                "strategy": schema.model_dump(),
+            }
+        )
+    return results
+
+
 @router.get("/", response_model=List[StrategyListingSchema])
 async def get_strategies(
     category: Optional[str] = Query(None),

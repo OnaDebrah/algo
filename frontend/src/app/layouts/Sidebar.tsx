@@ -3,11 +3,13 @@
 import React, {useState} from "react";
 import {
     Activity,
+    Banknote,
     BarChart3,
     ChevronDown,
     Cpu,
     CreditCard,
     DollarSign,
+    Eye,
     LogOut,
     Package,
     Settings,
@@ -15,6 +17,7 @@ import {
     ShieldCheck,
     Target,
     TrendingUp,
+    Trophy,
     Zap
 } from "lucide-react";
 
@@ -28,7 +31,9 @@ const Sidebar = ({currentPage, setCurrentPage, user, onLogout}: any) => {
             title: 'MONITOR',
             items: [
                 {id: 'dashboard', icon: Activity, label: 'Activity Hub'},
-                {id: 'live', icon: Zap, label: 'Live Execution'}
+                {id: 'watchlist', icon: Eye, label: 'Watchlist'},
+                {id: 'live', icon: Zap, label: 'Live Execution'},
+                {id: 'paper-trading', icon: Banknote, label: 'Paper Trading'}
             ]
         },
         {
@@ -63,6 +68,7 @@ const Sidebar = ({currentPage, setCurrentPage, user, onLogout}: any) => {
 
     const bottomItems = [
         {id: 'marketplace', icon: Package, label: 'Marketplace'},
+        {id: 'leaderboard', icon: Trophy, label: 'Leaderboard'},
     ];
 
     const toggleSection = (sectionTitle: string) => {
@@ -73,9 +79,10 @@ const Sidebar = ({currentPage, setCurrentPage, user, onLogout}: any) => {
 
     return (
         <aside
-            className="fixed left-0 top-0 h-full w-64 bg-slate-900/95 backdrop-blur-xl border-r border-slate-800/80 flex flex-col z-50">
+            data-tour="sidebar"
+            className="fixed left-0 top-0 h-full w-64 bg-sidebar backdrop-blur-xl border-r border-sidebar-border flex flex-col z-50">
             {/* Brand Section */}
-            <div className="p-6 border-b border-slate-800/80">
+            <div className="p-6 border-b border-sidebar-border">
                 <div className="flex items-center space-x-3">
                     <div
                         className="w-9 h-9 rounded-xl bg-gradient-to-br from-violet-500 to-fuchsia-500 flex items-center justify-center shadow-lg shadow-violet-500/30">
@@ -83,7 +90,7 @@ const Sidebar = ({currentPage, setCurrentPage, user, onLogout}: any) => {
                     </div>
                     <div>
                         <span className="text-lg font-bold tracking-tight flex items-center gap-2">
-                        <span className="text-slate-100">ORACULUM</span>
+                        <span className="text-sidebar-foreground">ORACULUM</span>
                         <span
                             className="text-xs font-semibold bg-gradient-to-r from-indigo-400 to-cyan-400 bg-clip-text text-transparent">
                         AI
@@ -104,7 +111,7 @@ const Sidebar = ({currentPage, setCurrentPage, user, onLogout}: any) => {
                             <div key={section.id} className="space-y-1">
                                 <button
                                     onClick={() => toggleSection(section.title)}
-                                    className="w-full flex items-center justify-between px-3 py-2 text-[11px] font-bold text-slate-500 hover:text-slate-300 transition-colors tracking-wider"
+                                    className="w-full flex items-center justify-between px-3 py-2 text-[11px] font-bold text-muted-foreground hover:text-sidebar-foreground transition-colors tracking-wider"
                                 >
                                     <span>{section.title}</span>
                                     <ChevronDown
@@ -121,9 +128,18 @@ const Sidebar = ({currentPage, setCurrentPage, user, onLogout}: any) => {
                                                 <button
                                                     key={item.id}
                                                     onClick={() => setCurrentPage(item.id)}
+                                                    data-tour={
+                                                        item.id === 'dashboard' ? 'activity-hub' :
+                                                        item.id === 'strategy-builder' ? 'strategy-builder' :
+                                                        item.id === 'backtest' ? 'backtest-lab' :
+                                                        item.id === 'options' ? 'options-desk' :
+                                                        item.id === 'live' ? 'live-execution' :
+                                                        item.id === 'watchlist' ? 'watchlist' :
+                                                        undefined
+                                                    }
                                                     className={`w-full group flex items-center px-3 py-2.5 rounded-lg text-sm transition-all relative ${isActive
-                                                        ? 'text-slate-100 bg-slate-800/70'
-                                                        : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/40'
+                                                        ? 'text-sidebar-foreground bg-sidebar-accent'
+                                                        : 'text-sidebar-accent-foreground hover:text-sidebar-foreground hover:bg-sidebar-accent/50'
                                                     }`}
                                                 >
                                                     {isActive && (
@@ -132,7 +148,7 @@ const Sidebar = ({currentPage, setCurrentPage, user, onLogout}: any) => {
                                                     )}
                                                     <item.icon
                                                         size={18}
-                                                        className={`mr-3 transition-colors ${isActive ? 'text-violet-400' : 'text-slate-500 group-hover:text-slate-400'
+                                                        className={`mr-3 transition-colors ${isActive ? 'text-sidebar-primary' : 'text-muted-foreground group-hover:text-sidebar-accent-foreground'
                                                         }`}
                                                         strokeWidth={2}
                                                     />
@@ -148,18 +164,19 @@ const Sidebar = ({currentPage, setCurrentPage, user, onLogout}: any) => {
                 </nav>
 
                 {/* System Section */}
-                <div className="space-y-1 pt-4 border-t border-slate-800/80">
-                    <p className="px-3 text-[11px] font-bold text-slate-600 tracking-wider mb-2">COMMUNITY</p>
+                <div className="space-y-1 pt-4 border-t border-sidebar-border">
+                    <p className="px-3 text-[11px] font-bold text-muted-foreground tracking-wider mb-2">COMMUNITY</p>
                     {bottomItems.map((item) => (
                         <button
                             key={item.id}
                             onClick={() => setCurrentPage(item.id)}
+                            data-tour={item.id === 'marketplace' ? 'marketplace' : item.id === 'leaderboard' ? 'leaderboard' : undefined}
                             className={`w-full flex items-center px-3 py-2.5 rounded-lg text-sm transition-all ${currentPage === item.id
-                                ? 'text-slate-100 bg-slate-800/70'
-                                : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/40'
+                                ? 'text-sidebar-foreground bg-sidebar-accent'
+                                : 'text-sidebar-accent-foreground hover:text-sidebar-foreground hover:bg-sidebar-accent/50'
                             }`}
                         >
-                            <item.icon size={18} className="mr-3 text-slate-500" strokeWidth={2}/>
+                            <item.icon size={18} className="mr-3 text-muted-foreground" strokeWidth={2}/>
                             <span className="font-medium">{item.label}</span>
                         </button>
                     ))}
@@ -167,7 +184,7 @@ const Sidebar = ({currentPage, setCurrentPage, user, onLogout}: any) => {
             </div>
 
             {/* User Profile Footer */}
-            <div className="p-3 border-t border-slate-800/80 relative">
+            <div className="p-3 border-t border-sidebar-border relative">
                 {showUserMenu && (
                     <div
                         className="absolute bottom-full left-3 right-3 mb-2 glass-panel rounded-xl overflow-hidden animate-in slide-in-from-bottom-2 fade-in duration-200">
