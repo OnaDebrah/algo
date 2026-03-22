@@ -2,12 +2,12 @@ name: Frontend CI
 
 on:
   push:
-    branches: [ "main" ]
+    branches: [ "main", "develop" ]
     paths:
       - 'frontend/**'
       - '.github/workflows/frontend-ci.yml'
   pull_request:
-    branches: [ "main" ]
+    branches: [ "main", "develop" ]
     paths:
       - 'frontend/**'
       - '.github/workflows/frontend-ci.yml'
@@ -34,9 +34,7 @@ jobs:
       run: npm ci
 
     - name: Audit dependencies
-      run: npm audit --audit-level=high || true
-      # `|| true` prevents failure on moderate/low advisories;
-      # only high/critical severity will be flagged in the output
+      run: npm audit --audit-level=high
 
     - name: Run Linter
       run: npm run lint

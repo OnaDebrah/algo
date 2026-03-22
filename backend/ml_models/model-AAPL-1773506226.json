@@ -9,7 +9,7 @@
   "features": 16,
   "training_time": 2,
   "created": "2026-03-14T16:37:06.803533",
-  "status": "deployed",
+  "status": "trained",
   "feature_importance": [
     {
       "feature": "volatility",

@@ -170,17 +170,14 @@ export const auth = {
     logout: () => client.post('/auth/logout'),
     getMe: () => client.get<User>('/auth/me'),
 
-    // Token refresh (if implemented)
     refreshToken: (refreshToken: string) =>
         client.post<{ access_token: string }>('/auth/refresh', { refresh_token: refreshToken }),
 
-    // Password recovery
     forgotPassword: (email: string) =>
         client.post<{ message: string }>('/auth/forgot-password', { email }),
     resetPassword: (token: string, newPassword: string) =>
         client.post<{ message: string }>('/auth/reset-password', { token, new_password: newPassword }),
 
-    // Two-Factor Authentication
     setup2FA: () => client.post('/auth/2fa/setup') as Promise<any>,
     verifySetup2FA: (code: string) => client.post('/auth/2fa/verify-setup', { code }) as Promise<any>,
     verify2FA: (pending_2fa_token: string, code: string) => client.post('/auth/2fa/verify', { pending_2fa_token, code }) as Promise<any>,
@@ -389,7 +386,7 @@ export const backtest = {
     walkForward: async (request: WFARequest): Promise<WFAResponse> => {
         const submission = await client.post<BacktestSubmission>('/backtest/walk-forward', request);
         const completed = await pollForResult(submission.backtest_id);
-        // WFA results are stored in extended_results.wfa_results (moved from trades_json)
+
         const wfaData = completed.extended_results?.wfa_results;
         if (wfaData) {
             return wfaData as unknown as WFAResponse;
@@ -412,7 +409,7 @@ export const backtest = {
 
 // ==================== PORTFOLIO ====================
 export const portfolio = {
-    // Portfolio CRUD
+
     list: () => client.get<Portfolio[]>('/portfolio/'),
 
     create: (data: PortfolioCreate) =>
@@ -559,11 +556,9 @@ export const strategy = {
     get: (strategy_key: string) =>
         client.get<StrategyInfo>(`/strategy/${strategy_key}`),
 
-    // AI Code Generation
     generate: (request: StrategyGenerateRequest) =>
         client.post<StrategyGenerateResponse>('/strategy/generate', request),
 
-    // Code Validation
     validate: (request: { code: string }) =>
         client.post<StrategyValidateResponse>('/strategy/validate', request),
 
