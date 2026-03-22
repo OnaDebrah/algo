@@ -13,15 +13,17 @@ logger = logging.getLogger(__name__)
 
 
 class AuditService:
-
     @staticmethod
     def _compute_hash(event_type: str, title: str, metadata: dict | None, prev_hash: str | None) -> str:
-        content = json.dumps({
-            "event_type": event_type,
-            "title": title,
-            "metadata": metadata or {},
-            "prev_hash": prev_hash or "",
-        }, sort_keys=True)
+        content = json.dumps(
+            {
+                "event_type": event_type,
+                "title": title,
+                "metadata": metadata or {},
+                "prev_hash": prev_hash or "",
+            },
+            sort_keys=True,
+        )
         return hashlib.sha256(content.encode()).hexdigest()
 
     @staticmethod
@@ -37,12 +39,7 @@ class AuditService:
     ) -> AuditEvent:
         """Create an audit event with hash chain integrity."""
         # Get previous hash
-        result = await db.execute(
-            select(AuditEvent.event_hash)
-            .where(AuditEvent.user_id == user_id)
-            .order_by(desc(AuditEvent.id))
-            .limit(1)
-        )
+        result = await db.execute(select(AuditEvent.event_hash).where(AuditEvent.user_id == user_id).order_by(desc(AuditEvent.id)).limit(1))
         prev = result.scalar_one_or_none()
 
         event_hash = AuditService._compute_hash(event_type, title, metadata, prev)
@@ -109,9 +106,7 @@ class AuditService:
         tags: list[str] | None = None,
     ) -> AuditEvent | None:
         """Update notes and tags on an audit event."""
-        result = await db.execute(
-            select(AuditEvent).where(AuditEvent.id == event_id, AuditEvent.user_id == user_id)
-        )
+        result = await db.execute(select(AuditEvent).where(AuditEvent.id == event_id, AuditEvent.user_id == user_id))
         event = result.scalar_one_or_none()
         if not event:
             return None

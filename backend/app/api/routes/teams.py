@@ -6,7 +6,7 @@ from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel, Field
-from sqlalchemy import desc, select
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ...api.deps import get_current_active_user
@@ -94,17 +94,13 @@ async def join_team(
     db: AsyncSession = Depends(get_db),
 ):
     """Join a team via invite code."""
-    result = await db.execute(
-        select(Team).where(Team.id == team_id, Team.invite_code == invite_code)
-    )
+    result = await db.execute(select(Team).where(Team.id == team_id, Team.invite_code == invite_code))
     team = result.scalar_one_or_none()
     if not team:
         raise HTTPException(status_code=404, detail="Invalid team or invite code")
 
     # Check if already member
-    existing = await db.execute(
-        select(TeamMember).where(TeamMember.team_id == team_id, TeamMember.user_id == current_user.id)
-    )
+    existing = await db.execute(select(TeamMember).where(TeamMember.team_id == team_id, TeamMember.user_id == current_user.id))
     if existing.scalar_one_or_none():
         raise HTTPException(status_code=400, detail="Already a member of this team")
 
@@ -122,9 +118,7 @@ async def get_members(
 ):
     """List team members."""
     # Verify membership
-    result = await db.execute(
-        select(TeamMember).where(TeamMember.team_id == team_id, TeamMember.user_id == current_user.id)
-    )
+    result = await db.execute(select(TeamMember).where(TeamMember.team_id == team_id, TeamMember.user_id == current_user.id))
     if not result.scalar_one_or_none():
         raise HTTPException(status_code=403, detail="Not a member of this team")
 
@@ -167,9 +161,7 @@ async def update_member_role(
     if not caller_result.scalar_one_or_none():
         raise HTTPException(status_code=403, detail="Only owners and admins can change roles")
 
-    result = await db.execute(
-        select(TeamMember).where(TeamMember.team_id == team_id, TeamMember.user_id == user_id)
-    )
+    result = await db.execute(select(TeamMember).where(TeamMember.team_id == team_id, TeamMember.user_id == user_id))
     member = result.scalar_one_or_none()
     if not member:
         raise HTTPException(status_code=404, detail="Member not found")
@@ -201,9 +193,7 @@ async def remove_member(
         if not caller_result.scalar_one_or_none():
             raise HTTPException(status_code=403, detail="Permission denied")
 
-    result = await db.execute(
-        select(TeamMember).where(TeamMember.team_id == team_id, TeamMember.user_id == user_id)
-    )
+    result = await db.execute(select(TeamMember).where(TeamMember.team_id == team_id, TeamMember.user_id == user_id))
     member = result.scalar_one_or_none()
     if not member:
         raise HTTPException(status_code=404, detail="Member not found")
@@ -224,9 +214,7 @@ async def add_comment(
 ):
     """Add a comment to a resource within a team."""
     # Verify membership
-    result = await db.execute(
-        select(TeamMember).where(TeamMember.team_id == team_id, TeamMember.user_id == current_user.id)
-    )
+    result = await db.execute(select(TeamMember).where(TeamMember.team_id == team_id, TeamMember.user_id == current_user.id))
     if not result.scalar_one_or_none():
         raise HTTPException(status_code=403, detail="Not a member of this team")
 
@@ -255,9 +243,7 @@ async def get_comments(
 ):
     """Get comments for a team, optionally filtered by target."""
     # Verify membership
-    result = await db.execute(
-        select(TeamMember).where(TeamMember.team_id == team_id, TeamMember.user_id == current_user.id)
-    )
+    result = await db.execute(select(TeamMember).where(TeamMember.team_id == team_id, TeamMember.user_id == current_user.id))
     if not result.scalar_one_or_none():
         raise HTTPException(status_code=403, detail="Not a member of this team")
 

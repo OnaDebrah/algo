@@ -43,9 +43,7 @@ async def list_schedules(
 ):
     """List all scheduled backtests for the current user."""
     result = await db.execute(
-        select(ScheduledBacktest)
-        .where(ScheduledBacktest.user_id == current_user.id)
-        .order_by(desc(ScheduledBacktest.created_at))
+        select(ScheduledBacktest).where(ScheduledBacktest.user_id == current_user.id).order_by(desc(ScheduledBacktest.created_at))
     )
     schedules = result.scalars().all()
     return [
@@ -76,9 +74,7 @@ async def create_schedule(
 ):
     """Create a new scheduled backtest."""
     # Limit schedules per user
-    result = await db.execute(
-        select(ScheduledBacktest).where(ScheduledBacktest.user_id == current_user.id)
-    )
+    result = await db.execute(select(ScheduledBacktest).where(ScheduledBacktest.user_id == current_user.id))
     existing = result.scalars().all()
     if len(existing) >= 20:
         raise HTTPException(status_code=400, detail="Maximum 20 scheduled backtests allowed")

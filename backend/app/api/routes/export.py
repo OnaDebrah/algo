@@ -38,9 +38,7 @@ async def export_backtest_csv(
     db: AsyncSession = Depends(get_db),
 ):
     """Export backtest results as CSV."""
-    result = await db.execute(
-        select(BacktestRun).where(BacktestRun.id == run_id, BacktestRun.user_id == current_user.id)
-    )
+    result = await db.execute(select(BacktestRun).where(BacktestRun.id == run_id, BacktestRun.user_id == current_user.id))
     run = result.scalar_one_or_none()
     if not run:
         raise HTTPException(status_code=404, detail="Backtest not found")
@@ -113,9 +111,7 @@ async def export_backtest_pdf(
     db: AsyncSession = Depends(get_db),
 ):
     """Export backtest results as PDF report."""
-    result = await db.execute(
-        select(BacktestRun).where(BacktestRun.id == run_id, BacktestRun.user_id == current_user.id)
-    )
+    result = await db.execute(select(BacktestRun).where(BacktestRun.id == run_id, BacktestRun.user_id == current_user.id))
     run = result.scalar_one_or_none()
     if not run:
         raise HTTPException(status_code=404, detail="Backtest not found")
@@ -150,16 +146,20 @@ async def export_backtest_pdf(
         ["Initial Capital", f"${run.initial_capital:,.2f}"],
     ]
     info_table = Table(info_data, colWidths=[2 * inch, 4 * inch])
-    info_table.setStyle(TableStyle([
-        ("BACKGROUND", (0, 0), (0, -1), colors.Color(0.15, 0.15, 0.25)),
-        ("TEXTCOLOR", (0, 0), (-1, -1), colors.white),
-        ("BACKGROUND", (1, 0), (1, -1), colors.Color(0.1, 0.1, 0.2)),
-        ("FONTSIZE", (0, 0), (-1, -1), 10),
-        ("BOTTOMPADDING", (0, 0), (-1, -1), 8),
-        ("TOPPADDING", (0, 0), (-1, -1), 8),
-        ("LEFTPADDING", (0, 0), (-1, -1), 10),
-        ("GRID", (0, 0), (-1, -1), 0.5, colors.Color(0.3, 0.3, 0.4)),
-    ]))
+    info_table.setStyle(
+        TableStyle(
+            [
+                ("BACKGROUND", (0, 0), (0, -1), colors.Color(0.15, 0.15, 0.25)),
+                ("TEXTCOLOR", (0, 0), (-1, -1), colors.white),
+                ("BACKGROUND", (1, 0), (1, -1), colors.Color(0.1, 0.1, 0.2)),
+                ("FONTSIZE", (0, 0), (-1, -1), 10),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 8),
+                ("TOPPADDING", (0, 0), (-1, -1), 8),
+                ("LEFTPADDING", (0, 0), (-1, -1), 10),
+                ("GRID", (0, 0), (-1, -1), 0.5, colors.Color(0.3, 0.3, 0.4)),
+            ]
+        )
+    )
     elements.append(info_table)
     elements.append(Spacer(1, 20))
 
@@ -179,17 +179,21 @@ async def export_backtest_pdf(
         ["Volatility", f"{ext.get('volatility', 0):.2f}%"],
     ]
     metrics_table = Table(metrics_data, colWidths=[3 * inch, 3 * inch])
-    metrics_table.setStyle(TableStyle([
-        ("BACKGROUND", (0, 0), (-1, 0), colors.Color(0.2, 0.15, 0.4)),
-        ("TEXTCOLOR", (0, 0), (-1, -1), colors.white),
-        ("BACKGROUND", (0, 1), (-1, -1), colors.Color(0.1, 0.1, 0.2)),
-        ("FONTSIZE", (0, 0), (-1, -1), 10),
-        ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
-        ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
-        ("TOPPADDING", (0, 0), (-1, -1), 6),
-        ("LEFTPADDING", (0, 0), (-1, -1), 10),
-        ("GRID", (0, 0), (-1, -1), 0.5, colors.Color(0.3, 0.3, 0.4)),
-    ]))
+    metrics_table.setStyle(
+        TableStyle(
+            [
+                ("BACKGROUND", (0, 0), (-1, 0), colors.Color(0.2, 0.15, 0.4)),
+                ("TEXTCOLOR", (0, 0), (-1, -1), colors.white),
+                ("BACKGROUND", (0, 1), (-1, -1), colors.Color(0.1, 0.1, 0.2)),
+                ("FONTSIZE", (0, 0), (-1, -1), 10),
+                ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
+                ("TOPPADDING", (0, 0), (-1, -1), 6),
+                ("LEFTPADDING", (0, 0), (-1, -1), 10),
+                ("GRID", (0, 0), (-1, -1), 0.5, colors.Color(0.3, 0.3, 0.4)),
+            ]
+        )
+    )
     elements.append(metrics_table)
     elements.append(Spacer(1, 20))
 
@@ -200,24 +204,30 @@ async def export_backtest_pdf(
         trade_headers = ["#", "Type", "Price", "Date", "PnL"]
         trade_data = [trade_headers]
         for i, t in enumerate(trades[:50], 1):
-            trade_data.append([
-                str(i),
-                str(t.get("type", t.get("side", ""))),
-                f"${t.get('price', 0):.2f}" if t.get("price") else "",
-                str(t.get("date", t.get("entry_date", "")))[:10],
-                f"${t.get('pnl', t.get('profit', 0)):.2f}" if t.get("pnl", t.get("profit")) else "",
-            ])
+            trade_data.append(
+                [
+                    str(i),
+                    str(t.get("type", t.get("side", ""))),
+                    f"${t.get('price', 0):.2f}" if t.get("price") else "",
+                    str(t.get("date", t.get("entry_date", "")))[:10],
+                    f"${t.get('pnl', t.get('profit', 0)):.2f}" if t.get("pnl", t.get("profit")) else "",
+                ]
+            )
         trade_table = Table(trade_data, colWidths=[0.5 * inch, 1 * inch, 1.2 * inch, 1.5 * inch, 1.2 * inch])
-        trade_table.setStyle(TableStyle([
-            ("BACKGROUND", (0, 0), (-1, 0), colors.Color(0.2, 0.15, 0.4)),
-            ("TEXTCOLOR", (0, 0), (-1, -1), colors.white),
-            ("BACKGROUND", (0, 1), (-1, -1), colors.Color(0.1, 0.1, 0.2)),
-            ("FONTSIZE", (0, 0), (-1, -1), 8),
-            ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
-            ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
-            ("TOPPADDING", (0, 0), (-1, -1), 4),
-            ("GRID", (0, 0), (-1, -1), 0.5, colors.Color(0.3, 0.3, 0.4)),
-        ]))
+        trade_table.setStyle(
+            TableStyle(
+                [
+                    ("BACKGROUND", (0, 0), (-1, 0), colors.Color(0.2, 0.15, 0.4)),
+                    ("TEXTCOLOR", (0, 0), (-1, -1), colors.white),
+                    ("BACKGROUND", (0, 1), (-1, -1), colors.Color(0.1, 0.1, 0.2)),
+                    ("FONTSIZE", (0, 0), (-1, -1), 8),
+                    ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+                    ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
+                    ("TOPPADDING", (0, 0), (-1, -1), 4),
+                    ("GRID", (0, 0), (-1, -1), 0.5, colors.Color(0.3, 0.3, 0.4)),
+                ]
+            )
+        )
         elements.append(trade_table)
         if len(trades) > 50:
             elements.append(Paragraph(f"... and {len(trades) - 50} more trades", styles["Normal"]))
@@ -252,11 +262,7 @@ async def export_paper_trades_csv(
     if not portfolio:
         raise HTTPException(status_code=404, detail="Paper portfolio not found")
 
-    result = await db.execute(
-        select(PaperTrade)
-        .where(PaperTrade.portfolio_id == portfolio_id)
-        .order_by(PaperTrade.executed_at.desc())
-    )
+    result = await db.execute(select(PaperTrade).where(PaperTrade.portfolio_id == portfolio_id).order_by(PaperTrade.executed_at.desc()))
     trades = result.scalars().all()
 
     buf = io.StringIO()
@@ -270,14 +276,16 @@ async def export_paper_trades_csv(
     writer.writerow(["Date", "Symbol", "Side", "Quantity", "Price", "Total", "Source"])
 
     for trade in trades:
-        writer.writerow([
-            trade.executed_at.isoformat() if trade.executed_at else "",
-            trade.symbol,
-            trade.side,
-            trade.quantity,
-            f"{trade.price:.2f}",
-            f"{trade.quantity * trade.price:.2f}",
-            getattr(trade, "source", "manual"),
-        ])
+        writer.writerow(
+            [
+                trade.executed_at.isoformat() if trade.executed_at else "",
+                trade.symbol,
+                trade.side,
+                trade.quantity,
+                f"{trade.price:.2f}",
+                f"{trade.quantity * trade.price:.2f}",
+                getattr(trade, "source", "manual"),
+            ]
+        )
 
     return _csv_response(buf, f"paper_trades_{portfolio.name}.csv")

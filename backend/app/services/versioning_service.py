@@ -12,7 +12,6 @@ logger = logging.getLogger(__name__)
 
 
 class VersioningService:
-
     @staticmethod
     async def create_version(
         db: AsyncSession,
@@ -26,8 +25,9 @@ class VersioningService:
         """Create a new version snapshot."""
         # Get next version number
         result = await db.execute(
-            select(func.coalesce(func.max(StrategyVersion.version_number), 0))
-            .where(StrategyVersion.strategy_id == strategy_id, StrategyVersion.strategy_type == strategy_type)
+            select(func.coalesce(func.max(StrategyVersion.version_number), 0)).where(
+                StrategyVersion.strategy_id == strategy_id, StrategyVersion.strategy_type == strategy_type
+            )
         )
         next_num = (result.scalar() or 0) + 1
         label = f"{next_num}.0.0"
@@ -66,9 +66,7 @@ class VersioningService:
         v1_id: int,
         v2_id: int,
     ) -> dict:
-        result = await db.execute(
-            select(StrategyVersion).where(StrategyVersion.id.in_([v1_id, v2_id]))
-        )
+        result = await db.execute(select(StrategyVersion).where(StrategyVersion.id.in_([v1_id, v2_id])))
         versions = {v.id: v for v in result.scalars().all()}
         if len(versions) != 2:
             return {"error": "One or both versions not found"}
@@ -113,9 +111,7 @@ class VersioningService:
             return None
 
         if strategy_type == "marketplace":
-            strat_result = await db.execute(
-                select(MarketplaceStrategy).where(MarketplaceStrategy.id == strategy_id)
-            )
+            strat_result = await db.execute(select(MarketplaceStrategy).where(MarketplaceStrategy.id == strategy_id))
             strategy = strat_result.scalar_one_or_none()
             if strategy:
                 strategy.parameters = version.parameters_snapshot

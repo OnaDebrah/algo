@@ -4,9 +4,9 @@ import logging
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel
-from sqlalchemy import select, func as sa_func
+from sqlalchemy import func as sa_func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ...api.deps import get_current_active_user
@@ -104,11 +104,7 @@ async def get_upcoming(
     now = datetime.now(timezone.utc)
     end = now + timedelta(days=days)
 
-    query = (
-        select(EconomicEvent)
-        .where(EconomicEvent.event_date >= now, EconomicEvent.event_date <= end)
-        .order_by(EconomicEvent.event_date)
-    )
+    query = select(EconomicEvent).where(EconomicEvent.event_date >= now, EconomicEvent.event_date <= end).order_by(EconomicEvent.event_date)
     if impact:
         query = query.where(EconomicEvent.impact == impact)
 

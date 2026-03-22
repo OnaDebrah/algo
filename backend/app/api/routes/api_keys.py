@@ -7,7 +7,7 @@ from datetime import datetime, timedelta, timezone
 from typing import List
 
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy import select, update
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ...api.deps import get_current_active_user
@@ -32,11 +32,7 @@ async def list_api_keys(
     db: AsyncSession = Depends(get_db),
 ):
     """List all API keys for the current user."""
-    result = await db.execute(
-        select(ApiKey)
-        .where(ApiKey.user_id == current_user.id)
-        .order_by(ApiKey.created_at.desc())
-    )
+    result = await db.execute(select(ApiKey).where(ApiKey.user_id == current_user.id).order_by(ApiKey.created_at.desc()))
     return result.scalars().all()
 
 
@@ -95,9 +91,7 @@ async def revoke_api_key(
     db: AsyncSession = Depends(get_db),
 ):
     """Revoke (deactivate) an API key."""
-    result = await db.execute(
-        select(ApiKey).where(ApiKey.id == key_id, ApiKey.user_id == current_user.id)
-    )
+    result = await db.execute(select(ApiKey).where(ApiKey.id == key_id, ApiKey.user_id == current_user.id))
     api_key = result.scalar_one_or_none()
     if not api_key:
         raise HTTPException(status_code=404, detail="API key not found")
@@ -114,9 +108,7 @@ async def rotate_api_key(
     db: AsyncSession = Depends(get_db),
 ):
     """Rotate an API key — revoke old key and create a new one with same settings."""
-    result = await db.execute(
-        select(ApiKey).where(ApiKey.id == key_id, ApiKey.user_id == current_user.id)
-    )
+    result = await db.execute(select(ApiKey).where(ApiKey.id == key_id, ApiKey.user_id == current_user.id))
     old_key = result.scalar_one_or_none()
     if not old_key:
         raise HTTPException(status_code=404, detail="API key not found")

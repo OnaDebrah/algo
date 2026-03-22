@@ -3,7 +3,7 @@
 import csv
 import io
 import logging
-from typing import List, Optional
+from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import StreamingResponse
@@ -47,7 +47,8 @@ async def get_events(
 ):
     """Get paginated audit events with optional filters."""
     events, total = await AuditService.get_events(
-        db, current_user.id,
+        db,
+        current_user.id,
         event_type=event_type,
         category=category,
         search=search,
@@ -72,7 +73,8 @@ async def get_journal(
 ):
     """Get trade journal entries (trade events with notes)."""
     events, total = await AuditService.get_events(
-        db, current_user.id,
+        db,
+        current_user.id,
         event_type="trade",
         category="trade_journal",
         search=search,
@@ -96,7 +98,9 @@ async def update_event_notes(
 ):
     """Update notes and tags on an audit event."""
     event = await AuditService.update_notes(
-        db, current_user.id, event_id,
+        db,
+        current_user.id,
+        event_id,
         notes=update.notes,
         tags=update.tags,
     )
@@ -112,23 +116,23 @@ async def export_events_csv(
     db: AsyncSession = Depends(get_db),
 ):
     """Export audit events as CSV."""
-    events, _ = await AuditService.get_events(
-        db, current_user.id, event_type=event_type, page=1, page_size=10000
-    )
+    events, _ = await AuditService.get_events(db, current_user.id, event_type=event_type, page=1, page_size=10000)
 
     buf = io.StringIO()
     writer = csv.writer(buf)
     writer.writerow(["Date", "Type", "Category", "Title", "Description", "Tags", "Notes"])
     for e in events:
-        writer.writerow([
-            e.created_at.isoformat() if e.created_at else "",
-            e.event_type,
-            e.category,
-            e.title,
-            e.description or "",
-            ", ".join(e.tags or []),
-            e.notes or "",
-        ])
+        writer.writerow(
+            [
+                e.created_at.isoformat() if e.created_at else "",
+                e.event_type,
+                e.category,
+                e.title,
+                e.description or "",
+                ", ".join(e.tags or []),
+                e.notes or "",
+            ]
+        )
     buf.seek(0)
     return StreamingResponse(
         iter([buf.getvalue()]),

@@ -5,6 +5,7 @@
 import { useEffect, useState } from 'react';
 import { Calendar, ChevronDown, Clock, Loader2, Pause, Play, Plus, Trash2, X } from 'lucide-react';
 import { client } from '@/utils/api';
+import { strategies } from '@/components/strategies/Strategies';
 
 interface ScheduledItem {
     id: number;
@@ -155,13 +156,25 @@ const ScheduledBacktests = () => {
                             placeholder="Schedule name"
                             className="px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-sm text-slate-200 placeholder-slate-500 focus:border-indigo-500 outline-none"
                         />
-                        <input
-                            type="text"
+                        <select
                             value={strategyKey}
                             onChange={(e) => setStrategyKey(e.target.value)}
-                            placeholder="Strategy key (e.g. rsi)"
-                            className="px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-sm text-slate-200 placeholder-slate-500 focus:border-indigo-500 outline-none"
-                        />
+                            className="px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-sm text-slate-300 focus:border-indigo-500 outline-none"
+                        >
+                            <option value="" disabled>Select strategy...</option>
+                            {Object.entries(
+                                strategies.reduce<Record<string, typeof strategies>>((acc, s) => {
+                                    (acc[s.category] = acc[s.category] || []).push(s);
+                                    return acc;
+                                }, {})
+                            ).map(([category, items]) => (
+                                <optgroup key={category} label={category}>
+                                    {items.map(s => (
+                                        <option key={s.id} value={s.id}>{s.name}</option>
+                                    ))}
+                                </optgroup>
+                            ))}
+                        </select>
                         <input
                             type="text"
                             value={symbols}

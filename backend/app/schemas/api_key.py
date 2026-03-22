@@ -27,4 +27,5 @@ class ApiKeyResponse(BaseModel):
 
 class ApiKeyCreatedResponse(ApiKeyResponse):
     """Only returned once at creation — includes the full plaintext key."""
+
     full_key: str

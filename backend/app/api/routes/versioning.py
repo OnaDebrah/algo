@@ -56,7 +56,8 @@ async def create_version(
 ):
     """Save current state as a new version."""
     version = await VersioningService.create_version(
-        db, strategy_id,
+        db,
+        strategy_id,
         strategy_type=request.strategy_type,
         parameters=request.parameters,
         performance=request.performance,
