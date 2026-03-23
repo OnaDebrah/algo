@@ -112,10 +112,29 @@ class WatchlistService:
 
         async def _fetch_quote(symbol: str) -> dict:
             try:
-                return await provider.get_quote(symbol)
+                raw = await provider.get_quote(symbol)
+                # Normalize camelCase provider response to snake_case for frontend
+                return {
+                    "symbol": raw.get("symbol", symbol),
+                    "price": raw.get("price", 0) or 0,
+                    "change": raw.get("change", 0) or 0,
+                    "change_percent": raw.get("changePercent", 0) or 0,
+                    "volume": raw.get("volume", 0) or 0,
+                    "day_high": raw.get("high", raw.get("dayHigh", 0)) or 0,
+                    "day_low": raw.get("low", raw.get("dayLow", 0)) or 0,
+                    "name": raw.get("name", raw.get("shortName", "")),
+                }
             except Exception as e:
                 logger.warning(f"Failed to fetch quote for {symbol}: {e}")
-                return {"symbol": symbol, "error": str(e)}
+                return {
+                    "symbol": symbol,
+                    "price": 0,
+                    "change": 0,
+                    "change_percent": 0,
+                    "volume": 0,
+                    "day_high": 0,
+                    "day_low": 0,
+                }
 
         quotes = await asyncio.gather(*[_fetch_quote(s) for s in symbols])
         return list(quotes)

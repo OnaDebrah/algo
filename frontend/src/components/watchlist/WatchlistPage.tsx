@@ -20,7 +20,7 @@ import {
     TrendingUp,
     X,
 } from "lucide-react";
-import {watchlists as watchlistsApi} from "@/utils/api";
+import {watchlists as watchlistsApi, market as marketApi} from "@/utils/api";
 import {Watchlist, WatchlistQuote, ScreenerResult} from "@/types/all_types";
 
 type Tab = 'watchlist' | 'screener';
@@ -35,6 +35,8 @@ const WatchlistPage = () => {
     const [showCreateForm, setShowCreateForm] = useState(false);
     const [newListName, setNewListName] = useState('');
     const [addSymbol, setAddSymbol] = useState('');
+    const [searchResults, setSearchResults] = useState<{symbol: string; name?: string}[]>([]);
+    const [searchOpen, setSearchOpen] = useState(false);
     const [error, setError] = useState('');
 
     // Screener state
@@ -114,11 +116,14 @@ const WatchlistPage = () => {
         }
     };
 
-    const handleAddSymbol = async () => {
-        if (!addSymbol.trim() || !activeListId) return;
+    const handleAddSymbol = async (symbolOverride?: string) => {
+        const sym = (symbolOverride || addSymbol).trim().toUpperCase();
+        if (!sym || !activeListId) return;
         setError('');
+        setSearchOpen(false);
+        setSearchResults([]);
         try {
-            await watchlistsApi.addSymbol(activeListId, addSymbol.trim().toUpperCase());
+            await watchlistsApi.addSymbol(activeListId, sym);
             setAddSymbol('');
             await fetchLists();
             await fetchQuotes();
@@ -126,6 +131,25 @@ const WatchlistPage = () => {
             setError(err?.response?.data?.detail || 'Failed to add symbol');
         }
     };
+
+    // Debounced symbol search
+    useEffect(() => {
+        if (addSymbol.trim().length < 1) {
+            setSearchResults([]);
+            setSearchOpen(false);
+            return;
+        }
+        const timer = setTimeout(async () => {
+            try {
+                const results = await marketApi.search(addSymbol.trim(), 8);
+                setSearchResults(results as any[]);
+                setSearchOpen(results.length > 0);
+            } catch {
+                setSearchResults([]);
+            }
+        }, 300);
+        return () => clearTimeout(timer);
+    }, [addSymbol]);
 
     const handleRemoveSymbol = async (symbol: string) => {
         if (!activeListId) return;
@@ -281,16 +305,49 @@ const WatchlistPage = () => {
                                 <div className="flex items-center justify-between">
                                     <h2 className="text-lg font-bold text-slate-200">{activeList.name}</h2>
                                     <div className="flex items-center gap-3">
-                                        <div className="flex gap-2">
-                                            <input
-                                                type="text"
-                                                value={addSymbol}
-                                                onChange={(e) => setAddSymbol(e.target.value)}
-                                                onKeyDown={(e) => e.key === 'Enter' && handleAddSymbol()}
-                                                placeholder="Add symbol (e.g. AAPL)"
-                                                className="bg-slate-800/50 border border-slate-700/50 rounded-lg px-3 py-2 text-sm text-slate-200 placeholder:text-slate-600 focus:border-violet-500 outline-none w-48"
-                                            />
-                                            <button onClick={handleAddSymbol} className="px-3 py-2 bg-violet-600 text-white text-sm rounded-lg hover:bg-violet-500 flex items-center gap-1">
+                                        <div className="flex gap-2 relative">
+                                            <div className="relative">
+                                                <div className="flex items-center bg-slate-800/50 border border-slate-700/50 rounded-lg focus-within:border-violet-500 w-56">
+                                                    <Search size={14} className="ml-3 text-slate-500 shrink-0"/>
+                                                    <input
+                                                        type="text"
+                                                        value={addSymbol}
+                                                        onChange={(e) => setAddSymbol(e.target.value)}
+                                                        onKeyDown={(e) => {
+                                                            if (e.key === 'Enter') handleAddSymbol();
+                                                            if (e.key === 'Escape') { setSearchOpen(false); setSearchResults([]); }
+                                                        }}
+                                                        onFocus={() => searchResults.length > 0 && setSearchOpen(true)}
+                                                        onBlur={() => setTimeout(() => setSearchOpen(false), 200)}
+                                                        placeholder="Search & add symbol..."
+                                                        className="flex-1 bg-transparent px-2 py-2 text-sm text-slate-200 placeholder:text-slate-600 outline-none"
+                                                    />
+                                                </div>
+                                                {/* Search dropdown */}
+                                                {searchOpen && searchResults.length > 0 && (
+                                                    <div className="absolute top-full left-0 right-0 mt-1 bg-slate-800 border border-slate-700 rounded-lg shadow-xl z-50 max-h-64 overflow-y-auto">
+                                                        {searchResults.map((r) => (
+                                                            <button
+                                                                key={r.symbol}
+                                                                onMouseDown={(e) => {
+                                                                    e.preventDefault();
+                                                                    handleAddSymbol(r.symbol);
+                                                                }}
+                                                                className="w-full flex items-center justify-between px-3 py-2 text-left hover:bg-slate-700/50 transition-colors"
+                                                            >
+                                                                <div>
+                                                                    <span className="text-sm font-bold text-slate-200">{r.symbol}</span>
+                                                                    {r.name && (
+                                                                        <span className="text-xs text-slate-500 ml-2 truncate">{r.name}</span>
+                                                                    )}
+                                                                </div>
+                                                                <Plus size={14} className="text-violet-400 shrink-0"/>
+                                                            </button>
+                                                        ))}
+                                                    </div>
+                                                )}
+                                            </div>
+                                            <button onClick={() => handleAddSymbol()} className="px-3 py-2 bg-violet-600 text-white text-sm rounded-lg hover:bg-violet-500 flex items-center gap-1">
                                                 <Plus size={14}/> Add
                                             </button>
                                         </div>
