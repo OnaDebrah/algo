@@ -6,7 +6,6 @@ import pandas as pd
 import requests
 
 from ....config import settings
-
 from ..providers.base_provider import DataProvider
 
 logger = logging.getLogger(__name__)
