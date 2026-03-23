@@ -11,14 +11,15 @@ import pandas as pd
 
 logger = logging.getLogger(__name__)
 
-CACHE_DIR = os.path.join(os.getcwd(), "data", "cache")
+CACHE_DIR = os.getenv("CACHE_DIR", os.path.join(os.getcwd(), "data", "cache"))
+CACHE_TTL_HOURS = int(os.getenv("CACHE_TTL_HOURS", "24"))
 os.makedirs(CACHE_DIR, exist_ok=True)
 
 
 class DataCache:
     """Handles local storage and retrieval of market data using Parquet format"""
 
-    def __init__(self, cache_dir: str = CACHE_DIR, ttl_hours: int = 24):
+    def __init__(self, cache_dir: str = CACHE_DIR, ttl_hours: int = CACHE_TTL_HOURS):
         self.cache_dir = cache_dir
         self.ttl_hours = ttl_hours
         os.makedirs(self.cache_dir, exist_ok=True)

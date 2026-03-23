@@ -65,6 +65,7 @@ services:
       POSTGRES_HOST: postgres
     volumes:
       - ./backend:/app
+      - cache_data:/app/data/cache
     ports:
       - "8000:8000"
     depends_on:
@@ -86,6 +87,7 @@ services:
       POSTGRES_HOST: postgres
     volumes:
       - ./backend:/app
+      - cache_data:/app/data/cache
     depends_on:
       migrate:
         condition: service_completed_successfully
@@ -136,3 +138,4 @@ services:
 volumes:
   postgres_data:
   redis_data:
+  cache_data:

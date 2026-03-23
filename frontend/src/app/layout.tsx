@@ -6,6 +6,7 @@ import { live } from '@/utils/api';
 import { Geist, Geist_Mono } from "next/font/google";
 import { Toaster } from "sonner";
 import "./globals.css";
+import { ThemeProvider, useTheme } from "@/contexts/ThemeContext";
 
 const geistSans = Geist({
     variable: "--font-geist-sans",
@@ -17,6 +18,12 @@ const geistMono = Geist_Mono({
     subsets: ["latin"],
 });
 
+// Small wrapper so Toaster reads the current theme from context
+function ThemedToaster() {
+    const { theme } = useTheme();
+    return <Toaster theme={theme} position="bottom-right" />;
+}
+
 export default function RootLayout({
     children,
 }: Readonly<{
@@ -24,8 +31,6 @@ export default function RootLayout({
 }>) {
     useEffect(() => {
         const autoConnect = async () => {
-            // Auto-connect relies on the httpOnly cookie being present.
-            // If the user isn't authenticated the API call will 401 and we skip.
             try {
                 const result = await live.autoConnect();
                 if (result.status === 'connected') {
@@ -40,11 +45,34 @@ export default function RootLayout({
     }, []);
     return (
         <html lang="en" suppressHydrationWarning>
+            <head>
+                <link rel="manifest" href="/manifest.json" />
+                <meta name="theme-color" content="#7c3aed" />
+                <meta name="apple-mobile-web-app-capable" content="yes" />
+                <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+                <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+                <link rel="apple-touch-icon" href="/icons/icon-192.png" />
+                {/* Prevent flash of wrong theme — runs before React hydration */}
+                <script dangerouslySetInnerHTML={{ __html: `
+                    (function() {
+                        try {
+                            var theme = localStorage.getItem('oraculum_theme');
+                            if (theme !== 'light') {
+                                document.documentElement.classList.add('dark');
+                            }
+                        } catch(e) {
+                            document.documentElement.classList.add('dark');
+                        }
+                    })();
+                `}} />
+            </head>
             <body
                 className={`${geistSans.variable} ${geistMono.variable} antialiased`}
             >
-                {children}
-                <Toaster theme="dark" position="bottom-right" />
+                <ThemeProvider>
+                    {children}
+                    <ThemedToaster />
+                </ThemeProvider>
             </body>
         </html>
     );

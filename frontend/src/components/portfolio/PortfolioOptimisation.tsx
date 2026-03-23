@@ -9,6 +9,7 @@ import {
     DollarSign,
     Download,
     FileText,
+    Grid3X3,
     Info,
     PieChart,
     Play,
@@ -34,6 +35,7 @@ import {market, optimization, portfolioHelpers} from "@/utils/api";
 import {QuoteData} from "@/types/all_types";
 import {FrontierPortfolio, OptimizationResponse} from "@/types/optimise";
 import {formatCurrency, formatPercent} from "@/utils/formatters";
+import CorrelationHeatmap from "./CorrelationHeatmap";
 
 const OPTIMIZATION_METHODS = [
     {id: 'sharpe', label: 'Maximum Sharpe Ratio', desc: 'Risk-adjusted return focus', params: ['lookback', 'riskFree']},
@@ -65,6 +67,7 @@ interface FrontierPoint {
 const COLORS = ['#10b981', '#3b82f6', '#8b5cf6', '#f59e0b', '#ef4444', '#06b6d4', '#ec4899', '#84cc16'];
 
 const PortfolioOptimization = () => {
+    const [activeTab, setActiveTab] = useState<'optimizer' | 'correlation'>('optimizer');
     const [isOptimizing, setIsOptimizing] = useState(false);
     const [method, setMethod] = useState('sharpe');
     const [symbolsInput, setSymbolsInput] = useState('AAPL, MSFT, GOOGL, AMZN, TSLA');
@@ -303,6 +306,32 @@ const PortfolioOptimization = () => {
 
     return (
         <div className="space-y-8 animate-in fade-in duration-700">
+            {/* Tab Bar */}
+            <div className="flex gap-1 bg-slate-900/50 p-1 rounded-xl border border-slate-800/50 w-fit">
+                {([
+                    { id: 'optimizer' as const, label: 'Portfolio Optimizer', icon: Calculator },
+                    { id: 'correlation' as const, label: 'Correlation Matrix', icon: Grid3X3 },
+                ]).map(tab => (
+                    <button
+                        key={tab.id}
+                        onClick={() => setActiveTab(tab.id)}
+                        className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-xs font-bold transition-all ${
+                            activeTab === tab.id
+                                ? 'bg-emerald-500/15 text-emerald-400 shadow-sm'
+                                : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'
+                        }`}
+                    >
+                        <tab.icon size={14} />
+                        {tab.label}
+                    </button>
+                ))}
+            </div>
+
+            {/* Correlation Matrix Tab */}
+            {activeTab === 'correlation' && <CorrelationHeatmap />}
+
+            {/* Optimizer Tab */}
+            {activeTab === 'optimizer' && <>
             {/* Error Banner */}
             {error && (
                 <div className="bg-red-500/10 border border-red-500/50 rounded-2xl p-4 flex items-center gap-3">
@@ -766,6 +795,7 @@ const PortfolioOptimization = () => {
                     )}
                 </div>
             </div>
+            </>}
         </div>
     );
 };

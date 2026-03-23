@@ -236,6 +236,7 @@ const BackTestTab: React.FC<BackTestTabProps> = ({
                                                  }: BackTestTabProps) => {
 
     const [showPublishModal, setShowPublishModal] = useState(false);
+    const [now] = useState(() => Date.now());
 
     const canPublish = backtestResults && backtestId &&
         (backtestResults.sharpe_ratio ?? 0) >= 1.0 &&
@@ -287,11 +288,14 @@ const BackTestTab: React.FC<BackTestTabProps> = ({
         for (const p of ENTRY_SIGNAL_PARAMS) newUiEntry[p.key] = p.default;
         for (const p of EXIT_PARAMS) newUiExit[p.key] = p.default;
 
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setUiEntry(newUiEntry);
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setUiExit(newUiExit);
 
         // Convert to backend format and store
         const {entry_rules, exit_rules} = convertToBackendRules(newUiEntry, newUiExit);
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setBacktestConfig(prev => ({...prev, entry_rules, exit_rules}));
     }, [backtestConfig.strategy_type]);
 
@@ -381,7 +385,7 @@ const BackTestTab: React.FC<BackTestTabProps> = ({
                                 <option value="">Auto (DTE-based)</option>
                                 {expirationDates.map(exp => {
                                     const d = new Date(exp);
-                                    const dte = Math.round((d.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+                                    const dte = Math.round((d.getTime() - now) / (1000 * 60 * 60 * 24));
                                     return (
                                         <option key={exp} value={exp}>
                                             {d.toLocaleDateString('en-US', {month: 'short', day: 'numeric', year: 'numeric'})} ({dte}d)

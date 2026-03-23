@@ -18,6 +18,17 @@ import {MLModel} from "@/types/all_types";
 import {JSX} from "react";
 
 
+const ListIcon = (props: any) => (
+    <svg {...props} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+        <line x1="8" y1="6" x2="21" y2="6"/>
+        <line x1="8" y1="12" x2="21" y2="12"/>
+        <line x1="8" y1="18" x2="21" y2="18"/>
+        <line x1="3" y1="6" x2="3.01" y2="6"/>
+        <line x1="3" y1="12" x2="3.01" y2="12"/>
+        <line x1="3" y1="18" x2="3.01" y2="18"/>
+    </svg>
+);
+
 interface ModelRegistryProps {
     setFilterStatus: (status: 'all' | 'trained' | 'deployed') => void;
     models: MLModel[];
@@ -81,17 +92,6 @@ const ModelRegistry: React.FC<ModelRegistryProps> = ({
                                                          handleToggleActive,
                                                          handleExportModel,
                                                      }: ModelRegistryProps) => {
-
-    const ListIcon = (props: any) => (
-        <svg {...props} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <line x1="8" y1="6" x2="21" y2="6"/>
-            <line x1="8" y1="12" x2="21" y2="12"/>
-            <line x1="8" y1="18" x2="21" y2="18"/>
-            <line x1="3" y1="6" x2="3.01" y2="6"/>
-            <line x1="3" y1="12" x2="3.01" y2="12"/>
-            <line x1="3" y1="18" x2="3.01" y2="18"/>
-        </svg>
-    );
 
     return (
         <div className="space-y-6">

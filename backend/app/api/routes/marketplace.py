@@ -10,7 +10,7 @@ from ...database import get_db
 from ...models import User
 from ...models.backtest import BacktestRun
 from ...models.custom_strategy import CustomStrategy
-from ...models.marketplace import StrategyPurchase
+from ...models.marketplace import MarketplaceStrategy, StrategyPurchase
 from ...schemas.marketplace import (
     BacktestResultsSchema,
     ReviewCreateRequest,
@@ -109,6 +109,8 @@ async def convert_core_to_schema(
         status=getattr(core_listing, "status", "approved"),
         verification_badge=core_listing.verification_badge,
         publish_date=core_listing.created_at.strftime("%Y-%m-%d") if core_listing.created_at else "",
+        parent_strategy_id=getattr(core_listing, "parent_strategy_id", None),
+        fork_count=getattr(core_listing, "fork_count", 0) or 0,
     )
 
 
@@ -148,6 +150,105 @@ def _generate_cons(listing) -> List[str]:
     if len(cons) < 2:
         cons.extend(["Requires monitoring", "Market-dependent performance"])
     return cons[:3]
+
+
+@router.get("/leaderboard")
+async def get_leaderboard(
+    metric: str = Query("sharpe_ratio", enum=["sharpe_ratio", "total_return", "win_rate", "downloads", "rating"]),
+    category: Optional[str] = Query(None),
+    limit: int = Query(25, ge=1, le=100),
+    current_user: User = Depends(get_current_active_user),
+    marketplace: MarketplaceService = Depends(get_marketplace),
+    db: AsyncSession = Depends(get_db),
+):
+    """Get strategy leaderboard ranked by a chosen metric."""
+    sort_map = {
+        "sharpe_ratio": "sharpe_ratio",
+        "total_return": "total_return",
+        "win_rate": "win_rate",
+        "downloads": "downloads",
+        "rating": "rating",
+    }
+    core_listings = await marketplace.browse_strategies(
+        db,
+        category=None if category == "All" else category,
+        sort_by=sort_map.get(metric, "sharpe_ratio"),
+        limit=limit,
+    )
+    results = []
+    for rank, listing in enumerate(core_listings, 1):
+        schema = await convert_core_to_schema(listing, db, marketplace, current_user.id)
+        results.append(
+            {
+                "rank": rank,
+                "strategy": schema.model_dump(),
+            }
+        )
+    return results
+
+
+@router.post("/strategies/{strategy_id}/clone", status_code=status.HTTP_201_CREATED)
+async def clone_strategy(
+    strategy_id: int,
+    current_user: User = Depends(get_current_active_user),
+    marketplace: MarketplaceService = Depends(get_marketplace),
+    db: AsyncSession = Depends(get_db),
+):
+    """Clone/fork a marketplace strategy into the current user's own copy."""
+    # Fetch the source strategy
+    result = await db.execute(select(MarketplaceStrategy).where(MarketplaceStrategy.id == strategy_id))
+    source = result.scalar_one_or_none()
+    if not source:
+        raise HTTPException(status_code=404, detail="Strategy not found")
+
+    # Create the clone
+    clone = MarketplaceStrategy(
+        name=f"{source.name} (Fork)",
+        description=source.description,
+        creator_id=current_user.id,
+        creator_name=current_user.username or "Unknown",
+        strategy_type=source.strategy_type,
+        category=source.category,
+        complexity=source.complexity,
+        parameters=source.parameters,
+        is_proprietary=False,
+        status="approved",
+        price=0.0,
+        is_public=True,
+        is_verified=False,
+        version="1.0.0",
+        tags=source.tags or [],
+        pros=source.pros or [],
+        cons=source.cons or [],
+        risk_level=source.risk_level,
+        recommended_capital=source.recommended_capital,
+        parent_strategy_id=source.id,
+        # Reset metrics
+        sharpe_ratio=source.sharpe_ratio,
+        total_return=source.total_return,
+        max_drawdown=source.max_drawdown,
+        win_rate=source.win_rate,
+        num_trades=source.num_trades,
+        downloads=0,
+        rating=0.0,
+        num_ratings=0,
+        num_reviews=0,
+        fork_count=0,
+    )
+    db.add(clone)
+
+    # Increment fork count on the source
+    source.fork_count = (source.fork_count or 0) + 1
+
+    await db.commit()
+    await db.refresh(clone)
+
+    return {
+        "id": clone.id,
+        "name": clone.name,
+        "parent_strategy_id": source.id,
+        "message": f"Successfully forked '{source.name}'",
+    }
 
 
 @router.get("/", response_model=List[StrategyListingSchema])

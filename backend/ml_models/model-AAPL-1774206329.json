@@ -1,0 +1,75 @@
+{
+  "id": "model-AAPL-1774206329",
+  "name": "AAPL_random_forest_v1",
+  "type": "random_forest",
+  "symbol": "AAPL",
+  "accuracy": 0.988,
+  "test_accuracy": 0.415,
+  "overfit_score": 0.573,
+  "features": 16,
+  "training_time": 0,
+  "created": "2026-03-22T19:05:29.724976",
+  "status": "trained",
+  "feature_importance": [
+    {
+      "feature": "volatility",
+      "importance": 0.09583426227650779
+    },
+    {
+      "feature": "macd",
+      "importance": 0.08826715679508591
+    },
+    {
+      "feature": "rsi",
+      "importance": 0.08161177092612933
+    },
+    {
+      "feature": "returns",
+      "importance": 0.07477322811894546
+    },
+    {
+      "feature": "bb_upper",
+      "importance": 0.07290524894469208
+    },
+    {
+      "feature": "macd_signal",
+      "importance": 0.061593013108259105
+    },
+    {
+      "feature": "sma_5",
+      "importance": 0.06053759338177877
+    },
+    {
+      "feature": "bb_middle",
+      "importance": 0.05742938535386457
+    },
+    {
+      "feature": "sma_20",
+      "importance": 0.05579263777571848
+    },
+    {
+      "feature": "bb_lower",
+      "importance": 0.05510248711135269
+    }
+  ],
+  "hyperparams": {
+    "n_estimators": 100,
+    "max_depth": 10,
+    "learning_rate": 0.001,
+    "lookback": 0,
+    "epochs": 0,
+    "episodes": 0,
+    "gamma": 0
+  },
+  "training_history": [
+    {
+      "epoch": 1,
+      "loss": 0.012422,
+      "accuracy": 0.987578,
+      "val_loss": 0.585366,
+      "val_accuracy": 0.414634
+    }
+  ],
+  "user_id": 1,
+  "model_path": "ml_models/model-AAPL-1774206329.pkl"
+}

@@ -148,7 +148,7 @@ export const strategies: Strategy[] = [
         complexity: 'Advanced',
         time_horizon: 'Short to Medium-term',
         best_for: ["Market-neutral strategies", "Statistical arbitrage", "Hedge funds"],
-        parameters: { lookback: 60, entry_threshold: 2.0, exit_threshold: 0.5 },
+        parameters: { lookback: 60, entry_z: 2.0, exit_z: 0.5 },
         backtest_mode: 'multi',
     },
 

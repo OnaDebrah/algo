@@ -24,7 +24,6 @@ class VerificationService:
         """
         Calculates drift and assigns a verification badge to a live strategy.
         """
-        # 1. Fetch live strategy
         stmt = select(LiveStrategy).where(LiveStrategy.id == strategy_id)
         result = await self.db.execute(stmt)
         strategy = result.scalars().first()
@@ -35,16 +34,12 @@ class VerificationService:
         if not strategy.backtest_id:
             return {"status": "error", "message": "No associated backtest for this strategy"}
 
-        # 2. Fetch associated backtest
         stmt = select(BacktestRun).where(BacktestRun.id == strategy.backtest_id)
         result = await self.db.execute(stmt)
         backtest = result.scalars().first()
 
         if not backtest:
             return {"status": "error", "message": "Backtest data not found"}
-
-        # 3. Calculate Performance Drift
-        # Metrics to compare: Sharpe Ratio, Max Drawdown, Annualized Return
 
         live_sharpe = strategy.sharpe_ratio or 0.0
         bt_sharpe = backtest.sharpe_ratio or 0.0
@@ -55,11 +50,9 @@ class VerificationService:
         live_return = strategy.total_return_pct or 0.0
         bt_return = backtest.total_return_pct or 0.0
 
-        # Drift Calculation (as a percentage of backtest)
         sharpe_drift = (live_sharpe - bt_sharpe) / (bt_sharpe if bt_sharpe != 0 else 1.0)
         drawdown_drift = (live_drawdown - bt_drawdown) / (bt_drawdown if bt_drawdown != 0 else 1.0)
 
-        # 4. Assign Badge
         badge = "UNVERIFIED"
         score = 0.0
 

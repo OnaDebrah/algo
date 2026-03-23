@@ -66,17 +66,27 @@ class MeanReversion:
                     "Hedge funds",
                 ],
                 parameters={
+                    "asset_1": {
+                        "default": "AAPL",
+                        "range": None,
+                        "description": "First asset in the pair",
+                    },
+                    "asset_2": {
+                        "default": "MSFT",
+                        "range": None,
+                        "description": "Second asset in the pair",
+                    },
                     "lookback": {
                         "default": 60,
                         "range": (30, 252),
                         "description": "Cointegration lookback period",
                     },
-                    "entry_threshold": {
+                    "entry_z": {
                         "default": 2.0,
                         "range": (1.0, 3.0),
                         "description": "Z-score entry threshold",
                     },
-                    "exit_threshold": {
+                    "exit_z": {
                         "default": 0.5,
                         "range": (0.0, 1.0),
                         "description": "Z-score exit threshold",

@@ -1,5 +1,6 @@
 """Main FastAPI application"""
 
+import asyncio
 import logging
 from contextlib import asynccontextmanager
 
@@ -21,25 +22,35 @@ from .api.routes import (
     alerts,
     analyst,
     analytics,
+    api_keys,
+    audit,
     auth,
     backtest,
+    calendar,
     crash_prediction,
     deploy_optimize,
+    export,
     health,
     market,
     marketplace,
     mlstudio,
+    notifications,
     optimise,
     options,
+    paper,
     payments,
     portfolio,
     pricing,
     regime,
     root,
+    scheduled_backtests,
     sector,
     settings as settings_router,
     social,
     strategy,
+    teams,
+    versioning,
+    watchlist,
     websocket,
 )
 from .api.routes.live import live
@@ -67,6 +78,7 @@ logger = logging.getLogger(__name__)
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Startup and shutdown events"""
+    price_alert_task = None
     try:
         if settings.ENVIRONMENT != "test":
             await init_db()
@@ -80,6 +92,21 @@ async def lifespan(app: FastAPI):
 
         logger.info("Platform ready for trading!")
 
+        # Start price alert checker background task
+        async def _price_alert_loop():
+            from .database import AsyncSessionLocal
+            from .services.price_alert_service import PriceAlertService
+
+            while True:
+                try:
+                    async with AsyncSessionLocal() as db:
+                        await PriceAlertService.check_all_alerts(db)
+                except Exception as e:
+                    logger.warning(f"Price alert check error: {e}")
+                await asyncio.sleep(60)
+
+        price_alert_task = asyncio.create_task(_price_alert_loop())
+
     except Exception as e:
         logger.error(f"Error during startup: {e}")
         raise
@@ -87,6 +114,8 @@ async def lifespan(app: FastAPI):
 
     logger.info("SHUTTING DOWN ORACULUM")
     try:
+        if price_alert_task is not None:
+            price_alert_task.cancel()
         if settings.ENVIRONMENT != "test":
             await stop_execution_manager()
             logger.info("All strategies stopped cleanly")
@@ -147,6 +176,16 @@ app.include_router(health.router)
 app.include_router(sector.router)
 app.include_router(crash_prediction.router)
 app.include_router(deploy_optimize.router)
+app.include_router(notifications.router)
+app.include_router(watchlist.router)
+app.include_router(paper.router)
+app.include_router(export.router)
+app.include_router(api_keys.router)
+app.include_router(audit.router)
+app.include_router(versioning.router)
+app.include_router(scheduled_backtests.router)
+app.include_router(calendar.router)
+app.include_router(teams.router)
 app.include_router(pricing.router)
 app.include_router(root.router)
 

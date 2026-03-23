@@ -1,6 +1,7 @@
 'use client'
 
-import React, {lazy, Suspense, useCallback, useEffect, useState} from 'react';
+import React, {lazy, Suspense, useCallback, useEffect, useMemo, useState} from 'react';
+import {Activity, BarChart3, Briefcase, Menu, Settings, X, Zap} from 'lucide-react';
 import LoginPage from "@/components/auth/LoginPage";
 import ResetPasswordPage from "@/components/auth/ResetPasswordPage";
 import LandingPage from "@/components/landing/LandingPage";
@@ -13,6 +14,7 @@ import {User} from "@/types/all_types";
 import {api} from '@/utils/api';
 import {useNavigationStore} from '@/store/useNavigationStore';
 import {UserProvider} from '@/contexts/UserContext';
+import TourOverlay, {isTourCompleted} from '@/components/onboarding/TourOverlay';
 
 // ── Lazy-loaded page components (each gets its own chunk) ─────────
 const Dashboard = lazy(() => import("@/components/dashboard/Dashboard"));
@@ -28,9 +30,15 @@ const PortfolioOptimization = lazy(() => import("@/components/portfolio/Portfoli
 const SectorScanner = lazy(() => import("@/components/sector/SectorScanner"));
 const StrategyBuilder = lazy(() => import("@/components/strategies/StrategyBuilder"));
 const Marketplace = lazy(() => import("@/components/marketplace/Marketplace"));
+const WatchlistPage = lazy(() => import("@/components/watchlist/WatchlistPage"));
+const Leaderboard = lazy(() => import("@/components/marketplace/Leaderboard"));
 const AdminDashboard = lazy(() => import("@/components/admin/AdminDashboard"));
 const PricingPage = lazy(() => import("@/components/pricing/PricingPage"));
 const SettingsPage = lazy(() => import("@/components/settings/SettingsPage"));
+const PaperTradingDashboard = lazy(() => import("@/components/paper/PaperTradingDashboard"));
+const TradeJournal = lazy(() => import("@/components/journal/TradeJournal"));
+const EconomicCalendar = lazy(() => import("@/components/calendar/EconomicCalendar"));
+const TeamDashboard = lazy(() => import("@/components/teams/TeamDashboard"));
 
 export type PageKey =
   | 'dashboard'
@@ -46,9 +54,15 @@ export type PageKey =
   | 'sector-scanner'
   | 'strategy-builder'
   | 'marketplace'
+  | 'watchlist'
+  | 'leaderboard'
   | 'admin'
   | 'pricing'
-  | 'settings';
+  | 'settings'
+  | 'paper-trading'
+  | 'trade-journal'
+  | 'economic-calendar'
+  | 'teams';
 
 const PAGE_COMPONENTS: Record<PageKey, React.ReactNode> = {
   dashboard: <Dashboard />,
@@ -64,9 +78,15 @@ const PAGE_COMPONENTS: Record<PageKey, React.ReactNode> = {
   'sector-scanner': <SectorScanner />,
   'strategy-builder': <StrategyBuilder />,
   marketplace: <Marketplace />,
+  watchlist: <WatchlistPage />,
+  leaderboard: <Leaderboard />,
   admin: <AdminDashboard />,
   pricing: <PricingPage />,
   settings: <SettingsPage />,
+  'paper-trading': <PaperTradingDashboard />,
+  'trade-journal': <TradeJournal />,
+  'economic-calendar': <EconomicCalendar />,
+  teams: <TeamDashboard />,
 };
 
 type AppShellProps = object
@@ -79,6 +99,8 @@ const AppShell: React.FC<AppShellProps> = () => {
   const [serverStatus, setServerStatus] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [resetToken, setResetToken] = useState<string | null>(null);
+  const [showTour, setShowTour] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   // Session restoration — cookie is sent automatically with the request
   const restoreSession = useCallback(async () => {
@@ -157,6 +179,11 @@ const AppShell: React.FC<AppShellProps> = () => {
     if ((userData?.tier ?? 'FREE') === 'FREE') {
       setCurrentPage('dashboard');
     }
+
+    // Trigger onboarding tour for first-time users
+    if (!isTourCompleted()) {
+      setTimeout(() => setShowTour(true), 1000);
+    }
   }, []);
 
   // Handle logout — server clears the httpOnly cookie
@@ -186,13 +213,21 @@ const AppShell: React.FC<AppShellProps> = () => {
     }
   }, [pendingPage, clearPending]);
 
+  const mobileNavItems = useMemo(() => [
+    { id: 'dashboard' as PageKey, icon: Activity, label: 'Activity' },
+    { id: 'backtest' as PageKey, icon: BarChart3, label: 'Backtest' },
+    { id: 'live' as PageKey, icon: Zap, label: 'Live' },
+    { id: 'portfolio' as PageKey, icon: Briefcase, label: 'Portfolio' },
+    { id: 'settings' as PageKey, icon: Settings, label: 'Settings' },
+  ], []);
+
   // Show loading state
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-slate-950">
+      <div className="flex items-center justify-center min-h-screen bg-background">
         <div className="text-center">
           <div className="w-16 h-16 border-4 border-violet-500 border-t-transparent rounded-full animate-spin mx-auto"></div>
-          <p className="mt-4 text-slate-300">Restoring session...</p>
+          <p className="mt-4 text-muted-foreground">Restoring session...</p>
         </div>
       </div>
     );
@@ -229,38 +264,67 @@ const AppShell: React.FC<AppShellProps> = () => {
   }
 
   return (
-    <div className="flex min-h-screen bg-slate-950 text-slate-200 font-sans selection:bg-violet-500/30">
+    <div className="flex min-h-screen bg-background text-foreground font-sans selection:bg-violet-500/30">
       <CommandPalette />
-      <Sidebar
-        currentPage={currentPage}
-        setCurrentPage={handlePageChange}
-        user={user}
-        onLogout={handleLogout}
-        serverStatus={serverStatus}
-      />
 
-      <div className="flex-1 ml-64 min-h-screen flex flex-col">
-        {/* Global Ticker */}
-        <div className="w-full border-b border-slate-800/80 bg-slate-900/50">
+      {/* Mobile sidebar backdrop */}
+      {sidebarOpen && (
+        <div
+          className="fixed inset-0 bg-black/50 z-40 md:hidden"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+
+      {/* Sidebar — hidden on mobile, slide-in drawer */}
+      <div className={`
+        fixed inset-y-0 left-0 z-50 transform transition-transform duration-300 ease-in-out
+        md:translate-x-0
+        ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
+      `}>
+        <Sidebar
+          currentPage={currentPage}
+          setCurrentPage={(page: PageKey) => { handlePageChange(page); setSidebarOpen(false); }}
+          user={user}
+          onLogout={handleLogout}
+          serverStatus={serverStatus}
+        />
+      </div>
+
+      <div className="flex-1 md:ml-64 min-h-screen flex flex-col pb-16 md:pb-0">
+        {/* Mobile header bar */}
+        <div className="md:hidden flex items-center justify-between px-4 py-3 border-b border-border bg-card/80 backdrop-blur-sm sticky top-0 z-30">
+          <button onClick={() => setSidebarOpen(true)} className="p-1.5 rounded-lg hover:bg-accent text-foreground">
+            <Menu size={22} />
+          </button>
+          <span className="text-sm font-bold tracking-tight text-foreground">ORACULUM <span className="text-xs bg-gradient-to-r from-indigo-400 to-cyan-400 bg-clip-text text-transparent">AI</span></span>
+          <button onClick={() => setSidebarOpen(false)} className="p-1.5 rounded-lg opacity-0 pointer-events-none">
+            <X size={22} />
+          </button>
+        </div>
+
+        {/* Global Ticker — hidden on mobile for space */}
+        <div className="hidden md:block w-full border-b border-border bg-card/50">
           <TickerTape />
         </div>
 
-        <div className="max-w-[1600px] mx-auto w-full px-8 py-6 flex-1">
-          <Header
-            user={user}
-            currentPage={currentPage}
-            serverStatus={serverStatus}
-            onLogout={handleLogout}
-          />
+        <div className="max-w-[1600px] mx-auto w-full px-4 md:px-8 py-4 md:py-6 flex-1">
+          <div className="hidden md:block">
+            <Header
+              user={user}
+              currentPage={currentPage}
+              serverStatus={serverStatus}
+              onLogout={handleLogout}
+            />
+          </div>
 
-          <main className="mt-6 animate-fade-in">
+          <main className="mt-2 md:mt-6 animate-fade-in">
             <UserProvider user={user}>
               <Suspense
                 fallback={
                   <div className="flex items-center justify-center min-h-[60vh]">
                     <div className="text-center">
                       <div className="w-10 h-10 border-3 border-violet-500 border-t-transparent rounded-full animate-spin mx-auto" />
-                      <p className="mt-3 text-sm text-slate-400">Loading…</p>
+                      <p className="mt-3 text-sm text-slate-400">Loading...</p>
                     </div>
                   </div>
                 }
@@ -274,14 +338,42 @@ const AppShell: React.FC<AppShellProps> = () => {
 
           {/* Status indicator */}
           {!serverStatus && (
-            <div className="fixed bottom-4 right-4 bg-red-500/10 border border-red-500/30 rounded-lg px-4 py-2 flex items-center gap-2">
+            <div className="fixed bottom-20 md:bottom-4 right-4 bg-red-500/10 border border-red-500/30 rounded-lg px-4 py-2 flex items-center gap-2">
               <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></div>
-              <span className="text-sm text-red-300">
-                API Server Offline</span>
+              <span className="text-sm text-red-300">API Server Offline</span>
             </div>
           )}
         </div>
       </div>
+
+      {/* Mobile Bottom Nav */}
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-card/95 backdrop-blur-lg border-t border-border z-40 px-2 py-1 safe-area-pb">
+        <div className="flex items-center justify-around">
+          {mobileNavItems.map(item => {
+            const isActive = currentPage === item.id;
+            return (
+              <button
+                key={item.id}
+                onClick={() => handlePageChange(item.id)}
+                className={`flex flex-col items-center py-1.5 px-3 rounded-lg transition-colors ${
+                  isActive ? 'text-violet-400' : 'text-muted-foreground'
+                }`}
+              >
+                <item.icon size={20} strokeWidth={isActive ? 2.5 : 2} />
+                <span className="text-[10px] mt-0.5 font-medium">{item.label}</span>
+              </button>
+            );
+          })}
+        </div>
+      </nav>
+
+      {/* Onboarding Tour */}
+      {showTour && (
+        <TourOverlay
+          onComplete={() => setShowTour(false)}
+          onNavigate={(page) => setCurrentPage(page as PageKey)}
+        />
+      )}
     </div>
   );
 };

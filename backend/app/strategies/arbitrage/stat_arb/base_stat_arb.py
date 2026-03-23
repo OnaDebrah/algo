@@ -13,8 +13,8 @@ import pandas as pd
 from sklearn.decomposition import PCA
 from statsmodels.tsa.vector_ar.vecm import coint_johansen
 
-from ... import BaseStrategy
 from ....config import DEFAULT_ANNUAL_LOOKBACK
+from ... import BaseStrategy
 
 warnings.filterwarnings("ignore")
 

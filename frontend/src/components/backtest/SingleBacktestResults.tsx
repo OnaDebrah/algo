@@ -47,10 +47,8 @@ const SingleBacktestResults: React.FC<SingleBacktestResultsProps> = ({ results, 
     // Primary metrics source: WFA aggregated OOS metrics OR standard results
     const displayMetrics = wfaResponse ? wfaResponse.aggregated_oos_metrics : results;
 
-    if (!displayMetrics) return null;
-
-    const trades = displayMetrics.trades || [];
-    const equityCurve = wfaResponse ? wfaResponse.oos_equity_curve : (displayMetrics.equity_curve || []);
+    const trades = displayMetrics?.trades || [];
+    const equityCurve = wfaResponse ? wfaResponse.oos_equity_curve : (displayMetrics?.equity_curve || []);
 
     const monthlyReturns = useMemo(() => {
         if (!equityCurve || equityCurve.length === 0) return [];
@@ -138,7 +136,7 @@ const SingleBacktestResults: React.FC<SingleBacktestResultsProps> = ({ results, 
 
     const equityChartData = useMemo(() => {
         const strategyData = equityCurve;
-        const benchmarkData = displayMetrics.benchmark?.equity_curve || [];
+        const benchmarkData = displayMetrics?.benchmark?.equity_curve || [];
 
         return strategyData.map((point: EquityCurvePoint) => {
             const benchmarkPoint = benchmarkData.find((bp: EquityCurvePoint) => bp.timestamp === point.timestamp);
@@ -149,7 +147,9 @@ const SingleBacktestResults: React.FC<SingleBacktestResultsProps> = ({ results, 
                 benchmark_equity: benchmarkPoint?.equity || null
             };
         });
-    }, [equityCurve, displayMetrics.benchmark]);
+    }, [equityCurve, displayMetrics?.benchmark]);
+
+    if (!displayMetrics) return null;
 
     return (
         <div className="space-y-6">

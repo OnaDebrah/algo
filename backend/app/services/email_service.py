@@ -100,8 +100,7 @@ class WelcomeEmailService:
             logger.warning(f"Failed to fetch marketplace strategies for welcome email: {e}")
             return []
 
-    async def _generate_with_llm(self, username: str, investor_type: str, risk_profile: str,
-                                 strategies: list[dict]) -> str | None:
+    async def _generate_with_llm(self, username: str, investor_type: str, risk_profile: str, strategies: list[dict]) -> str | None:
         """Use Anthropic Haiku to generate personalized welcome email content."""
         if not settings.ANTHROPIC_API_KEY:
             logger.info("No Anthropic API key — using static welcome template")
@@ -114,10 +113,7 @@ class WelcomeEmailService:
 
             strategy_list = ""
             if strategies:
-                strategy_list = "\n".join(
-                    f"- {s['name']}: {s['total_return']}% return, Sharpe {s['sharpe_ratio']}"
-                    for s in strategies
-                )
+                strategy_list = "\n".join(f"- {s['name']}: {s['total_return']}% return, Sharpe {s['sharpe_ratio']}" for s in strategies)
             else:
                 strategy_list = "No strategies published yet — be the first!"
 
@@ -125,8 +121,8 @@ class WelcomeEmailService:
 
 User details:
 - Username: {username}
-- Investor Type: {investor_type or 'Not specified'}
-- Risk Profile: {risk_profile or 'Not specified'}
+- Investor Type: {investor_type or "Not specified"}
+- Risk Profile: {risk_profile or "Not specified"}
 
 Platform features to highlight (pick the most relevant based on their profile):
 - AI-powered Strategy Builder with code generation

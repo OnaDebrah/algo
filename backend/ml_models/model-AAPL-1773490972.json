@@ -9,7 +9,7 @@
   "features": 16,
   "training_time": 0,
   "created": "2026-03-14T12:22:52.695586",
-  "status": "trained",
+  "status": "deployed",
   "feature_importance": [
     {
       "feature": "macd",

@@ -5,11 +5,14 @@ Analytics routes
 from datetime import datetime, timedelta
 from typing import List
 
+import pandas as pd
 from fastapi import APIRouter, Depends, HTTPException, Query
+from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ...analytics.performance import calculate_max_drawdown, calculate_performance_metrics, calculate_returns, calculate_risk_metrics
 from ...api.deps import get_current_active_user
+from ...core.data_fetcher import fetch_stock_data
 from ...database import get_db
 from ...models.user import User
 from ...services.analysis.lppls_service import LPPLSService
@@ -20,6 +23,51 @@ from .. import deps
 router = APIRouter(prefix="/analytics", tags=["Analytics"])
 
 trading_service = TradingService
+
+
+# ── Correlation Matrix ──────────────────────────────────────────────
+
+
+class CorrelationRequest(BaseModel):
+    symbols: List[str] = Field(..., min_length=2, max_length=30)
+    period: str = Field("1Y", pattern=r"^(1M|3M|6M|1Y|2Y|5Y)$")
+
+
+@router.post("/correlation")
+async def compute_correlation_matrix(
+    req: CorrelationRequest,
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Compute pairwise Pearson correlation matrix for a list of symbols."""
+    await AuthService.track_usage(db, current_user.id, "compute_correlation", {"symbols": req.symbols})
+
+    closes: dict[str, pd.Series] = {}
+    errors: list[str] = []
+
+    for symbol in req.symbols:
+        try:
+            df = await fetch_stock_data(symbol, req.period, "1d", user=current_user, db=db)
+            if df.empty:
+                errors.append(symbol)
+                continue
+            col = "Close" if "Close" in df.columns else "close"
+            closes[symbol.upper()] = df[col]
+        except Exception:
+            errors.append(symbol)
+
+    if len(closes) < 2:
+        raise HTTPException(status_code=400, detail=f"Need at least 2 valid symbols. Failed: {errors}")
+
+    price_df = pd.DataFrame(closes).dropna()
+    if len(price_df) < 5:
+        raise HTTPException(status_code=400, detail="Not enough overlapping data points")
+
+    corr = price_df.corr()
+    symbols_out = list(corr.columns)
+    matrix = corr.values.tolist()
+
+    return {"symbols": symbols_out, "matrix": matrix, "data_points": len(price_df), "errors": errors}
 
 
 @router.get("/performance/{portfolio_id}")
