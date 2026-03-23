@@ -2,10 +2,9 @@ import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 
-from backend.app.main import app
-
 from backend.app.config import settings
 from backend.app.database import get_db
+from backend.app.main import app
 
 # Create test engine using the primary DATABASE_URL since we rely on transaction rollbacks
 test_engine = create_async_engine(settings.DATABASE_URL)
