@@ -25,6 +25,7 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     useEffect(() => {
         const stored = localStorage.getItem(STORAGE_KEY) as Theme | null;
         const initial = stored === 'light' ? 'light' : 'dark';
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setThemeState(initial);
     }, []);
 

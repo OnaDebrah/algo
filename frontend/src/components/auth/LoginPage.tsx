@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import {useState, useEffect, KeyboardEvent, ChangeEvent} from "react";
 import {AlertCircle, ArrowRight, Eye, EyeOff, RefreshCw, Shield, ShieldCheck, Zap} from "lucide-react";
 import {User} from "@/types/all_types";

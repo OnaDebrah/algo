@@ -61,6 +61,7 @@ const StrategyBuilder: React.FC<StrategyBuilderProps> = ({ models, isLoading = f
     const [connections, setConnections] = useState<Connection[]>([]);
     const [selectedBlockId, setSelectedBlockId] = useState<string | null>(null);
     const [searchTerm, setSearchTerm] = useState('');
+    const [draggingBlockId, setDraggingBlockId] = useState<string | null>(null);
 
     // Drag state (refs to avoid re-renders during drag)
     const dragRef = useRef<{ blockId: string; offsetX: number; offsetY: number } | null>(null);
@@ -103,7 +104,7 @@ const StrategyBuilder: React.FC<StrategyBuilderProps> = ({ models, isLoading = f
 
     /* ── Add block ────────────────────────────────────────────────── */
 
-    const addBlock = (item: typeof blockLibrary[0]) => {
+    const addBlock = useCallback((item: typeof blockLibrary[0]) => {
         const newBlock: VisualBlock = {
             id: `b-${Date.now()}`,
             type: item.type,
@@ -114,7 +115,7 @@ const StrategyBuilder: React.FC<StrategyBuilderProps> = ({ models, isLoading = f
         setBlocks(prev => [...prev, newBlock]);
         setSelectedBlockId(newBlock.id);
         setValidationErrors([]);
-    };
+    }, []);
 
     /* ── Delete block ─────────────────────────────────────────────── */
 
@@ -165,10 +166,11 @@ const StrategyBuilder: React.FC<StrategyBuilderProps> = ({ models, isLoading = f
             offsetX: e.clientX - canvasRect.left - (block.position?.x ?? 0),
             offsetY: e.clientY - canvasRect.top - (block.position?.y ?? 0),
         };
+        setDraggingBlockId(blockId);
         setSelectedBlockId(blockId);
     };
 
-    const handleCanvasMouseMove = useCallback((e: React.MouseEvent) => {
+    const handleCanvasMouseMove = (e: React.MouseEvent) => {
         const canvasRect = canvasRef.current?.getBoundingClientRect();
         if (!canvasRect) return;
 
@@ -189,15 +191,16 @@ const StrategyBuilder: React.FC<StrategyBuilderProps> = ({ models, isLoading = f
                 b.id === blockId ? { ...b, position: { x: newX, y: newY } } : b
             ));
         }
-    }, [connectingFrom]);
+    };
 
-    const handleCanvasMouseUp = useCallback((e: React.MouseEvent) => {
+    const handleCanvasMouseUp = (e: React.MouseEvent) => {
         dragRef.current = null;
+        setDraggingBlockId(null);
         // Only cancel connection if released on empty canvas, NOT on a port
         if (connectingFrom && !(e.target as HTMLElement).closest('[data-port]')) {
             setConnectingFrom(null);
         }
-    }, [connectingFrom]);
+    };
 
     /* ── Connection handling ──────────────────────────────────────── */
 
@@ -550,7 +553,7 @@ const StrategyBuilder: React.FC<StrategyBuilderProps> = ({ models, isLoading = f
                                         ? `bg-slate-900 ${colors.border} ring-4 ring-violet-500/10`
                                         : 'bg-slate-900/90 border-slate-800 hover:border-slate-700'
                             }`}
-                            style={{ left: block.position?.x, top: block.position?.y, zIndex: isSelected ? 20 : 10, cursor: dragRef.current?.blockId === block.id ? 'grabbing' : 'grab' }}
+                            style={{ left: block.position?.x, top: block.position?.y, zIndex: isSelected ? 20 : 10, cursor: draggingBlockId === block.id ? 'grabbing' : 'grab' }}
                         >
                             {/* Header */}
                             <div className="flex items-center justify-between mb-2">

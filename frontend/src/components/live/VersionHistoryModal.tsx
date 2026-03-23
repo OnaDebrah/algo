@@ -119,7 +119,7 @@ const VersionHistoryModal = ({ strategyId, strategyName, isOpen, onClose, onRoll
                                                 </span>
                                             </div>
                                             <p className="text-sm text-slate-300 line-clamp-2 italic mb-3">
-                                                "{v.notes || 'No notes provided'}"
+                                                &quot;{v.notes || 'No notes provided'}&quot;
                                             </p>
 
                                             {/* Parameters Preview */}

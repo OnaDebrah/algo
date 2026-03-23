@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 'use client'
 
 import {CheckCircle2, Download, GitFork, Heart, Lock, Shield, Star} from "lucide-react";

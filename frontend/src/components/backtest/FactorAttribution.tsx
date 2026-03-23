@@ -29,7 +29,7 @@ const FactorAttribution: React.FC<FactorAttributionProps> = ({
                                 <Info className="w-3 h-3 cursor-help"/>
                                 <div
                                     className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 p-2 bg-slate-800 text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10 border border-slate-700 shadow-xl">
-                                    The strategy's performance relative to the market, adjusted for risk. Positive alpha means outperformance.
+                                    The strategy&apos;s performance relative to the market, adjusted for risk. Positive alpha means outperformance.
                                 </div>
                             </div>
                         </span>
@@ -82,7 +82,7 @@ const FactorAttribution: React.FC<FactorAttributionProps> = ({
                                 <Info className="w-3 h-3 cursor-help"/>
                                 <div
                                     className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 p-2 bg-slate-800 text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10 border border-slate-700 shadow-xl">
-                                    The percentage of a strategy's movements explained by movements in its benchmark.
+                                    The percentage of a strategy&apos;s movements explained by movements in its benchmark.
                                 </div>
                             </div>
                         </span>

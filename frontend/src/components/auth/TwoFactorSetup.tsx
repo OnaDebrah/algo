@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import {useState, useEffect} from "react";
 import {AlertCircle, Check, CheckCircle, Copy, Eye, EyeOff, Loader2, Shield, X} from "lucide-react";
 import {auth} from "@/utils/api";

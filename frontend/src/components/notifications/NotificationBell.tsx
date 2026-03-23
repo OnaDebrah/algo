@@ -37,6 +37,7 @@ const NotificationBell = () => {
 
     // Poll unread count every 30s
     useEffect(() => {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         fetchUnreadCount();
         const interval = setInterval(fetchUnreadCount, 30000);
         return () => clearInterval(interval);
@@ -44,6 +45,7 @@ const NotificationBell = () => {
 
     // Fetch full list when panel opens
     useEffect(() => {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         if (isOpen) fetchNotifications();
     }, [isOpen, fetchNotifications]);
 

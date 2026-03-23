@@ -106,7 +106,7 @@ class PriceAlertService:
                                 type="price_alert",
                                 title=f"Price Alert: {symbol}",
                                 message=(
-                                    f"{symbol} is now ${current_price:.2f}, which is " f"{alert.condition} your target of ${alert.target_price:.2f}"
+                                    f"{symbol} is now ${current_price:.2f}, which is {alert.condition} your target of ${alert.target_price:.2f}"
                                 ),
                                 data={
                                     "symbol": symbol,

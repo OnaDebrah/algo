@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import {BrainCircuit, GitCompare, Layers, Play, Search, Settings, Shield, Zap} from "lucide-react";
 import React from "react";
 

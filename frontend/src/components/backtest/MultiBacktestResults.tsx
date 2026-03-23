@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 'use client'
 import React, {useMemo, useState} from 'react';
 import {
@@ -42,10 +43,8 @@ const MultiBacktestResults: React.FC<MultiBacktestResultsProps> = ({ results }: 
     const [showRiskAnalysis, setShowRiskAnalysis] = useState(false);
     const displayMetrics = results;
 
-    if (!displayMetrics) return null;
-
-    const trades = displayMetrics.trades || [];
-    const equityCurve = displayMetrics.equity_curve || [];
+    const trades = displayMetrics?.trades || [];
+    const equityCurve = displayMetrics?.equity_curve || [];
 
     // ============================================================
     // MONTHLY RETURNS CALCULATION
@@ -145,7 +144,7 @@ const MultiBacktestResults: React.FC<MultiBacktestResultsProps> = ({ results }: 
     // ============================================================
     const equityChartData = useMemo(() => {
         const strategyData = equityCurve;
-        const benchmarkData = displayMetrics.benchmark?.equity_curve || [];
+        const benchmarkData = displayMetrics?.benchmark?.equity_curve || [];
 
         return strategyData.map((point) => {
             const benchmarkPoint = benchmarkData.find((bp) => bp.timestamp === point.timestamp);
@@ -156,7 +155,9 @@ const MultiBacktestResults: React.FC<MultiBacktestResultsProps> = ({ results }: 
                 benchmark_equity: benchmarkPoint?.equity || null
             };
         });
-    }, [equityCurve, displayMetrics.benchmark]);
+    }, [equityCurve, displayMetrics?.benchmark]);
+
+    if (!displayMetrics) return null;
 
     return (
         <div className="space-y-6">

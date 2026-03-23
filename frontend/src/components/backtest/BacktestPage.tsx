@@ -103,6 +103,7 @@ const BacktestPage = () => {
             try {
                 const parsed = JSON.parse(backtestError);
                 if (parsed.quota_exceeded) {
+                    // eslint-disable-next-line react-hooks/set-state-in-effect
                     setShowUpgradePrompt({ used: parsed.used, limit: parsed.limit, tier: parsed.tier });
                 }
             } catch { /* not a JSON quota error — ignore */ }

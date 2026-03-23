@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 export interface Drawing {
     id: string;
@@ -23,7 +23,7 @@ export function useChartDrawings(symbol: string, timeframe: string) {
     });
 
     const drawingsRef = useRef(drawings);
-    drawingsRef.current = drawings;
+    useEffect(() => { drawingsRef.current = drawings; }, [drawings]);
 
     const persist = useCallback((updated: Drawing[]) => {
         setDrawings(updated);

@@ -275,7 +275,7 @@ export default function LiveStrategyDashboard() {
                             {/* Daily P&L */}
                             <div className="bg-gradient-to-br from-slate-900 to-slate-950 rounded-xl p-6 border border-slate-800">
                                 <div className="flex items-center justify-between mb-2">
-                                    <span className="text-xs font-bold text-slate-500 uppercase">Today's P&L</span>
+                                    <span className="text-xs font-bold text-slate-500 uppercase">Today&apos;s P&L</span>
                                     <TrendingUp size={16} className={currentStrategy.daily_pnl >= 0 ? 'text-emerald-500' : 'text-red-500'} />
                                 </div>
                                 <div className={`text-2xl font-black ${

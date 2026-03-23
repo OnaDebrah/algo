@@ -121,8 +121,8 @@ class WelcomeEmailService:
 
 User details:
 - Username: {username}
-- Investor Type: {investor_type or 'Not specified'}
-- Risk Profile: {risk_profile or 'Not specified'}
+- Investor Type: {investor_type or "Not specified"}
+- Risk Profile: {risk_profile or "Not specified"}
 
 Platform features to highlight (pick the most relevant based on their profile):
 - AI-powered Strategy Builder with code generation
