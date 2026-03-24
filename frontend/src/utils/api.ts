@@ -459,8 +459,11 @@ export const market = {
     getQuotes: (symbols: string[], use_cache: boolean = true) =>
         client.post<QuoteData[]>('/market/quotes', symbols, { params: { use_cache } }),
 
-    getHistorical: (symbol: string, params?: HistoricalDataParams) =>
-        client.get<HistoricalDataPoint[]>(`/market/historical/${symbol}`, { params }),
+    getHistorical: async (symbol: string, params?: HistoricalDataParams): Promise<HistoricalDataPoint[]> => {
+        const res = await client.get(`/market/historical/${symbol}`, { params });
+        // Backend returns { symbol, period, interval, data: [...] }; interceptor unwraps AxiosResponse
+        return Array.isArray(res) ? res : (res as any)?.data || [];
+    },
 
     getOptionChain: (symbol: string, expiration?: string) =>
         client.get<OptionsChain>(`/market/options/${symbol}`, { params: { expiration } }),

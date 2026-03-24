@@ -2,6 +2,7 @@
 Market data routes
 """
 
+import math
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -76,6 +77,20 @@ async def get_historical_data(
             db, symbol=symbol, period=period, interval=interval, start=start, end=end, use_cache=use_cache
         )
 
+        def _safe_float(v, default=0.0):
+            try:
+                f = float(v) if v is not None else default
+                return default if math.isnan(f) or math.isinf(f) else f
+            except (TypeError, ValueError):
+                return default
+
+        def _safe_int(v, default=0):
+            try:
+                f = float(v) if v is not None else default
+                return default if math.isnan(f) or math.isinf(f) else int(f)
+            except (TypeError, ValueError):
+                return default
+
         if "data" in data and isinstance(data["data"], list):
             formatted_data = []
             for item in data["data"]:
@@ -94,11 +109,11 @@ async def get_historical_data(
                         {
                             "date": date_str,
                             "timestamp": date_str,
-                            "open": float(item.get("Open", 0)),
-                            "high": float(item.get("High", 0)),
-                            "low": float(item.get("Low", 0)),
-                            "close": float(item.get("Close", 0)),
-                            "volume": int(item.get("Volume", 0)),
+                            "open": _safe_float(item.get("Open", 0)),
+                            "high": _safe_float(item.get("High", 0)),
+                            "low": _safe_float(item.get("Low", 0)),
+                            "close": _safe_float(item.get("Close", 0)),
+                            "volume": _safe_int(item.get("Volume", 0)),
                         }
                     )
 

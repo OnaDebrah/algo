@@ -8,7 +8,7 @@ from typing import Dict, List
 import numpy as np
 import pandas as pd
 
-from ..config import DEFAULT_ANNUAL_LOOKBACK
+from ..config import DEFAULT_ANNUAL_LOOKBACK, DEFAULT_COMMISSION_RATE
 
 logger = logging.getLogger(__name__)
 
@@ -19,7 +19,7 @@ class BenchmarkCalculator:
     def __init__(self, initial_capital: float):
         self.initial_capital = initial_capital
 
-    def calculate_buy_and_hold(self, symbol: str, data: pd.DataFrame, commission_rate: float = 0.001) -> Dict:
+    def calculate_buy_and_hold(self, symbol: str, data: pd.DataFrame, commission_rate: float = DEFAULT_COMMISSION_RATE) -> Dict:
         """
         Calculate buy-and-hold performance for a single asset
 
@@ -87,7 +87,7 @@ class BenchmarkCalculator:
         }
 
     def calculate_multi_benchmark(
-        self, symbols: List[str], data_dict: Dict[str, pd.DataFrame], allocations: Dict[str, float] = None, commission_rate: float = 0.001
+        self, symbols: List[str], data_dict: Dict[str, pd.DataFrame], allocations: Dict[str, float] = None, commission_rate: float = DEFAULT_COMMISSION_RATE
     ) -> Dict:
         """
         Calculate buy-and-hold for a portfolio of assets
@@ -179,7 +179,7 @@ class BenchmarkCalculator:
             "symbols": list(symbol_positions.keys()),
         }
 
-    async def calculate_spy_benchmark(self, period: str, interval: str, commission_rate: float = 0.001) -> Dict:
+    async def calculate_spy_benchmark(self, period: str, interval: str, commission_rate: float = DEFAULT_COMMISSION_RATE) -> Dict:
         """
         Calculate SPY buy-and-hold benchmark
 

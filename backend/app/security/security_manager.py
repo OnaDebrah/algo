@@ -124,12 +124,10 @@ class SecurityManager:
 
         api_key = self.api_keys[key_id]
 
-        # Check if revoked
         if api_key.is_revoked:
             logger.warning(f"Revoked API key used: {key_id}")
             return None
 
-        # Check if expired
         if api_key.expires_at and datetime.now(timezone.utc) > api_key.expires_at:
             logger.warning(f"Expired API key used: {key_id}")
             return None
@@ -140,7 +138,6 @@ class SecurityManager:
             logger.warning(f"Invalid secret for API key: {key_id}")
             return None
 
-        # Update last used
         api_key.last_used_at = datetime.now(timezone.utc)
 
         return api_key

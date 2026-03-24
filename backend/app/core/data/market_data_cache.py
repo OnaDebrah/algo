@@ -1,13 +1,42 @@
+import json
 import logging
 import time
+from datetime import date, datetime
 from typing import Any, Dict, Optional
 
+import pandas as pd
 from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ...models.market_data import MarketDataCacheModel
 
 logger = logging.getLogger(__name__)
+
+
+def _make_json_safe(obj: Any) -> Any:
+    """Recursively convert non-JSON-serializable types (Timestamp, DataFrame, etc.) so the value can be stored in JSONB."""
+    if isinstance(obj, (pd.Timestamp, datetime)):
+        return obj.isoformat()
+    if isinstance(obj, date):
+        return obj.isoformat()
+    if isinstance(obj, pd.DataFrame):
+        return None  # DataFrames should not be cached in DB
+    if isinstance(obj, dict):
+        return {k: _make_json_safe(v) for k, v in obj.items() if not isinstance(v, pd.DataFrame)}
+    if isinstance(obj, (list, tuple)):
+        return [_make_json_safe(item) for item in obj]
+    # numpy scalars
+    try:
+        import numpy as np
+        if isinstance(obj, (np.integer,)):
+            return int(obj)
+        if isinstance(obj, (np.floating,)):
+            return float(obj)
+        if isinstance(obj, np.ndarray):
+            return obj.tolist()
+    except ImportError:
+        pass
+    return obj
 
 
 class MarketDataCache:
@@ -62,19 +91,21 @@ class MarketDataCache:
             # UPSERT Logic (On Conflict Update)
             from sqlalchemy.dialects.postgresql import insert
 
+            safe_value = _make_json_safe(value)
+
             stmt = (
                 insert(MarketDataCacheModel)
                 .values(
                     cache_key=key,
                     data_type=data_type,
-                    data_json=value,  # SQLAlchemy handles dict to JSONB conversion
+                    data_json=safe_value,
                     created_at=current_time,
                     expires_at=expires_at,
                     last_accessed=current_time,
                 )
                 .on_conflict_do_update(
                     index_elements=["cache_key"],
-                    set_={"data_json": value, "expires_at": expires_at, "last_accessed": current_time, "access_count": 0},
+                    set_={"data_json": safe_value, "expires_at": expires_at, "last_accessed": current_time, "access_count": 0},
                 )
             )
             await db.execute(stmt)

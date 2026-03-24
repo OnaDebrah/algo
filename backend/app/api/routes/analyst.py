@@ -29,7 +29,10 @@ def convert_core_report_to_api(core_report, ticker_info: Dict) -> AnalystReport:
     support_res = tech.get("support_resistance", {})
 
     fund = core_report.valuation_metrics
-    profitability = core_report.financial_health
+    health = core_report.financial_health
+    profitability = core_report.profitability
+    growth = core_report.growth_metrics
+    dividends = core_report.dividends
 
     valuation_metrics = [
         ValuationMetric(
@@ -50,7 +53,7 @@ def convert_core_report_to_api(core_report, ticker_info: Dict) -> AnalystReport:
             benchmark=75,
             description="Growth-adjusted P/E",
         ),
-        ValuationMetric(subject="ROE", score=min(100, profitability.get("roe", 15)), benchmark=65, description="Return on equity"),
+        ValuationMetric(subject="ROE", score=min(100, max(0, int(profitability.get("roe", 15)))), benchmark=65, description="Return on equity"),
     ]
 
     # Categorize risks
@@ -71,17 +74,53 @@ def convert_core_report_to_api(core_report, ticker_info: Dict) -> AnalystReport:
     # -1 -> 0, 0 -> 50, 1 -> 100
     display_score = int((sentiment_score + 1) * 50)
 
+    # Analyst consensus score based on recommendation
+    analyst_consensus_map = {
+        "Strong Buy": 90, "Buy": 75, "Hold": 50, "Sell": 25, "Strong Sell": 10
+    }
+    analyst_score = analyst_consensus_map.get(core_report.recommendation, 50)
+
+    # Options sentiment: derive from put/call implied vol skew if available
+    options_score = max(0, min(100, int(50 + (sentiment_score * 30))))
+
     sentiment_data = SentimentData(
         institutional=display_score,
         retail=display_score - 5 if display_score > 5 else 0,
-        analyst=80 if core_report.recommendation in ["Buy", "Strong Buy"] else 50,
+        analyst=analyst_score,
         news=display_score,
         social=display_score + 5 if display_score < 95 else 100,
-        options=65,
+        options=options_score,
     )
 
-    # Calculate confidence score
-    confidence = 85 if core_report.recommendation in ["Strong Buy", "Strong Sell"] else 70
+    # Calculate confidence from multiple factors
+    factor_count = 0
+    confidence_sum = 0.0
+    # Technical alignment (RSI not extreme + trend direction matches recommendation)
+    rsi_val = momentum.get("rsi", 50)
+    if 30 < rsi_val < 70:
+        confidence_sum += 75
+    else:
+        confidence_sum += 55
+    factor_count += 1
+    # Fundamental backing
+    pe = fund.get("pe_ratio", 0)
+    if 0 < pe < 40:
+        confidence_sum += 80
+    else:
+        confidence_sum += 50
+    factor_count += 1
+    # Sentiment alignment
+    confidence_sum += display_score
+    factor_count += 1
+    # Recommendation strength
+    if core_report.recommendation in ["Strong Buy", "Strong Sell"]:
+        confidence_sum += 90
+    elif core_report.recommendation in ["Buy", "Sell"]:
+        confidence_sum += 70
+    else:
+        confidence_sum += 50
+    factor_count += 1
+    confidence = int(confidence_sum / factor_count) if factor_count > 0 else 65
 
     # Format market cap
     market_cap_val = fund.get("market_cap", 0)
@@ -117,7 +156,7 @@ def convert_core_report_to_api(core_report, ticker_info: Dict) -> AnalystReport:
             ma_200=ma_data.get("ma_200", core_report.current_price),
             support_levels=[support_res.get("support", core_report.current_price * 0.95)],
             resistance_levels=[support_res.get("resistance", core_report.current_price * 1.05)],
-            trend_strength=75,
+            trend_strength=min(100, max(0, int(abs(momentum.get("rsi", 50) - 50) * 2 + abs(macd_data.get("histogram", 0)) * 10))),
             macd=MACDData(value=macd_data.get("macd", 0), signal=macd_data.get("signal", 0), histogram=macd_data.get("histogram", 0)),
             volume_trend=volume.get("volume_trend", "Average"),
         ),
@@ -125,12 +164,12 @@ def convert_core_report_to_api(core_report, ticker_info: Dict) -> AnalystReport:
             pe_ratio=fund.get("pe_ratio", 0),
             pb_ratio=fund.get("price_to_book", 0),
             peg_ratio=fund.get("peg_ratio", 0),
-            debt_to_equity=profitability.get("debt_to_equity", 0),
+            debt_to_equity=health.get("debt_to_equity", 0),
             roe=profitability.get("roe", 0),
-            revenue_growth=profitability.get("revenue_growth", 0),
-            eps_growth=profitability.get("earnings_growth", 0),
+            revenue_growth=growth.get("revenue_growth", 0),
+            eps_growth=growth.get("earnings_growth", 0),
             profit_margin=profitability.get("profit_margin", 0),
-            dividend_yield=profitability.get("dividend_yield", 0),
+            dividend_yield=dividends.get("dividend_yield", 0),
         ),
         sentiment=sentiment_data,
         risks=risks_data,

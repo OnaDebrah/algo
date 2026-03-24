@@ -40,6 +40,9 @@ class AnalystReport:
     management_quality: str
     financial_health: Dict
     valuation_metrics: Dict
+    profitability: Dict
+    growth_metrics: Dict
+    dividends: Dict
 
     # Technical Analysis
     technical_indicators: Dict
@@ -238,39 +241,44 @@ class FinancialAnalystAgent:
 
         info = data.get("info", {})
 
+        def _safe(key: str, default: float = 0) -> float:
+            """Get numeric value from info, treating None as default."""
+            val = info.get(key)
+            return float(val) if val is not None else default
+
         try:
             return {
                 "valuation": {
-                    "market_cap": info.get("marketCap", 0),
-                    "pe_ratio": info.get("trailingPE", 0),
-                    "forward_pe": info.get("forwardPE", 0),
-                    "peg_ratio": info.get("pegRatio", 0),
-                    "price_to_book": info.get("priceToBook", 0),
-                    "price_to_sales": info.get("priceToSalesTrailing12Months", 0),
-                    "ev_to_ebitda": info.get("enterpriseToEbitda", 0),
+                    "market_cap": _safe("marketCap"),
+                    "pe_ratio": _safe("trailingPE"),
+                    "forward_pe": _safe("forwardPE"),
+                    "peg_ratio": _safe("pegRatio"),
+                    "price_to_book": _safe("priceToBook"),
+                    "price_to_sales": _safe("priceToSalesTrailing12Months"),
+                    "ev_to_ebitda": _safe("enterpriseToEbitda"),
                 },
                 "profitability": {
-                    "profit_margin": info.get("profitMargins", 0) * 100,
-                    "operating_margin": info.get("operatingMargins", 0) * 100,
-                    "roe": info.get("returnOnEquity", 0) * 100,
-                    "roa": info.get("returnOnAssets", 0) * 100,
+                    "profit_margin": _safe("profitMargins") * 100,
+                    "operating_margin": _safe("operatingMargins") * 100,
+                    "roe": _safe("returnOnEquity") * 100,
+                    "roa": _safe("returnOnAssets") * 100,
                 },
                 "financial_health": {
-                    "current_ratio": info.get("currentRatio", 0),
-                    "debt_to_equity": info.get("debtToEquity", 0),
-                    "quick_ratio": info.get("quickRatio", 0),
-                    "total_cash": info.get("totalCash", 0),
-                    "total_debt": info.get("totalDebt", 0),
+                    "current_ratio": _safe("currentRatio"),
+                    "debt_to_equity": _safe("debtToEquity"),
+                    "quick_ratio": _safe("quickRatio"),
+                    "total_cash": _safe("totalCash"),
+                    "total_debt": _safe("totalDebt"),
                 },
                 "growth": {
-                    "revenue_growth": info.get("revenueGrowth", 0) * 100,
-                    "earnings_growth": info.get("earningsGrowth", 0) * 100,
-                    "revenue": info.get("totalRevenue", 0),
-                    "earnings": info.get("earnings", 0),
+                    "revenue_growth": _safe("revenueGrowth") * 100,
+                    "earnings_growth": _safe("earningsGrowth") * 100,
+                    "revenue": _safe("totalRevenue"),
+                    "earnings": _safe("earnings"),
                 },
                 "dividends": {
-                    "dividend_yield": (info.get("dividendYield", 0) * 100 if info.get("dividendYield") else 0),
-                    "payout_ratio": (info.get("payoutRatio", 0) * 100 if info.get("payoutRatio") else 0),
+                    "dividend_yield": (_safe("dividendYield") * 100 if info.get("dividendYield") else 0),
+                    "payout_ratio": (_safe("payoutRatio") * 100 if info.get("payoutRatio") else 0),
                     "dividend_rate": info.get("dividendRate", 0),
                 },
             }
@@ -569,6 +577,9 @@ Be specific, data-driven, and professional. This report will be used by investor
             management_quality=ai_analysis.get("management_quality", "N/A"),
             financial_health=fundamentals.get("financial_health", {}),
             valuation_metrics=fundamentals.get("valuation", {}),
+            profitability=fundamentals.get("profitability", {}),
+            growth_metrics=fundamentals.get("growth", {}),
+            dividends=fundamentals.get("dividends", {}),
             technical_indicators=technical,
             chart_patterns=ai_analysis.get("technical_outlook", ""),
             support_resistance=technical.get("support_resistance", {}),

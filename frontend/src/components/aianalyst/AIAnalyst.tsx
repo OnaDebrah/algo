@@ -61,6 +61,7 @@ interface PriceDataPoint {
     date: string;
     price: number;
     volume: number;
+    benchmark?: number;
 }
 
 const AIAnalyst = () => {
@@ -107,78 +108,99 @@ const AIAnalyst = () => {
                 const period = periodMap[timeframe] || '1mo';
                 const interval = intervalMap[timeframe] || '1d';
 
-                console.log(`📊 Fetching ${ticker} data: period=${period}, interval=${interval}`);
+                // Fetch stock data first, then benchmark sequentially to avoid rate limiting
+                const rawData: HistoricalDataPoint[] = await api.market.getHistorical(
+                    ticker, {period, interval}
+                ).catch((err) => {
+                    console.warn(`[AIAnalyst] Historical data fetch failed for ${ticker}:`, err);
+                    return [] as HistoricalDataPoint[];
+                });
 
-                const historicalData: HistoricalDataPoint[] = await api.market.getHistorical(
-                    ticker,
-                    {period, interval, use_cache: false}
-                );
+                let rawBenchmark: HistoricalDataPoint[] = [];
+                if (ticker.toUpperCase() !== 'SPY' && rawData.length > 0) {
+                    rawBenchmark = await api.market.getHistorical(
+                        'SPY', {period, interval}
+                    ).catch((err) => {
+                        console.warn('[AIAnalyst] Benchmark (SPY) fetch failed:', err);
+                        return [] as HistoricalDataPoint[];
+                    });
+                }
 
-                console.log('📊 Raw historical data:', historicalData);
+                console.log(`[AIAnalyst] ${ticker} data: ${rawData.length} pts, SPY benchmark: ${rawBenchmark.length} pts`);
 
-                if (historicalData && Array.isArray(historicalData)) {
-                    const formattedData: PriceDataPoint[] = historicalData.map((item: HistoricalDataPoint) => {
-                        // Parse the date - handle both ISO string and timestamp
+                if (rawData.length > 0) {
+                    const stockStart = Number(rawData[0]?.close) || 1;
+
+                    // Build benchmark values aligned to stock data
+                    // Primary: index-based alignment (both arrays cover same period/interval)
+                    // Fallback: date-key matching for mismatched lengths
+                    let benchmarkValues: (number | undefined)[];
+
+                    if (rawBenchmark.length > 0) {
+                        const benchStart = Number(rawBenchmark[0].close) || 1;
+
+                        if (Math.abs(rawData.length - rawBenchmark.length) <= Math.max(5, rawData.length * 0.1)) {
+                            // Lengths are close — align by index (most reliable)
+                            benchmarkValues = rawData.map((_, idx) => {
+                                const benchItem = rawBenchmark[Math.min(idx, rawBenchmark.length - 1)];
+                                return benchItem ? (Number(benchItem.close) / benchStart) * stockStart : undefined;
+                            });
+                        } else {
+                            // Lengths differ significantly — fall back to date-key matching
+                            const toDateKey = (ts: string): string => {
+                                try {
+                                    return String(ts).slice(0, 10); // YYYY-MM-DD from ISO string
+                                } catch {
+                                    return '';
+                                }
+                            };
+                            const benchmarkMap = new Map<string, number>();
+                            rawBenchmark.forEach((item: HistoricalDataPoint) => {
+                                const key = toDateKey(item.timestamp || (item as any).date);
+                                benchmarkMap.set(key, (Number(item.close) / benchStart) * stockStart);
+                            });
+                            benchmarkValues = rawData.map((item: HistoricalDataPoint) => {
+                                const key = toDateKey(item.timestamp || (item as any).date);
+                                return benchmarkMap.get(key);
+                            });
+                        }
+                    } else {
+                        benchmarkValues = rawData.map(() => undefined);
+                    }
+
+                    const formattedData: PriceDataPoint[] = rawData.map((item: HistoricalDataPoint, idx: number) => {
                         let dateStr: string;
-                        const rawDate = item.timestamp;
+                        const rawDate = item.timestamp || (item as any).date;
 
                         try {
                             const dateObj = new Date(rawDate);
-
-                            // Format based on timeframe
+                            if (isNaN(dateObj.getTime())) throw new Error('Invalid date');
                             if (timeframe === '1D') {
-                                // Show time for intraday
-                                dateStr = dateObj.toLocaleTimeString('en-US', {
-                                    hour: 'numeric',
-                                    minute: '2-digit',
-                                    hour12: true
-                                });
+                                dateStr = dateObj.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
                             } else if (['1W', '1M'].includes(timeframe)) {
-                                // Show month/day for short periods
-                                dateStr = dateObj.toLocaleDateString('en-US', {
-                                    month: 'short',
-                                    day: 'numeric'
-                                });
+                                dateStr = dateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
                             } else {
-                                // Show month/year for long periods
-                                dateStr = dateObj.toLocaleDateString('en-US', {
-                                    month: 'short',
-                                    year: '2-digit'
-                                });
+                                dateStr = dateObj.toLocaleDateString('en-US', { month: 'short', year: '2-digit' });
                             }
-                        } catch (e) {
-                            console.warn('Failed to parse date:', rawDate, e);
-                            dateStr = String(rawDate);
+                        } catch {
+                            dateStr = String(rawDate).slice(0, 10);
                         }
 
                         return {
                             date: dateStr,
                             price: Number(item.close || 0),
-                            volume: Number(item.volume || 0)
+                            volume: Number(item.volume || 0),
+                            benchmark: benchmarkValues[idx],
                         };
                     });
 
-                    console.log('📊 Formatted data (first 3):', formattedData.slice(0, 3));
                     setPriceData(formattedData);
                 } else {
-                    console.warn('📊 No data array found in response');
-                    throw new Error('Invalid data format');
+                    console.warn('[AIAnalyst] No historical data returned for', ticker, 'period:', period, 'interval:', interval);
+                    setPriceData([]);
                 }
             } catch (err) {
                 console.error("❌ Failed to fetch historical data:", err);
-
-                // Fall back to mock data on error
-                if (report) {
-                    const basePrice = report.current_price;
-                    const mockData = Array.from({length: 30}, (_, i) => ({
-                        date: `Day ${i + 1}`,
-                        price: basePrice + Math.sin(i * 0.3) * 5 + Math.random() * 2,
-                        volume: Math.floor(Math.random() * 1000000) + 500000
-                    }));
-
-                    console.log('📊 Using mock data:', mockData.slice(0, 3));
-                    setPriceData(mockData);
-                }
             } finally {
                 setIsLoadingPriceData(false);
             }
@@ -250,26 +272,32 @@ const AIAnalyst = () => {
                     <h4 className="text-xs font-black text-slate-300 uppercase tracking-widest mb-4 flex items-center gap-2">
                         <Cpu size={16} className="text-purple-500"/> AI Insights
                     </h4>
-                    {report ? (
-                        <>
-                            <p className="text-sm text-slate-300 leading-relaxed">
-                                Our AI model identifies <span
-                                className="text-emerald-400 font-bold">strong momentum</span> in services revenue growth
-                                and <span className="text-blue-400 font-bold">improving profit margins</span>. The
-                                technical setup suggests
-                                <span className="text-amber-400 font-bold"> consolidation near resistance</span> with
-                                potential breakout above ${report.current_price + 5}.
-                            </p>
-                            <div className="mt-4 p-3 bg-purple-900/20 border border-purple-800/30 rounded-lg">
-                                <p className="text-xs text-purple-300">
-                                    <span
-                                        className="font-bold">AI Confidence:</span> {Math.round(report.recommendation_confidence * 100)}%
-                                    -
-                                    Based on 48 indicators across fundamental, technical, and sentiment analysis.
+                    {report ? (() => {
+                        const tech = report.technical;
+                        const rsiLabel = tech.rsi > 70 ? 'overbought conditions' : tech.rsi < 30 ? 'oversold conditions' : 'neutral RSI territory';
+                        const trendLabel = tech.trend_strength > 60 ? 'bullish momentum' : tech.trend_strength < 40 ? 'bearish pressure' : 'a consolidation pattern';
+                        const macdLabel = tech.macd.histogram > 0 ? 'positive MACD divergence' : 'negative MACD convergence';
+                        const marginLabel = report.fundamental.profit_margin > 15 ? 'strong profit margins' : report.fundamental.profit_margin > 5 ? 'moderate profit margins' : 'thin profit margins';
+                        const growthLabel = report.fundamental.revenue_growth > 10 ? 'robust revenue growth' : report.fundamental.revenue_growth > 0 ? 'modest revenue growth' : 'declining revenues';
+
+                        return (
+                            <>
+                                <p className="text-sm text-slate-300 leading-relaxed">
+                                    Our AI model identifies <span className="text-emerald-400 font-bold">{growthLabel}</span> with
+                                    <span className="text-blue-400 font-bold"> {marginLabel}</span>. Technical indicators show
+                                    <span className="text-amber-400 font-bold"> {trendLabel}</span> with {rsiLabel} and {macdLabel}.
+                                    Target price of <span className="text-cyan-400 font-bold">${toPrecision(report.target_price)}</span> implies
+                                    {' '}{(report.upside).toFixed(1)}% {report.upside >= 0 ? 'upside' : 'downside'}.
                                 </p>
-                            </div>
-                        </>
-                    ) : (
+                                <div className="mt-4 p-3 bg-purple-900/20 border border-purple-800/30 rounded-lg">
+                                    <p className="text-xs text-purple-300">
+                                        <span className="font-bold">AI Confidence:</span> {report.recommendation_confidence}% — Based on
+                                        technical, fundamental, and sentiment analysis.
+                                    </p>
+                                </div>
+                            </>
+                        );
+                    })() : (
                         <p className="text-sm text-slate-300">Loading analysis data...</p>
                     )}
                 </div>
@@ -285,7 +313,7 @@ const AIAnalyst = () => {
                                 <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 mt-1.5"/>
                                 <span><span
                                     className={`font-bold ${getRecommendationColor(report.recommendation)}`}>{report.recommendation}</span>
-                                rating with {(report.upside * 100).toFixed(1)}% upside to target</span>
+                                rating with {(report.upside).toFixed(1)}% upside to target</span>
                             </li>
                             <li className="flex items-start gap-2 text-sm">
                                 <div className="w-1.5 h-1.5 rounded-full bg-blue-500 mt-1.5"/>
@@ -380,12 +408,13 @@ const AIAnalyst = () => {
                                 />
                                 <Line
                                     type="monotone"
-                                    dataKey={(d) => d.price * 0.95}
+                                    dataKey="benchmark"
                                     stroke="#94a3b8"
                                     strokeWidth={1}
                                     strokeDasharray="3 3"
                                     name="S&P 500"
                                     dot={false}
+                                    connectNulls
                                 />
                             </ComposedChart>
                         </ResponsiveContainer>
@@ -439,10 +468,17 @@ const AIAnalyst = () => {
                                                 {displayValue}{suffix}
                                             </p>
                                             <p className="text-[10px] text-slate-500 mt-1">
-                                                {key === 'pe_ratio' ? 'Sector: 24.8x' :
-                                                    key === 'roe' ? 'Industry: 89.2%' :
-                                                        key === 'debt_to_equity' ? 'Peer avg: 2.3' :
-                                                            'vs benchmark'}
+                                                {typeof value === 'number' && value !== 0
+                                                    ? key.includes('ratio') || key === 'pe_ratio'
+                                                        ? value > 25 ? 'Above average' : value > 15 ? 'Near average' : 'Below average'
+                                                    : key === 'roe'
+                                                        ? value > 20 ? 'Strong' : value > 10 ? 'Adequate' : 'Weak'
+                                                    : key.includes('growth')
+                                                        ? value > 10 ? 'High growth' : value > 0 ? 'Moderate' : 'Declining'
+                                                    : key.includes('margin')
+                                                        ? value > 20 ? 'High margin' : value > 10 ? 'Moderate margin' : 'Low margin'
+                                                    : ''
+                                                : ''}
                                             </p>
                                         </div>
                                     </div>
@@ -459,18 +495,18 @@ const AIAnalyst = () => {
                         <div className="h-[250px]">
                             <ResponsiveContainer width="100%" height="100%">
                                 <BarChart data={[
-                                    {name: 'Revenue', current: fundamental.revenue_growth, sector: 4.2},
-                                    {name: 'EPS', current: fundamental.eps_growth, sector: 6.8},
-                                    {name: 'FCF', current: 8.9, sector: 5.1},
-                                    {name: 'Dividend', current: fundamental.dividend_yield, sector: 2.8}
+                                    {name: 'Revenue Growth', current: fundamental.revenue_growth},
+                                    {name: 'EPS Growth', current: fundamental.eps_growth},
+                                    {name: 'Profit Margin', current: fundamental.profit_margin},
+                                    {name: 'ROE', current: fundamental.roe},
+                                    {name: 'Div Yield', current: fundamental.dividend_yield},
                                 ]}>
                                     <CartesianGrid strokeDasharray="3 3" stroke="#1e293b"/>
                                     <XAxis dataKey="name" stroke="#64748b" fontSize={10}/>
                                     <YAxis stroke="#64748b" fontSize={10}/>
                                     <Tooltip/>
-                                    <Bar dataKey="current" fill="#3b82f6" name="Stock Growth (%)"
+                                    <Bar dataKey="current" fill="#3b82f6" name="Value (%)"
                                          radius={[4, 4, 0, 0]}/>
-                                    <Bar dataKey="sector" fill="#64748b" name="Sector Avg (%)" radius={[4, 4, 0, 0]}/>
                                 </BarChart>
                             </ResponsiveContainer>
                         </div>
@@ -484,10 +520,10 @@ const AIAnalyst = () => {
                     </h4>
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                         {[
-                            {label: 'Liquidity', score: 85, desc: 'Cash & equivalents'},
-                            {label: 'Solvency', score: 78, desc: 'Debt management'},
-                            {label: 'Efficiency', score: 92, desc: 'Asset utilization'},
-                            {label: 'Profitability', score: 88, desc: 'Margin strength'}
+                            {label: 'Solvency', score: Math.max(0, Math.min(100, Math.round(100 - (fundamental.debt_to_equity || 0) / 2))), desc: `D/E: ${(fundamental.debt_to_equity || 0).toFixed(1)}%`},
+                            {label: 'Profitability', score: Math.max(0, Math.min(100, Math.round((fundamental.profit_margin || 0) * 3))), desc: `Margin: ${(fundamental.profit_margin || 0).toFixed(1)}%`},
+                            {label: 'Returns', score: Math.max(0, Math.min(100, Math.round(fundamental.roe || 0))), desc: `ROE: ${(fundamental.roe || 0).toFixed(1)}%`},
+                            {label: 'Growth', score: Math.max(0, Math.min(100, Math.round(50 + (fundamental.revenue_growth || 0) * 2))), desc: `Rev Growth: ${(fundamental.revenue_growth || 0).toFixed(1)}%`}
                         ].map((item, idx) => (
                             <div key={idx} className="text-center p-4 bg-slate-900/50 rounded-xl">
                                 <div className="text-2xl font-bold text-slate-100">{item.score}</div>
@@ -856,7 +892,7 @@ const AIAnalyst = () => {
                     </h4>
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                         <div className="text-center p-4 bg-slate-900/50 rounded-xl">
-                            <p className="text-2xl font-bold text-emerald-400">{(report.upside * 100).toFixed(1)}%</p>
+                            <p className="text-2xl font-bold text-emerald-400">{(report.upside).toFixed(1)}%</p>
                             <p className="text-xs text-slate-400 mt-1">Upside Potential</p>
                         </div>
                         <div className="text-center p-4 bg-slate-900/50 rounded-xl">
@@ -995,7 +1031,7 @@ const AIAnalyst = () => {
                                         className="text-3xl font-bold text-slate-100">${report.current_price.toFixed(2)}</span>
                                     <span
                                         className={`text-lg font-bold ${report.upside >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                                        {report.upside >= 0 ? '+' : ''}{(report.upside * 100).toFixed(1)}%
+                                        {report.upside >= 0 ? '+' : ''}{(report.upside).toFixed(1)}%
                                     </span>
                                 </div>
                                 <p className="text-sm text-slate-400 mt-1">Target: ${report.target_price.toFixed(2)}</p>
@@ -1010,7 +1046,7 @@ const AIAnalyst = () => {
                             <div className="p-4 bg-slate-900/50 rounded-xl">
                                 <p className="text-xs text-slate-500">Risk Rating</p>
                                 <p className={`text-lg font-bold mt-1 ${getRiskColor(report.risk_rating)}`}>{report.risk_rating}</p>
-                                <p className="text-xs text-slate-500 mt-1">Confidence: {(report.recommendation_confidence * 100).toFixed(1)}%</p>
+                                <p className="text-xs text-slate-500 mt-1">Confidence: {(report.recommendation_confidence).toFixed(1)}%</p>
                             </div>
                             <div className="p-4 bg-slate-900/50 rounded-xl">
                                 <p className="text-xs text-slate-500">Quick Actions</p>
