@@ -373,7 +373,8 @@ const WatchlistPage = () => {
                                             </thead>
                                             <tbody>
                                                 {quotes.map((q) => {
-                                                    const isUp = q.change_percent >= 0;
+                                                    const changePct = Number.isFinite(q.change_percent) ? q.change_percent : 0;
+                                                    const isUp = changePct >= 0;
                                                     return (
                                                         <tr key={q.symbol} className="border-b border-slate-800/20 hover:bg-slate-800/30 transition-colors group">
                                                             <td className="px-4 py-3">
@@ -391,7 +392,7 @@ const WatchlistPage = () => {
                                                             <td className="px-4 py-3 text-right">
                                                                 <span className={`inline-flex items-center gap-1 text-sm font-medium px-2 py-0.5 rounded-full ${isUp ? 'bg-emerald-500/10 text-emerald-400' : 'bg-red-500/10 text-red-400'}`}>
                                                                     {isUp ? <ArrowUp size={10}/> : <ArrowDown size={10}/>}
-                                                                    {Math.abs(q.change_percent)?.toFixed(2)}%
+                                                                    {Math.abs(changePct).toFixed(2)}%
                                                                 </span>
                                                             </td>
                                                             <td className="px-4 py-3 text-right text-sm text-slate-400">
@@ -525,13 +526,14 @@ const WatchlistPage = () => {
                                 </thead>
                                 <tbody>
                                     {screenerResults.map((r) => {
-                                        const isUp = r.change_percent >= 0;
+                                        const pct = Number.isFinite(r.change_percent) ? r.change_percent : 0;
+                                        const isUp = pct >= 0;
                                         return (
                                             <tr key={r.symbol} className="border-b border-slate-800/20 hover:bg-slate-800/30 transition-colors">
                                                 <td className="px-4 py-3 text-sm font-bold text-slate-200">{r.symbol}</td>
                                                 <td className="px-4 py-3 text-right text-sm text-slate-200">${r.price?.toFixed(2)}</td>
                                                 <td className={`px-4 py-3 text-right text-sm font-medium ${isUp ? 'text-emerald-400' : 'text-red-400'}`}>
-                                                    {isUp ? '+' : ''}{r.change_percent?.toFixed(2)}%
+                                                    {isUp ? '+' : ''}{pct.toFixed(2)}%
                                                 </td>
                                                 <td className="px-4 py-3 text-right text-sm text-slate-400">
                                                     {r.volume ? (r.volume / 1e6).toFixed(1) + 'M' : '—'}

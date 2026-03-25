@@ -39,6 +39,9 @@ const PaperTradingDashboard = lazy(() => import("@/components/paper/PaperTrading
 const TradeJournal = lazy(() => import("@/components/journal/TradeJournal"));
 const EconomicCalendar = lazy(() => import("@/components/calendar/EconomicCalendar"));
 const TeamDashboard = lazy(() => import("@/components/teams/TeamDashboard"));
+const GettingStarted = lazy(() => import("@/components/guides/GettingStarted"));
+const CryptoDashboard = lazy(() => import("@/components/crypto/CryptoDashboard"));
+const ResearchLab = lazy(() => import("@/components/research/ResearchLab"));
 
 export type PageKey =
   | 'dashboard'
@@ -62,7 +65,10 @@ export type PageKey =
   | 'paper-trading'
   | 'trade-journal'
   | 'economic-calendar'
-  | 'teams';
+  | 'teams'
+  | 'getting-started'
+  | 'crypto'
+  | 'research';
 
 const PAGE_COMPONENTS: Record<PageKey, React.ReactNode> = {
   dashboard: <Dashboard />,
@@ -87,6 +93,9 @@ const PAGE_COMPONENTS: Record<PageKey, React.ReactNode> = {
   'trade-journal': <TradeJournal />,
   'economic-calendar': <EconomicCalendar />,
   teams: <TeamDashboard />,
+  'getting-started': <GettingStarted />,
+  crypto: <CryptoDashboard />,
+  research: <ResearchLab />,
 };
 
 type AppShellProps = object

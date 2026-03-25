@@ -124,16 +124,14 @@ const LiveExecution = () => {
             if (response) {
                 setIsConnected(response.is_connected);
                 setEngineStatus(response.engine_status);
-                // Only update activeBroker from backend when actually connected
-                // Otherwise, preserve the user's configured preference from Settings
                 if (response.is_connected) {
                     setActiveBroker(response.active_broker);
-                    // Fetch account info immediately on connection
                     fetchAccountInfo();
                 }
             }
-        } catch (err) {
+        } catch (err: any) {
             console.error("Failed to fetch live status:", err);
+            setError(`Connection error: ${err?.message || 'Failed to reach trading server'}`);
         }
     };
 

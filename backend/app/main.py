@@ -20,6 +20,7 @@ from .api.routes import (
     admin,
     advisor,
     alerts,
+    alternative_data,
     analyst,
     analytics,
     api_keys,
@@ -28,6 +29,7 @@ from .api.routes import (
     backtest,
     calendar,
     crash_prediction,
+    crypto,
     deploy_optimize,
     export,
     health,
@@ -42,6 +44,7 @@ from .api.routes import (
     portfolio,
     pricing,
     regime,
+    research,
     root,
     scheduled_backtests,
     sector,
@@ -51,6 +54,7 @@ from .api.routes import (
     teams,
     versioning,
     watchlist,
+    webhooks,
     websocket,
 )
 from .api.routes.live import live
@@ -187,6 +191,10 @@ app.include_router(scheduled_backtests.router)
 app.include_router(calendar.router)
 app.include_router(teams.router)
 app.include_router(pricing.router)
+app.include_router(webhooks.router)
+app.include_router(alternative_data.router)
+app.include_router(crypto.router)
+app.include_router(research.router)
 app.include_router(root.router)
 
 

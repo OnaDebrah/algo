@@ -1,4 +1,3 @@
-import json
 import logging
 import time
 from datetime import date, datetime
@@ -28,6 +27,7 @@ def _make_json_safe(obj: Any) -> Any:
     # numpy scalars
     try:
         import numpy as np
+
         if isinstance(obj, (np.integer,)):
             return int(obj)
         if isinstance(obj, (np.floating,)):

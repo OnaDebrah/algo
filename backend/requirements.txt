@@ -108,3 +108,4 @@ yfinance==1.2.0
 stripe==14.4.1
 pyotp==2.9.0
 qrcode[pil]==8.0
+matplotlib==3.10.8

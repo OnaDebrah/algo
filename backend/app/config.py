@@ -119,6 +119,12 @@ class Settings(BaseSettings):
     # Rate Limiting
     RATE_LIMIT_PER_MINUTE: int = int(os.getenv("RATE_LIMIT_PER_MINUTE", "60"))
 
+    # Pricing
+    FREE: int = int(os.getenv("FREE", "0"))
+    BASIC: int = int(os.getenv("BASIC", "49"))
+    PRO: int = int(os.getenv("PRO", "110"))
+    ENTERPRISE: int = int(os.getenv("ENTERPRISE", "320"))
+
     # Market Data
     DATA_PROVIDER: str = os.getenv("DATA_PROVIDER", "yahoo")  # 'yahoo', 'polygon', 'alpaca', or 'iex'
     YAHOO_SEARCH_URL: str = os.getenv("YAHOO_SEARCH_URL", "https://query2.finance.yahoo.com/v1/finance/search")
@@ -176,6 +182,8 @@ class Settings(BaseSettings):
 
     SENTRY_DSN: str = os.getenv("SENTRY_DSN", "")
     ENFORCE_HTTPS: bool = os.getenv("ENFORCE_HTTPS", "false").lower() == "true"
+
+    COINGECKO_BASE_URL: str = os.getenv("COINGECKO_BASE_URL", "https://api.coingecko.com/api/v3")
 
     # Brokers
     ALPACA_PAPER_BASE_URL: str = os.getenv("ALPACA_PAPER_BASE_URL", "https://paper-api.alpaca.markets/v2")
@@ -252,6 +260,13 @@ YAHOO_SEARCH_URL = settings.YAHOO_SEARCH_URL
 ADMIN_EMAIL = settings.ADMIN_EMAIL
 ADMIN_PASSWORD = settings.ADMIN_PASSWORD
 ADMIN_USERNAME = settings.ADMIN_USERNAME
+
+FREE = settings.FREE
+BASIC = settings.BASIC
+PRO = settings.PRO
+ENTERPRISE = settings.ENTERPRISE
+
+COINGECKO_BASE_URL = settings.COINGECKO_BASE_URL
 
 
 def validate_settings():

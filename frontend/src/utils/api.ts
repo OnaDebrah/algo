@@ -836,6 +836,67 @@ export const marketplace = {
         client.post<{ id: number; name: string; parent_strategy_id: number; message: string }>(
             `/marketplace/strategies/${strategy_id}/clone`
         ),
+
+    // Discussion / Comments
+    getComments: (strategy_id: number, limit: number = 50) =>
+        client.get(`/marketplace/${strategy_id}/comments`, { params: { limit } }),
+
+    createComment: (strategy_id: number, data: { content: string; parent_comment_id?: number }) =>
+        client.post(`/marketplace/${strategy_id}/comments`, data),
+
+    updateComment: (comment_id: number, data: { content: string }) =>
+        client.put(`/marketplace/comments/${comment_id}`, data),
+
+    deleteComment: (comment_id: number) =>
+        client.delete(`/marketplace/comments/${comment_id}`),
+};
+
+// ==================== ALTERNATIVE DATA (SEC EDGAR) ====================
+
+export const alternativeData = {
+    getFilings: (ticker: string, params?: { form_type?: string; limit?: number }) =>
+        client.get(`/alternative-data/filings/${ticker}`, { params }),
+
+    getInsiderTransactions: (ticker: string, limit: number = 20) =>
+        client.get(`/alternative-data/insider-transactions/${ticker}`, { params: { limit } }),
+
+    getCompanyFacts: (ticker: string) =>
+        client.get(`/alternative-data/company-facts/${ticker}`),
+};
+
+// ==================== CRYPTO ====================
+
+export const cryptoApi = {
+    marketOverview: () => client.get('/crypto/market-overview'),
+    topCoins: (limit: number = 50) => client.get('/crypto/top', { params: { limit } }),
+    trending: () => client.get('/crypto/trending'),
+    quote: (symbol: string) => client.get(`/crypto/quote/${symbol}`),
+    coinDetail: (coinId: string) => client.get(`/crypto/coin/${coinId}`),
+    historical: (symbol: string, params?: { period?: string; interval?: string }) =>
+        client.get(`/crypto/historical/${symbol}`, { params }),
+    correlation: (coins?: string, period?: string) =>
+        client.get('/crypto/analytics/correlation', { params: { coins, period } }),
+    momentum: () => client.get('/crypto/analytics/momentum'),
+    sectors: () => client.get('/crypto/analytics/sectors'),
+    volatility: (coins?: string, period?: string) =>
+        client.get('/crypto/analytics/volatility', { params: { coins, period } }),
+    predictions: () => client.get('/crypto/analytics/predictions'),
+    fearGreed: () => client.get('/crypto/analytics/fear-greed'),
+    technicalSignals: (coins?: string) =>
+        client.get('/crypto/analytics/technical-signals', { params: { coins } }),
+    btcDominance: () => client.get('/crypto/analytics/btc-dominance'),
+    portfolioOptimize: (holdings: { coin_id: string; amount_usd: number }[]) =>
+        client.post('/crypto/analytics/portfolio-optimize', { holdings }),
+};
+
+// ==================== WEBHOOKS ====================
+
+export const webhooks = {
+    testAuth: (apiKey: string) =>
+        client.get('/webhooks/test', { headers: { 'X-API-Key': apiKey } }),
+
+    getHistory: (apiKey: string, limit: number = 20) =>
+        client.get('/webhooks/history', { headers: { 'X-API-Key': apiKey }, params: { limit } }),
 };
 
 // ==================== AUDIT / TRADE JOURNAL ====================
@@ -868,6 +929,14 @@ export const apiKeys = {
         client.post('/api-keys/', data),
     revoke: (keyId: number) => client.delete(`/api-keys/${keyId}`),
     rotate: (keyId: number) => client.post(`/api-keys/${keyId}/rotate`),
+};
+
+// ==================== RESEARCH ====================
+export const research = {
+    execute: (code: string, timeout?: number) => client.post('/research/execute', { code, timeout }),
+    getTemplates: () => client.get('/research/templates'),
+    getHistory: () => client.get('/research/history'),
+    suggest: (prompt: string, context?: string) => client.post('/research/suggest', { prompt, context }),
 };
 
 // ==================== TEAMS ====================
@@ -1300,6 +1369,7 @@ export const api = {
     deployOptimize,
     settings,
     health,
+    research,
 
     // Direct axios instance for custom requests
     client: client,

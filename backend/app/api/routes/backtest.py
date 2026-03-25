@@ -14,9 +14,10 @@ from sqlalchemy import desc, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from statsmodels.tsa.stattools import coint
 
-from ...api.deps import check_permission, enforce_backtest_quota, get_current_active_user, get_current_user, get_db
+from ...api.deps import check_permission, enforce_backtest_quota, enforce_endpoint_rate_limit, get_current_active_user, get_current_user, get_db
 from ...celery_app import celery_app
 from ...core import fetch_stock_data
+from ...core.metrics import backtest_queue_size, backtest_runs_total
 from ...core.permissions import Permission
 from ...models import BacktestRun
 from ...models.user import User
@@ -41,7 +42,10 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/backtest", tags=["Backtest"])
 
 
-@router.post("/single")
+@router.post(
+    "/single",
+    dependencies=[Depends(enforce_endpoint_rate_limit("backtest_single", max_requests=3, window_seconds=60))],
+)
 async def run_single_backtest(
     request: BacktestRequest,
     _quota_user: User = Depends(enforce_backtest_quota()),
@@ -70,6 +74,10 @@ async def run_single_backtest(
     backtest_run.celery_task_id = task.id
     await db.commit()
 
+    # Track metrics
+    backtest_runs_total.labels(strategy_key=request.strategy_key, status="submitted").inc()
+    backtest_queue_size.inc()
+
     return {
         "backtest_id": backtest_run.id,
         "task_id": task.id,
@@ -78,7 +86,10 @@ async def run_single_backtest(
     }
 
 
-@router.post("/multi")
+@router.post(
+    "/multi",
+    dependencies=[Depends(enforce_endpoint_rate_limit("backtest_multi", max_requests=2, window_seconds=60))],
+)
 async def run_multi_asset_backtest(
     request: MultiAssetBacktestRequest,
     _quota_user: User = Depends(enforce_backtest_quota()),
@@ -432,7 +443,10 @@ async def get_suggested_pairs():
     return {"pairs": pairs}
 
 
-@router.post("/walk-forward")
+@router.post(
+    "/walk-forward",
+    dependencies=[Depends(enforce_endpoint_rate_limit("backtest_walkforward", max_requests=1, window_seconds=60))],
+)
 async def walk_forward(request: WFARequest, db: AsyncSession = Depends(get_db), current_user=Depends(get_current_user)):
     """
     Run Walk-Forward Analysis on a strategy (dispatched to background worker).

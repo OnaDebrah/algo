@@ -8,7 +8,7 @@ from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ...api.deps import get_current_active_user
+from ...api.deps import enforce_endpoint_rate_limit, get_current_active_user
 from ...database import get_db
 from ...models.user import User
 from ...services.auth_service import AuthService
@@ -44,7 +44,10 @@ async def list_sectors(
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.post("/scan")
+@router.post(
+    "/scan",
+    dependencies=[Depends(enforce_endpoint_rate_limit("sector_scan", max_requests=2, window_seconds=60))],
+)
 async def scan_sectors(
     period: str = Query("6mo", description="Lookback period for ETF data"),
     current_user: User = Depends(get_current_active_user),
@@ -65,7 +68,10 @@ async def scan_sectors(
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.post("/stocks/{sector}")
+@router.post(
+    "/stocks/{sector}",
+    dependencies=[Depends(enforce_endpoint_rate_limit("sector_stocks", max_requests=5, window_seconds=60))],
+)
 async def rank_sector_stocks(
     sector: str,
     top_n: int = Query(10, ge=1, le=50, description="Number of top stocks to return"),

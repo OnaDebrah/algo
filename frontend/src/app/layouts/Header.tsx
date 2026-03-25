@@ -45,7 +45,10 @@ type PageKey =
   | 'paper-trading'
   | 'trade-journal'
   | 'economic-calendar'
-  | 'teams';
+  | 'teams'
+  | 'getting-started'
+  | 'crypto'
+  | 'research';
 
 const Header = ({ user, currentPage, serverStatus = false, onLogout }: HeaderProps) => {
     const [marketData, setMarketData] = useState<QuoteData[]>([]);

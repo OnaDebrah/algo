@@ -47,6 +47,25 @@ jobs:
       env:
         NEXT_PUBLIC_API_URL: http://localhost:8000
 
+    - name: Install Playwright browsers
+      run: npx playwright install --with-deps chromium
+
+    - name: Run E2E tests
+      run: npm run test:e2e
+      env:
+        E2E_BASE_URL: http://localhost:3000
+        E2E_USERNAME: ${{ secrets.E2E_USERNAME }}
+        E2E_PASSWORD: ${{ secrets.E2E_PASSWORD }}
+      continue-on-error: true  # Don't block CI until backend is available in CI
+
+    - name: Upload Playwright report
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: playwright-report
+        path: frontend/playwright-report/
+        retention-days: 14
+
   docker-build:
     runs-on: ubuntu-latest
     needs: build-and-test

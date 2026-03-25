@@ -107,3 +107,24 @@ class ReviewCreateRequest(BaseModel):
     rating: int
     review_text: str
     performance_achieved: Optional[Dict] = None
+
+
+class CommentCreateRequest(BaseModel):
+    content: str
+    parent_comment_id: Optional[int] = None
+
+
+class CommentUpdateRequest(BaseModel):
+    content: str
+
+
+class StrategyCommentSchema(BaseModel):
+    id: int
+    strategy_id: int
+    user_id: Optional[int] = None
+    username: str
+    content: str
+    parent_comment_id: Optional[int] = None
+    is_edited: bool = False
+    created_at: str
+    replies: List["StrategyCommentSchema"] = []

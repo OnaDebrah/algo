@@ -20,7 +20,10 @@ type PageKey =
     | 'paper-trading'
     | 'trade-journal'
     | 'economic-calendar'
-    | 'teams';
+    | 'teams'
+    | 'getting-started'
+    | 'crypto'
+    | 'research';
 
 interface NavigationState {
     /** Set by child components to request a page change */

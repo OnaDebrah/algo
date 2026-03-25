@@ -11,7 +11,7 @@ from ...models import User
 from ...schemas.analyst import AnalystReport, FundamentalData, MACDData, RisksData, SentimentData, TechnicalData, ValuationMetric
 from ...services.auth_service import AuthService
 from ...utils.errors import safe_detail
-from ..deps import check_permission, get_current_active_user, get_db
+from ..deps import check_permission, enforce_endpoint_rate_limit, get_current_active_user, get_db
 
 router = APIRouter(prefix="/analyst", tags=["Analyst"])
 
@@ -75,9 +75,7 @@ def convert_core_report_to_api(core_report, ticker_info: Dict) -> AnalystReport:
     display_score = int((sentiment_score + 1) * 50)
 
     # Analyst consensus score based on recommendation
-    analyst_consensus_map = {
-        "Strong Buy": 90, "Buy": 75, "Hold": 50, "Sell": 25, "Strong Sell": 10
-    }
+    analyst_consensus_map = {"Strong Buy": 90, "Buy": 75, "Hold": 50, "Sell": 25, "Strong Sell": 10}
     analyst_score = analyst_consensus_map.get(core_report.recommendation, 50)
 
     # Options sentiment: derive from put/call implied vol skew if available
@@ -176,7 +174,11 @@ def convert_core_report_to_api(core_report, ticker_info: Dict) -> AnalystReport:
     )
 
 
-@router.get("/report/{ticker}", response_model=AnalystReport)
+@router.get(
+    "/report/{ticker}",
+    response_model=AnalystReport,
+    dependencies=[Depends(enforce_endpoint_rate_limit("analyst_report", max_requests=5, window_seconds=60))],
+)
 async def get_analyst_report(
     ticker: str,
     depth: str = Query("standard", description="Analysis depth: quick, standard, comprehensive, deep_dive"),
@@ -205,7 +207,10 @@ async def get_analyst_report(
         raise HTTPException(status_code=500, detail=safe_detail(f"Failed to generate analyst report for {ticker}", e))
 
 
-@router.get("/sentiment/{ticker}")
+@router.get(
+    "/sentiment/{ticker}",
+    dependencies=[Depends(enforce_endpoint_rate_limit("analyst_sentiment", max_requests=10, window_seconds=60))],
+)
 async def get_sentiment_analysis(
     ticker: str,
     current_user: User = Depends(get_current_active_user),

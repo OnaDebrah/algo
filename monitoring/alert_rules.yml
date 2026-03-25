@@ -1,0 +1,100 @@
+groups:
+  - name: oraculum_alerts
+    rules:
+      # ── API Health ─────────────────────────────────────────────────────
+      - alert: HighErrorRate
+        expr: |
+          sum(rate(http_requests_total{status=~"5.."}[5m]))
+          / sum(rate(http_requests_total[5m])) > 0.05
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "High API error rate (> 5%)"
+          description: "{{ $value | humanizePercentage }} of requests are returning 5xx errors."
+
+      - alert: HighLatency
+        expr: |
+          histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket[5m])) by (le))
+          > 10
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "P95 API latency > 10s"
+          description: "95th percentile response time is {{ $value }}s."
+
+      - alert: APIDown
+        expr: up{job="oraculum-api"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Oraculum API is down"
+          description: "The API server has been unreachable for more than 1 minute."
+
+      # ── Backtest Queue ─────────────────────────────────────────────────
+      - alert: BacktestQueueBacklog
+        expr: oraculum_backtest_queue_size > 20
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Backtest queue backlog ({{ $value }} pending)"
+          description: "More than 20 backtests queued for > 10 minutes. Consider scaling workers."
+
+      - alert: BacktestFailureRate
+        expr: |
+          sum(rate(oraculum_backtest_runs_total{status="failed"}[15m]))
+          / sum(rate(oraculum_backtest_runs_total[15m])) > 0.3
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High backtest failure rate (> 30%)"
+          description: "{{ $value | humanizePercentage }} of backtests are failing."
+
+      # ── yfinance Data Provider ─────────────────────────────────────────
+      - alert: YFinanceHighErrorRate
+        expr: |
+          sum(rate(oraculum_yfinance_requests_total{status="error"}[10m]))
+          / sum(rate(oraculum_yfinance_requests_total[10m])) > 0.2
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "yfinance error rate > 20%"
+          description: "Data provider is returning errors frequently. May be rate-limited or down."
+
+      - alert: YFinanceSlowResponses
+        expr: |
+          histogram_quantile(0.95, sum(rate(oraculum_yfinance_request_duration_seconds_bucket[10m])) by (le))
+          > 15
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "yfinance P95 latency > 15s"
+          description: "Data provider responses are very slow."
+
+      # ── Authentication ─────────────────────────────────────────────────
+      - alert: HighAuthFailureRate
+        expr: |
+          sum(rate(oraculum_auth_attempts_total{status="failed"}[5m]))
+          > 10
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High authentication failure rate"
+          description: "More than 10 failed auth attempts per second — possible brute force."
+
+      # ── Rate Limiting ──────────────────────────────────────────────────
+      - alert: RateLimitSpike
+        expr: sum(rate(oraculum_rate_limit_hits_total[5m])) > 50
+        for: 5m
+        labels:
+          severity: info
+        annotations:
+          summary: "Rate limit hits spiking"
+          description: "Users are hitting rate limits frequently."

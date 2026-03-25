@@ -20,6 +20,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from ...api.deps import get_current_active_user, login_rate_limit
 from ...config import settings
+from ...core.metrics import auth_attempts_total
 from ...database import get_db
 from ...models.user import User
 from ...schemas.auth import (
@@ -136,6 +137,7 @@ async def login(credentials: UserLogin, db: AsyncSession = Depends(get_db)):
     user = result.scalar_one_or_none()
 
     if not user or not verify_password(credentials.password, user.hashed_password):
+        auth_attempts_total.labels(method="login", status="failed").inc()
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect email or password",
@@ -169,6 +171,7 @@ async def login(credentials: UserLogin, db: AsyncSession = Depends(get_db)):
     access_token = create_access_token(data={"sub": str(user.id)})
     refresh_token = create_access_token(data={"sub": str(user.id), "refresh": True})
 
+    auth_attempts_total.labels(method="login", status="success").inc()
     await AuthService.track_usage(db, user.id, "login")
 
     # Build JSON body (tokens still included for backward compat / API clients)

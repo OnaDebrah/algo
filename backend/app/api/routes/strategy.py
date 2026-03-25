@@ -161,13 +161,13 @@ async def create_custom_strategy(
         user_id=current_user.id,
         name=request.name,
         description=request.description,
-        code=request.code,
         strategy_type=request.strategy_type,
         parameters=request.parameters or {},
         is_validated=is_valid,
         ai_generated=request.ai_generated,
         ai_explanation=request.ai_explanation,
     )
+    strategy.set_code(request.code)
     db.add(strategy)
     await db.commit()
     await db.refresh(strategy)
@@ -212,7 +212,7 @@ async def update_custom_strategy(
     if request.description is not None:
         strategy.description = request.description
     if request.code is not None:
-        strategy.code = request.code
+        strategy.set_code(request.code)
         # Re-validate when code changes
         env = SafeExecutionEnvironment()
         is_valid, _error = env.validate_code(request.code)
@@ -261,7 +261,7 @@ def _strategy_to_response(s: CustomStrategy) -> CustomStrategyResponse:
         id=s.id,
         name=s.name,
         description=s.description,
-        code=s.code,
+        code=s.get_code(),
         strategy_type=s.strategy_type,
         parameters=s.parameters,
         is_validated=s.is_validated,

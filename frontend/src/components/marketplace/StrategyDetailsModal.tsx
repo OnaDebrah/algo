@@ -48,6 +48,13 @@ const StrategyDetailsModal = ({ strategyId, onClose }: StrategyDetailsModalProps
     const [reviewText, setReviewText] = useState('');
     const [isSubmittingReview, setIsSubmittingReview] = useState(false);
 
+    // Discussion state
+    const [comments, setComments] = useState<any[]>([]);
+    const [commentText, setCommentText] = useState('');
+    const [replyTo, setReplyTo] = useState<{ id: number; username: string } | null>(null);
+    const [isSubmittingComment, setIsSubmittingComment] = useState(false);
+    const [isLoadingComments, setIsLoadingComments] = useState(false);
+
     const fetchDetails = async () => {
         try {
             const response = await marketplace.getDetails(strategyId);
@@ -61,8 +68,48 @@ const StrategyDetailsModal = ({ strategyId, onClose }: StrategyDetailsModalProps
         }
     };
 
+    const fetchComments = async () => {
+        setIsLoadingComments(true);
+        try {
+            const data = await marketplace.getComments(strategyId);
+            setComments(Array.isArray(data) ? data : []);
+        } catch {
+            // Silently fail — comments are non-critical
+        } finally {
+            setIsLoadingComments(false);
+        }
+    };
+
+    const handleSubmitComment = async () => {
+        if (!commentText.trim()) return;
+        setIsSubmittingComment(true);
+        try {
+            await marketplace.createComment(strategyId, {
+                content: commentText.trim(),
+                parent_comment_id: replyTo?.id,
+            });
+            setCommentText('');
+            setReplyTo(null);
+            fetchComments();
+        } catch (err: any) {
+            console.error('Failed to post comment:', err);
+        } finally {
+            setIsSubmittingComment(false);
+        }
+    };
+
+    const handleDeleteComment = async (commentId: number) => {
+        try {
+            await marketplace.deleteComment(commentId);
+            fetchComments();
+        } catch (err: any) {
+            console.error('Failed to delete comment:', err);
+        }
+    };
+
     useEffect(() => {
         fetchDetails();
+        fetchComments();
     }, [strategyId]);
 
     const handleDeploy = async (config: DeploymentConfig) => {
@@ -478,6 +525,102 @@ const StrategyDetailsModal = ({ strategyId, onClose }: StrategyDetailsModalProps
                                 ) : (
                                     <p className="text-sm text-slate-600 text-center py-4">
                                         No reviews yet. Be the first to review this strategy.
+                                    </p>
+                                )}
+                            </div>
+
+                            {/* Discussion Section */}
+                            <div className="space-y-6">
+                                <h3 className="text-sm font-bold text-slate-400 uppercase tracking-widest border-b border-slate-700/30 pb-2 flex items-center gap-2">
+                                    <MessageSquare size={16} />
+                                    Discussion ({comments.reduce((acc: number, c: any) => acc + 1 + (c.replies?.length || 0), 0)})
+                                </h3>
+
+                                {/* Write a Comment */}
+                                <div className="bg-slate-800/30 border border-slate-700/30 rounded-2xl p-5 space-y-3">
+                                    {replyTo && (
+                                        <div className="flex items-center gap-2 text-xs text-violet-400">
+                                            <span>Replying to {replyTo.username}</span>
+                                            <button onClick={() => setReplyTo(null)} className="text-slate-500 hover:text-slate-300">
+                                                <X size={12} />
+                                            </button>
+                                        </div>
+                                    )}
+                                    <div className="flex gap-2">
+                                        <input
+                                            type="text"
+                                            value={commentText}
+                                            onChange={(e) => setCommentText(e.target.value)}
+                                            onKeyDown={(e) => e.key === 'Enter' && handleSubmitComment()}
+                                            placeholder={replyTo ? `Reply to ${replyTo.username}...` : "Join the discussion..."}
+                                            className="flex-1 px-4 py-2.5 bg-slate-900 border border-slate-700 rounded-xl text-sm text-slate-200 placeholder-slate-500 focus:border-violet-500 outline-none"
+                                        />
+                                        <button
+                                            onClick={handleSubmitComment}
+                                            disabled={isSubmittingComment || !commentText.trim()}
+                                            className="px-4 py-2.5 bg-violet-600 hover:bg-violet-500 text-white rounded-xl font-semibold text-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                                        >
+                                            {isSubmittingComment ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
+                                        </button>
+                                    </div>
+                                </div>
+
+                                {/* Comments Thread */}
+                                {isLoadingComments ? (
+                                    <div className="flex justify-center py-4">
+                                        <Loader2 size={20} className="animate-spin text-slate-500" />
+                                    </div>
+                                ) : comments.length > 0 ? (
+                                    <div className="space-y-3">
+                                        {comments.map((comment: any) => (
+                                            <div key={comment.id} className="space-y-2">
+                                                {/* Top-level comment */}
+                                                <div className="bg-slate-800/20 border border-slate-700/20 rounded-xl p-4">
+                                                    <div className="flex items-center justify-between mb-2">
+                                                        <div className="flex items-center gap-2">
+                                                            <span className="text-sm font-semibold text-slate-200">{comment.username}</span>
+                                                            {comment.is_edited && <span className="text-[10px] text-slate-600">(edited)</span>}
+                                                        </div>
+                                                        <div className="flex items-center gap-2">
+                                                            <span className="text-xs text-slate-600">
+                                                                {comment.created_at ? new Date(comment.created_at).toLocaleDateString() : ''}
+                                                            </span>
+                                                            <button
+                                                                onClick={() => setReplyTo({ id: comment.id, username: comment.username })}
+                                                                className="text-xs text-violet-400 hover:text-violet-300"
+                                                            >
+                                                                Reply
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                    <p className="text-sm text-slate-400">{comment.content}</p>
+                                                </div>
+
+                                                {/* Replies */}
+                                                {comment.replies?.length > 0 && (
+                                                    <div className="ml-6 space-y-2">
+                                                        {comment.replies.map((reply: any) => (
+                                                            <div key={reply.id} className="bg-slate-800/10 border border-slate-700/15 rounded-lg p-3">
+                                                                <div className="flex items-center justify-between mb-1">
+                                                                    <div className="flex items-center gap-2">
+                                                                        <span className="text-xs font-semibold text-slate-300">{reply.username}</span>
+                                                                        {reply.is_edited && <span className="text-[10px] text-slate-600">(edited)</span>}
+                                                                    </div>
+                                                                    <span className="text-[10px] text-slate-600">
+                                                                        {reply.created_at ? new Date(reply.created_at).toLocaleDateString() : ''}
+                                                                    </span>
+                                                                </div>
+                                                                <p className="text-xs text-slate-400">{reply.content}</p>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        ))}
+                                    </div>
+                                ) : (
+                                    <p className="text-sm text-slate-600 text-center py-4">
+                                        No comments yet. Start the discussion!
                                     </p>
                                 )}
                             </div>

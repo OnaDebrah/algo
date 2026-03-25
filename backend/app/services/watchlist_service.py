@@ -113,15 +113,26 @@ class WatchlistService:
         async def _fetch_quote(symbol: str) -> dict:
             try:
                 raw = await provider.get_quote(symbol)
+
                 # Normalize camelCase provider response to snake_case for frontend
+                def _num(v: any, default=0) -> float:
+                    """Safely convert to float, treating None/NaN as default."""
+                    if v is None:
+                        return default
+                    try:
+                        f = float(v)
+                        return default if f != f else f  # NaN check
+                    except (TypeError, ValueError):
+                        return default
+
                 return {
                     "symbol": raw.get("symbol", symbol),
-                    "price": raw.get("price", 0) or 0,
-                    "change": raw.get("change", 0) or 0,
-                    "change_percent": raw.get("changePercent", 0) or 0,
-                    "volume": raw.get("volume", 0) or 0,
-                    "day_high": raw.get("high", raw.get("dayHigh", 0)) or 0,
-                    "day_low": raw.get("low", raw.get("dayLow", 0)) or 0,
+                    "price": _num(raw.get("price")),
+                    "change": _num(raw.get("change")),
+                    "change_percent": _num(raw.get("changePercent")),
+                    "volume": _num(raw.get("volume")),
+                    "day_high": _num(raw.get("high", raw.get("dayHigh"))),
+                    "day_low": _num(raw.get("low", raw.get("dayLow"))),
                     "name": raw.get("name", raw.get("shortName", "")),
                 }
             except Exception as e:

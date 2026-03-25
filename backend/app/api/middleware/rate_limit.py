@@ -6,6 +6,7 @@ from fastapi.responses import JSONResponse
 from starlette.types import ASGIApp, Receive, Scope, Send
 
 from ...config import settings
+from ...core.metrics import rate_limit_hits_total
 from ...security.rate_limiter import RateLimiter
 
 _SKIP_PREFIXES = ("/docs", "/redoc", "/health", "/metrics")
@@ -35,6 +36,7 @@ class RateLimitMiddleware:
             self.limiters[client_ip] = RateLimiter(max_requests=self.max_requests, window_seconds=self.window_seconds)
 
         if not self.limiters[client_ip].allow_request():
+            rate_limit_hits_total.labels(path=path[:50]).inc()
             response = JSONResponse(
                 status_code=429,
                 content={"detail": "Rate limit exceeded. Try again later."},

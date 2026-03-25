@@ -8,11 +8,18 @@ Each task creates its own DB engine + session to avoid event-loop conflicts
 
 import asyncio
 import logging
+import time
 from datetime import datetime, timezone
 
 from celery.exceptions import SoftTimeLimitExceeded
 
+# Import ALL models so SQLAlchemy's mapper registry is fully populated.
+# Without this, relationship string references (e.g. User.notifications -> "Notification")
+# fail because the target model class was never loaded in the Celery worker context.
+import app.models  # noqa: F401
+
 from ..celery_app import celery_app
+from ..core.metrics import backtest_duration_seconds, backtest_queue_size, backtest_runs_total, celery_tasks_total
 
 logger = logging.getLogger(__name__)
 
@@ -52,6 +59,8 @@ async def _run_single_backtest(backtest_id: int, request_data: dict, user_id: in
 
     task_engine, TaskSession = _create_task_session()
 
+    strategy_key = request_data.get("strategy_key", "unknown")
+    t0 = time.monotonic()
     try:
         async with TaskSession() as db:
             try:
@@ -60,17 +69,28 @@ async def _run_single_backtest(backtest_id: int, request_data: dict, user_id: in
                 service = BacktestService(db)
                 await service.run_single_backtest(request, user_id, backtest_run_id=backtest_id)
 
-                logger.info(f"Backtest {backtest_id} completed successfully")
+                elapsed = time.monotonic() - t0
+                backtest_duration_seconds.labels(strategy_key=strategy_key).observe(elapsed)
+                backtest_runs_total.labels(strategy_key=strategy_key, status="completed").inc()
+                celery_tasks_total.labels(task_name="single_backtest", status="completed").inc()
+                backtest_queue_size.dec()
+                logger.info(f"Backtest {backtest_id} completed in {elapsed:.1f}s")
                 return {"status": "completed", "backtest_id": backtest_id}
 
             except SoftTimeLimitExceeded:
                 logger.warning(f"Backtest {backtest_id} timed out (soft limit)")
+                backtest_runs_total.labels(strategy_key=strategy_key, status="timeout").inc()
+                celery_tasks_total.labels(task_name="single_backtest", status="timeout").inc()
+                backtest_queue_size.dec()
                 error_msg = "Task timed out — backtest took too long"
                 await _mark_failed(db, backtest_id, error_msg)
                 return {"status": "failed", "backtest_id": backtest_id, "error": error_msg}
 
             except Exception as e:
                 logger.error(f"Backtest {backtest_id} failed: {e}", exc_info=True)
+                backtest_runs_total.labels(strategy_key=strategy_key, status="failed").inc()
+                celery_tasks_total.labels(task_name="single_backtest", status="failed").inc()
+                backtest_queue_size.dec()
                 await _mark_failed(db, backtest_id, str(e)[:500])
                 return {"status": "failed", "backtest_id": backtest_id, "error": str(e)}
     finally:

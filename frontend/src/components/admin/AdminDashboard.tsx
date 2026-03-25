@@ -67,9 +67,12 @@ const AdminDashboard: React.FC = () => {
     const [submissions, setSubmissions] = useState<any[]>([]);
     const [rejectingId, setRejectingId] = useState<number | null>(null);
     const [rejectReason, setRejectReason] = useState('');
+    const [error, setError] = useState<string | null>(null);
+    const [actionError, setActionError] = useState<string | null>(null);
 
     const fetchAll = useCallback(async () => {
         setLoading(true);
+        setError(null);
         try {
             const [s, u, logs, subs] = await Promise.all([
                 api.admin.getStats(),
@@ -81,8 +84,9 @@ const AdminDashboard: React.FC = () => {
             setUsers(u);
             setUsageLogs(logs);
             setSubmissions(subs as any[]);
-        } catch (err) {
+        } catch (err: any) {
             console.error('Admin data fetch failed', err);
+            setError(err?.message || 'Failed to load admin data. Please try again.');
         } finally {
             setLoading(false);
         }
@@ -93,41 +97,45 @@ const AdminDashboard: React.FC = () => {
     }, [fetchAll]);
 
     const handleTierChange = async (userId: number, newTier: string) => {
+        setActionError(null);
         try {
             await api.admin.updateTier(userId, newTier);
             fetchAll();
-        } catch (err) {
-            console.error('Tier update failed', err);
+        } catch (err: any) {
+            setActionError(`Tier update failed: ${err?.message || 'Unknown error'}`);
         }
     };
 
     const handleStatusToggle = async (userId: number, currentActive: boolean) => {
+        setActionError(null);
         try {
             await api.admin.updateStatus(userId, !currentActive);
             fetchAll();
-        } catch (err) {
-            console.error('Status toggle failed', err);
+        } catch (err: any) {
+            setActionError(`Status toggle failed: ${err?.message || 'Unknown error'}`);
         }
     };
 
     const handleApprove = async (strategyId: number) => {
+        setActionError(null);
         try {
             await api.admin.approveSubmission(strategyId);
             fetchAll();
-        } catch (err) {
-            console.error('Approval failed', err);
+        } catch (err: any) {
+            setActionError(`Approval failed: ${err?.message || 'Unknown error'}`);
         }
     };
 
     const handleReject = async (strategyId: number) => {
         if (!rejectReason.trim()) return;
+        setActionError(null);
         try {
             await api.admin.rejectSubmission(strategyId, rejectReason);
             setRejectingId(null);
             setRejectReason('');
             fetchAll();
-        } catch (err) {
-            console.error('Rejection failed', err);
+        } catch (err: any) {
+            setActionError(`Rejection failed: ${err?.message || 'Unknown error'}`);
         }
     };
 
@@ -139,8 +147,27 @@ const AdminDashboard: React.FC = () => {
         );
     }
 
+    if (error && !stats) {
+        return (
+            <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
+                <X size={40} className="text-red-400" />
+                <p className="text-red-400 text-sm">{error}</p>
+                <button onClick={fetchAll} className="px-4 py-2 bg-violet-600 hover:bg-violet-500 text-white rounded-lg text-sm">
+                    Retry
+                </button>
+            </div>
+        );
+    }
+
     return (
         <div className="space-y-6">
+            {/* Error banners */}
+            {actionError && (
+                <div className="bg-red-500/10 border border-red-500/30 text-red-400 px-4 py-3 rounded-lg text-sm flex justify-between items-center">
+                    <span>{actionError}</span>
+                    <button onClick={() => setActionError(null)} className="text-red-400 hover:text-red-300"><X size={16} /></button>
+                </div>
+            )}
             {/* Header */}
             <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">

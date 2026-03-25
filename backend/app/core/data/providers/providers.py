@@ -17,10 +17,51 @@ from ..providers.base_provider import (
     QuoteProvider,
     RecommendationsProvider,
 )
+from ..providers.coingecko_provider import CoinGeckoProvider
 from ..providers.iex_provider import IEXProvider
 from ..providers.polygon_provider import PolygonProvider
 from ..providers.yahoo_provider import YahooProvider
 from .alpha_vantage_provider import AlphaVantageProvider
+
+# Crypto symbol suffixes/patterns for auto-routing
+_CRYPTO_SUFFIXES = ("-USD", "-USDT", "-BTC", "-ETH")
+_CRYPTO_BASES = {
+    "BTC",
+    "ETH",
+    "BNB",
+    "SOL",
+    "XRP",
+    "ADA",
+    "DOGE",
+    "DOT",
+    "MATIC",
+    "AVAX",
+    "LINK",
+    "UNI",
+    "ATOM",
+    "LTC",
+    "NEAR",
+    "ARB",
+    "OP",
+    "APT",
+    "SUI",
+    "PEPE",
+    "SHIB",
+    "FIL",
+    "AAVE",
+    "MKR",
+}
+
+
+def _is_crypto_symbol(symbol: str) -> bool:
+    """Check if a symbol is a cryptocurrency."""
+    sym = symbol.upper()
+    if any(sym.endswith(s) for s in _CRYPTO_SUFFIXES):
+        return True
+    if sym in _CRYPTO_BASES:
+        return True
+    return False
+
 
 logger = logging.getLogger(__name__)
 
@@ -36,6 +77,7 @@ class ProviderFactory:
 
     _instance = None
     _default_provider = YahooProvider()
+    _crypto_provider = CoinGeckoProvider()
 
     def __new__(cls):
         if cls._instance is None:
@@ -93,7 +135,15 @@ class ProviderFactory:
         user: Optional[User] = None,
         db: Optional[AsyncSession] = None,
     ) -> pd.DataFrame:
-        """Fetch OHLCV data using appropriate provider."""
+        """Fetch OHLCV data using appropriate provider. Auto-routes crypto to CoinGecko."""
+        if _is_crypto_symbol(symbol):
+            logger.info(f"Fetching {symbol} crypto data from CoinGeckoProvider")
+            result = await asyncio.to_thread(self._crypto_provider.fetch_data, symbol, period, interval, start, end)
+            if not result.empty:
+                return result
+            # Fall through to default provider if CoinGecko fails
+            logger.info(f"CoinGecko failed for {symbol}, falling back to Yahoo")
+
         provider = await self._get_provider(user, db)
         logger.info(f"Fetching {symbol} data from {provider.__class__.__name__}")
         return await asyncio.to_thread(provider.fetch_data, symbol, period, interval, start, end)
@@ -101,7 +151,12 @@ class ProviderFactory:
     # ── Quotes ──────────────────────────────────────────────────────────
 
     async def get_quote(self, symbol: str, user: Optional[User] = None, db: Optional[AsyncSession] = None) -> Dict:
-        """Get real-time quote data. Falls back to Yahoo if provider lacks QuoteProvider."""
+        """Get real-time quote data. Auto-routes crypto to CoinGecko, falls back to Yahoo."""
+        if _is_crypto_symbol(symbol):
+            result = await asyncio.to_thread(self._crypto_provider.get_quote, symbol)
+            if not result.get("error"):
+                return result
+
         provider = await self._get_provider(user, db)
         target = provider if isinstance(provider, QuoteProvider) else self._default_provider
         return await asyncio.to_thread(target.get_quote, symbol)

@@ -8,7 +8,7 @@ from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ...api.deps import get_current_active_user
+from ...api.deps import enforce_endpoint_rate_limit, get_current_active_user
 from ...database import get_db
 from ...models.user import User
 from ...services.market_service import get_market_service
@@ -58,7 +58,10 @@ async def get_quotes(
         raise HTTPException(status_code=500, detail=safe_detail("Failed to fetch quotes", e))
 
 
-@router.get("/historical/{symbol}")
+@router.get(
+    "/historical/{symbol}",
+    dependencies=[Depends(enforce_endpoint_rate_limit("market_historical", max_requests=30, window_seconds=60))],
+)
 async def get_historical_data(
     symbol: str,
     period: str = Query("1mo", description="Data period (1d, 5d, 1mo, 3mo, 6mo, 1y, 2y, 5y, 10y, ytd, max)"),

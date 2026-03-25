@@ -17,7 +17,7 @@ from ..core.permissions import Permission, is_promo_active
 from ..database import get_db
 from ..models.api_key import ApiKey
 from ..models.user import User
-from ..security.rate_limiter import check_login_rate
+from ..security.rate_limiter import check_endpoint_rate, check_login_rate
 from ..services.auth_service import AuthService
 from ..services.quota_service import QuotaService
 
@@ -65,6 +65,26 @@ def enforce_backtest_quota():
         db: AsyncSession = Depends(get_db),
     ) -> User:
         await QuotaService.enforce_quota(db, current_user.id, current_user.tier)
+        return current_user
+
+    return checker
+
+
+def enforce_endpoint_rate_limit(endpoint: str, max_requests: int, window_seconds: int = 60):
+    """Dependency factory — raises 429 if a user exceeds per-endpoint rate limits.
+
+    Usage:
+        @router.get("/expensive", dependencies=[Depends(enforce_endpoint_rate_limit("expensive", 5, 60))])
+    """
+
+    async def checker(current_user: User = Depends(get_current_active_user)) -> User:
+        if current_user.is_superuser:
+            return current_user
+        if not check_endpoint_rate(current_user.id, endpoint, max_requests, window_seconds):
+            raise HTTPException(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                detail=f"Rate limit exceeded for this endpoint. Max {max_requests} requests per {window_seconds}s.",
+            )
         return current_user
 
     return checker

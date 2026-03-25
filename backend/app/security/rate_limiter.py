@@ -32,6 +32,26 @@ class RateLimiter:
 _login_limiters: Dict[str, RateLimiter] = {}
 
 
+# ── Per-user, per-endpoint rate limiter ──────────────────────────────────────
+
+_endpoint_limiters: Dict[str, RateLimiter] = {}
+
+
+def check_endpoint_rate(user_id: int, endpoint: str, max_requests: int, window_seconds: int = 60) -> bool:
+    """Check whether a request from *user_id* to *endpoint* is allowed.
+
+    Each (user_id, endpoint) pair gets its own sliding-window limiter.
+    """
+    key = f"{user_id}:{endpoint}"
+    if key not in _endpoint_limiters:
+        _endpoint_limiters[key] = RateLimiter(max_requests=max_requests, window_seconds=window_seconds)
+    limiter = _endpoint_limiters[key]
+    # Update limits in case config changed (hot-reload friendly)
+    limiter.max_requests = max_requests
+    limiter.window_seconds = window_seconds
+    return limiter.allow_request()
+
+
 def check_login_rate(client_ip: str) -> bool:
     """Check whether a login attempt from *client_ip* is allowed.
 

@@ -18,7 +18,6 @@ from ..strategies.ml.stock_selection.ranking_pipeline import (
 
 logger = logging.getLogger(__name__)
 
-
 # Regime → strategy mapping
 REGIME_STRATEGY_MAP: Dict[str, List[str]] = {
     "bull": ["macd", "parabolic_sar", "ts_momentum", "sma_crossover", "donchian_channel"],
@@ -27,6 +26,19 @@ REGIME_STRATEGY_MAP: Dict[str, List[str]] = {
     "high_volatility": ["volatility_breakout", "donchian_atr", "dynamic_vol_scaling", "variance_risk_premium"],
     "low_volatility": ["sma_crossover", "bollinger_mean_reversion", "kama", "macd"],
 }
+
+
+def _safe_num(val, default=0):
+    """Convert to float, treating None/NaN/Inf as default."""
+    if val is None:
+        return default
+    try:
+        f = float(val)
+        if f != f or f == float("inf") or f == float("-inf"):
+            return default
+        return f
+    except (TypeError, ValueError):
+        return default
 
 
 class SectorScannerService:
@@ -158,17 +170,17 @@ class SectorScannerService:
                 # Extract fundamentals dict for FactorEngine
                 fundamentals = {}
                 if info:
-                    fundamentals["roe"] = info.get("returnOnEquity", 0) or 0
-                    fundamentals["operating_margin"] = info.get("operatingMargins", 0) or 0
-                    fundamentals["debt_to_equity"] = info.get("debtToEquity", 0) or 0
-                    fundamentals["pe_ratio"] = info.get("trailingPE", 0) or 0
-                    fundamentals["forward_pe"] = info.get("forwardPE", 0) or 0
-                    fundamentals["peg_ratio"] = info.get("pegRatio", 0) or 0
-                    fundamentals["pb_ratio"] = info.get("priceToBook", 0) or 0
-                    fundamentals["revenue_growth"] = info.get("revenueGrowth", 0) or 0
-                    fundamentals["eps_growth"] = info.get("earningsGrowth", 0) or 0
+                    fundamentals["roe"] = _safe_num(info.get("returnOnEquity"))
+                    fundamentals["operating_margin"] = _safe_num(info.get("operatingMargins"))
+                    fundamentals["debt_to_equity"] = _safe_num(info.get("debtToEquity"))
+                    fundamentals["pe_ratio"] = _safe_num(info.get("trailingPE"))
+                    fundamentals["forward_pe"] = _safe_num(info.get("forwardPE"))
+                    fundamentals["peg_ratio"] = _safe_num(info.get("pegRatio"))
+                    fundamentals["pb_ratio"] = _safe_num(info.get("priceToBook"))
+                    fundamentals["revenue_growth"] = _safe_num(info.get("revenueGrowth"))
+                    fundamentals["eps_growth"] = _safe_num(info.get("earningsGrowth"))
 
-                market_cap = (info.get("marketCap", 0) or 0) if info else 0
+                market_cap = _safe_num(info.get("marketCap")) if info else 0
 
                 return {
                     "prices": price_data["Close"],

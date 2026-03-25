@@ -10,10 +10,13 @@ from ...database import get_db
 from ...models import User
 from ...models.backtest import BacktestRun
 from ...models.custom_strategy import CustomStrategy
-from ...models.marketplace import MarketplaceStrategy, StrategyPurchase
+from ...models.marketplace import MarketplaceStrategy, StrategyComment, StrategyPurchase
 from ...schemas.marketplace import (
     BacktestResultsSchema,
+    CommentCreateRequest,
+    CommentUpdateRequest,
     ReviewCreateRequest,
+    StrategyCommentSchema,
     StrategyListing as StrategyListingSchema,
     StrategyListingDetailed as StrategyListingDetailedSchema,
     StrategyPublishRequest,
@@ -625,3 +628,149 @@ async def publish_strategy(
     except Exception as e:
         logger.error(f"Failed to publish strategy: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+# ── Discussion / Comment endpoints ──────────────────────────────────────────
+
+
+@router.get("/{strategy_id}/comments", response_model=List[StrategyCommentSchema])
+async def get_comments(
+    strategy_id: int,
+    limit: int = Query(50, ge=1, le=200),
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Get threaded discussion comments for a strategy."""
+    result = await db.execute(
+        select(StrategyComment).where(StrategyComment.strategy_id == strategy_id).order_by(StrategyComment.created_at.asc()).limit(limit)
+    )
+    all_comments = result.scalars().all()
+
+    # Build threaded structure: top-level comments with nested replies
+    comments_by_id = {}
+    top_level = []
+
+    for c in all_comments:
+        schema = StrategyCommentSchema(
+            id=c.id,
+            strategy_id=c.strategy_id,
+            user_id=c.user_id,
+            username=c.username,
+            content=c.content,
+            parent_comment_id=c.parent_comment_id,
+            is_edited=c.is_edited or False,
+            created_at=c.created_at.isoformat() if c.created_at else "",
+            replies=[],
+        )
+        comments_by_id[c.id] = schema
+        if c.parent_comment_id is None:
+            top_level.append(schema)
+
+    # Attach replies to parents
+    for c in all_comments:
+        if c.parent_comment_id and c.parent_comment_id in comments_by_id:
+            comments_by_id[c.parent_comment_id].replies.append(comments_by_id[c.id])
+
+    return top_level
+
+
+@router.post("/{strategy_id}/comments", status_code=status.HTTP_201_CREATED, response_model=StrategyCommentSchema)
+async def create_comment(
+    strategy_id: int,
+    request: CommentCreateRequest,
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Post a new comment or reply on a strategy discussion."""
+    if not request.content.strip():
+        raise HTTPException(status_code=400, detail="Comment cannot be empty")
+
+    # Verify strategy exists
+    strat = await db.execute(select(MarketplaceStrategy).where(MarketplaceStrategy.id == strategy_id))
+    if not strat.scalar_one_or_none():
+        raise HTTPException(status_code=404, detail="Strategy not found")
+
+    # If replying, verify parent comment exists and belongs to same strategy
+    if request.parent_comment_id:
+        parent = await db.execute(
+            select(StrategyComment).where(
+                StrategyComment.id == request.parent_comment_id,
+                StrategyComment.strategy_id == strategy_id,
+            )
+        )
+        if not parent.scalar_one_or_none():
+            raise HTTPException(status_code=404, detail="Parent comment not found")
+
+    comment = StrategyComment(
+        strategy_id=strategy_id,
+        user_id=current_user.id,
+        username=current_user.username or "Unknown",
+        content=request.content.strip(),
+        parent_comment_id=request.parent_comment_id,
+    )
+    db.add(comment)
+    await db.commit()
+    await db.refresh(comment)
+
+    return StrategyCommentSchema(
+        id=comment.id,
+        strategy_id=comment.strategy_id,
+        user_id=comment.user_id,
+        username=comment.username,
+        content=comment.content,
+        parent_comment_id=comment.parent_comment_id,
+        is_edited=False,
+        created_at=comment.created_at.isoformat() if comment.created_at else "",
+        replies=[],
+    )
+
+
+@router.put("/comments/{comment_id}", response_model=StrategyCommentSchema)
+async def update_comment(
+    comment_id: int,
+    request: CommentUpdateRequest,
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Edit own comment."""
+    result = await db.execute(select(StrategyComment).where(StrategyComment.id == comment_id))
+    comment = result.scalar_one_or_none()
+    if not comment:
+        raise HTTPException(status_code=404, detail="Comment not found")
+    if comment.user_id != current_user.id and not current_user.is_superuser:
+        raise HTTPException(status_code=403, detail="Can only edit your own comments")
+
+    comment.content = request.content.strip()
+    comment.is_edited = True
+    await db.commit()
+    await db.refresh(comment)
+
+    return StrategyCommentSchema(
+        id=comment.id,
+        strategy_id=comment.strategy_id,
+        user_id=comment.user_id,
+        username=comment.username,
+        content=comment.content,
+        parent_comment_id=comment.parent_comment_id,
+        is_edited=True,
+        created_at=comment.created_at.isoformat() if comment.created_at else "",
+        replies=[],
+    )
+
+
+@router.delete("/comments/{comment_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_comment(
+    comment_id: int,
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Delete own comment (or any comment if superuser)."""
+    result = await db.execute(select(StrategyComment).where(StrategyComment.id == comment_id))
+    comment = result.scalar_one_or_none()
+    if not comment:
+        raise HTTPException(status_code=404, detail="Comment not found")
+    if comment.user_id != current_user.id and not current_user.is_superuser:
+        raise HTTPException(status_code=403, detail="Can only delete your own comments")
+
+    await db.delete(comment)
+    await db.commit()

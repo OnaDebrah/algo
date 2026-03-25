@@ -20,6 +20,19 @@ from ...websockets.manager import ws_manager
 logger = logging.getLogger(__name__)
 
 
+def _safe_num(val, default=0):
+    """Convert to float, treating None/NaN/Inf as default."""
+    if val is None:
+        return default
+    try:
+        f = float(val)
+        if f != f or f == float("inf") or f == float("-inf"):
+            return default
+        return f
+    except (TypeError, ValueError):
+        return default
+
+
 router = APIRouter(prefix="/websocket", tags=["WebSocket"])
 
 
@@ -120,10 +133,10 @@ async def websocket_market_data(websocket: WebSocket, symbol: str, token: str = 
                 "type": "initial_data",
                 "symbol": symbol,
                 "data": {
-                    "price": quote.get("price", 0),
-                    "change": quote.get("change", 0),
-                    "changePct": quote.get("changePct", 0),
-                    "volume": quote.get("volume", 0),
+                    "price": _safe_num(quote.get("price")),
+                    "change": _safe_num(quote.get("change")),
+                    "changePct": _safe_num(quote.get("changePct")),
+                    "volume": _safe_num(quote.get("volume")),
                     "timestamp": datetime.now().isoformat(),
                 },
             },
@@ -141,10 +154,10 @@ async def websocket_market_data(websocket: WebSocket, symbol: str, token: str = 
                 "type": "market_update",
                 "symbol": symbol,
                 "data": {
-                    "price": quote.get("price", 0),
-                    "change": quote.get("change", 0),
-                    "changePct": quote.get("changePct", 0),
-                    "volume": quote.get("volume", 0),
+                    "price": _safe_num(quote.get("price")),
+                    "change": _safe_num(quote.get("change")),
+                    "changePct": _safe_num(quote.get("changePct")),
+                    "volume": _safe_num(quote.get("volume")),
                     "timestamp": datetime.now().isoformat(),
                 },
             }

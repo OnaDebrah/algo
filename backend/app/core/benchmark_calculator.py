@@ -87,7 +87,11 @@ class BenchmarkCalculator:
         }
 
     def calculate_multi_benchmark(
-        self, symbols: List[str], data_dict: Dict[str, pd.DataFrame], allocations: Dict[str, float] = None, commission_rate: float = DEFAULT_COMMISSION_RATE
+        self,
+        symbols: List[str],
+        data_dict: Dict[str, pd.DataFrame],
+        allocations: Dict[str, float] = None,
+        commission_rate: float = DEFAULT_COMMISSION_RATE,
     ) -> Dict:
         """
         Calculate buy-and-hold for a portfolio of assets

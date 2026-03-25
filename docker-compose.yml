@@ -132,6 +132,60 @@ services:
     depends_on:
       - fastapi
 
+  # ------------------------------
+  # Celery Flower (task monitoring)
+  # ------------------------------
+  flower:
+    build: ./backend
+    container_name: app_flower
+    command: celery -A app.celery_app flower --port=5555 --broker_api=redis://redis:6379/0
+    env_file:
+      - ./backend/.env
+    environment:
+      POSTGRES_HOST: postgres
+    ports:
+      - "5555:5555"
+    depends_on:
+      redis:
+        condition: service_healthy
+
+  # ------------------------------
+  # Prometheus (metrics collection)
+  # ------------------------------
+  prometheus:
+    image: prom/prometheus:v2.51.0
+    container_name: app_prometheus
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./monitoring/alert_rules.yml:/etc/prometheus/alert_rules.yml:ro
+      - prometheus_data:/prometheus
+    ports:
+      - "9090:9090"
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.retention.time=30d'
+    depends_on:
+      - fastapi
+
+  # ------------------------------
+  # Grafana (dashboards)
+  # ------------------------------
+  grafana:
+    image: grafana/grafana:10.4.1
+    container_name: app_grafana
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-oraculum}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    ports:
+      - "3001:3000"
+    depends_on:
+      - prometheus
+
 # ------------------------------
 # Volumes
 # ------------------------------
@@ -139,3 +193,5 @@ volumes:
   postgres_data:
   redis_data:
   cache_data:
+  prometheus_data:
+  grafana_data:

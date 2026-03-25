@@ -108,25 +108,31 @@ const AIAnalyst = () => {
                 const period = periodMap[timeframe] || '1mo';
                 const interval = intervalMap[timeframe] || '1d';
 
-                // Fetch stock data first, then benchmark sequentially to avoid rate limiting
-                const rawData: HistoricalDataPoint[] = await api.market.getHistorical(
-                    ticker, {period, interval}
-                ).catch((err) => {
+                // Fetch stock data first
+                let rawData: HistoricalDataPoint[] = [];
+                try {
+                    rawData = await api.market.getHistorical(ticker, {period, interval});
+                    if (!Array.isArray(rawData)) rawData = [];
+                } catch (err) {
                     console.warn(`[AIAnalyst] Historical data fetch failed for ${ticker}:`, err);
-                    return [] as HistoricalDataPoint[];
-                });
+                }
 
+                // Fetch benchmark (SPY) sequentially — small delay to avoid yfinance rate limiting
                 let rawBenchmark: HistoricalDataPoint[] = [];
                 if (ticker.toUpperCase() !== 'SPY' && rawData.length > 0) {
-                    rawBenchmark = await api.market.getHistorical(
-                        'SPY', {period, interval}
-                    ).catch((err) => {
+                    await new Promise(r => setTimeout(r, 300)); // brief delay for rate-limit safety
+                    try {
+                        rawBenchmark = await api.market.getHistorical('SPY', {period, interval});
+                        if (!Array.isArray(rawBenchmark)) rawBenchmark = [];
+                    } catch (err) {
                         console.warn('[AIAnalyst] Benchmark (SPY) fetch failed:', err);
-                        return [] as HistoricalDataPoint[];
-                    });
+                    }
                 }
 
                 console.log(`[AIAnalyst] ${ticker} data: ${rawData.length} pts, SPY benchmark: ${rawBenchmark.length} pts`);
+                if (rawBenchmark.length > 0) {
+                    console.log('[AIAnalyst] First benchmark item:', JSON.stringify(rawBenchmark[0]));
+                }
 
                 if (rawData.length > 0) {
                     const stockStart = Number(rawData[0]?.close) || 1;
@@ -194,6 +200,11 @@ const AIAnalyst = () => {
                         };
                     });
 
+                    const benchCount = formattedData.filter(d => d.benchmark !== undefined && d.benchmark !== null).length;
+                    console.log(`[AIAnalyst] Final chart data: ${formattedData.length} pts, ${benchCount} with benchmark values`);
+                    if (formattedData.length > 0) {
+                        console.log('[AIAnalyst] Sample point:', JSON.stringify(formattedData[0]));
+                    }
                     setPriceData(formattedData);
                 } else {
                     console.warn('[AIAnalyst] No historical data returned for', ticker, 'period:', period, 'interval:', interval);

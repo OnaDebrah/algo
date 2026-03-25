@@ -69,6 +69,7 @@ const MLStudio = () => {
     const [showAdvanced, setShowAdvanced] = useState(false);
     const [isDeploying, setIsDeploying] = useState(false);
     const [isLoadingModels, setIsLoadingModels] = useState(true);
+    const [loadError, setLoadError] = useState<string | null>(null);
 
     const [activeTab, setActiveTab] = useState<'train' | 'builder' | 'registry' | 'deployed'>('train');
     const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
@@ -100,14 +101,10 @@ const MLStudio = () => {
 
     const fetchModels = async () => {
         setIsLoadingModels(true);
+        setLoadError(null);
         try {
             const response = await mlstudio.getModels();
             if (response) {
-                // Map backend snake_case to frontend camelCase if needed,
-                // but our api.ts defines camelCase for fields that come as snake_case from Pydantic
-                // The API needs to return matching keys or we need to map them here.
-                // Assuming Pydantic v2 or aliasing works, or we map manually.
-                // Let's assume manual mapping for safety given the previous schema.
                 const mappedModels = response.map((m: MLModel) => ({
                     ...m,
                     testAccuracy: m.test_accuracy,
@@ -125,8 +122,9 @@ const MLStudio = () => {
                     setActiveModelId(mappedModels[0].id);
                 }
             }
-        } catch (err) {
+        } catch (err: any) {
             console.error("Failed to fetch models:", err);
+            setLoadError(err?.message || 'Failed to load models. Please try again.');
         } finally {
             setIsLoadingModels(false);
         }
@@ -924,7 +922,12 @@ const MLStudio = () => {
                         </div>
 
                         {/* Quick Stats */}
-                        {isLoadingModels ? (
+                        {loadError ? (
+                            <div className="bg-red-500/10 border border-red-500/30 p-4 rounded-2xl text-center">
+                                <p className="text-red-400 text-sm mb-2">{loadError}</p>
+                                <button onClick={fetchModels} className="text-xs text-violet-400 hover:text-violet-300">Retry</button>
+                            </div>
+                        ) : isLoadingModels ? (
                             <div className="bg-slate-900 p-6 rounded-2xl flex justify-center">
                                 <Loader2 className="animate-spin text-slate-500"/>
                             </div>

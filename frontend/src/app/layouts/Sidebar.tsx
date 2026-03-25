@@ -5,6 +5,7 @@ import {
     Activity,
     Banknote,
     BarChart3,
+    Bitcoin,
     BookOpen,
     ChevronDown,
     Cpu,
@@ -48,6 +49,7 @@ const Sidebar = ({currentPage, setCurrentPage, user, onLogout}: any) => {
                 {id: 'crash-prediction', icon: Shield, label: 'Crash Prediction'},
                 {id: 'analyst', icon: Activity, label: 'Deep Analyst'},
                 {id: 'sector-scanner', icon: Target, label: 'Sector Scanner'},
+                {id: 'crypto', icon: Bitcoin, label: 'Crypto Markets'},
                 {id: 'economic-calendar', icon: Activity, label: 'Economic Calendar'}
             ]
         },
@@ -65,7 +67,8 @@ const Sidebar = ({currentPage, setCurrentPage, user, onLogout}: any) => {
             title: 'BUILD',
             items: [
                 {id: 'ml-studio', icon: Cpu, label: 'ML Strategy Studio'},
-                {id: 'strategy-builder', icon: Target, label: 'Strategy Builder'}
+                {id: 'strategy-builder', icon: Target, label: 'Strategy Builder'},
+                {id: 'research', icon: BookOpen, label: 'Research Lab'}
             ]
         }
     ];
@@ -74,6 +77,7 @@ const Sidebar = ({currentPage, setCurrentPage, user, onLogout}: any) => {
         {id: 'marketplace', icon: Package, label: 'Marketplace'},
         {id: 'leaderboard', icon: Trophy, label: 'Leaderboard'},
         {id: 'teams', icon: Users, label: 'Teams'},
+        {id: 'getting-started', icon: BookOpen, label: 'Getting Started'},
     ];
 
     const toggleSection = (sectionTitle: string) => {

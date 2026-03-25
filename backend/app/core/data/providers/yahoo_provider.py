@@ -1,10 +1,12 @@
 import logging
+import time
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
 import pandas as pd
 
 from ....config import settings
+from ....core.metrics import yfinance_request_duration_seconds, yfinance_requests_total
 from ..providers.base_provider import (
     DataProvider,
     FundamentalsProvider,
@@ -15,6 +17,21 @@ from ..providers.base_provider import (
 )
 
 logger = logging.getLogger(__name__)
+
+
+def _safe_num(val: Any, default: float = 0.0) -> float:
+    """Convert a value to a safe float, treating None/NaN/Inf as default."""
+    if val is None:
+        return default
+    try:
+        f = float(val)
+        if not (f == f):  # NaN check (faster than math.isnan)
+            return default
+        if f == float("inf") or f == float("-inf"):
+            return default
+        return f
+    except (TypeError, ValueError):
+        return default
 
 
 class YahooProvider(
@@ -59,6 +76,11 @@ class YahooProvider(
                 logger.warning(f"YahooProvider: Ticker method failed for {symbol}, trying download method")
                 data = yf.download(symbol, start=start, end=end, period=use_period, interval=interval, progress=False)
 
+                # yfinance >= 0.2.31 returns MultiIndex columns from download().
+                # Flatten to simple column names so downstream code can use data["Close"].
+                if not data.empty and isinstance(data.columns, pd.MultiIndex):
+                    data.columns = data.columns.get_level_values(0)
+
             if not data.empty:
                 logger.info(f"YahooProvider: Fetched {len(data)} bars for {symbol}")
 
@@ -72,6 +94,7 @@ class YahooProvider(
 
     def get_quote(self, symbol: str) -> Dict:
         """Get real-time quote data for a symbol."""
+        t0 = time.monotonic()
         try:
             import yfinance as yf
 
@@ -81,38 +104,43 @@ class YahooProvider(
             # Get fast info for real-time data
             try:
                 fast_info = ticker.fast_info
-                current_price = fast_info.last_price or info.get("currentPrice") or 0
-                previous_close = fast_info.previous_close or info.get("previousClose") or 0
+                current_price = _safe_num(fast_info.last_price) or _safe_num(info.get("currentPrice"))
+                previous_close = _safe_num(fast_info.previous_close) or _safe_num(info.get("previousClose"))
             except Exception as e:
                 logger.error(f"Failed to get quote for {symbol}: {e}")
-                current_price = info.get("currentPrice", 0)
-                previous_close = info.get("previousClose", 0)
+                current_price = _safe_num(info.get("currentPrice"))
+                previous_close = _safe_num(info.get("previousClose"))
 
-            change = current_price - previous_close if current_price and previous_close else 0
-            change_pct = ((change / previous_close) * 100) if previous_close else 0
+            change = current_price - previous_close if current_price and previous_close else 0.0
+            change_pct = ((change / previous_close) * 100) if previous_close else 0.0
 
-            return {
+            result = {
                 "symbol": symbol,
                 "price": current_price,
                 "change": change,
                 "changePercent": change_pct,
-                "volume": info.get("volume", 0),
-                "marketCap": info.get("marketCap", 0),
-                "high": info.get("dayHigh", 0),
-                "low": info.get("dayLow", 0),
-                "open": info.get("open", 0),
+                "volume": _safe_num(info.get("volume")),
+                "marketCap": _safe_num(info.get("marketCap")),
+                "high": _safe_num(info.get("dayHigh")),
+                "low": _safe_num(info.get("dayLow")),
+                "open": _safe_num(info.get("open")),
                 "previousClose": previous_close,
-                "bid": info.get("bid", 0),
-                "ask": info.get("ask", 0),
-                "bidSize": info.get("bidSize", 0),
-                "askSize": info.get("askSize", 0),
-                "fiftyTwoWeekHigh": info.get("fiftyTwoWeekHigh", 0),
-                "fiftyTwoWeekLow": info.get("fiftyTwoWeekLow", 0),
-                "avgVolume": info.get("averageVolume", 0),
+                "bid": _safe_num(info.get("bid")),
+                "ask": _safe_num(info.get("ask")),
+                "bidSize": _safe_num(info.get("bidSize")),
+                "askSize": _safe_num(info.get("askSize")),
+                "fiftyTwoWeekHigh": _safe_num(info.get("fiftyTwoWeekHigh")),
+                "fiftyTwoWeekLow": _safe_num(info.get("fiftyTwoWeekLow")),
+                "avgVolume": _safe_num(info.get("averageVolume")),
                 "timestamp": datetime.now().isoformat(),
             }
+            yfinance_requests_total.labels(endpoint="quote", status="success").inc()
+            yfinance_request_duration_seconds.labels(endpoint="quote").observe(time.monotonic() - t0)
+            return result
 
         except Exception as e:
+            yfinance_requests_total.labels(endpoint="quote", status="error").inc()
+            yfinance_request_duration_seconds.labels(endpoint="quote").observe(time.monotonic() - t0)
             logger.error(f"YahooProvider: Error fetching quote for {symbol}: {e}")
             return {"symbol": symbol, "price": 0, "error": str(e)}
 

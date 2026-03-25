@@ -108,6 +108,22 @@ class StrategyDownload(Base):
     downloaded_at = Column(DateTime, server_default=func.now())
 
 
+class StrategyComment(Base):
+    """Threaded discussion comments on marketplace strategies."""
+
+    __tablename__ = "strategy_comments"
+
+    id = Column(Integer, primary_key=True, index=True)
+    strategy_id = Column(Integer, ForeignKey("marketplace_strategies.id", ondelete="CASCADE"), nullable=False, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    username = Column(String(100), nullable=False)
+    content = Column(Text, nullable=False)
+    parent_comment_id = Column(Integer, ForeignKey("strategy_comments.id", ondelete="CASCADE"), nullable=True)
+    is_edited = Column(Boolean, default=False)
+    created_at = Column(DateTime, server_default=func.now())
+    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
+
+
 class StrategyPurchase(Base):
     __tablename__ = "strategy_purchases"
     id = Column(Integer, primary_key=True)

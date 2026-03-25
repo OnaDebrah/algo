@@ -12,7 +12,7 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ...api.deps import get_current_active_user, get_db
-from ...config import settings
+from ...config import BASIC, ENTERPRISE, FREE, PRO, settings
 from ...core.permissions import is_promo_active
 from ...models.user import User
 from ...services.quota_service import QuotaService
@@ -25,7 +25,7 @@ router = APIRouter(prefix="/pricing", tags=["Pricing"])
 TIER_DEFINITIONS = [
     {
         "tier": "FREE",
-        "price": 0,
+        "price": FREE,
         "label": "Free",
         "backtest_limit": settings.BACKTEST_LIMIT_FREE,
         "features": [
@@ -37,7 +37,7 @@ TIER_DEFINITIONS = [
     },
     {
         "tier": "BASIC",
-        "price": 19,
+        "price": BASIC,
         "label": "Basic",
         "backtest_limit": settings.BACKTEST_LIMIT_BASIC,
         "features": [
@@ -50,7 +50,7 @@ TIER_DEFINITIONS = [
     },
     {
         "tier": "PRO",
-        "price": 49,
+        "price": PRO,
         "label": "Pro",
         "backtest_limit": settings.BACKTEST_LIMIT_PRO,
         "features": [
@@ -64,7 +64,7 @@ TIER_DEFINITIONS = [
     },
     {
         "tier": "ENTERPRISE",
-        "price": 149,
+        "price": ENTERPRISE,
         "label": "Enterprise",
         "backtest_limit": None,
         "features": [

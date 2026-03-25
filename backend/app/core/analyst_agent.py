@@ -242,9 +242,17 @@ class FinancialAnalystAgent:
         info = data.get("info", {})
 
         def _safe(key: str, default: float = 0) -> float:
-            """Get numeric value from info, treating None as default."""
+            """Get numeric value from info, treating None/NaN/Inf as default."""
             val = info.get(key)
-            return float(val) if val is not None else default
+            if val is None:
+                return default
+            try:
+                f = float(val)
+                if f != f or f == float("inf") or f == float("-inf"):
+                    return default
+                return f
+            except (TypeError, ValueError):
+                return default
 
         try:
             return {

@@ -83,7 +83,13 @@ class PriceAlertService:
             for symbol, alerts in alerts_by_symbol.items():
                 try:
                     quote = await provider.get_quote(symbol)
-                    current_price = quote.get("price", 0)
+                    raw_price = quote.get("price", 0)
+                    try:
+                        current_price = float(raw_price) if raw_price is not None else 0
+                        if current_price != current_price:  # NaN check
+                            current_price = 0
+                    except (TypeError, ValueError):
+                        current_price = 0
 
                     if current_price <= 0:
                         continue
